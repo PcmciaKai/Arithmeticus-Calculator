@@ -60,7 +60,9 @@ class UnitsTest {
     @Test
     fun customaryInputConvertsExactlyToMetric() {
         assertResult("0.9144m", calc(ms(n("3"), u("ft"))))
-        assertResult("7.570823568L", calc(ms(n("2"), u("gal"))))
+        assertResult("0.007570823568m³", calc(ms(n("2"), u("gal"))))
+        // Litres on request
+        assertResult("7.570823568L", calc(ms(n("2"), u("gal"), OperatorNode(MathOp.CONVERT), u("L"))))
         // Imperial and US gallons differ
         assertResult("2gal", calc(ms(n("2"), u("gal")), UnitSystem.US_CUSTOMARY))
         assertEquals(2 * 3.785411784 / 4.54609, calc(ms(n("2"), u("gal")), UnitSystem.IMPERIAL).numericValue, 1e-9)
@@ -85,7 +87,8 @@ class UnitsTest {
     fun temperaturesUseTheSystemsScale() {
         assertResult("68°F", calc(ms(n("20"), u("°C")), UnitSystem.IMPERIAL))
         assertResult("100°C", calc(ms(n("373.15"), u("K"))))
-        assertResult("30°C", calc(ms(n("20"), u("°C"), op(MathOp.PLUS), n("50"), u("°F"))))
+        // Two absolute temperatures add up in kelvin: 293.15 K + 283.15 K = 576.3 K
+        assertResult("303.15°C", calc(ms(n("20"), u("°C"), op(MathOp.PLUS), n("50"), u("°F"))))
     }
 
     @Test
@@ -155,5 +158,77 @@ class UnitsTest {
         assertResult("293.15K", calc(ms(n("68"), u("°F")), UnitSystem.IMPERIAL, kelvin = true))
         // An explicit conversion still wins
         assertResult("20°C", calc(ms(n("293.15"), u("K"), to, u("°C")), kelvin = true))
+    }
+
+    @Test
+    fun idealGasLawWithCelsiusAndGasConstant() {
+        // (2 mol · R · 25 °C) / 1.013 bar ≈ 48.94 L, the example that exposed the bugs
+        val input = ms(frac(
+            ms(n("2"), u("mol"), op(MathOp.MULTIPLY), ConstantNode("R"), op(MathOp.MULTIPLY), n("25"), u("°C")),
+            ms(n("1.013"), u("bar"))
+        ))
+        val res = calc(input)
+        assertTrue(res.issues.toString(), res.isSuccess)
+        assertEquals("m³", res.unit.toString())
+        assertEquals(2 * 8.31446261815324 * 298.15 / 101300, res.numericValue, 1e-12)
+    }
+
+    @Test
+    fun physicalConstantsCarryUnits() {
+        val r = calc(ms(ConstantNode("R")))
+        assertEquals(8.31446261815324, r.numericValue, 1e-15)
+        // J/(mol·K); the order of the factors in the denominator does not matter
+        assertTrue(r.unit.toString(), r.unit.toString() in setOf("(J)/(molK)", "(J)/(Kmol)"))
+        // m_e · c² is an energy
+        val energy = calc(ms(ConstantNode("m_e"), op(MathOp.MULTIPLY), ExponentNode(ms(ConstantNode("c")), ms(n("2")))))
+        assertEquals("J", energy.unit.toString())
+        assertEquals(8.1871057769e-14, energy.numericValue, 1e-22)
+    }
+
+    @Test
+    fun temperatureDifferencesAndOffsets() {
+        assertResult("60Δ°C", calc(ms(n("80"), u("°C"), op(MathOp.MINUS), n("20"), u("°C"))))
+        assertResult("108Δ°F", calc(ms(n("80"), u("°C"), op(MathOp.MINUS), n("20"), u("°C")), UnitSystem.IMPERIAL))
+        assertResult("60K", calc(ms(n("80"), u("°C"), op(MathOp.MINUS), n("20"), u("°C")), kelvin = true))
+        // 50 °F = 10 °C, so the difference is 70 Δ°C (the sign is applied after the offset)
+        assertResult("70Δ°C", calc(ms(n("80"), u("°C"), op(MathOp.MINUS), n("50"), u("°F"))))
+        // Temperature plus a difference stays a temperature
+        assertResult("25°C", calc(ms(n("20"), u("°C"), op(MathOp.PLUS), n("5"), u("K"))))
+        assertResult("25°C", calc(ms(n("20"), u("°C"), op(MathOp.PLUS), n("5"), u("Δ°C"))))
+        // Averages of temperatures work
+        val average = ms(frac(ms(n("20"), u("°C"), op(MathOp.PLUS), n("30"), u("°C")), ms(n("2"))))
+        assertResult("25°C", calc(average))
+        // Negative temperatures stay temperatures
+        assertEquals(-5.0, calc(ms(op(MathOp.MINUS), n("5"), u("°C"))).numericValue, 1e-12)
+        assertResult("268.15K", calc(ms(op(MathOp.MINUS), n("5"), u("°C")), kelvin = true))
+        // 1/T uses the absolute temperature
+        val inverse = calc(ms(frac(ms(n("1")), ms(n("25"), u("°C")))))
+        assertEquals(1 / 298.15, inverse.numericValue, 1e-15)
+    }
+
+    @Test
+    fun compoundResultsUseANamedUnitWherePossible() {
+        // J·s instead of kg·m²/s
+        val action = calc(ms(n("3"), u("J"), op(MathOp.MULTIPLY), n("2"), u("s")))
+        assertEquals("Js", action.unit.toString())
+        // Molar volume in m³/mol
+        val molarVolume = calc(ms(frac(ms(n("22.4"), u("L")), ms(n("1"), u("mol")))))
+        assertEquals("(m³)/(mol)", molarVolume.unit.toString())
+        assertEquals(0.0224, molarVolume.numericValue, 1e-15)
+    }
+
+    @Test
+    fun unitPowersWorkInNumericMode() {
+        // Numeric mode used to reject m², 1/K and therefore R's J/(mol·K)
+        val gasLaw = ms(frac(
+            ms(n("2"), u("mol"), op(MathOp.MULTIPLY), ConstantNode("R"), op(MathOp.MULTIPLY), n("25"), u("°C")),
+            ms(n("1.013"), u("bar"))
+        ))
+        val res = runBlocking {
+            MathEngine.calculate(gasLaw, MathContext(mode = com.vortessence.calculator.core.math.context.CalculationMode.NUMERIC))
+        }
+        assertTrue(res.issues.toString(), res.isSuccess)
+        assertEquals("m³", res.unit.toString())
+        assertEquals(2 * 8.31446261815324 * 298.15 / 101300, res.numericValue, 1e-12)
     }
 }

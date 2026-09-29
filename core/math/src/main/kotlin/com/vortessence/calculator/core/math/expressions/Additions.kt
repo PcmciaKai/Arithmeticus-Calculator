@@ -25,6 +25,11 @@ class Additions(val operands: List<Expression>) : Expression() {
         if (flattened.isEmpty()) return Value.ZERO
         if (flattened.size == 1) return flattened[0]
 
+        // Absolute temperatures need their own rules (offsets, differences)
+        if (flattened.any { it.absoluteTemperatureUnit() != null }) {
+            return combineTemperatureTerms(flattened, context) ?: this
+        }
+
         // Check for unit unification
         val unitTerms = flattened.mapNotNull { it.partWithUnit() }
         if (unitTerms.isNotEmpty()) {

@@ -10,16 +10,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vortessence.calculator.core.math.context.AngleUnit
-import com.vortessence.calculator.core.math.context.CalculationMode
 import com.vortessence.calculator.core.math.context.UnitSystem
 
 @Composable
 fun SettingsDialog(
-    mode: CalculationMode,
     angleUnit: AngleUnit,
     unitSystem: UnitSystem,
     temperatureInKelvin: Boolean,
-    onToggleMode: () -> Unit,
     onToggleAngleUnit: () -> Unit,
     onUnitSystemChange: (UnitSystem) -> Unit,
     onTemperatureInKelvinChange: (Boolean) -> Unit,
@@ -37,29 +34,6 @@ fun SettingsDialog(
                     .padding(vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Calculation Mode
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text("Calculation Mode", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                        Text(
-                            if (mode == CalculationMode.EXACT) "Exact (fractions & radicals)" else "Numeric (decimal)",
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    FilterChip(
-                        selected = mode == CalculationMode.EXACT,
-                        onClick = onToggleMode,
-                        label = { Text(if (mode == CalculationMode.EXACT) "Exact" else "Numeric") }
-                    )
-                }
-
-                HorizontalDivider()
-
                 // Angle Unit
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -149,7 +123,7 @@ fun SettingsDialog(
 }
 
 private fun unitSystemDescription(system: UnitSystem): String = when (system) {
-    UnitSystem.METRIC -> "SI units: m, kg, L, N, Pa, J, °C, …"
+    UnitSystem.METRIC -> "SI units: m, kg, m³, N, Pa, J, °C, …"
     UnitSystem.IMPERIAL -> "British imperial: ft, lb, imperial gallon, psi, °F, …"
     UnitSystem.US_CUSTOMARY -> "US customary: ft, lb, US gallon, psi, °F, …"
 }

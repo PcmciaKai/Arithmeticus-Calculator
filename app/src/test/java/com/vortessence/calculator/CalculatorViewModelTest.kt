@@ -696,4 +696,27 @@ class CalculatorViewModelTest {
         vm.selectTokenAt(emptyList(), 0)
         assertEquals(0..2, vm.uiState.value.selectionRange)
     }
+
+    @Test
+    fun testCommittedResultUsesChosenFormButAnsStaysExact() = runBlocking {
+        val vm = newViewModel()
+        vm.setResultForm(com.vortessence.calculator.core.math.type.ResultForm.DECIMAL)
+        // 1 ÷ 3, committed while "Decimal" is selected
+        vm.type("1", "÷", "3")
+        vm.onKeyAction(KeyAction.Enter)
+        vm.awaitCommit()
+
+        val entry = vm.uiState.value.history.single()
+        assertEquals(com.vortessence.calculator.core.math.type.ResultForm.DECIMAL, entry.form)
+        assertEquals(
+            "0.3333333333",
+            com.vortessence.calculator.core.math.type.ResultFormatter.format(entry.calculation, entry.form).toString()
+        )
+
+        // Ans reuses the exact 1/3, so Ans × 3 is exactly 1
+        vm.onKeyAction(KeyAction.Ans)
+        vm.type("×", "3")
+        vm.awaitLiveResult()
+        assertEquals("1", vm.uiState.value.result!!.result.toString())
+    }
 }

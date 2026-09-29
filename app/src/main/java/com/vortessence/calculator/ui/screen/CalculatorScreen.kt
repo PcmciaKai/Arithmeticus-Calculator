@@ -24,6 +24,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.vortessence.calculator.core.math.CalculationResult
 import com.vortessence.calculator.core.math.context.MathIssue
+import com.vortessence.calculator.core.math.type.ResultForm
+import com.vortessence.calculator.core.math.type.ResultFormatter
 import com.vortessence.calculator.ui.dialogs.ConstantsDialog
 import com.vortessence.calculator.ui.dialogs.UnitsDialog
 import com.vortessence.calculator.ui.graph.GraphPlotterView
@@ -31,12 +33,10 @@ import com.vortessence.calculator.ui.keypad.CalculatorKeypad
 import com.vortessence.calculator.ui.math.MathEditor
 import com.vortessence.calculator.ui.math.MathExpressionView
 import androidx.compose.ui.tooling.preview.Preview
-import com.vortessence.calculator.core.math.expressions.Value
 import com.vortessence.calculator.ui.dialogs.SettingsDialog
 import com.vortessence.calculator.ui.theme.AccentRed
 import com.vortessence.calculator.ui.theme.ArchimedesTheme
 import com.vortessence.calculator.viewmodel.CalculatorViewModel
-import java.util.Locale
 
 @Composable
 fun CalculatorScreen(
@@ -55,8 +55,6 @@ fun CalculatorScreen(
         return
     }
 
-    // The chosen answer form stays selected while the live result updates during typing
-    var answerForm by rememberSaveable { mutableStateOf(AnswerForm.EXACT) }
     // The unit picker reopens on the category used last
     var unitCategory by rememberSaveable { mutableIntStateOf(0) }
 
@@ -84,6 +82,7 @@ fun CalculatorScreen(
                     ) {
                         HistoryItemCard(
                             item = entry.calculation,
+                            form = entry.form,
                             onInputClick = { viewModel.selectHistoryItem(entry.calculation) },
                             onResultClick = { viewModel.useResultAsInput(entry.calculation) }
                         )
@@ -114,8 +113,8 @@ fun CalculatorScreen(
                     LiveResultView(
                         result = uiState.result,
                         showError = uiState.showResultError,
-                        answerForm = answerForm,
-                        onAnswerFormChange = { answerForm = it }
+                        form = uiState.resultForm,
+                        onFormChange = { viewModel.setResultForm(it) }
                     )
                 }
             }
@@ -150,11 +149,9 @@ fun CalculatorScreen(
     // Settings Dialog
     if (uiState.showSettingsDialog) {
         SettingsDialog(
-            mode = uiState.mode,
             angleUnit = uiState.angleUnit,
             unitSystem = uiState.unitSystem,
             temperatureInKelvin = uiState.temperatureInKelvin,
-            onToggleMode = { viewModel.toggleMode() },
             onToggleAngleUnit = { viewModel.toggleAngleUnit() },
             onUnitSystemChange = { viewModel.setUnitSystem(it) },
             onTemperatureInKelvinChange = { viewModel.setTemperatureInKelvin(it) },
@@ -163,21 +160,20 @@ fun CalculatorScreen(
     }
 }
 
-enum class AnswerForm { EXACT, DECIMAL, SCIENTIFIC, MIXED }
-
 /** Fraction of an item's width it must be swiped to be deleted. */
 private const val SWIPE_TO_DELETE_THRESHOLD = 0.5f
 
 /**
- * The result of the line being typed. Incomplete input (e.g. "2 +") shows nothing rather than
- * an error, unless the user tried to commit it with Enter.
+ * The result of the line being typed, in the chosen [form] (with pills to change it).
+ * Incomplete input (e.g. "2 +") shows nothing rather than an error, unless the user tried to
+ * commit it with Enter.
  */
 @Composable
 private fun LiveResultView(
     result: CalculationResult?,
     showError: Boolean,
-    answerForm: AnswerForm,
-    onAnswerFormChange: (AnswerForm) -> Unit,
+    form: ResultForm,
+    onFormChange: (ResultForm) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -200,27 +196,18 @@ private fun LiveResultView(
             return@Box
         }
 
-        val rational = (result.expression as? Value)?.rational
-        val hasMixedForm = rational != null && rational.isFractional && rational.numerator.abs() > rational.denominator
-        val hasNumericForms = result.numericValue.isFinite()
-        // Fall back to the exact form if the chosen form does not apply to this result
-        val form = when {
-            answerForm == AnswerForm.MIXED && !hasMixedForm -> AnswerForm.EXACT
-            answerForm != AnswerForm.EXACT && !hasNumericForms -> AnswerForm.EXACT
-            else -> answerForm
-        }
+        val forms = ResultFormatter.availableForms(result)
+        // The form actually shown: the chosen one, or exact if it does not apply here
+        val shownForm = if (form in forms) form else ResultForm.EXACT
 
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            if (hasNumericForms) {
-                AnswerPill("Exact", form == AnswerForm.EXACT) { onAnswerFormChange(AnswerForm.EXACT) }
-                AnswerPill("Decimal", form == AnswerForm.DECIMAL) { onAnswerFormChange(AnswerForm.DECIMAL) }
-                AnswerPill("Sci", form == AnswerForm.SCIENTIFIC) { onAnswerFormChange(AnswerForm.SCIENTIFIC) }
-                if (hasMixedForm) {
-                    AnswerPill("Mixed", form == AnswerForm.MIXED) { onAnswerFormChange(AnswerForm.MIXED) }
+            if (forms.size > 1) {
+                forms.forEach { option ->
+                    AnswerPill(option.label, shownForm == option) { onFormChange(option) }
                 }
             }
             Spacer(modifier = Modifier.weight(1f))
@@ -234,52 +221,23 @@ private fun LiveResultView(
                     fontWeight = FontWeight.Light,
                     color = MaterialTheme.colorScheme.primary
                 )
-                when (form) {
-                    AnswerForm.EXACT -> MathExpressionView(
-                        mathString = result.result,
-                        fontSize = 24.sp,
-                        textColor = MaterialTheme.colorScheme.onBackground
-                    )
-                    AnswerForm.DECIMAL -> {
-                        ResultText(String.format(Locale.US, "%.10g", result.numericValue))
-                        ResultUnit(result)
-                    }
-                    AnswerForm.SCIENTIFIC -> {
-                        ResultText(String.format(Locale.US, "%.8e", result.numericValue))
-                        ResultUnit(result)
-                    }
-                    AnswerForm.MIXED -> {
-                        val r = rational!!
-                        val whole = r.numerator / r.denominator
-                        val rem = (r.numerator % r.denominator).abs()
-                        ResultText("$whole  $rem/${r.denominator}")
-                    }
-                }
+                MathExpressionView(
+                    mathString = ResultFormatter.format(result, shownForm),
+                    fontSize = 24.sp,
+                    textColor = MaterialTheme.colorScheme.onBackground
+                )
             }
         }
     }
 }
 
-/** The unit of a quantity result, shown after the number in the Decimal and Sci forms. */
-@Composable
-private fun ResultUnit(result: CalculationResult) {
-    val unit = result.unit ?: return
-    MathExpressionView(
-        mathString = unit,
-        fontSize = 24.sp,
-        textColor = MaterialTheme.colorScheme.onBackground
-    )
-}
-
-@Composable
-private fun ResultText(text: String) {
-    Text(
-        text = text,
-        fontSize = 24.sp,
-        fontWeight = FontWeight.Normal,
-        color = MaterialTheme.colorScheme.onBackground
-    )
-}
+private val ResultForm.label: String
+    get() = when (this) {
+        ResultForm.EXACT -> "Exact"
+        ResultForm.DECIMAL -> "Decimal"
+        ResultForm.SCIENTIFIC -> "Sci"
+        ResultForm.MIXED -> "Mixed"
+    }
 
 @Composable
 private fun AnswerPill(text: String, selected: Boolean, onClick: () -> Unit) {
@@ -350,6 +308,7 @@ private fun SwipeToDeleteBox(
 @Composable
 private fun HistoryItemCard(
     item: CalculationResult,
+    form: ResultForm,
     onInputClick: () -> Unit,
     onResultClick: () -> Unit
 ) {
@@ -393,7 +352,8 @@ private fun HistoryItemCard(
                         color = MaterialTheme.colorScheme.primary
                     )
                     MathExpressionView(
-                        mathString = item.result,
+                        // Shown as chosen when committed; tapping it still reuses the exact value
+                        mathString = ResultFormatter.format(item, form),
                         fontSize = 22.sp,
                         textColor = MaterialTheme.colorScheme.onBackground
                     )

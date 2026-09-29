@@ -227,10 +227,10 @@ class MathEngineRegressionTest {
             .convertToUnit(UnitRegistry.K, includeUnitInResult = false, context = MathContext())
         assertEquals(273.15, kelvin!!.evaluateNumerically(), 1e-12)
 
-        // 20 °C + 50 °F (= 10 °C) = 30 °C
-        val sum = calc(ms(n("20"), UnitNode("°C"), op(MathOp.PLUS), n("50"), UnitNode("°F")))
-        assertSuccess(sum)
-        assertEquals("30°C", sum.result.toString())
+        // 20 °C − 50 °F (= 10 °C) is a difference of 10 Δ°C
+        val difference = calc(ms(n("20"), UnitNode("°C"), op(MathOp.MINUS), n("50"), UnitNode("°F")))
+        assertSuccess(difference)
+        assertEquals("10Δ°C", difference.result.toString())
     }
 
     @Test

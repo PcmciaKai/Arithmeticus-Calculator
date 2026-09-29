@@ -59,6 +59,13 @@ class MathParser {
                         number = Multiplications.of(number, Power.of(Value(10L), parseSlot(sci.exponent)))
                         i++
                     }
+                    // Units right after the number belong to it: "25 °C" is one quantity
+                    val units = mutableListOf<Expression>()
+                    while (i < nodes.size && isUnitNode(nodes[i])) {
+                        units.add(parseUnitNode(nodes[i]))
+                        i++
+                    }
+                    if (units.isNotEmpty()) number = Multiplications.of(number, *units.toTypedArray())
                     tokens.add(Token.ValueToken(number))
                     continue
                 }
@@ -75,13 +82,7 @@ class MathParser {
                     }
                     tokens.add(Token.ValueToken(constant))
                 }
-                is UnitNode -> {
-                    val unit = UnitRegistry.findBySymbol(node.symbol) ?: run {
-                        MathContext.current().stopWithError(MathIssue.INVALID_UNIT)
-                        Value.ONE
-                    }
-                    tokens.add(Token.ValueToken(unit))
-                }
+                is UnitNode -> tokens.add(Token.ValueToken(parseUnitNode(node)))
                 is FractionNode -> {
                     val numExpr = parseSlot(node.numerator)
                     val denExpr = parseSlot(node.denominator)
@@ -164,6 +165,21 @@ class MathParser {
             result.add(curr)
         }
         return result
+    }
+
+    /** A unit, or a unit raised to a power (m², typed as m with the power key). */
+    private fun isUnitNode(node: MathNode): Boolean =
+        node is UnitNode || (node is ExponentNode && node.base?.let { base ->
+            base.isNotEmpty && base.nodes.all { it is UnitNode }
+        } == true)
+
+    private fun parseUnitNode(node: MathNode): Expression = when (node) {
+        is UnitNode -> UnitRegistry.findBySymbol(node.symbol) ?: run {
+            MathContext.current().stopWithError(MathIssue.INVALID_UNIT)
+            Value.ONE
+        }
+        is ExponentNode -> Power.of(parse(node.base!!), parseSlot(node.exponent))
+        else -> error("not a unit node")
     }
 
     /**

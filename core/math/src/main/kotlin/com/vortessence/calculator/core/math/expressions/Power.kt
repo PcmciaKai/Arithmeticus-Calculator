@@ -30,6 +30,12 @@ class Power(
 
         if (cExp.isZero) return Value.ONE
         if (cExp == Value.ONE) return cBase
+        // Powers of an absolute temperature use kelvin: 1/(25 °C) is 1/(298.15 K)
+        val baseTemperatureUnit = cBase.absoluteTemperatureUnit()
+        if (baseTemperatureUnit != null && baseTemperatureUnit != UnitRegistry.K) {
+            val inKelvin = cBase.convertToUnit(UnitRegistry.K, includeUnitInResult = true, context = context) ?: return this
+            return Power(inKelvin, cExp).canonicalize(context)
+        }
         if (cBase == Value.ONE) return Value.ONE
         if (cBase.isZero && cExp.isNegative) {
             context.stopWithError(MathIssue.DIVISION_BY_ZERO)

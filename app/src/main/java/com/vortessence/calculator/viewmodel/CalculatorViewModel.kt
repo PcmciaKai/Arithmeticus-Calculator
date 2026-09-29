@@ -34,7 +34,11 @@ data class CalculatorUiState(
     val showResultError: Boolean = false,
     /** Committed calculations, newest first. */
     val history: List<HistoryEntry> = emptyList(),
-    val mode: CalculationMode = CalculationMode.EXACT,
+    /**
+     * How results are shown (exact, decimal, ...), for the live result and for calculations
+     * committed with Enter. Calculations themselves are always exact.
+     */
+    val resultForm: ResultForm = ResultForm.EXACT,
     val angleUnit: AngleUnit = AngleUnit.RADIANS,
     /** Units that results with units are expressed in. */
     val unitSystem: UnitSystem = UnitSystem.METRIC,
@@ -49,8 +53,11 @@ data class CalculatorUiState(
     val showSettingsDialog: Boolean = false
 )
 
-/** A committed calculation. [id] is stable, so list items can be animated and removed. */
-data class HistoryEntry(val id: Long, val calculation: CalculationResult)
+/**
+ * A committed calculation, shown in the [form] chosen when it was committed. [id] is stable,
+ * so list items can be animated and removed.
+ */
+data class HistoryEntry(val id: Long, val calculation: CalculationResult, val form: ResultForm = ResultForm.EXACT)
 
 /**
  * @param liveResultDelayMillis Debounce before the live result is recomputed after a change,
@@ -79,12 +86,12 @@ class CalculatorViewModel @JvmOverloads constructor(
     private var plotJob: Job? = null
 
     init {
-        loadSavedMode()
+        loadSettings()
         observeLiveResult()
     }
 
     /**
-     * Recomputes the live result whenever the expression, mode or angle unit changes.
+     * Recomputes the live result whenever the expression or a calculation setting changes.
      * collectLatest cancels a still running calculation as soon as the input changes again.
      */
     private fun observeLiveResult() {
@@ -110,30 +117,32 @@ class CalculatorViewModel @JvmOverloads constructor(
     private data class LiveInput(val expression: MathString, val settings: Settings)
 
     private data class Settings(
-        val mode: CalculationMode,
         val angleUnit: AngleUnit,
         val unitSystem: UnitSystem,
         val temperatureInKelvin: Boolean
     ) {
+        // Always exact; decimal display is a matter of the result form
         fun toMathContext() = MathContext(
-            mode = mode,
+            mode = CalculationMode.EXACT,
             angleUnit = angleUnit,
             unitSystem = unitSystem,
             temperatureInKelvin = temperatureInKelvin
         )
     }
 
-    private fun CalculatorUiState.mathContext() = Settings(mode, angleUnit, unitSystem, temperatureInKelvin)
+    private fun CalculatorUiState.mathContext() = Settings(angleUnit, unitSystem, temperatureInKelvin)
 
-    private fun loadSavedMode() {
-        val savedModeStr = prefs?.getString("calc_mode", CalculationMode.EXACT.name) ?: CalculationMode.EXACT.name
+    private fun loadSettings() {
         val savedAngleStr = prefs?.getString("angle_unit", AngleUnit.RADIANS.name) ?: AngleUnit.RADIANS.name
-        val mode = try { CalculationMode.valueOf(savedModeStr) } catch (e: Exception) { CalculationMode.EXACT }
         val angle = try { AngleUnit.valueOf(savedAngleStr) } catch (e: Exception) { AngleUnit.RADIANS }
         val savedUnitSystem = prefs?.getString("unit_system", null)
         val unitSystem = UnitSystem.entries.firstOrNull { it.name == savedUnitSystem } ?: UnitSystem.METRIC
         val kelvin = prefs?.getBoolean("temperature_kelvin", false) ?: false
-        _uiState.update { it.copy(mode = mode, angleUnit = angle, unitSystem = unitSystem, temperatureInKelvin = kelvin) }
+        val savedForm = prefs?.getString("result_form", null)
+        val form = ResultForm.entries.firstOrNull { it.name == savedForm } ?: ResultForm.EXACT
+        _uiState.update {
+            it.copy(resultForm = form, angleUnit = angle, unitSystem = unitSystem, temperatureInKelvin = kelvin)
+        }
     }
 
     fun onKeyAction(action: KeyAction) {
@@ -237,10 +246,10 @@ class CalculatorViewModel @JvmOverloads constructor(
         }
     }
 
-    fun toggleMode() {
-        val newMode = if (_uiState.value.mode == CalculationMode.EXACT) CalculationMode.NUMERIC else CalculationMode.EXACT
-        prefs?.edit { putString("calc_mode", newMode.name) }
-        _uiState.update { it.copy(mode = newMode) }
+    /** Selects how results are shown; also applies to calculations committed afterwards. */
+    fun setResultForm(form: ResultForm) {
+        prefs?.edit { putString("result_form", form.name) }
+        _uiState.update { it.copy(resultForm = form) }
     }
 
     fun setUnitSystem(system: UnitSystem) {
@@ -878,7 +887,7 @@ class CalculatorViewModel @JvmOverloads constructor(
             }
             _uiState.update {
                 it.copy(
-                    history = listOf(HistoryEntry(nextHistoryId++, res)) + it.history,
+                    history = listOf(HistoryEntry(nextHistoryId++, res, it.resultForm)) + it.history,
                     expression = MathString(),
                     cursorPath = listOf(0),
                     selectionRange = null,

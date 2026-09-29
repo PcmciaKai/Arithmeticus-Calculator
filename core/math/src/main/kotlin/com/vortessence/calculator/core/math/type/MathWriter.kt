@@ -110,7 +110,14 @@ class MathWriter {
      * Writes a floating point number with up to [SIGNIFICANT_DIGITS] significant digits.
      * Very large or small magnitudes use scientific notation as "m × 10^e".
      */
-    private fun writeReal(d: Double, result: MathString) {
+    /**
+     * Writes a floating point number with up to 10 significant digits and no trailing zeros.
+     * With [scientific] it is always written as mantissa ×10ⁿ, e.g. 4.894371097×10¹.
+     */
+    fun writeNumber(d: Double, scientific: Boolean = false): MathString =
+        MathString().also { writeReal(d, it, scientific) }
+
+    private fun writeReal(d: Double, result: MathString, scientific: Boolean = false) {
         when {
             d.isNaN() -> return result.append(TextNode("undefined"))
             d.isInfinite() -> {
@@ -121,13 +128,13 @@ class MathWriter {
         }
         if (d < 0) result.append(OperatorNode(MathOp.MINUS))
         val magnitude = abs(d)
-        if (magnitude % 1.0 == 0.0 && magnitude < 1e15) {
+        if (!scientific && magnitude % 1.0 == 0.0 && magnitude < 1e15) {
             result.append(NumberNode(BigDecimal(magnitude).toPlainString()))
             return
         }
         val rounded = BigDecimal(magnitude).round(DecimalContext(SIGNIFICANT_DIGITS))
         val exponent = floor(log10(rounded.toDouble())).toInt()
-        if (exponent in MIN_PLAIN_EXPONENT until MAX_PLAIN_EXPONENT) {
+        if (!scientific && exponent in MIN_PLAIN_EXPONENT until MAX_PLAIN_EXPONENT) {
             result.append(NumberNode(rounded.stripTrailingZeros().toPlainString()))
             return
         }

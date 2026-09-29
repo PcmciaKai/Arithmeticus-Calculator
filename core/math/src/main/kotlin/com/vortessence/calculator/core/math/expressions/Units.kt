@@ -81,15 +81,17 @@ data class Dimension(
 
 /**
  * A unit of measurement. Its value in coherent SI units is [factor] (e.g. km: 1000, meaning
- * 1 km = 1000 m); temperatures on scales with a shifted zero also have an [offset]
- * (kelvin = value * factor + offset).
+ * 1 km = 1000 m). Absolute temperature scales (K, °C, °F, °R) have an [offset]
+ * (kelvin = value * factor + offset); temperature differences (Δ°C, Δ°F) have none and are
+ * marked with [isDifference].
  */
 class UnitExpression(
     val symbol: String,
     val name: String,
     val dimension: Dimension,
     val factor: Expression,
-    val offset: Rational? = null
+    val offset: Rational? = null,
+    val isDifference: Boolean = false
 ) : Expression() {
 
     override fun partWithUnit(): Expression = this
@@ -117,6 +119,17 @@ data class UnitCategory(val name: String, val families: List<UnitFamily>) {
     val units: List<UnitExpression> get() = families.flatMap { it.units }
 }
 
+/** Parses an exact decimal such as "0.45359237" or "1.602176634e-19" into a rational. */
+internal fun exactDecimal(decimal: String): Rational {
+    val d = BigDecimal(decimal)
+    val unscaled = BigInt(d.unscaledValue())
+    return if (d.scale() >= 0) {
+        Rational.of(unscaled, BigInt(BigInteger.TEN.pow(d.scale())))
+    } else {
+        Rational.of(unscaled * BigInt(BigInteger.TEN.pow(-d.scale())))
+    }
+}
+
 fun Expression.containsUnit(): Boolean = containsExpressionMatching { it is UnitExpression }
 
 /**
@@ -132,7 +145,7 @@ fun dimensionOf(expr: Expression): Dimension? = when (expr) {
             base == null -> null
             base.isNone -> Dimension.NONE
             else -> {
-                val exponent = (expr.exponent as? Value)?.rational
+                val exponent = (expr.exponent as? Value)?.let { unitExponent(it) }
                 if (exponent == null || !fitsInt(exponent.numerator) || !fitsInt(exponent.denominator)) {
                     null
                 } else {
@@ -149,6 +162,22 @@ fun dimensionOf(expr: Expression): Dimension? = when (expr) {
 }
 
 private fun fitsInt(n: BigInt): Boolean = n.value.bitLength() < 31
+
+/**
+ * The exact exponent of a unit power. Numeric mode turns every number into floating point,
+ * including the 2 in m² or the -1 in K⁻¹, so small fractions are recovered from the double.
+ */
+private fun unitExponent(value: Value): Rational? {
+    value.rational?.let { return it }
+    val d = value.real.value
+    if (!d.isFinite()) return null
+    for (denominator in 1L..12L) {
+        val numerator = d * denominator
+        val rounded = kotlin.math.round(numerator)
+        if (kotlin.math.abs(numerator - rounded) < 1e-9) return Rational.of(rounded.toLong(), denominator)
+    }
+    return null
+}
 
 /** Replaces every unit by its SI factor, i.e. the magnitude in coherent SI units. */
 internal fun Expression.withUnitsAsSiFactors(): Expression =
@@ -167,8 +196,57 @@ fun Expression.toPreferredUnits(context: MathContext): Expression {
         return this
     }
     if (dimension.isNone) return withUnitsAsSiFactors().canonicalize(context)
-    val target = UnitRegistry.preferredUnit(dimension, context.unitSystem, context.angleUnit, context.temperatureInKelvin)
+    val isTemperatureDifference = dimension == Dimension.TEMPERATURE &&
+        containsExpressionMatching { it is UnitExpression && it.isDifference }
+    val target = if (isTemperatureDifference) {
+        UnitRegistry.preferredDifferenceUnit(context.unitSystem, context.temperatureInKelvin)
+    } else {
+        UnitRegistry.preferredUnit(dimension, context.unitSystem, context.angleUnit, context.temperatureInKelvin)
+    }
     return convertToUnit(target, includeUnitInResult = true, context = context) ?: this
+}
+
+/** The absolute temperature unit (K, °C, °F, °R) of a temperature like 25 °C, else null. */
+internal fun Expression.absoluteTemperatureUnit(): UnitExpression? =
+    (partWithUnit() as? UnitExpression)?.takeIf { it.offset != null }
+
+/**
+ * Adds terms of which at least one is an absolute temperature, following the usual physics
+ * rules. Absolute temperatures are points on a scale, so they are combined in kelvin:
+ * - one temperature ± differences is a temperature: 20 °C + 5 K = 25 °C,
+ * - temperature − temperature is a difference: 80 °C − 20 °C = 60 Δ°C,
+ * - sums of several temperatures are absolute: (20 °C + 30 °C) / 2 = 25 °C.
+ * Only °C/°F terms count as absolute when present, so K next to them is a difference.
+ * Returns null (with an issue) if a term is not a temperature.
+ */
+internal fun combineTemperatureTerms(terms: List<Expression>, context: MathContext): Expression? {
+    val onShiftedScale = terms.filter { it.absoluteTemperatureUnit()?.offset?.isZero == false }
+    val absolute = onShiftedScale.ifEmpty { terms.filter { it.absoluteTemperatureUnit() != null } }
+    var netCount = 0
+    val kelvinMagnitudes = terms.map { term ->
+        if (term in absolute) {
+            // Convert the magnitude, then apply the sign: -(50 °F) is -(283.15 K), not (-50 °F)
+            val isNegative = term.coefficient().isNegative
+            netCount += if (isNegative) -1 else 1
+            val magnitude = if (isNegative) term.negate().canonicalize(context) else term
+            val kelvin = magnitude.convertToUnit(UnitRegistry.K, includeUnitInResult = false, context = context)
+                ?: return null
+            if (isNegative) kelvin.negate() else kelvin
+        } else if (!term.containsUnit()) {
+            term // a plain number next to temperatures is a difference in kelvin
+        } else {
+            if (dimensionOf(term) != Dimension.TEMPERATURE) {
+                context.stopWithError(MathIssue.INVALID_UNIT)
+                return null
+            }
+            // Differences (Δ°C, and K next to °C): multiplicative, no offset
+            Multiplications.of(term.withUnitsAsSiFactors()).canonicalize(context)
+        }
+    }
+    if (context.shouldStop) return null
+    val magnitude = Additions(kelvinMagnitudes).canonicalize(context)
+    val unit = if (netCount == 0) UnitRegistry.DELTA_CELSIUS else UnitRegistry.K
+    return Multiplications.of(magnitude, unit).canonicalize(context)
 }
 
 /** Whether [expr] consists of units only (e.g. km, m², km/h), i.e. is a valid conversion target. */
@@ -221,19 +299,16 @@ object UnitRegistry {
 
     // --- Catalog helpers ---------------------------------------------------------------------
 
-    /** Parses an exact decimal such as "0.45359237" or "1.602176634e-19" into a rational. */
-    private fun exact(decimal: String): Rational {
-        val d = BigDecimal(decimal)
-        val unscaled = BigInt(d.unscaledValue())
-        return if (d.scale() >= 0) {
-            Rational.of(unscaled, BigInt(BigInteger.TEN.pow(d.scale())))
-        } else {
-            Rational.of(unscaled * BigInt(BigInteger.TEN.pow(-d.scale())))
-        }
-    }
+    private fun exact(decimal: String): Rational = exactDecimal(decimal)
 
-    private fun unit(symbol: String, name: String, dimension: Dimension, factor: Rational, offset: Rational? = null) =
-        UnitExpression(symbol, name, dimension, Value(factor), offset)
+    private fun unit(
+        symbol: String,
+        name: String,
+        dimension: Dimension,
+        factor: Rational,
+        offset: Rational? = null,
+        isDifference: Boolean = false
+    ) = UnitExpression(symbol, name, dimension, Value(factor), offset, isDifference)
 
     private fun unit(symbol: String, name: String, dimension: Dimension, factor: String = "1") =
         unit(symbol, name, dimension, exact(factor))
@@ -419,7 +494,10 @@ object UnitRegistry {
                 unit("K", "kelvin", Dimension.TEMPERATURE, Rational.ONE, Rational.ZERO),
                 unit("°C", "degree Celsius", Dimension.TEMPERATURE, Rational.ONE, exact("273.15")),
                 unit("°F", "degree Fahrenheit", Dimension.TEMPERATURE, Rational.of(5L, 9L), Rational.of(45967L, 180L)),
-                unit("°R", "degree Rankine", Dimension.TEMPERATURE, Rational.of(5L, 9L), Rational.ZERO))
+                unit("°R", "degree Rankine", Dimension.TEMPERATURE, Rational.of(5L, 9L), Rational.ZERO)),
+            family("Temperature difference",
+                unit("Δ°C", "temperature difference in °C", Dimension.TEMPERATURE, Rational.ONE, isDifference = true),
+                unit("Δ°F", "temperature difference in °F", Dimension.TEMPERATURE, Rational.of(5L, 9L), isDifference = true))
         )),
         UnitCategory("Angle", listOf(
             family("Angle",
@@ -499,14 +577,25 @@ object UnitRegistry {
     val K = get("K")
     val CELSIUS = get("°C")
     val FAHRENHEIT = get("°F")
+    val DELTA_CELSIUS = get("Δ°C")
+    val DELTA_FAHRENHEIT = get("Δ°F")
+
+    /** The unit temperature differences are shown in. */
+    fun preferredDifferenceUnit(system: UnitSystem, temperatureInKelvin: Boolean): UnitExpression = when {
+        temperatureInKelvin -> K
+        system == UnitSystem.METRIC -> DELTA_CELSIUS
+        else -> DELTA_FAHRENHEIT
+    }
 
     // --- Output units per unit system -------------------------------------------------------
 
     private fun preferred(vararg symbols: String): Map<Dimension, UnitExpression> =
         symbols.map { get(it) }.associateBy { it.dimension }
 
+    // Coherent SI units, with two deliberate exceptions: °C (switchable to K in the settings)
+    // and mol/L, the standard unit of concentration in chemistry (nobody uses mol/m³)
     private val metricPreferred = preferred(
-        "m", "m²", "L", "kg", "s", "m/s", "m/s²", "N", "Pa", "J", "W", "°C", "Hz",
+        "m", "m²", "m³", "kg", "s", "m/s", "m/s²", "N", "Pa", "J", "W", "°C", "Hz",
         "A", "C", "V", "Ω", "S", "F", "H", "T", "Wb", "mol", "mol/L", "g/mol", "kg/m³", "cd", "lx"
     )
 
@@ -518,7 +607,8 @@ object UnitRegistry {
 
     /**
      * The unit results of [dimension] are shown in: a named unit if the system has one
-     * (e.g. N, psi), otherwise a product of the system's base units (e.g. kg·m²/(s·K)).
+     * (e.g. N, psi); otherwise the simplest combination of at most one named unit with base
+     * units, e.g. J/(mol·K) for the gas constant rather than kg·m²/(s²·K·mol).
      */
     fun preferredUnit(
         dimension: Dimension,
@@ -535,7 +625,29 @@ object UnitRegistry {
             UnitSystem.US_CUSTOMARY -> usCustomaryPreferred
         }[dimension]
         if (named != null) return named
+        val preferredUnits = when (system) {
+            UnitSystem.METRIC -> metricPreferred
+            UnitSystem.IMPERIAL -> imperialPreferred
+            UnitSystem.US_CUSTOMARY -> usCustomaryPreferred
+        }
 
+        // Try "named unit × base units" and keep it if it is simpler than base units alone
+        val best = preferredUnits.values
+            .filter { it.offset == null && !it.isDifference && complexity(it.dimension) > 1 }
+            .map { it to dimension + it.dimension * -1 }
+            .minByOrNull { (_, remainder) -> complexity(remainder) }
+        if (best != null && 1 + complexity(best.second) < complexity(dimension)) {
+            val (namedUnit, remainder) = best
+            val rest = baseUnitProduct(remainder, system, angleBase)
+            return if (remainder.isNone) namedUnit else Multiplications.of(namedUnit, rest)
+        }
+        return baseUnitProduct(dimension, system, angleBase)
+    }
+
+    private fun complexity(d: Dimension): Int =
+        listOf(d.length, d.mass, d.time, d.current, d.temperature, d.amount, d.luminosity, d.angle).sumOf { kotlin.math.abs(it) }
+
+    private fun baseUnitProduct(dimension: Dimension, system: UnitSystem, angleBase: UnitExpression): Expression {
         val isMetric = system == UnitSystem.METRIC
         // Temperatures inside compound units are temperature differences: kelvin
         val bases = listOf(

@@ -40,11 +40,12 @@ class Multiplications(val operands: List<Expression>) : Expression() {
         get() = operands.count { it.isNegative } % 2 != 0
 
     override fun canonicalize(context: MathContext): Expression {
+        val canonicalOperands = operands.map { op ->
+            op.canonicalize(context).also { if (context.shouldStop) return this }
+        }
         val flattened = mutableListOf<Expression>()
         var hasZeroFactor = false
-        for (op in operands) {
-            val cOp = op.canonicalize(context)
-            if (context.shouldStop) return this
+        for (cOp in absoluteTemperaturesInKelvin(canonicalOperands, context) ?: return this) {
             if (cOp.isZero) {
                 hasZeroFactor = true
             } else if (cOp is Multiplications) {
@@ -126,6 +127,36 @@ class Multiplications(val operands: List<Expression>) : Expression() {
         }
 
         return Multiplications(finalTerms)
+    }
+
+    /**
+     * In a product, an absolute temperature on a shifted scale is used as absolute
+     * temperature in kelvin, e.g. n·R·(25 °C) uses 298.15 K. The only exception is the
+     * quantity itself, "25 × °C" (a number times the bare unit), which stays in °C.
+     */
+    private fun absoluteTemperaturesInKelvin(ops: List<Expression>, context: MathContext): List<Expression>? {
+        return ops.mapIndexed { index, op ->
+            val unit = op.absoluteTemperatureUnit()
+            val isBareUnitOfQuantity = op is UnitExpression &&
+                ops.withIndex().none { (i, other) -> i != index && other.containsUnit() }
+            if (unit == null || unit == UnitRegistry.K || isBareUnitOfQuantity) {
+                op
+            } else {
+                op.convertToUnit(UnitRegistry.K, includeUnitInResult = true, context = context) ?: return null
+            }
+        }
+    }
+
+    /** Negates the numeric coefficient, so -(25 °C) is -25 °C rather than -1 × (25 °C). */
+    override fun negate(): Expression {
+        val first = operands.firstOrNull()
+        return if (first is Value) {
+            val negated = first.negate()
+            if (negated == Value.ONE) Multiplications.of(*operands.drop(1).toTypedArray())
+            else Multiplications(listOf(negated) + operands.drop(1))
+        } else {
+            super.negate()
+        }
     }
 
     override fun evaluateNumerically(value: Double, variable: Variable?): Double {
