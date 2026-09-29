@@ -3,6 +3,7 @@ import com.vortessence.calculator.core.math.type.ExponentNode
 import com.vortessence.calculator.core.math.type.FunctionNode
 import com.vortessence.calculator.core.math.type.LogBaseNode
 import com.vortessence.calculator.core.math.type.RadicalNode
+import com.vortessence.calculator.core.math.type.SciExponentNode
 import com.vortessence.calculator.core.math.type.FractionNode
 import com.vortessence.calculator.core.math.type.OperatorNode
 import com.vortessence.calculator.core.math.type.ParenthesesNode
@@ -538,5 +539,161 @@ class CalculatorViewModelTest {
         vm.extendSelection(listOf(2, 0, 1))
         assertEquals(0..2, vm.uiState.value.selectionRange)
         assertEquals(listOf(3), vm.uiState.value.cursorPath)
+    }
+
+    @Test
+    fun testContextAwareClearKey() = runBlocking {
+        val vm = newViewModel()
+        vm.onKeyAction(KeyAction.Number("7"))
+        vm.onKeyAction(KeyAction.Enter)
+        vm.awaitCommit()
+        vm.onKeyAction(KeyAction.Number("8"))
+
+        // First press clears only the line
+        vm.onKeyAction(KeyAction.Clear)
+        assertEquals("", vm.uiState.value.expression.toString())
+        assertEquals(1, vm.uiState.value.history.size)
+
+        // With an empty line it clears everything
+        vm.onKeyAction(KeyAction.Clear)
+        assertTrue(vm.uiState.value.history.isEmpty())
+    }
+
+    @Test
+    fun testConvertKeyInsertsArrowAndOpensUnitPicker() = runBlocking {
+        val vm = newViewModel()
+        vm.onKeyAction(KeyAction.Number("5"))
+        vm.insertUnit("km")
+        vm.onKeyAction(KeyAction.Convert)
+        assertTrue(vm.uiState.value.showUnitsDialog)
+        vm.insertUnit("m")
+        assertFalse(vm.uiState.value.showUnitsDialog)
+        assertEquals("5km → m", vm.uiState.value.expression.toString())
+
+        vm.awaitLiveResult()
+        assertEquals("5000m", vm.uiState.value.result!!.result.toString())
+    }
+
+    @Test
+    fun testUnitSettingsChangeTheLiveResult() = runBlocking {
+        val vm = newViewModel()
+        vm.onKeyAction(KeyAction.Number("0"))
+        vm.insertUnit("°C")
+        vm.awaitLiveResult()
+        assertEquals("0°C", vm.uiState.value.result!!.result.toString())
+
+        vm.setTemperatureInKelvin(true)
+        var attempts = 0
+        while (vm.uiState.value.result?.result.toString() != "273.15K" && attempts < 100) {
+            delay(20)
+            attempts++
+        }
+        assertEquals("273.15K", vm.uiState.value.result!!.result.toString())
+
+        vm.setTemperatureInKelvin(false)
+        vm.setUnitSystem(com.vortessence.calculator.core.math.context.UnitSystem.US_CUSTOMARY)
+        attempts = 0
+        while (vm.uiState.value.result?.result.toString() != "32°F" && attempts < 100) {
+            delay(20)
+            attempts++
+        }
+        assertEquals("32°F", vm.uiState.value.result!!.result.toString())
+    }
+
+    @Test
+    fun testDivisionTakesWholeQuantityWithUnitAsNumerator() = runBlocking {
+        val vm = newViewModel()
+        // 2 + 5 mmol ÷ 100 µL
+        vm.onKeyAction(KeyAction.Number("2"))
+        vm.onKeyAction(KeyAction.Operator("+"))
+        vm.onKeyAction(KeyAction.Number("5"))
+        vm.insertUnit("mmol")
+        vm.onKeyAction(KeyAction.Operator("÷"))
+
+        val frac = vm.uiState.value.expression.nodeAt(2) as FractionNode
+        assertEquals("5mmol", frac.numerator.toString())
+        assertEquals("2 + ", vm.uiState.value.expression.nodes.take(2).joinToString("") { it.toString() })
+        assertEquals(listOf(2, 1, 0), vm.uiState.value.cursorPath)
+
+        // 5 mmol ÷ 100 µL = 50 mol/L
+        vm.clearLine()
+        vm.onKeyAction(KeyAction.Number("5"))
+        vm.insertUnit("mmol")
+        vm.onKeyAction(KeyAction.Operator("÷"))
+        vm.onKeyAction(KeyAction.Number("1"))
+        vm.onKeyAction(KeyAction.Number("0"))
+        vm.onKeyAction(KeyAction.Number("0"))
+        vm.insertUnit("µL")
+        vm.awaitLiveResult()
+        assertEquals("50mol/L", vm.uiState.value.result!!.result.toString())
+    }
+
+    @Test
+    fun testDivisionAfterBareUnitBuildsUnitFraction() {
+        val vm = newViewModel()
+        vm.insertUnit("km")
+        vm.onKeyAction(KeyAction.Operator("÷"))
+        val frac = vm.uiState.value.expression.nodeAt(0) as FractionNode
+        assertEquals("km", frac.numerator.toString())
+    }
+
+    private fun CalculatorViewModel.type(vararg keys: String) {
+        for (key in keys) {
+            when (key) {
+                "EE" -> onKeyAction(KeyAction.EE)
+                "→" -> onKeyAction(KeyAction.MoveRight)
+                "+", "−", "×", "÷" -> onKeyAction(KeyAction.Operator(key))
+                else -> onKeyAction(KeyAction.Number(key))
+            }
+        }
+    }
+
+    @Test
+    fun testEEInsertsScientificExponentOfTheNumber() {
+        val vm = newViewModel()
+        vm.type("5", "EE", "3")
+        val expression = vm.uiState.value.expression
+        assertEquals(2, expression.length)
+        assertEquals("3", (expression.nodeAt(1) as SciExponentNode).exponent.toString())
+        assertEquals(listOf(1, 0, 1), vm.uiState.value.cursorPath)
+
+        // Backspace twice: the exponent digit, then the empty "×10" itself
+        vm.onKeyAction(KeyAction.Backspace)
+        vm.onKeyAction(KeyAction.Backspace)
+        assertEquals("5", vm.uiState.value.expression.toString())
+    }
+
+    @Test
+    fun testFractionTakesScientificQuantityButNotAMultiplication() {
+        val vm = newViewModel()
+        // 5×10³ mmol ÷ → the whole quantity is the numerator
+        vm.type("5", "EE", "3", "→")
+        vm.insertUnit("mmol")
+        vm.onKeyAction(KeyAction.Operator("÷"))
+        var frac = vm.uiState.value.expression.nodeAt(0) as FractionNode
+        assertEquals("5×10^(3)mmol", frac.numerator.toString())
+
+        // 3 × 5 mmol ÷ → only "5 mmol", the multiplication stays outside
+        vm.clearLine()
+        vm.type("3", "×", "5")
+        vm.insertUnit("mmol")
+        vm.onKeyAction(KeyAction.Operator("÷"))
+        frac = vm.uiState.value.expression.nodeAt(2) as FractionNode
+        assertEquals("5mmol", frac.numerator.toString())
+        assertEquals("3 × ", vm.uiState.value.expression.nodes.take(2).joinToString(""))
+    }
+
+    @Test
+    fun testPowerAndSelectionTreatScientificNumberAsOne() {
+        val vm = newViewModel()
+        vm.type("2", "EE", "3", "→")
+        vm.onKeyAction(KeyAction.Square)
+        val power = vm.uiState.value.expression.nodeAt(0) as ExponentNode
+        assertEquals("2×10^(3)", power.base.toString())
+
+        vm.clearLine()
+        vm.type("1", "2", "EE", "3", "→", "+", "4")
+        vm.selectTokenAt(emptyList(), 0)
+        assertEquals(0..2, vm.uiState.value.selectionRange)
     }
 }

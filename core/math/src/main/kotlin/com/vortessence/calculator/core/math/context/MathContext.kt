@@ -8,7 +8,10 @@ import java.util.concurrent.atomic.AtomicBoolean
 class MathContext(
     var mode: CalculationMode = CalculationMode.EXACT,
     var angleUnit: AngleUnit = AngleUnit.RADIANS,
-    var maxPrecision: Int = 30
+    var maxPrecision: Int = 30,
+    var unitSystem: UnitSystem = UnitSystem.METRIC,
+    /** Show temperatures in kelvin (the SI unit) instead of °C/°F. */
+    var temperatureInKelvin: Boolean = false
 ) {
     private val _issues = mutableListOf<MathIssue>()
     val issues: List<MathIssue> get() = _issues
@@ -49,7 +52,7 @@ class MathContext(
     }
 
     fun copy(): MathContext {
-        val copy = MathContext(mode, angleUnit, maxPrecision)
+        val copy = MathContext(mode, angleUnit, maxPrecision, unitSystem, temperatureInKelvin)
         copy._issues.addAll(_issues)
         copy.isCancelled.set(isCancelled.get())
         copy.deadlineMillis = deadlineMillis

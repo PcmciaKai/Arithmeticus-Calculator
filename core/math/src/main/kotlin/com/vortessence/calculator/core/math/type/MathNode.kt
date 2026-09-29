@@ -13,7 +13,9 @@ enum class MathOp(val symbol: String, val precedence: Int) {
     MULTIPLY("×", 2),
     DIVIDE("÷", 2),
     EQUALS("=", 0),
-    FACTORIAL("!", 3)
+    FACTORIAL("!", 3),
+    /** Unit conversion, e.g. "5 km → mi". Binds weakest of all operators. */
+    CONVERT("→", -1)
 }
 
 data class NumberNode(val text: String) : MathNode() {
@@ -92,6 +94,20 @@ data class ParenthesesNode(
     override fun replaceSubString(index: Int, newString: MathString): MathNode = copy(inner = newString)
     override fun copy(): MathNode = ParenthesesNode(inner.copy())
     override fun toString(): String = "($inner)"
+}
+
+/**
+ * Scientific notation "×10ⁿ" that belongs to the number directly before it, e.g. the "×10³" in
+ * 5×10³. Unlike a typed "× 10^n" it is part of that number: it is parsed as one number literal,
+ * and editing (fractions, powers, selection) treats "5×10³" as a single value.
+ * Without a number in front it means 10ⁿ.
+ */
+data class SciExponentNode(val exponent: MathString = MathString()) : MathNode() {
+    override val subStrings: List<MathString> get() = listOf(exponent)
+    override fun replaceSubString(index: Int, newString: MathString): MathNode =
+        if (index == 0) copy(exponent = newString) else this
+    override fun copy(): MathNode = SciExponentNode(exponent.copy())
+    override fun toString(): String = "×10^($exponent)"
 }
 
 /**
@@ -194,21 +210,26 @@ class MathString(initialNodes: List<MathNode> = emptyList()) {
         return null
     }
 
+    /**
+     * The whole number around [index]: its digits plus a scientific "×10ⁿ" part if present,
+     * e.g. all of "5.2×10³". Other nodes are tokens on their own.
+     */
     fun getTokenRangeAt(index: Int): IntRange {
         if (index !in _nodes.indices) return index..index
         val targetNode = _nodes[index]
+        if (targetNode !is NumberNode && targetNode !is SciExponentNode) return index..index
+        var start = index
+        while (start > 0 && _nodes[start - 1] is NumberNode) {
+            start--
+        }
+        var end = index
         if (targetNode is NumberNode) {
-            var start = index
-            while (start > 0 && _nodes[start - 1] is NumberNode) {
-                start--
-            }
-            var end = index
             while (end < _nodes.size - 1 && _nodes[end + 1] is NumberNode) {
                 end++
             }
-            return start..end
+            if (end < _nodes.size - 1 && _nodes[end + 1] is SciExponentNode) end++
         }
-        return index..index
+        return start..end
     }
 
     fun setNode(index: Int, node: MathNode) {

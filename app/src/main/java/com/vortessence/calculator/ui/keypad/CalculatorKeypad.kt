@@ -56,7 +56,10 @@ sealed class KeyAction {
     data object Backspace : KeyAction()
     data object ClearLine : KeyAction()
     data object ClearAll : KeyAction()
+    /** Clears the line, or everything (line and history) if the line is already empty. */
     data object Clear : KeyAction()
+    /** Inserts the unit conversion operator "→". */
+    data object Convert : KeyAction()
     /** Commits the current line and its result to the history. */
     data object Enter : KeyAction()
     data object Ans : KeyAction()
@@ -75,6 +78,7 @@ sealed class KeyAction {
 fun CalculatorKeypad(
     modifier: Modifier = Modifier,
     angleUnit: AngleUnit = AngleUnit.RADIANS,
+    isLineEmpty: Boolean = true,
     onKeyAction: (KeyAction) -> Unit
 ) {
     val coroutineScope = rememberCoroutineScope()
@@ -221,8 +225,12 @@ fun CalculatorKeypad(
                     ) { onKeyAction(KeyAction.Backspace) }
 
                     // Page 2 (cols 10..12)
-                    KeyButton(text = "CLR", buttonWidth = buttonWidth, textColor = AccentRed) { onKeyAction(KeyAction.ClearLine) }
-                    KeyButton(text = "AC", buttonWidth = buttonWidth, textColor = AccentRed) { onKeyAction(KeyAction.ClearAll) }
+                    KeyButton(
+                        text = if (isLineEmpty) "AC" else "C",
+                        buttonWidth = buttonWidth,
+                        textColor = AccentRed
+                    ) { onKeyAction(KeyAction.Clear) }
+                    KeyButton(text = "→", buttonWidth = buttonWidth, isAccent = true) { onKeyAction(KeyAction.Convert) }
                     KeyButton(text = "Ans", buttonWidth = buttonWidth, textColor = MaterialTheme.colorScheme.primary) { onKeyAction(KeyAction.Ans) }
                 }
 

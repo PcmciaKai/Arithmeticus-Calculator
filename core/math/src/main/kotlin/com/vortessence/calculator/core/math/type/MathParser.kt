@@ -52,8 +52,19 @@ class MathParser {
                         sb.append((nodes[i] as NumberNode).text)
                         i++
                     }
-                    tokens.add(Token.ValueToken(parseNumberString(sb.toString())))
+                    var number: Expression = parseNumberString(sb.toString())
+                    // A following "×10ⁿ" is part of this number literal
+                    val sci = nodes.getOrNull(i) as? SciExponentNode
+                    if (sci != null) {
+                        number = Multiplications.of(number, Power.of(Value(10L), parseSlot(sci.exponent)))
+                        i++
+                    }
+                    tokens.add(Token.ValueToken(number))
                     continue
+                }
+                is SciExponentNode -> {
+                    // "×10ⁿ" without a number in front of it: 10ⁿ
+                    tokens.add(Token.ValueToken(Power.of(Value(10L), parseSlot(node.exponent))))
                 }
                 is OperatorNode -> tokens.add(Token.OpToken(node.op))
                 is VariableNode -> tokens.add(Token.ValueToken(Variable(node.name)))
@@ -187,7 +198,7 @@ class MathParser {
         var pos = 0
 
         fun parseAll(): Expression {
-            val expr = parseExpression(0)
+            val expr = parseExpression(MathOp.CONVERT.precedence)
             if (pos < tokens.size) syntaxError()
             return expr
         }
@@ -219,6 +230,10 @@ class MathParser {
                         Equals(left, right)
                     }
                     MathOp.FACTORIAL -> left
+                    MathOp.CONVERT -> {
+                        if (left is UnitConversion || right is UnitConversion) syntaxError()
+                        UnitConversion(left, right)
+                    }
                 }
             }
             return left

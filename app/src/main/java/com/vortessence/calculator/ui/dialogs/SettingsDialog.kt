@@ -11,13 +11,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vortessence.calculator.core.math.context.AngleUnit
 import com.vortessence.calculator.core.math.context.CalculationMode
+import com.vortessence.calculator.core.math.context.UnitSystem
 
 @Composable
 fun SettingsDialog(
     mode: CalculationMode,
     angleUnit: AngleUnit,
+    unitSystem: UnitSystem,
+    temperatureInKelvin: Boolean,
     onToggleMode: () -> Unit,
     onToggleAngleUnit: () -> Unit,
+    onUnitSystemChange: (UnitSystem) -> Unit,
+    onTemperatureInKelvinChange: (Boolean) -> Unit,
     onDismiss: () -> Unit
 ) {
     AlertDialog(
@@ -78,6 +83,51 @@ fun SettingsDialog(
 
                 HorizontalDivider()
 
+                // Unit system for results
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column {
+                        Text("Units for results", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                        Text(
+                            unitSystemDescription(unitSystem),
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    val options = listOf(
+                        UnitSystem.METRIC to "Metric",
+                        UnitSystem.IMPERIAL to "Imperial",
+                        UnitSystem.US_CUSTOMARY to "US"
+                    )
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        options.forEachIndexed { index, (system, label) ->
+                            SegmentedButton(
+                                selected = unitSystem == system,
+                                onClick = { onUnitSystemChange(system) },
+                                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size)
+                            ) {
+                                Text(label, fontSize = 13.sp)
+                            }
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Temperatures in kelvin", fontWeight = FontWeight.Medium, fontSize = 15.sp)
+                            Text(
+                                "Scientific absolute scale instead of °C/°F",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(checked = temperatureInKelvin, onCheckedChange = onTemperatureInKelvinChange)
+                    }
+                }
+
+                HorizontalDivider()
+
                 // About / Archimedes Info
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("About Archimedes", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
@@ -96,4 +146,10 @@ fun SettingsDialog(
         },
         shape = RoundedCornerShape(20.dp)
     )
+}
+
+private fun unitSystemDescription(system: UnitSystem): String = when (system) {
+    UnitSystem.METRIC -> "SI units: m, kg, L, N, Pa, J, °C, …"
+    UnitSystem.IMPERIAL -> "British imperial: ft, lb, imperial gallon, psi, °F, …"
+    UnitSystem.US_CUSTOMARY -> "US customary: ft, lb, US gallon, psi, °F, …"
 }

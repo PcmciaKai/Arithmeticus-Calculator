@@ -250,8 +250,10 @@ private fun MathNodeView(node: MathNode, fontSize: TextUnit, slots: SlotContext,
             )
         }
         is UnitNode -> {
+            // Angle marks attach directly to the number (30°, 5′); other units are spaced (5 km)
+            val isAngleMark = node.symbol == "°" || node.symbol == "′" || node.symbol == "″"
             Text(
-                text = " ${node.symbol}",
+                text = if (isAngleMark) node.symbol else " ${node.symbol}",
                 fontSize = (fontSize.value * 0.85f).sp,
                 fontWeight = FontWeight.Normal,
                 color = textColor.copy(alpha = 0.75f)
@@ -267,6 +269,18 @@ private fun MathNodeView(node: MathNode, fontSize: TextUnit, slots: SlotContext,
         }
         is FractionNode -> FractionView(node, fontSize, slots)
         is ExponentNode -> ExponentView(node, fontSize, slots)
+        is SciExponentNode -> {
+            // Part of the number before it: no spacing, same color as digits
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(text = "×10", fontSize = fontSize, fontWeight = FontWeight.Normal, color = textColor)
+                slots.Slot(
+                    child = 0,
+                    string = node.exponent,
+                    fontSize = (fontSize.value * 0.62f).sp,
+                    modifier = Modifier.padding(bottom = (fontSize.value * 0.56f).dp)
+                )
+            }
+        }
         is RadicalNode -> RadicalView(node, fontSize, slots)
         is ParenthesesNode -> ParenthesesView(node, fontSize, slots)
         is LogBaseNode -> LogBaseView(node, fontSize, slots)

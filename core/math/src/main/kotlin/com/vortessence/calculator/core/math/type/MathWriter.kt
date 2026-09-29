@@ -4,6 +4,7 @@ import com.vortessence.calculator.core.math.expressions.*
 import com.vortessence.calculator.core.math.numbers.BigInt
 import com.vortessence.calculator.core.math.numbers.Rational
 import java.math.BigDecimal
+import java.math.BigInteger
 import java.math.MathContext as DecimalContext
 import kotlin.math.abs
 import kotlin.math.floor
@@ -15,7 +16,20 @@ import kotlin.math.log10
  */
 class MathWriter {
 
+    /** Writes [expr]; a bare unit is written as a quantity of 1, e.g. "1 psi". */
     fun write(expr: Expression): MathString {
+        if (!isPureUnit(expr)) return writeExpr(expr)
+        val result = MathString(listOf(NumberNode("1")))
+        result.appendAll(writeExpr(expr))
+        return result
+    }
+
+    /** Writes only a unit, e.g. "m/s²" (without a magnitude). */
+    fun writeUnit(unit: Expression): MathString = writeExpr(unit)
+
+    private fun isPureUnit(expr: Expression): Boolean = isUnitOnly(expr)
+
+    private fun writeExpr(expr: Expression): MathString {
         val result = MathString()
         when (expr) {
             is Value -> writeValue(expr, result)
@@ -34,16 +48,21 @@ class MathWriter {
             is Multiplications -> writeMultiplications(expr, result)
             is Additions -> writeAdditions(expr, result)
             is TrigonometricFunction -> {
-                result.append(FunctionNode(expr.type.symbol, write(expr.operand)))
+                result.append(FunctionNode(expr.type.symbol, writeExpr(expr.operand)))
             }
             is Logarithm -> {
                 val base = expr.base
                 when {
-                    base == Constant.E -> result.append(FunctionNode("ln", write(expr.operand)))
+                    base == Constant.E -> result.append(FunctionNode("ln", writeExpr(expr.operand)))
                     base is Value && base.rational == Rational.of(10L) ->
-                        result.append(FunctionNode("log", write(expr.operand)))
-                    else -> result.append(LogBaseNode(write(base), write(expr.operand)))
+                        result.append(FunctionNode("log", writeExpr(expr.operand)))
+                    else -> result.append(LogBaseNode(writeExpr(base), writeExpr(expr.operand)))
                 }
+            }
+            is UnitConversion -> {
+                result.appendAll(write(expr.value))
+                result.append(OperatorNode(MathOp.CONVERT))
+                result.appendAll(writeExpr(expr.target))
             }
             is Equals -> {
                 result.appendAll(write(expr.left))
@@ -52,9 +71,9 @@ class MathWriter {
             }
             is Integral -> {
                 result.append(IntegralNode(
-                    write(expr.lowerBound),
-                    write(expr.upperBound),
-                    write(expr.integrand),
+                    writeExpr(expr.lowerBound),
+                    writeExpr(expr.upperBound),
+                    writeExpr(expr.integrand),
                     expr.variable.identifier
                 ))
             }
@@ -62,7 +81,7 @@ class MathWriter {
                 result.append(MatrixNode(
                     expr.rows,
                     expr.cols,
-                    expr.elements.map { write(it) }
+                    expr.elements.map { writeExpr(it) }
                 ))
             }
             else -> result.append(TextNode(expr.toString()))
@@ -117,8 +136,7 @@ class MathWriter {
         if (exponent < 0) exponentString.append(OperatorNode(MathOp.MINUS))
         exponentString.append(NumberNode(abs(exponent).toString()))
         result.append(NumberNode(mantissa))
-        result.append(OperatorNode(MathOp.MULTIPLY))
-        result.append(ExponentNode(MathString(listOf(NumberNode("10"))), exponentString))
+        result.append(SciExponentNode(exponentString))
     }
 
     private fun writePower(power: Power, result: MathString) {
@@ -126,18 +144,18 @@ class MathWriter {
         if (exp is Value && exp.rational != null) {
             val r = exp.rational
             if (r == Rational.HALF) {
-                result.append(RadicalNode(null, write(power.base)))
+                result.append(RadicalNode(null, writeExpr(power.base)))
                 return
             }
             if (r.numerator == BigInt.ONE && r.denominator > BigInt.ONE) {
                 val degStr = MathString(listOf(NumberNode(r.denominator.toString())))
-                result.append(RadicalNode(degStr, write(power.base)))
+                result.append(RadicalNode(degStr, writeExpr(power.base)))
                 return
             }
         }
-        val baseStr = write(power.base)
+        val baseStr = writeExpr(power.base)
         val base = if (needsParenthesesAsBase(power.base)) MathString(listOf(ParenthesesNode(baseStr))) else baseStr
-        result.append(ExponentNode(base, write(power.exponent)))
+        result.append(ExponentNode(base, writeExpr(power.exponent)))
     }
 
     private fun needsParenthesesAsBase(base: Expression): Boolean = when (base) {
@@ -151,7 +169,26 @@ class MathWriter {
         val negativeIndex = mult.operands.indexOfFirst { it is Value && it.isNegative }
         if (negativeIndex >= 0) {
             result.append(OperatorNode(MathOp.MINUS))
-            result.appendAll(write(negatedForDisplay(mult)))
+            result.appendAll(writeExpr(negatedForDisplay(mult)))
+            return
+        }
+
+        // Quantities: write the magnitude, then the unit (e.g. "1.5 m", "1/3 km/h")
+        val unitFactors = mult.operands.filter { isUnitFactor(it) }
+        if (unitFactors.isNotEmpty() && unitFactors.size < mult.operands.size) {
+            val magnitude = mult.operands.filterNot { isUnitFactor(it) }
+            val single = magnitude.singleOrNull()
+            val rational = (single as? Value)?.rational
+            val decimal = rational?.let { terminatingDecimal(it) }
+            when {
+                decimal != null -> result.append(NumberNode(decimal))
+                // Quantities like 6625000/381 ft read better as a decimal; 1/3 m stays exact
+                rational != null && rational.denominator > BigInt(MAX_QUANTITY_DENOMINATOR) ->
+                    writeReal(rational.toDouble(), result)
+                single is Additions -> result.append(ParenthesesNode(writeExpr(single)))
+                else -> result.appendAll(writeExpr(Multiplications.of(*magnitude.toTypedArray())))
+            }
+            result.appendAll(writeExpr(Multiplications.of(*unitFactors.toTypedArray())))
             return
         }
 
@@ -177,7 +214,7 @@ class MathWriter {
         if (denominators.isNotEmpty()) {
             val numExpr = Multiplications.of(*numerators.toTypedArray())
             val denExpr = Multiplications.of(*denominators.toTypedArray())
-            result.append(FractionNode(write(numExpr), write(denExpr)))
+            result.append(FractionNode(writeExpr(numExpr), writeExpr(denExpr)))
         } else if (numerators.isEmpty()) {
             result.append(NumberNode("1"))
         } else {
@@ -187,7 +224,7 @@ class MathWriter {
 
     private fun writeFactors(factors: List<Expression>, result: MathString) {
         for ((idx, op) in factors.withIndex()) {
-            var nodes = write(op)
+            var nodes = writeExpr(op)
             if (op is Additions || op is Equals) {
                 nodes = MathString(listOf(ParenthesesNode(nodes)))
             }
@@ -221,7 +258,7 @@ class MathWriter {
             } else {
                 term = op
             }
-            val nodes = write(term)
+            val nodes = writeExpr(term)
             if (term is Additions) {
                 result.append(ParenthesesNode(nodes))
             } else {
@@ -249,11 +286,32 @@ class MathWriter {
         return expr.negate()
     }
 
+    private fun isUnitFactor(expr: Expression): Boolean =
+        expr is UnitExpression || (expr is Power && expr.base is UnitExpression)
+
+    /**
+     * The exact decimal form of a (non-negative) rational whose decimal expansion terminates,
+     * e.g. 1143/1250 -> "0.9144"; null for 1/3 or if it would be unreasonably long.
+     */
+    private fun terminatingDecimal(r: Rational): String? {
+        if (!r.isFractional || r.isNegative) return null
+        var den = r.denominator.value
+        val two = BigInteger.valueOf(2)
+        val five = BigInteger.valueOf(5)
+        while (den.mod(two).signum() == 0) den = den.divide(two)
+        while (den.mod(five).signum() == 0) den = den.divide(five)
+        if (den != BigInteger.ONE) return null
+        val text = BigDecimal(r.numerator.value).divide(BigDecimal(r.denominator.value)).stripTrailingZeros().toPlainString()
+        return text.takeIf { it.length <= MAX_EXACT_DECIMAL_LENGTH }
+    }
+
     private fun MathString.append(node: MathNode) = insert(length, node)
     private fun MathString.appendAll(other: MathString) = insertAll(length, other.nodes)
 
     private companion object {
         const val SIGNIFICANT_DIGITS = 10
+        const val MAX_EXACT_DECIMAL_LENGTH = 16
+        const val MAX_QUANTITY_DENOMINATOR = 100L
         const val MIN_PLAIN_EXPONENT = -6
         const val MAX_PLAIN_EXPONENT = 12
     }

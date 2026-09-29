@@ -59,114 +59,52 @@ abstract class Expression {
         return if (containsExpressionMatching { it is UnitExpression }) this else null
     }
 
-    open fun quantityOfUnit(): Expression? {
-        val unit = partWithUnit() ?: return null
-        return unit.transform { (it as? UnitExpression)?.quantity ?: it }
-    }
-
-    open fun convertUnitsToBase(): Expression {
-        return transform { (it as? UnitExpression)?.unitExpressedInBaseUnit ?: it }
-    }
-
-    open fun convertUnitsToDefault(context: MathContext = MathContext.current()): Expression {
-        if (!containsExpressionMatching { it is UnitExpression }) return this
-        val withUnit = partWithUnit()
-        if (withUnit != null) {
-            return convertToUnit(targetUnit = null, includeUnitInResult = true, context = context) ?: this
-        }
-        val newChildren = children.map { it.convertUnitsToDefault(context) }
-        return copyWithChildren(newChildren)
-    }
-
+    /**
+     * Converts this quantity into [targetUnit] (a unit or a product of units, e.g. km/h), or
+     * returns null (with [MathIssue.INVALID_UNIT] reported) if the dimensions do not match.
+     * A value without any unit is taken to already be in [targetUnit] (e.g. 5 + 3 m = 8 m).
+     *
+     * With [includeUnitInResult] the result is "magnitude × targetUnit", otherwise only the
+     * magnitude, e.g. 2 km -> 2000 m or 2000.
+     */
     open fun convertToUnit(
-        targetUnit: Expression?,
+        targetUnit: Expression,
         includeUnitInResult: Boolean,
         context: MathContext = MathContext.current(),
     ): Expression? {
-        var result: Expression = this
-        var sourceQuantity = quantityOfUnit()?.canonicalize(context)
-        if (context.shouldStop) return null
-
-        var effTarget = targetUnit
-        if (effTarget == null) {
-            if (sourceQuantity != null) {
-                effTarget = UnitRegistry.defaultUnits[sourceQuantity]
-                if (effTarget == null) {
-                    context.stopWithError(MathIssue.INVALID_UNIT)
-                    return null
-                }
-            } else {
-                return this
-            }
-        }
-
-        val targetQuantity = effTarget.quantityOfUnit()?.canonicalize(context)
-        if (context.shouldStop) return null
-
-        var isSourceQuantityImplicit = false
-        if (sourceQuantity == null) {
-            sourceQuantity = targetQuantity
-            isSourceQuantityImplicit = true
-        }
-
-        if (sourceQuantity == Quantity.TEMPERATURE && targetQuantity == Quantity.TEMPERATURE) {
-            return convertTemperature(effTarget, includeUnitInResult, isSourceQuantityImplicit, context)
-        }
-
-        if ((sourceQuantity == targetQuantity) && (sourceQuantity != null)) {
-            val sourceUnit = sourceQuantity.transform {
-                UnitRegistry.defaultUnits[it] ?: it
-            }
-            if (isSourceQuantityImplicit) {
-                result = Multiplications.of(result, sourceUnit)
-            }
-            if (effTarget !is UnitExpression) {
-                context.stopWithError(MathIssue.INVALID_UNIT)
-                return null
-            }
-            var converted = result.convertUnitsToBase().substitute(
-                effTarget.baseUnit,
-                effTarget.baseUnitExpressedInUnit,
-            )
-            if (!includeUnitInResult) {
-                converted = Multiplications.of(converted, effTarget.invert())
-            }
-            return converted.canonicalize(context)
-        }
-        return null
-    }
-
-    /** Affine temperature conversion, e.g. 20 °C -> 68 °F (see [UnitRegistry.temperatureToKelvin]). */
-    private fun convertTemperature(
-        target: Expression,
-        includeUnitInResult: Boolean,
-        isSourceImplicit: Boolean,
-        context: MathContext,
-    ): Expression? {
-        val targetFactors = UnitRegistry.temperatureToKelvin[target]
-        if (target !is UnitExpression || targetFactors == null) {
+        val targetDimension = dimensionOf(targetUnit)
+        if (targetDimension == null || !targetUnit.containsUnit()) {
             context.stopWithError(MathIssue.INVALID_UNIT)
             return null
         }
-        val magnitude = transform { if (it is UnitExpression) Value.ONE else it }.canonicalize(context)
-        val converted = if (isSourceImplicit) {
-            magnitude // a plain number next to temperatures is taken to be in the target unit
-        } else {
-            val sourceFactors = UnitRegistry.temperatureToKelvin[partWithUnit()]
-            if (sourceFactors == null) {
-                context.stopWithError(MathIssue.INVALID_UNIT)
-                return null
-            }
-            // kelvin = m * s1 + o1  and  result = (kelvin - o2) / s2
-            val (s1, o1) = sourceFactors
-            val (s2, o2) = targetFactors
-            Additions(
-                Multiplications.of(magnitude, Value(s1 / s2)),
-                Value((o1 - o2) / s2)
-            ).canonicalize(context)
+        if (!containsUnit()) {
+            return if (includeUnitInResult) Multiplications.of(this, targetUnit).canonicalize(context) else this
         }
+        if (dimensionOf(this) != targetDimension) {
+            context.stopWithError(MathIssue.INVALID_UNIT)
+            return null
+        }
+
+        val sourceUnit = partWithUnit()
+        val converted = if (targetDimension == Dimension.TEMPERATURE && sourceUnit is UnitExpression &&
+            targetUnit is UnitExpression && sourceUnit.offset != null && targetUnit.offset != null
+        ) {
+            // A temperature on a scale with a shifted zero, e.g. 20 °C -> 68 °F:
+            // kelvin = value * f1 + o1  and  result = (kelvin - o2) / f2
+            val magnitude = transform { if (it is UnitExpression) Value.ONE else it }
+            Multiplications.of(
+                Additions(
+                    Multiplications.of(magnitude, sourceUnit.factor),
+                    Value(sourceUnit.offset - targetUnit.offset)
+                ),
+                Power(targetUnit.factor, Value.MINUS_ONE)
+            )
+        } else {
+            // Multiplicative units: magnitude in SI divided by the target unit's SI factor
+            Multiplications.of(withUnitsAsSiFactors(), Power(targetUnit.withUnitsAsSiFactors(), Value.MINUS_ONE))
+        }.canonicalize(context)
         if (context.shouldStop) return null
-        return if (includeUnitInResult) Multiplications.of(converted, target).canonicalize(context) else converted
+        return if (includeUnitInResult) Multiplications.of(converted, targetUnit).canonicalize(context) else converted
     }
 
     abstract fun canonicalize(context: MathContext = MathContext.current()): Expression

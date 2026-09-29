@@ -9,6 +9,7 @@ import com.vortessence.calculator.core.math.*
 import com.vortessence.calculator.core.math.context.AngleUnit
 import com.vortessence.calculator.core.math.context.CalculationMode
 import com.vortessence.calculator.core.math.context.MathContext
+import com.vortessence.calculator.core.math.context.UnitSystem
 import com.vortessence.calculator.core.math.solvers.Function1D
 import com.vortessence.calculator.core.math.type.*
 import com.vortessence.calculator.ui.keypad.KeyAction
@@ -35,6 +36,10 @@ data class CalculatorUiState(
     val history: List<HistoryEntry> = emptyList(),
     val mode: CalculationMode = CalculationMode.EXACT,
     val angleUnit: AngleUnit = AngleUnit.RADIANS,
+    /** Units that results with units are expressed in. */
+    val unitSystem: UnitSystem = UnitSystem.METRIC,
+    /** Show temperatures in kelvin instead of °C/°F. */
+    val temperatureInKelvin: Boolean = false,
     val isGraphOpen: Boolean = false,
     /** Function shown in the graph, or null if the expression cannot be plotted. */
     val plotFunction: Function1D? = null,
@@ -85,7 +90,7 @@ class CalculatorViewModel @JvmOverloads constructor(
     private fun observeLiveResult() {
         viewModelScope.launch {
             _uiState
-                .map { LiveInput(it.expression, it.mode, it.angleUnit) }
+                .map { LiveInput(it.expression, it.mathContext()) }
                 .distinctUntilChanged()
                 .collectLatest { input ->
                     if (input.expression.isEmpty) {
@@ -93,7 +98,7 @@ class CalculatorViewModel @JvmOverloads constructor(
                         return@collectLatest
                     }
                     if (liveResultDelayMillis > 0) delay(liveResultDelayMillis)
-                    val res = MathEngine.calculate(input.expression, MathContext(mode = input.mode, angleUnit = input.angleUnit))
+                    val res = MathEngine.calculate(input.expression, input.settings.toMathContext())
                     _uiState.update {
                         if (it.expression == input.expression) it.copy(result = res, showResultError = false) else it
                     }
@@ -101,14 +106,34 @@ class CalculatorViewModel @JvmOverloads constructor(
         }
     }
 
-    private data class LiveInput(val expression: MathString, val mode: CalculationMode, val angleUnit: AngleUnit)
+    /** The expression and all calculation settings; a change of any of them updates the live result. */
+    private data class LiveInput(val expression: MathString, val settings: Settings)
+
+    private data class Settings(
+        val mode: CalculationMode,
+        val angleUnit: AngleUnit,
+        val unitSystem: UnitSystem,
+        val temperatureInKelvin: Boolean
+    ) {
+        fun toMathContext() = MathContext(
+            mode = mode,
+            angleUnit = angleUnit,
+            unitSystem = unitSystem,
+            temperatureInKelvin = temperatureInKelvin
+        )
+    }
+
+    private fun CalculatorUiState.mathContext() = Settings(mode, angleUnit, unitSystem, temperatureInKelvin)
 
     private fun loadSavedMode() {
         val savedModeStr = prefs?.getString("calc_mode", CalculationMode.EXACT.name) ?: CalculationMode.EXACT.name
         val savedAngleStr = prefs?.getString("angle_unit", AngleUnit.RADIANS.name) ?: AngleUnit.RADIANS.name
         val mode = try { CalculationMode.valueOf(savedModeStr) } catch (e: Exception) { CalculationMode.EXACT }
         val angle = try { AngleUnit.valueOf(savedAngleStr) } catch (e: Exception) { AngleUnit.RADIANS }
-        _uiState.update { it.copy(mode = mode, angleUnit = angle) }
+        val savedUnitSystem = prefs?.getString("unit_system", null)
+        val unitSystem = UnitSystem.entries.firstOrNull { it.name == savedUnitSystem } ?: UnitSystem.METRIC
+        val kelvin = prefs?.getBoolean("temperature_kelvin", false) ?: false
+        _uiState.update { it.copy(mode = mode, angleUnit = angle, unitSystem = unitSystem, temperatureInKelvin = kelvin) }
     }
 
     fun onKeyAction(action: KeyAction) {
@@ -145,7 +170,13 @@ class CalculatorViewModel @JvmOverloads constructor(
             is KeyAction.Backspace -> deleteAtCursor()
             is KeyAction.ClearLine -> clearLine()
             is KeyAction.ClearAll -> clearAll()
-            is KeyAction.Clear -> clearLine()
+            // One key: clears the line, or everything once the line is already empty
+            is KeyAction.Clear -> if (_uiState.value.expression.isEmpty) clearAll() else clearLine()
+            is KeyAction.Convert -> {
+                insertNode(OperatorNode(MathOp.CONVERT))
+                // The target of a conversion is a unit: offer the unit picker right away
+                _uiState.update { it.copy(showUnitsDialog = true) }
+            }
             is KeyAction.Enter -> commit()
             is KeyAction.Ans -> insertAns()
             is KeyAction.ToggleAngleUnit -> toggleAngleUnit()
@@ -210,6 +241,16 @@ class CalculatorViewModel @JvmOverloads constructor(
         val newMode = if (_uiState.value.mode == CalculationMode.EXACT) CalculationMode.NUMERIC else CalculationMode.EXACT
         prefs?.edit { putString("calc_mode", newMode.name) }
         _uiState.update { it.copy(mode = newMode) }
+    }
+
+    fun setUnitSystem(system: UnitSystem) {
+        prefs?.edit { putString("unit_system", system.name) }
+        _uiState.update { it.copy(unitSystem = system) }
+    }
+
+    fun setTemperatureInKelvin(enabled: Boolean) {
+        prefs?.edit { putBoolean("temperature_kelvin", enabled) }
+        _uiState.update { it.copy(temperatureInKelvin = enabled) }
     }
 
     fun toggleAngleUnit() {
@@ -411,16 +452,11 @@ class CalculatorViewModel @JvmOverloads constructor(
         val target = getTargetString(root, path)
         val pos = path.last().coerceIn(0, target.length)
 
-        var insertPos = pos
-        if (pos > 0 && target.nodeAt(pos - 1) is NumberNode) {
-            target.insert(insertPos, OperatorNode(MathOp.MULTIPLY))
-            insertPos++
-        }
-        val expNode = ExponentNode(MathString(listOf(NumberNode("10"))), MathString())
-        target.insert(insertPos, expNode)
+        // "×10ⁿ" attached to the number before the cursor; the cursor goes into the exponent
+        target.insert(pos, SciExponentNode())
 
         val containerPath = if (path.isNotEmpty()) path.subList(0, path.size - 1) else emptyList()
-        val newPath = containerPath + listOf(insertPos, 1, 0)
+        val newPath = containerPath + listOf(pos, 0, 0)
         _uiState.update { it.copy(expression = root, cursorPath = newPath, selectionRange = null) }
     }
 
@@ -452,15 +488,10 @@ class CalculatorViewModel @JvmOverloads constructor(
                     // Operator before division: DO NOT move operator into numerator!
                     insertIdx = pos
                     cursorInNumerator = true
-                } else if (lastNode is NumberNode) {
-                    val grabbedNodes = mutableListOf<MathNode>()
-                    var p = pos - 1
-                    while (p >= 0 && target.nodeAt(p) is NumberNode) {
-                        grabbedNodes.add(0, target.removeAt(p)!!)
-                        p--
-                    }
-                    numString.insertAll(0, grabbedNodes)
-                    insertIdx = p + 1
+                } else if (isNumberPart(lastNode) || isUnitLike(lastNode)) {
+                    // Take the whole quantity as numerator: a number ("12", "5×10³"), or a number
+                    // with its units ("5 mmol", "3 m²"). A unit without a number stays alone (km ÷ h).
+                    insertIdx = takeNumberBefore(target, pos, includeUnits = true, into = numString)
                 } else {
                     val prevNode = target.removeAt(pos - 1)!!
                     numString.insert(0, prevNode)
@@ -482,6 +513,37 @@ class CalculatorViewModel @JvmOverloads constructor(
         }
         _uiState.update { it.copy(expression = root, cursorPath = newPath, selectionRange = null) }
     }
+
+    private fun isNumberPart(node: MathNode): Boolean = node is NumberNode || node is SciExponentNode
+
+    /**
+     * Moves the number ending at [pos] (digits plus an optional "×10ⁿ", and with
+     * [includeUnits] also the units after it) from [target] into [into].
+     * Returns the index where the number started.
+     */
+    private fun takeNumberBefore(target: MathString, pos: Int, includeUnits: Boolean, into: MathString): Int {
+        val taken = mutableListOf<MathNode>()
+        var p = pos - 1
+        fun takeWhile(predicate: (MathNode) -> Boolean, max: Int = Int.MAX_VALUE) {
+            var count = 0
+            while (p >= 0 && count < max && predicate(target.nodeAt(p))) {
+                taken.add(0, target.removeAt(p)!!)
+                p--
+                count++
+            }
+        }
+        if (includeUnits) takeWhile({ isUnitLike(it) })
+        takeWhile({ it is SciExponentNode }, max = 1)
+        takeWhile({ it is NumberNode })
+        into.insertAll(0, taken)
+        return p + 1
+    }
+
+    /** A unit, possibly raised to a power (m, km/h, m²). */
+    private fun isUnitLike(node: MathNode): Boolean =
+        node is UnitNode || (node is ExponentNode && node.base?.let { base ->
+            base.isNotEmpty && base.nodes.all { it is UnitNode }
+        } == true)
 
     private fun insertPower(exponentStr: MathString = MathString()) {
         val root = _uiState.value.expression.copy()
@@ -505,15 +567,9 @@ class CalculatorViewModel @JvmOverloads constructor(
             val pos = path.last().coerceIn(0, target.length)
             if (pos > 0) {
                 val lastNode = target.nodeAt(pos - 1)
-                if (lastNode is NumberNode) {
-                    val grabbedNodes = mutableListOf<MathNode>()
-                    var p = pos - 1
-                    while (p >= 0 && target.nodeAt(p) is NumberNode) {
-                        grabbedNodes.add(0, target.removeAt(p)!!)
-                        p--
-                    }
-                    baseStr.insertAll(0, grabbedNodes)
-                    insertIdx = p + 1
+                if (isNumberPart(lastNode)) {
+                    // The whole number is the base, including a scientific part: (5×10³)²
+                    insertIdx = takeNumberBefore(target, pos, includeUnits = false, into = baseStr)
                 } else if (lastNode !is OperatorNode) {
                     val prevNode = target.removeAt(pos - 1)!!
                     baseStr.insert(0, prevNode)
@@ -814,7 +870,7 @@ class CalculatorViewModel @JvmOverloads constructor(
         commitJob = viewModelScope.launch {
             // Reuse the live result if it is up to date, otherwise calculate right away
             val res = state.result?.takeIf { it.input == expr }
-                ?: MathEngine.calculate(expr, MathContext(mode = state.mode, angleUnit = state.angleUnit))
+                ?: MathEngine.calculate(expr, state.mathContext().toMathContext())
             if (_uiState.value.expression != expr) return@launch // edited meanwhile
             if (!res.isSuccess) {
                 _uiState.update { it.copy(result = res, showResultError = true) }
@@ -842,7 +898,7 @@ class CalculatorViewModel @JvmOverloads constructor(
         }
         _uiState.update { it.copy(plotFunction = null, isPlotLoading = true) }
         plotJob = viewModelScope.launch {
-            val context = MathContext(mode = state.mode, angleUnit = state.angleUnit)
+            val context = state.mathContext().toMathContext()
             val fn = MathEngine.createPlotFunction(expr, context)
             _uiState.update { it.copy(plotFunction = fn, isPlotLoading = false) }
         }

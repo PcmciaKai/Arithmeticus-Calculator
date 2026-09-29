@@ -1,97 +1,158 @@
 package com.vortessence.calculator.ui.dialogs
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.vortessence.calculator.core.math.expressions.UnitExpression
+import com.vortessence.calculator.core.math.expressions.UnitCategory
+import com.vortessence.calculator.core.math.expressions.UnitFamily
 import com.vortessence.calculator.core.math.expressions.UnitRegistry
 
+/**
+ * Unit picker: categories (Length, Pressure, ...) are chosen with chips; each category shows
+ * its families (e.g. "Metre: nm µm mm cm m km") as rows of tappable units. Searching looks
+ * through all unit symbols, unit names, family and category names.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UnitsDialog(
     onDismiss: () -> Unit,
-    onUnitSelected: (String) -> Unit
+    onUnitSelected: (String) -> Unit,
+    selectedCategory: Int = 0,
+    onCategorySelected: (Int) -> Unit = {}
 ) {
-    var searchQuery by remember { mutableStateOf("") }
-    val filteredUnits = remember(searchQuery) {
-        if (searchQuery.isBlank()) {
-            UnitRegistry.allUnits
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var query by rememberSaveable { mutableStateOf("") }
+    val categories = UnitRegistry.categories
+    val categoryIndex = selectedCategory.coerceIn(categories.indices)
+
+    val sections: List<Pair<String?, List<UnitFamily>>> = remember(query, categoryIndex) {
+        if (query.isBlank()) {
+            listOf(null to categories[categoryIndex].families)
         } else {
-            UnitRegistry.allUnits.filter {
-                it.symbol.contains(searchQuery, ignoreCase = true) ||
-                        it.quantity.name.contains(searchQuery, ignoreCase = true)
+            categories.mapNotNull { category ->
+                search(category, query.trim())?.let { category.name to it }
             }
         }
     }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text("Select Unit", fontWeight = FontWeight.Bold)
-        },
-        text = {
-            Column(modifier = Modifier.fillMaxWidth().height(350.dp)) {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search units (m, kg, km/h)...") },
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    singleLine = true
-                )
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text("Insert unit", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
 
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    items(filteredUnits) { unit ->
-                        UnitItemRow(unit = unit, onClick = { onUnitSelected(unit.symbol) })
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                placeholder = { Text("Search, e.g. km, pressure, gallon") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                trailingIcon = {
+                    if (query.isNotEmpty()) {
+                        IconButton(onClick = { query = "" }) {
+                            Icon(Icons.Default.Close, contentDescription = "Clear search")
+                        }
+                    }
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            if (query.isBlank()) {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    itemsIndexed(categories) { index, category ->
+                        FilterChip(
+                            selected = index == categoryIndex,
+                            onClick = { onCategorySelected(index) },
+                            label = { Text(category.name) }
+                        )
                     }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Close")
+
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 460.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                if (sections.isEmpty()) {
+                    item {
+                        Text(
+                            "No units found",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(vertical = 24.dp)
+                        )
+                    }
+                }
+                sections.forEach { (title, families) ->
+                    if (title != null) {
+                        item(key = "title-$title") {
+                            Text(
+                                title,
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                    items(families, key = { "${title}-${it.name}" }) { family ->
+                        UnitFamilyRow(family = family, onUnitSelected = onUnitSelected)
+                    }
+                }
             }
-        },
-        shape = RoundedCornerShape(20.dp)
-    )
+        }
+    }
 }
 
+/** Families of [category] matching [query], reduced to their matching units; null if none match. */
+private fun search(category: UnitCategory, query: String): List<UnitFamily>? {
+    val q = query.lowercase()
+    if (category.name.lowercase().contains(q)) return category.families
+    val families = category.families.mapNotNull { family ->
+        if (family.name.lowercase().contains(q)) return@mapNotNull family
+        val units = family.units.filter { it.symbol.lowercase().contains(q) || it.name.lowercase().contains(q) }
+        if (units.isEmpty()) null else family.copy(units = units)
+    }
+    return families.ifEmpty { null }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun UnitItemRow(unit: UnitExpression, onClick: () -> Unit) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(10.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = unit.symbol,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Text(
-                text = unit.quantity.name,
-                fontSize = 13.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+private fun UnitFamilyRow(family: UnitFamily, onUnitSelected: (String) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(
+            family.name,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            family.units.forEach { unit ->
+                SuggestionChip(
+                    onClick = { onUnitSelected(unit.symbol) },
+                    label = { Text(unit.symbol, fontSize = 16.sp, fontWeight = FontWeight.Medium) },
+                    modifier = Modifier.semantics { contentDescription = unit.name }
+                )
+            }
         }
     }
 }

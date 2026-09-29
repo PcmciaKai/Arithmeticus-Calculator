@@ -142,7 +142,7 @@ class MathEngineRegressionTest {
         assertEquals(big.numericValue, reused.numericValue, big.numericValue * 1e-9)
 
         val tiny = calc(ms(n("0.000000123456")), CalculationMode.NUMERIC)
-        assertTrue(tiny.result.nodes.any { it is ExponentNode })
+        assertTrue(tiny.result.nodes.any { it is SciExponentNode })
         assertEquals(1.23456e-7, calc(tiny.answer!!).numericValue, 1e-15)
     }
 
@@ -299,5 +299,21 @@ class MathEngineRegressionTest {
         val data = MathEngine.analyzePlot(fn, -100.0, 100.0)
         assertTrue(data.roots.any { abs(it) < 1e-6 })
         assertTrue(data.extrema.any { abs(it.x - 90.0) < 1e-3 && abs(it.y - 1.0) < 1e-9 })
+    }
+
+    @Test
+    fun scientificNotationIsPartOfTheNumber() {
+        // 5×10³ = 5000 exactly, and ×10³ without a number is 10³
+        assertEquals("5000", calc(ms(n("5"), SciExponentNode(ms(n("3"))))).result.toString())
+        assertEquals("1000", calc(ms(SciExponentNode(ms(n("3"))))).result.toString())
+        // 2 × 1.5×10⁻² = 0.03: the ×10⁻² belongs to 1.5, and negative exponents work
+        val tight = calc(ms(n("2"), op(MathOp.MULTIPLY), n("1.5"), SciExponentNode(ms(op(MathOp.MINUS), n("2")))))
+        assertEquals(0.03, tight.numericValue, 1e-15)
+        assertTrue(calc(ms(n("5"), SciExponentNode(ms()))).issues.contains(MathIssue.SYNTAX_ERROR))
+
+        val tokens = ms(n("1"), n("2"), SciExponentNode(ms(n("3"))), op(MathOp.PLUS), n("4"))
+        assertEquals(0..2, tokens.getTokenRangeAt(0))
+        assertEquals(0..2, tokens.getTokenRangeAt(2))
+        assertEquals(4..4, tokens.getTokenRangeAt(4))
     }
 }

@@ -6,6 +6,8 @@ import com.vortessence.calculator.core.math.expressions.Equals
 import com.vortessence.calculator.core.math.expressions.Expression
 import com.vortessence.calculator.core.math.expressions.Value
 import com.vortessence.calculator.core.math.expressions.Variable
+import com.vortessence.calculator.core.math.expressions.UnitConversion
+import com.vortessence.calculator.core.math.expressions.toPreferredUnits
 import com.vortessence.calculator.core.math.solvers.Function1D
 import com.vortessence.calculator.core.math.solvers.NumericRootFinder
 import com.vortessence.calculator.core.math.type.MathParser
@@ -22,6 +24,8 @@ import kotlin.coroutines.coroutineContext
  * @property result What to display, e.g. "x = 2, x = 3".
  * @property answer The reusable value of the result (for "Ans" or tapping the result), or
  * `null` if there is none, e.g. for failed calculations or "true"/"false".
+ * @property unit The unit of the result (e.g. "m/s²"), or null if it has none. [numericValue]
+ * is the magnitude in this unit.
  */
 data class CalculationResult(
     val input: MathString,
@@ -30,7 +34,8 @@ data class CalculationResult(
     val numericValue: Double,
     val issues: List<MathIssue>,
     val isSuccess: Boolean = issues.isEmpty(),
-    val answer: MathString? = if (isSuccess) result else null
+    val answer: MathString? = if (isSuccess) result else null,
+    val unit: MathString? = null
 )
 
 data class PlotPoint(val x: Double, val y: Double)
@@ -78,8 +83,11 @@ object MathEngine {
 
         if (parsed is Equals) return evaluateEquation(input, parsed, ctx)
 
-        val simplified = parsed.canonicalize(ctx)
+        val canonical = parsed.canonicalize(ctx)
         if (ctx.shouldStop) return failure(input, ctx, expression = parsed)
+        // An explicit conversion (5 km → mi) keeps its target unit
+        val simplified = if (parsed is UnitConversion) canonical else canonical.toPreferredUnits(ctx)
+        if (ctx.shouldStop) return failure(input, ctx, expression = canonical)
 
         val numVal = simplified.evaluateNumerically()
         if (simplified is Value && !numVal.isFinite()) {
@@ -91,7 +99,8 @@ object MathEngine {
             result = writer.write(simplified),
             expression = simplified,
             numericValue = numVal,
-            issues = ctx.issues
+            issues = ctx.issues,
+            unit = simplified.partWithUnit()?.let { writer.writeUnit(it) }
         )
     }
 
@@ -104,6 +113,8 @@ object MathEngine {
 
         val targetVar = pickVariable(vars)
         val solutions = equation.solveForVariable(targetVar, ctx)
+            .map { if (it == targetVar) it else it.toPreferredUnits(ctx) }
+            .toCollection(LinkedHashSet())
         if (ctx.shouldStop || solutions.isEmpty()) {
             return failure(input, ctx, MathIssue.CANT_SOLVE_GENERIC, equation)
         }
@@ -123,7 +134,8 @@ object MathEngine {
             expression = equation,
             numericValue = solutions.first().evaluateNumerically(),
             issues = ctx.issues,
-            answer = writer.write(solutions.first())
+            answer = writer.write(solutions.first()),
+            unit = solutions.first().partWithUnit()?.let { writer.writeUnit(it) }
         )
     }
 

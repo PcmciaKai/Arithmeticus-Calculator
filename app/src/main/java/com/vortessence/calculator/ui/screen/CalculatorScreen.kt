@@ -57,6 +57,8 @@ fun CalculatorScreen(
 
     // The chosen answer form stays selected while the live result updates during typing
     var answerForm by rememberSaveable { mutableStateOf(AnswerForm.EXACT) }
+    // The unit picker reopens on the category used last
+    var unitCategory by rememberSaveable { mutableIntStateOf(0) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background
@@ -121,6 +123,7 @@ fun CalculatorScreen(
             // Keypad with swipe navigation (Other, Main, Advanced)
             CalculatorKeypad(
                 angleUnit = uiState.angleUnit,
+                isLineEmpty = uiState.expression.isEmpty,
                 onKeyAction = { action -> viewModel.onKeyAction(action) }
             )
         }
@@ -130,7 +133,9 @@ fun CalculatorScreen(
     if (uiState.showUnitsDialog) {
         UnitsDialog(
             onDismiss = { viewModel.dismissUnitsDialog() },
-            onUnitSelected = { symbol -> viewModel.insertUnit(symbol) }
+            onUnitSelected = { symbol -> viewModel.insertUnit(symbol) },
+            selectedCategory = unitCategory,
+            onCategorySelected = { unitCategory = it }
         )
     }
 
@@ -147,8 +152,12 @@ fun CalculatorScreen(
         SettingsDialog(
             mode = uiState.mode,
             angleUnit = uiState.angleUnit,
+            unitSystem = uiState.unitSystem,
+            temperatureInKelvin = uiState.temperatureInKelvin,
             onToggleMode = { viewModel.toggleMode() },
             onToggleAngleUnit = { viewModel.toggleAngleUnit() },
+            onUnitSystemChange = { viewModel.setUnitSystem(it) },
+            onTemperatureInKelvinChange = { viewModel.setTemperatureInKelvin(it) },
             onDismiss = { viewModel.dismissSettingsDialog() }
         )
     }
@@ -231,8 +240,14 @@ private fun LiveResultView(
                         fontSize = 24.sp,
                         textColor = MaterialTheme.colorScheme.onBackground
                     )
-                    AnswerForm.DECIMAL -> ResultText(String.format(Locale.US, "%.10g", result.numericValue))
-                    AnswerForm.SCIENTIFIC -> ResultText(String.format(Locale.US, "%.8e", result.numericValue))
+                    AnswerForm.DECIMAL -> {
+                        ResultText(String.format(Locale.US, "%.10g", result.numericValue))
+                        ResultUnit(result)
+                    }
+                    AnswerForm.SCIENTIFIC -> {
+                        ResultText(String.format(Locale.US, "%.8e", result.numericValue))
+                        ResultUnit(result)
+                    }
                     AnswerForm.MIXED -> {
                         val r = rational!!
                         val whole = r.numerator / r.denominator
@@ -243,6 +258,17 @@ private fun LiveResultView(
             }
         }
     }
+}
+
+/** The unit of a quantity result, shown after the number in the Decimal and Sci forms. */
+@Composable
+private fun ResultUnit(result: CalculationResult) {
+    val unit = result.unit ?: return
+    MathExpressionView(
+        mathString = unit,
+        fontSize = 24.sp,
+        textColor = MaterialTheme.colorScheme.onBackground
+    )
 }
 
 @Composable
