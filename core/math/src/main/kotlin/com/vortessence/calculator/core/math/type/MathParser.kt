@@ -187,7 +187,8 @@ class MathParser {
      * (which results produced in numeric mode may contain).
      */
     private fun parseNumberString(str: String): Value {
-        val normalized = str.trim().replace('−', '-')
+        // Tolerate digit-group separators (300 000) in case grouped text is ever reused
+        val normalized = str.filterNot { it == ' ' || it == '\u202F' || it == '\u2009' }.replace('−', '-')
         val decimal = try {
             BigDecimal(normalized)
         } catch (e: NumberFormatException) {

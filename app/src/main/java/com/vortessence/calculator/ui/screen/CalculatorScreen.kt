@@ -30,12 +30,14 @@ import com.vortessence.calculator.ui.dialogs.ConstantsDialog
 import com.vortessence.calculator.ui.dialogs.UnitsDialog
 import com.vortessence.calculator.ui.graph.GraphPlotterView
 import com.vortessence.calculator.ui.keypad.CalculatorKeypad
+import com.vortessence.calculator.ui.math.LocalDigitGrouping
 import com.vortessence.calculator.ui.math.MathEditor
 import com.vortessence.calculator.ui.math.MathExpressionView
 import androidx.compose.ui.tooling.preview.Preview
 import com.vortessence.calculator.ui.dialogs.SettingsDialog
 import com.vortessence.calculator.ui.theme.AccentRed
-import com.vortessence.calculator.ui.theme.ArchimedesTheme
+import com.vortessence.calculator.ui.theme.CalculatorTheme
+import com.vortessence.calculator.viewmodel.CalculatorUiState
 import com.vortessence.calculator.viewmodel.CalculatorViewModel
 
 @Composable
@@ -43,7 +45,14 @@ fun CalculatorScreen(
     viewModel: CalculatorViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    // Digit grouping applies to every number shown: input, results, history and graph
+    CompositionLocalProvider(LocalDigitGrouping provides uiState.digitGrouping) {
+        CalculatorScreenContent(viewModel, uiState)
+    }
+}
 
+@Composable
+private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: CalculatorUiState) {
     if (uiState.isGraphOpen) {
         GraphPlotterView(
             function = uiState.plotFunction,
@@ -152,9 +161,13 @@ fun CalculatorScreen(
             angleUnit = uiState.angleUnit,
             unitSystem = uiState.unitSystem,
             temperatureInKelvin = uiState.temperatureInKelvin,
+            decimalPlaces = uiState.decimalPlaces,
+            digitGrouping = uiState.digitGrouping,
             onToggleAngleUnit = { viewModel.toggleAngleUnit() },
             onUnitSystemChange = { viewModel.setUnitSystem(it) },
             onTemperatureInKelvinChange = { viewModel.setTemperatureInKelvin(it) },
+            onDecimalPlacesChange = { viewModel.setDecimalPlaces(it) },
+            onDigitGroupingChange = { viewModel.setDigitGrouping(it) },
             onDismiss = { viewModel.dismissSettingsDialog() }
         )
     }
@@ -366,7 +379,7 @@ private fun HistoryItemCard(
 @Preview(showBackground = true)
 @Composable
 fun CalculatorScreenPreview() {
-    ArchimedesTheme(darkTheme = false) {
+    CalculatorTheme(darkTheme = false) {
         CalculatorScreen(viewModel = remember { CalculatorViewModel(Application()) })
     }
 }
@@ -374,7 +387,7 @@ fun CalculatorScreenPreview() {
 @Preview(showBackground = true)
 @Composable
 fun CalculatorScreenDarkPreview() {
-    ArchimedesTheme(darkTheme = true) {
+    CalculatorTheme(darkTheme = true) {
         CalculatorScreen(viewModel = remember { CalculatorViewModel(Application()) })
     }
 }

@@ -579,18 +579,19 @@ class CalculatorViewModelTest {
         val vm = newViewModel()
         vm.onKeyAction(KeyAction.Number("0"))
         vm.insertUnit("°C")
+        // Kelvin is the default for temperatures
+        assertTrue(vm.uiState.value.temperatureInKelvin)
         vm.awaitLiveResult()
-        assertEquals("0°C", vm.uiState.value.result!!.result.toString())
-
-        vm.setTemperatureInKelvin(true)
-        var attempts = 0
-        while (vm.uiState.value.result?.result.toString() != "273.15K" && attempts < 100) {
-            delay(20)
-            attempts++
-        }
         assertEquals("273.15K", vm.uiState.value.result!!.result.toString())
 
         vm.setTemperatureInKelvin(false)
+        var attempts = 0
+        while (vm.uiState.value.result?.result.toString() != "0°C" && attempts < 100) {
+            delay(20)
+            attempts++
+        }
+        assertEquals("0°C", vm.uiState.value.result!!.result.toString())
+
         vm.setUnitSystem(com.vortessence.calculator.core.math.context.UnitSystem.US_CUSTOMARY)
         attempts = 0
         while (vm.uiState.value.result?.result.toString() != "32°F" && attempts < 100) {
@@ -718,5 +719,10 @@ class CalculatorViewModelTest {
         vm.type("×", "3")
         vm.awaitLiveResult()
         assertEquals("1", vm.uiState.value.result!!.result.toString())
+    }
+
+    @Test
+    fun testDigitGroupingIsOnByDefault() {
+        assertTrue(newViewModel().uiState.value.digitGrouping)
     }
 }

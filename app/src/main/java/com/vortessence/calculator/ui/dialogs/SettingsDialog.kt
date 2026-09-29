@@ -1,6 +1,8 @@
 package com.vortessence.calculator.ui.dialogs
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -11,15 +13,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vortessence.calculator.core.math.context.AngleUnit
 import com.vortessence.calculator.core.math.context.UnitSystem
+import java.util.Locale
 
 @Composable
 fun SettingsDialog(
     angleUnit: AngleUnit,
     unitSystem: UnitSystem,
     temperatureInKelvin: Boolean,
+    decimalPlaces: Int?,
+    digitGrouping: Boolean,
     onToggleAngleUnit: () -> Unit,
     onUnitSystemChange: (UnitSystem) -> Unit,
     onTemperatureInKelvinChange: (Boolean) -> Unit,
+    onDecimalPlacesChange: (Int?) -> Unit,
+    onDigitGroupingChange: (Boolean) -> Unit,
     onDismiss: () -> Unit
 ) {
     AlertDialog(
@@ -31,6 +38,7 @@ fun SettingsDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
                     .padding(vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
@@ -102,14 +110,40 @@ fun SettingsDialog(
 
                 HorizontalDivider()
 
-                // About / Archimedes Info
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("About Archimedes", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                    Text(
-                        "Modernized Archimedes Calculator for Android with exact symbolic math, natural WYSIWYG input, and interactive function plotting.",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                // Number display
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Number display", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Decimal places", fontWeight = FontWeight.Medium, fontSize = 15.sp)
+                            Text(
+                                if (decimalPlaces == null) "Automatic, up to 10 significant digits"
+                                else "Always $decimalPlaces, e.g. ${String.format(Locale.US, "%.${decimalPlaces}f", 2.5)}",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        DecimalPlacesPicker(decimalPlaces, onDecimalPlacesChange)
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Digit grouping", fontWeight = FontWeight.Medium, fontSize = 15.sp)
+                            Text(
+                                "Show large numbers as 300\u202F000",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(checked = digitGrouping, onCheckedChange = onDigitGroupingChange)
+                    }
                 }
             }
         },
@@ -127,3 +161,27 @@ private fun unitSystemDescription(system: UnitSystem): String = when (system) {
     UnitSystem.IMPERIAL -> "British imperial: ft, lb, imperial gallon, psi, °F, …"
     UnitSystem.US_CUSTOMARY -> "US customary: ft, lb, US gallon, psi, °F, …"
 }
+
+/** "Auto" or a fixed number of decimal places from 0 to [MAX_DECIMAL_PLACES]. */
+@Composable
+private fun DecimalPlacesPicker(value: Int?, onChange: (Int?) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        OutlinedButton(onClick = { expanded = true }) {
+            Text(value?.toString() ?: "Auto")
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            (listOf<Int?>(null) + (0..MAX_DECIMAL_PLACES)).forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option?.toString() ?: "Auto") },
+                    onClick = {
+                        onChange(option)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+private const val MAX_DECIMAL_PLACES = 12

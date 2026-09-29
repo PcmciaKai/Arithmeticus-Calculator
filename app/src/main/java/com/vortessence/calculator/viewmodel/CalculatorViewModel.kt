@@ -43,7 +43,11 @@ data class CalculatorUiState(
     /** Units that results with units are expressed in. */
     val unitSystem: UnitSystem = UnitSystem.METRIC,
     /** Show temperatures in kelvin instead of °C/°F. */
-    val temperatureInKelvin: Boolean = false,
+    val temperatureInKelvin: Boolean = true,
+    /** Fixed number of decimal places for displayed decimals, or null for automatic. */
+    val decimalPlaces: Int? = null,
+    /** Show large numbers with digit groups (300 000); display only. */
+    val digitGrouping: Boolean = true,
     val isGraphOpen: Boolean = false,
     /** Function shown in the graph, or null if the expression cannot be plotted. */
     val plotFunction: Function1D? = null,
@@ -69,7 +73,7 @@ class CalculatorViewModel @JvmOverloads constructor(
 ) : AndroidViewModel(application) {
 
     private val prefs = try {
-        application.getSharedPreferences("archimedes_calc", Context.MODE_PRIVATE)
+        application.getSharedPreferences("calculator_settings", Context.MODE_PRIVATE)
     } catch (e: Exception) {
         null
     }
@@ -119,29 +123,40 @@ class CalculatorViewModel @JvmOverloads constructor(
     private data class Settings(
         val angleUnit: AngleUnit,
         val unitSystem: UnitSystem,
-        val temperatureInKelvin: Boolean
+        val temperatureInKelvin: Boolean,
+        val decimalPlaces: Int?
     ) {
         // Always exact; decimal display is a matter of the result form
         fun toMathContext() = MathContext(
             mode = CalculationMode.EXACT,
             angleUnit = angleUnit,
             unitSystem = unitSystem,
-            temperatureInKelvin = temperatureInKelvin
+            temperatureInKelvin = temperatureInKelvin,
+            decimalPlaces = decimalPlaces
         )
     }
 
-    private fun CalculatorUiState.mathContext() = Settings(angleUnit, unitSystem, temperatureInKelvin)
+    private fun CalculatorUiState.mathContext() = Settings(angleUnit, unitSystem, temperatureInKelvin, decimalPlaces)
 
     private fun loadSettings() {
         val savedAngleStr = prefs?.getString("angle_unit", AngleUnit.RADIANS.name) ?: AngleUnit.RADIANS.name
         val angle = try { AngleUnit.valueOf(savedAngleStr) } catch (e: Exception) { AngleUnit.RADIANS }
         val savedUnitSystem = prefs?.getString("unit_system", null)
         val unitSystem = UnitSystem.entries.firstOrNull { it.name == savedUnitSystem } ?: UnitSystem.METRIC
-        val kelvin = prefs?.getBoolean("temperature_kelvin", false) ?: false
+        val kelvin = prefs?.getBoolean("temperature_kelvin", true) ?: true
         val savedForm = prefs?.getString("result_form", null)
         val form = ResultForm.entries.firstOrNull { it.name == savedForm } ?: ResultForm.EXACT
+        val places = prefs?.getInt("decimal_places", -1)?.takeIf { it >= 0 }
+        val grouping = prefs?.getBoolean("digit_grouping", true) ?: true
         _uiState.update {
-            it.copy(resultForm = form, angleUnit = angle, unitSystem = unitSystem, temperatureInKelvin = kelvin)
+            it.copy(
+                resultForm = form,
+                angleUnit = angle,
+                unitSystem = unitSystem,
+                temperatureInKelvin = kelvin,
+                decimalPlaces = places,
+                digitGrouping = grouping
+            )
         }
     }
 
@@ -250,6 +265,17 @@ class CalculatorViewModel @JvmOverloads constructor(
     fun setResultForm(form: ResultForm) {
         prefs?.edit { putString("result_form", form.name) }
         _uiState.update { it.copy(resultForm = form) }
+    }
+
+    /** A fixed number of decimal places, or null for automatic. */
+    fun setDecimalPlaces(places: Int?) {
+        prefs?.edit { putInt("decimal_places", places ?: -1) }
+        _uiState.update { it.copy(decimalPlaces = places) }
+    }
+
+    fun setDigitGrouping(enabled: Boolean) {
+        prefs?.edit { putBoolean("digit_grouping", enabled) }
+        _uiState.update { it.copy(digitGrouping = enabled) }
     }
 
     fun setUnitSystem(system: UnitSystem) {

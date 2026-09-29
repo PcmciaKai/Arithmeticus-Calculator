@@ -34,6 +34,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vortessence.calculator.core.math.type.*
 
+/** Whether numbers are shown with digit groups (300 000). Display only, the text is unchanged. */
+val LocalDigitGrouping = staticCompositionLocalOf { false }
+
 /**
  * Natural WYSIWYG mathematical expression layout in Jetpack Compose.
  * Supports fractions, radicals, exponents, parentheses, functions, cursor and selection display.
@@ -67,6 +70,7 @@ fun MathExpressionView(
     val nodeBounds = remember { mutableStateMapOf<Int, Rect>() }
     val activeSelection = if (isCursorHere) selectionRange else null
     val selectionColor = accentColor.copy(alpha = 0.25f)
+    val groupedDigits = if (LocalDigitGrouping.current) groupDigits(mathString.nodes) else emptyMap()
 
     Row(
         modifier = modifier
@@ -133,7 +137,7 @@ fun MathExpressionView(
                     accentColor = accentColor,
                     caretGeometry = caretGeometry
                 )
-                MathNodeView(node, fontSize, slots, isUnaryMinus)
+                MathNodeView(node, fontSize, slots, isUnaryMinus, groupedDigits[index])
             }
         }
 
@@ -142,6 +146,48 @@ fun MathExpressionView(
         }
     }
 }
+
+/**
+ * Digit-grouped display text for the number nodes in [nodes], by node index. A number may be
+ * one node ("300000", results) or one node per digit (typed input), so grouping looks at each
+ * whole run of number nodes. Integer parts with more than four digits get a narrow space
+ * between groups of three (300 000; 4-digit numbers stay 1234, following SI conventions).
+ */
+internal fun groupDigits(nodes: List<MathNode>): Map<Int, String> {
+    val result = HashMap<Int, String>()
+    var i = 0
+    while (i < nodes.size) {
+        if (nodes[i] !is NumberNode) {
+            i++
+            continue
+        }
+        val start = i
+        while (i < nodes.size && nodes[i] is NumberNode) i++
+        val run = start until i
+        val full = run.joinToString("") { (nodes[it] as NumberNode).text }
+        val integerStart = if (full.startsWith("-")) 1 else 0
+        var integerEnd = integerStart
+        while (integerEnd < full.length && full[integerEnd].isDigit()) integerEnd++
+        if (integerEnd - integerStart <= 4) continue
+        // Character positions (in the whole run) that start a new group of three
+        val breaks = (integerStart + 1 until integerEnd).filter { (integerEnd - it) % 3 == 0 }.toSet()
+        var offset = 0
+        for (index in run) {
+            val text = (nodes[index] as NumberNode).text
+            result[index] = buildString {
+                text.forEachIndexed { k, c ->
+                    if (offset + k in breaks) append(GROUP_SEPARATOR)
+                    append(c)
+                }
+            }
+            offset += text.length
+        }
+    }
+    return result
+}
+
+/** Narrow no-break space, the SI digit group separator. */
+private const val GROUP_SEPARATOR = '\u202F'
 
 /** Everything a structured node needs to render its nested strings (numerator, exponent, ...). */
 private class SlotContext(
@@ -209,13 +255,19 @@ private fun EmptySlotPlaceholder(fontSize: TextUnit, color: Color) {
 }
 
 @Composable
-private fun MathNodeView(node: MathNode, fontSize: TextUnit, slots: SlotContext, isUnaryMinus: Boolean) {
+private fun MathNodeView(
+    node: MathNode,
+    fontSize: TextUnit,
+    slots: SlotContext,
+    isUnaryMinus: Boolean,
+    displayText: String? = null
+) {
     val textColor = slots.textColor
     val accentColor = slots.accentColor
     when (node) {
         is NumberNode -> {
             Text(
-                text = node.text,
+                text = displayText ?: node.text,
                 fontSize = fontSize,
                 fontWeight = FontWeight.Normal,
                 color = textColor,

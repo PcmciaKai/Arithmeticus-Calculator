@@ -21,9 +21,9 @@ import kotlinx.coroutines.withContext
 import kotlin.coroutines.coroutineContext
 
 /**
- * @property result What to display, e.g. "x = 2, x = 3".
- * @property answer The reusable value of the result (for "Ans" or tapping the result), or
- * `null` if there is none, e.g. for failed calculations or "true"/"false".
+ * @property result What to display, e.g. "x = 2, x = 3", with numbers formatted for display.
+ * @property answer The reusable, unrounded value of the result (for "Ans" or tapping the
+ * result), or `null` if there is none, e.g. for failed calculations or "true"/"false".
  * @property unit The unit of the result (e.g. "m/s²"), or null if it has none. [numericValue]
  * is the magnitude in this unit.
  */
@@ -35,7 +35,9 @@ data class CalculationResult(
     val issues: List<MathIssue>,
     val isSuccess: Boolean = issues.isEmpty(),
     val answer: MathString? = if (isSuccess) result else null,
-    val unit: MathString? = null
+    val unit: MathString? = null,
+    /** The decimal places setting [result] was written with (null = automatic). */
+    val decimalPlaces: Int? = null
 )
 
 data class PlotPoint(val x: Double, val y: Double)
@@ -50,6 +52,11 @@ object MathEngine {
 
     private val parser = MathParser()
     private val writer = MathWriter()
+    /** Writes reusable answers: exact fractions and all digits, independent of display settings. */
+    private val answerWriter = MathWriter(lossless = true)
+
+    /** Writes results for display with the context's number format. */
+    private fun displayWriter(ctx: MathContext) = MathWriter(decimalPlaces = ctx.decimalPlaces)
 
     suspend fun calculate(
         input: MathString,
@@ -94,13 +101,17 @@ object MathEngine {
             val issue = if (numVal.isNaN()) MathIssue.UNDEFINED else MathIssue.VALUES_TOO_LARGE
             return failure(input, ctx, issue, simplified)
         }
+        val display = displayWriter(ctx)
+        val issues = ctx.issues
         return CalculationResult(
             input = input,
-            result = writer.write(simplified),
+            result = display.write(simplified),
             expression = simplified,
             numericValue = numVal,
-            issues = ctx.issues,
-            unit = simplified.partWithUnit()?.let { writer.writeUnit(it) }
+            issues = issues,
+            answer = if (issues.isEmpty()) answerWriter.write(simplified) else null,
+            unit = simplified.partWithUnit()?.let { display.writeUnit(it) },
+            decimalPlaces = ctx.decimalPlaces
         )
     }
 
@@ -123,10 +134,11 @@ object MathEngine {
             return truthResult(input, equation, true, ctx)
         }
 
+        val display = displayWriter(ctx)
         val combinedResult = MathString()
         for ((idx, sol) in solutions.withIndex()) {
             if (idx > 0) combinedResult.insert(combinedResult.length, TextNode(", "))
-            combinedResult.insertAll(combinedResult.length, writer.write(Equals(targetVar, sol)).nodes)
+            combinedResult.insertAll(combinedResult.length, display.write(Equals(targetVar, sol)).nodes)
         }
         return CalculationResult(
             input = input,
@@ -134,8 +146,9 @@ object MathEngine {
             expression = equation,
             numericValue = solutions.first().evaluateNumerically(),
             issues = ctx.issues,
-            answer = writer.write(solutions.first()),
-            unit = solutions.first().partWithUnit()?.let { writer.writeUnit(it) }
+            answer = answerWriter.write(solutions.first()),
+            unit = solutions.first().partWithUnit()?.let { display.writeUnit(it) },
+            decimalPlaces = ctx.decimalPlaces
         )
     }
 

@@ -2,7 +2,7 @@ package com.vortessence.calculator.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Archimedes-inspired minimalist palette
+// Minimalist palette
 val OrangePrimary = Color(0xFFFF9500)
 val OrangeLight = Color(0xFFFFB340)
 val OrangeDark = Color(0xFFCC7700)

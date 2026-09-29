@@ -5,6 +5,7 @@ import com.vortessence.calculator.core.math.numbers.BigInt
 import com.vortessence.calculator.core.math.numbers.Rational
 import java.math.BigDecimal
 import java.math.BigInteger
+import java.math.RoundingMode
 import java.math.MathContext as DecimalContext
 import kotlin.math.abs
 import kotlin.math.floor
@@ -13,8 +14,16 @@ import kotlin.math.log10
 /**
  * Converts an [Expression] into a [MathString] for display. The output only uses nodes the
  * parser understands (apart from [TextNode]), so results can be reused as input.
+ *
+ * @param decimalPlaces Decimal numbers are shown with exactly this many decimal places
+ * (e.g. 3.50 for 2); `null` means automatic: up to 10 significant digits, no trailing zeros.
+ * @param lossless Write numbers without any rounding (exact fractions, all digits of floating
+ * point values), for results that are reused as input, e.g. via "Ans".
  */
-class MathWriter {
+class MathWriter(
+    private val decimalPlaces: Int? = null,
+    private val lossless: Boolean = false
+) {
 
     /** Writes [expr]; a bare unit is written as a quantity of 1, e.g. "1 psi". */
     fun write(expr: Expression): MathString {
@@ -107,12 +116,8 @@ class MathWriter {
     }
 
     /**
-     * Writes a floating point number with up to [SIGNIFICANT_DIGITS] significant digits.
-     * Very large or small magnitudes use scientific notation as "m × 10^e".
-     */
-    /**
-     * Writes a floating point number with up to 10 significant digits and no trailing zeros.
-     * With [scientific] it is always written as mantissa ×10ⁿ, e.g. 4.894371097×10¹.
+     * Writes a floating point number (see [decimalPlaces] and [lossless]). Very large or small
+     * magnitudes, and with [scientific] all numbers, are written as mantissa ×10ⁿ.
      */
     fun writeNumber(d: Double, scientific: Boolean = false): MathString =
         MathString().also { writeReal(d, it, scientific) }
@@ -124,26 +129,61 @@ class MathWriter {
                 if (d < 0) result.append(OperatorNode(MathOp.MINUS))
                 return result.append(TextNode("∞"))
             }
-            d == 0.0 -> return result.append(NumberNode("0"))
         }
         if (d < 0) result.append(OperatorNode(MathOp.MINUS))
         val magnitude = abs(d)
+        val places = decimalPlaces
+        val (digits, exponent) = when {
+            magnitude == 0.0 -> (if (places != null && !lossless) BigDecimal.ZERO.setScale(places).toPlainString() else "0") to null
+            lossless -> losslessDigits(magnitude, scientific)
+            places != null -> fixedDigits(magnitude, places, scientific)
+            else -> automaticDigits(magnitude, scientific)
+        }
+        result.append(NumberNode(digits))
+        if (exponent != null) {
+            val exponentString = MathString()
+            if (exponent < 0) exponentString.append(OperatorNode(MathOp.MINUS))
+            exponentString.append(NumberNode(abs(exponent).toString()))
+            result.append(SciExponentNode(exponentString))
+        }
+    }
+
+    private fun isPlainExponent(exponent: Int) = exponent in MIN_PLAIN_EXPONENT until MAX_PLAIN_EXPONENT
+
+    /** Up to 10 significant digits, no trailing zeros. Returns (digits, ×10 exponent or null). */
+    private fun automaticDigits(magnitude: Double, scientific: Boolean): Pair<String, Int?> {
         if (!scientific && magnitude % 1.0 == 0.0 && magnitude < 1e15) {
-            result.append(NumberNode(BigDecimal(magnitude).toPlainString()))
-            return
+            return BigDecimal(magnitude).toPlainString() to null
         }
         val rounded = BigDecimal(magnitude).round(DecimalContext(SIGNIFICANT_DIGITS))
         val exponent = floor(log10(rounded.toDouble())).toInt()
-        if (!scientific && exponent in MIN_PLAIN_EXPONENT until MAX_PLAIN_EXPONENT) {
-            result.append(NumberNode(rounded.stripTrailingZeros().toPlainString()))
-            return
+        if (!scientific && isPlainExponent(exponent)) return rounded.stripTrailingZeros().toPlainString() to null
+        return rounded.movePointLeft(exponent).stripTrailingZeros().toPlainString() to exponent
+    }
+
+    /** Exactly [places] decimal places (in the mantissa for scientific notation). */
+    private fun fixedDigits(magnitude: Double, places: Int, scientific: Boolean): Pair<String, Int?> {
+        val value = BigDecimal(magnitude)
+        var exponent = floor(log10(magnitude)).toInt()
+        if (!scientific && isPlainExponent(exponent)) {
+            val rounded = value.setScale(places, RoundingMode.HALF_UP)
+            // Would read as 0.00: show it in scientific notation instead of hiding the value
+            if (rounded.signum() != 0) return rounded.toPlainString() to null
         }
-        val mantissa = rounded.movePointLeft(exponent).stripTrailingZeros().toPlainString()
-        val exponentString = MathString()
-        if (exponent < 0) exponentString.append(OperatorNode(MathOp.MINUS))
-        exponentString.append(NumberNode(abs(exponent).toString()))
-        result.append(NumberNode(mantissa))
-        result.append(SciExponentNode(exponentString))
+        var mantissa = value.movePointLeft(exponent).setScale(places, RoundingMode.HALF_UP)
+        if (mantissa >= BigDecimal.TEN) {
+            exponent++ // e.g. 9.999 rounded to 10.00
+            mantissa = value.movePointLeft(exponent).setScale(places, RoundingMode.HALF_UP)
+        }
+        return mantissa.toPlainString() to exponent
+    }
+
+    /** All digits needed to reproduce the double exactly (shortest round-trip form). */
+    private fun losslessDigits(magnitude: Double, scientific: Boolean): Pair<String, Int?> {
+        val value = BigDecimal(magnitude.toString()).stripTrailingZeros()
+        val exponent = value.precision() - value.scale() - 1
+        if (!scientific && isPlainExponent(exponent)) return value.toPlainString() to null
+        return value.movePointLeft(exponent).toPlainString() to exponent
     }
 
     private fun writePower(power: Power, result: MathString) {
@@ -186,8 +226,13 @@ class MathWriter {
             val magnitude = mult.operands.filterNot { isUnitFactor(it) }
             val single = magnitude.singleOrNull()
             val rational = (single as? Value)?.rational
-            val decimal = rational?.let { terminatingDecimal(it) }
+            val decimal = rational?.let { terminatingDecimal(it, maxLength = if (lossless) null else MAX_EXACT_DECIMAL_LENGTH) }
             when {
+                // Reusable results stay exact: exact decimals, otherwise fractions
+                lossless && decimal == null && rational != null -> result.appendAll(writeExpr(single))
+                // A fixed number of decimal places applies to quantities too
+                !lossless && decimalPlaces != null && rational != null && rational.isFractional ->
+                    writeReal(rational.toDouble(), result)
                 decimal != null -> result.append(NumberNode(decimal))
                 // Quantities like 6625000/381 ft read better as a decimal; 1/3 m stays exact
                 rational != null && rational.denominator > BigInt(MAX_QUANTITY_DENOMINATOR) ->
@@ -300,7 +345,7 @@ class MathWriter {
      * The exact decimal form of a (non-negative) rational whose decimal expansion terminates,
      * e.g. 1143/1250 -> "0.9144"; null for 1/3 or if it would be unreasonably long.
      */
-    private fun terminatingDecimal(r: Rational): String? {
+    private fun terminatingDecimal(r: Rational, maxLength: Int?): String? {
         if (!r.isFractional || r.isNegative) return null
         var den = r.denominator.value
         val two = BigInteger.valueOf(2)
@@ -309,7 +354,7 @@ class MathWriter {
         while (den.mod(five).signum() == 0) den = den.divide(five)
         if (den != BigInteger.ONE) return null
         val text = BigDecimal(r.numerator.value).divide(BigDecimal(r.denominator.value)).stripTrailingZeros().toPlainString()
-        return text.takeIf { it.length <= MAX_EXACT_DECIMAL_LENGTH }
+        return text.takeIf { maxLength == null || it.length <= maxLength }
     }
 
     private fun MathString.append(node: MathNode) = insert(length, node)

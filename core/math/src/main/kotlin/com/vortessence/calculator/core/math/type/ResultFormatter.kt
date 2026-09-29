@@ -18,8 +18,6 @@ enum class ResultForm {
 
 /** Formats a [CalculationResult] in a [ResultForm], e.g. for the live result and the history. */
 object ResultFormatter {
-    private val writer = MathWriter()
-
     /** The forms that make sense for [result]; [ResultForm.EXACT] is always included. */
     fun availableForms(result: CalculationResult): List<ResultForm> {
         if (!result.isSuccess) return emptyList()
@@ -42,8 +40,8 @@ object ResultFormatter {
         val effective = if (form in availableForms(result)) form else ResultForm.EXACT
         val formatted = when (effective) {
             ResultForm.EXACT -> return result.result
-            ResultForm.DECIMAL -> writer.writeNumber(result.numericValue)
-            ResultForm.SCIENTIFIC -> writer.writeNumber(result.numericValue, scientific = true)
+            ResultForm.DECIMAL -> MathWriter(result.decimalPlaces).writeNumber(result.numericValue)
+            ResultForm.SCIENTIFIC -> MathWriter(result.decimalPlaces).writeNumber(result.numericValue, scientific = true)
             ResultForm.MIXED -> {
                 val (whole, numerator, denominator) = mixedParts(result)!!
                 MathString(listOf(
