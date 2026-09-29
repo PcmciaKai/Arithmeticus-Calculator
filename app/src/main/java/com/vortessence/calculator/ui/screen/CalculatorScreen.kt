@@ -4,7 +4,6 @@ import android.app.Application
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -29,6 +28,7 @@ import com.vortessence.calculator.ui.dialogs.ConstantsDialog
 import com.vortessence.calculator.ui.dialogs.UnitsDialog
 import com.vortessence.calculator.ui.graph.GraphPlotterView
 import com.vortessence.calculator.ui.keypad.CalculatorKeypad
+import com.vortessence.calculator.ui.math.MathEditor
 import com.vortessence.calculator.ui.math.MathExpressionView
 import androidx.compose.ui.tooling.preview.Preview
 import com.vortessence.calculator.core.math.expressions.Value
@@ -98,50 +98,16 @@ fun CalculatorScreen(
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
             ) {
                 Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 10.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null
-                                ) {
-                                    viewModel.setCursorPath(listOf(uiState.expression.length))
-                                }
-                                .padding(vertical = 8.dp)
-                                .horizontalScroll(rememberScrollState()),
-                            contentAlignment = Alignment.CenterStart
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                MathExpressionView(
-                                    mathString = uiState.expression,
-                                    cursorPath = uiState.cursorPath,
-                                    selectionRange = uiState.selectionRange,
-                                    fontSize = 32.sp,
-                                    onCursorPathSelected = { path -> viewModel.setCursorPath(path) },
-                                    onSelectToken = { path, index -> viewModel.selectTokenAt(path, index) },
-                                    onExtendSelection = { path, index -> viewModel.extendSelectionTo(path, index) },
-                                    onSelectRange = { path, range -> viewModel.setSelection(path, range) }
-                                )
-
-                                Spacer(
-                                    modifier = Modifier
-                                        .weight(1f, fill = false)
-                                        .defaultMinSize(minWidth = 100.dp)
-                                        .height(56.dp)
-                                        .clickable(
-                                            interactionSource = remember { MutableInteractionSource() },
-                                            indication = null
-                                        ) {
-                                            viewModel.setCursorPath(listOf(uiState.expression.length))
-                                        }
-                                )
-                            }
-                        }
-                    }
+                    MathEditor(
+                        expression = uiState.expression,
+                        cursorPath = uiState.cursorPath,
+                        selectionRange = uiState.selectionRange,
+                        fontSize = 32.sp,
+                        onPlaceCursor = { caret -> viewModel.setCursorPath(caret) },
+                        onSelectToken = { path, index -> viewModel.selectTokenAt(path, index) },
+                        onBeginHandleDrag = { isStart -> viewModel.beginHandleDrag(isStart) },
+                        onExtendSelection = { caret -> viewModel.extendSelection(caret) }
+                    )
 
                     LiveResultView(
                         result = uiState.result,

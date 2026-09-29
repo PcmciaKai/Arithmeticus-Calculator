@@ -67,6 +67,9 @@ class CalculatorViewModel @JvmOverloads constructor(
 
     private var nextHistoryId = 0L
 
+    /** Fixed end(s) of the selection while it is being extended by dragging. */
+    private var selectionAnchors: List<List<Int>> = emptyList()
+
     private var commitJob: Job? = null
     private var plotJob: Job? = null
 
@@ -169,22 +172,38 @@ class CalculatorViewModel @JvmOverloads constructor(
     fun selectTokenAt(path: List<Int>, index: Int) {
         val root = _uiState.value.expression
         val target = getTargetString(root, path)
+        if (index !in target.nodes.indices) return
         val tokenRange = target.getTokenRangeAt(index)
         val fullCursorPath = path + (tokenRange.last + 1)
+        // Dragging after the long press extends from this token and always keeps it selected
+        selectionAnchors = listOf(path + tokenRange.first, path + (tokenRange.last + 1))
         _uiState.update { it.copy(cursorPath = fullCursorPath, selectionRange = tokenRange) }
     }
 
-    fun extendSelectionTo(path: List<Int>, clickedIndex: Int) {
-        val root = _uiState.value.expression
-        val target = getTargetString(root, path)
-        val currentRange = _uiState.value.selectionRange ?: (clickedIndex..clickedIndex)
-        val clickedToken = target.getTokenRangeAt(clickedIndex)
+    /**
+     * Starts dragging a selection handle: the opposite end of the selection stays fixed while
+     * [extendSelection] moves the dragged end.
+     */
+    fun beginHandleDrag(isStartHandle: Boolean) {
+        val state = _uiState.value
+        val range = state.selectionRange ?: return
+        val stringPath = state.cursorPath.dropLast(1)
+        selectionAnchors = listOf(if (isStartHandle) stringPath + (range.last + 1) else stringPath + range.first)
+    }
 
-        val newStart = minOf(currentRange.first, clickedToken.first)
-        val newEnd = maxOf(currentRange.last, clickedToken.last)
-        val tokenRange = newStart..newEnd
-        val fullCursorPath = path + (tokenRange.last + 1)
-        _uiState.update { it.copy(cursorPath = fullCursorPath, selectionRange = tokenRange) }
+    /**
+     * Moves the free end of the selection to [focusCaret] (a caret path). The selection covers
+     * the anchor(s) and the focus; it is never collapsed to nothing while dragging.
+     */
+    fun extendSelection(focusCaret: List<Int>) {
+        if (selectionAnchors.isEmpty()) return
+        val selection = CaretPaths.covering(selectionAnchors + listOf(focusCaret), _uiState.value.expression) ?: return
+        _uiState.update {
+            it.copy(
+                cursorPath = selection.stringPath + (selection.range.last + 1),
+                selectionRange = selection.range
+            )
+        }
     }
 
     fun toggleMode() {

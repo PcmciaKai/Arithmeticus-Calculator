@@ -233,10 +233,13 @@ class CalculatorViewModelTest {
         vm.selectTokenAt(emptyList(), 1)
         assertEquals(0..2, vm.uiState.value.selectionRange)
 
-        // Extend to '4' (index 4)
-        vm.extendSelectionTo(emptyList(), 4)
-        // Should extend all the way to index 5 (to include all of 45!)
-        assertEquals(0..5, vm.uiState.value.selectionRange)
+        // Drag on to between '4' and '5' (caret 5): the selection covers the token and the drag
+        vm.extendSelection(listOf(5))
+        assertEquals(0..4, vm.uiState.value.selectionRange)
+
+        // Dragging back to the left keeps the long-pressed token "123" selected
+        vm.extendSelection(listOf(1))
+        assertEquals(0..2, vm.uiState.value.selectionRange)
     }
 
     @Test
@@ -496,5 +499,44 @@ class CalculatorViewModelTest {
         val middle = vm.uiState.value.history[1]
         vm.deleteHistoryEntry(middle.id)
         assertEquals(listOf("3", "1"), vm.uiState.value.history.map { it.calculation.input.toString() })
+    }
+
+    @Test
+    fun testDraggingSelectionHandles() {
+        val vm = newViewModel()
+        for (key in listOf("1", "2", "+", "3", "4")) {
+            vm.onKeyAction(if (key == "+") KeyAction.Operator("+") else KeyAction.Number(key))
+        }
+        // "12 + 34": long press on '2' selects "12"
+        vm.selectTokenAt(emptyList(), 1)
+        assertEquals(0..1, vm.uiState.value.selectionRange)
+
+        // Drag the end handle to the end: "12 + 34"
+        vm.beginHandleDrag(isStartHandle = false)
+        vm.extendSelection(listOf(5))
+        assertEquals(0..4, vm.uiState.value.selectionRange)
+
+        // Drag the start handle past the end (handles cross): only "4" remains
+        vm.beginHandleDrag(isStartHandle = true)
+        vm.extendSelection(listOf(4))
+        assertEquals(4..4, vm.uiState.value.selectionRange)
+
+        // Dragging onto the anchor itself never collapses the selection
+        vm.extendSelection(listOf(5))
+        assertEquals(4..4, vm.uiState.value.selectionRange)
+    }
+
+    @Test
+    fun testDraggingIntoAFractionSelectsTheWholeFraction() {
+        val vm = newViewModel()
+        vm.onKeyAction(KeyAction.Number("2"))
+        vm.onKeyAction(KeyAction.Operator("+"))
+        vm.onKeyAction(KeyAction.Fraction)
+        vm.onKeyAction(KeyAction.Number("1"))
+        // "2 + (1)/()" with the fraction at index 2
+        vm.selectTokenAt(emptyList(), 0)
+        vm.extendSelection(listOf(2, 0, 1))
+        assertEquals(0..2, vm.uiState.value.selectionRange)
+        assertEquals(listOf(3), vm.uiState.value.cursorPath)
     }
 }
