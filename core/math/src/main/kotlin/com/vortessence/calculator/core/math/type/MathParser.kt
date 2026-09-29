@@ -1,0 +1,302 @@
+package com.vortessence.calculator.core.math.type
+
+import com.vortessence.calculator.core.math.context.MathContext
+import com.vortessence.calculator.core.math.context.MathIssue
+import com.vortessence.calculator.core.math.expressions.*
+import com.vortessence.calculator.core.math.numbers.BigInt
+import com.vortessence.calculator.core.math.numbers.Rational
+import com.vortessence.calculator.core.math.numbers.Real
+import java.math.BigDecimal
+import java.math.BigInteger
+
+/**
+ * Converts a [MathString] into an [Expression]. Problems such as empty slots, dangling
+ * operators or unknown functions are reported to [MathContext.current] as issues; the parser
+ * never silently substitutes a different meaning.
+ */
+class MathParser {
+
+    fun parse(string: MathString): Expression {
+        val tokens = tokenize(string)
+        if (tokens.isEmpty()) return Value.ZERO
+        val parser = TokenParser(tokens)
+        return parser.parseAll()
+    }
+
+    /** Parses a slot of a structured node (numerator, exponent, ...). Empty slots are errors. */
+    private fun parseSlot(string: MathString): Expression {
+        if (string.isEmpty) {
+            syntaxError()
+            return Value.ZERO
+        }
+        return parse(string)
+    }
+
+    private sealed class Token {
+        data class ValueToken(val expr: Expression) : Token()
+        data class OpToken(val op: MathOp) : Token()
+    }
+
+    private fun tokenize(mathString: MathString): List<Token> {
+        val tokens = mutableListOf<Token>()
+        var i = 0
+        val nodes = mathString.nodes
+
+        while (i < nodes.size) {
+            val node = nodes[i]
+            when (node) {
+                is NumberNode -> {
+                    // Combine consecutive number nodes (e.g. '1', '2', '.', '5')
+                    val sb = StringBuilder()
+                    while (i < nodes.size && nodes[i] is NumberNode) {
+                        sb.append((nodes[i] as NumberNode).text)
+                        i++
+                    }
+                    tokens.add(Token.ValueToken(parseNumberString(sb.toString())))
+                    continue
+                }
+                is OperatorNode -> tokens.add(Token.OpToken(node.op))
+                is VariableNode -> tokens.add(Token.ValueToken(Variable(node.name)))
+                is ConstantNode -> {
+                    val constant = Constant.findByName(node.name) ?: run {
+                        syntaxError()
+                        Value.ZERO
+                    }
+                    tokens.add(Token.ValueToken(constant))
+                }
+                is UnitNode -> {
+                    val unit = UnitRegistry.findBySymbol(node.symbol) ?: run {
+                        MathContext.current().stopWithError(MathIssue.INVALID_UNIT)
+                        Value.ONE
+                    }
+                    tokens.add(Token.ValueToken(unit))
+                }
+                is FractionNode -> {
+                    val numExpr = parseSlot(node.numerator)
+                    val denExpr = parseSlot(node.denominator)
+                    tokens.add(Token.ValueToken(Multiplications.of(numExpr, Power.of(denExpr, Value.MINUS_ONE))))
+                }
+                is ExponentNode -> {
+                    val baseExpr = if (node.base != null) {
+                        parseSlot(node.base)
+                    } else if (tokens.isNotEmpty() && tokens.last() is Token.ValueToken) {
+                        // Superscript applied to preceding token
+                        (tokens.removeAt(tokens.lastIndex) as Token.ValueToken).expr
+                    } else {
+                        syntaxError()
+                        Value.ONE
+                    }
+                    val expExpr = parseSlot(node.exponent)
+                    tokens.add(Token.ValueToken(Power.of(baseExpr, expExpr)))
+                }
+                is RadicalNode -> {
+                    val radicand = parseSlot(node.radicand)
+                    val radExpr = if (node.degree != null) {
+                        Power.nthRoot(parseSlot(node.degree), radicand)
+                    } else {
+                        Power.squareRoot(radicand)
+                    }
+                    tokens.add(Token.ValueToken(radExpr))
+                }
+                is ParenthesesNode -> tokens.add(Token.ValueToken(parseSlot(node.inner)))
+                is FunctionNode -> {
+                    val arg = parseSlot(node.argument)
+                    val fnExpr = when (node.name.lowercase()) {
+                        "sin" -> TrigonometricFunction(TrigType.SIN, arg)
+                        "cos" -> TrigonometricFunction(TrigType.COS, arg)
+                        "tan" -> TrigonometricFunction(TrigType.TAN, arg)
+                        "asin", "arcsin" -> TrigonometricFunction(TrigType.ASIN, arg)
+                        "acos", "arccos" -> TrigonometricFunction(TrigType.ACOS, arg)
+                        "atan", "arctan" -> TrigonometricFunction(TrigType.ATAN, arg)
+                        "ln" -> Logarithm.ln(arg)
+                        "log", "log10" -> Logarithm.log10(arg)
+                        "sqrt" -> Power.squareRoot(arg)
+                        else -> {
+                            MathContext.current().stopWithError(MathIssue.UNKNOWN_FUNCTION)
+                            arg
+                        }
+                    }
+                    tokens.add(Token.ValueToken(fnExpr))
+                }
+                is LogBaseNode -> {
+                    val base = parseSlot(node.base)
+                    val arg = parseSlot(node.argument)
+                    tokens.add(Token.ValueToken(Logarithm(base, arg)))
+                }
+                is IntegralNode -> {
+                    val lower = parseSlot(node.lowerBound)
+                    val upper = parseSlot(node.upperBound)
+                    val integrand = parseSlot(node.integrand)
+                    tokens.add(Token.ValueToken(Integral(lower, upper, integrand, Variable(node.variable))))
+                }
+                is MatrixNode -> {
+                    val elements = node.elements.map { parseSlot(it) }
+                    tokens.add(Token.ValueToken(MatrixExpression(node.rows, node.cols, elements)))
+                }
+                is TextNode -> syntaxError()
+            }
+            i++
+        }
+
+        // Insert implicit multiplication between adjacent value tokens
+        val result = mutableListOf<Token>()
+        for (idx in tokens.indices) {
+            val curr = tokens[idx]
+            if (idx > 0) {
+                val prev = tokens[idx - 1]
+                if (prev is Token.ValueToken && curr is Token.ValueToken) {
+                    result.add(Token.OpToken(MathOp.MULTIPLY))
+                } else if (prev is Token.OpToken && prev.op == MathOp.FACTORIAL && curr is Token.ValueToken) {
+                    result.add(Token.OpToken(MathOp.MULTIPLY))
+                }
+            }
+            result.add(curr)
+        }
+        return result
+    }
+
+    /**
+     * Parses a decimal number exactly, including scientific notation such as "1.5e-3"
+     * (which results produced in numeric mode may contain).
+     */
+    private fun parseNumberString(str: String): Value {
+        val normalized = str.trim().replace('−', '-')
+        val decimal = try {
+            BigDecimal(normalized)
+        } catch (e: NumberFormatException) {
+            syntaxError()
+            return Value.ZERO
+        }
+        if (decimal.signum() == 0) return Value.ZERO
+        val scale = decimal.scale()
+        if (scale > MAX_EXACT_DECIMAL_SCALE || scale < -MAX_EXACT_DECIMAL_SCALE) {
+            // Absurd exponents (e.g. 1e99999): fall back to floating point
+            val d = decimal.toDouble()
+            if (d.isInfinite()) MathContext.current().stopWithError(MathIssue.VALUES_TOO_LARGE)
+            return Value(Real(d))
+        }
+        val unscaled = BigInt(decimal.unscaledValue())
+        return if (scale >= 0) {
+            Value(Rational.of(unscaled, BigInt(BigInteger.TEN.pow(scale))))
+        } else {
+            Value(Rational.of(unscaled * BigInt(BigInteger.TEN.pow(-scale))))
+        }
+    }
+
+    private class TokenParser(val tokens: List<Token>) {
+        var pos = 0
+
+        fun parseAll(): Expression {
+            val expr = parseExpression(0)
+            if (pos < tokens.size) syntaxError()
+            return expr
+        }
+
+        fun parseExpression(minPrecedence: Int): Expression {
+            var left = parsePrimary()
+
+            while (pos < tokens.size) {
+                val token = tokens[pos] as? Token.OpToken ?: break
+                val op = token.op
+                if (op == MathOp.FACTORIAL) {
+                    // A factorial that did not directly follow a value (e.g. "2 + !")
+                    syntaxError()
+                    pos++
+                    continue
+                }
+                val prec = op.precedence
+                if (prec < minPrecedence) break
+
+                pos++
+                val right = parseExpression(prec + 1)
+                left = when (op) {
+                    MathOp.PLUS -> Additions.of(left, right)
+                    MathOp.MINUS -> Additions.of(left, right.negate())
+                    MathOp.MULTIPLY -> Multiplications.of(left, right)
+                    MathOp.DIVIDE -> Multiplications.of(left, Power.of(right, Value.MINUS_ONE))
+                    MathOp.EQUALS -> {
+                        if (left is Equals || right is Equals) syntaxError()
+                        Equals(left, right)
+                    }
+                    MathOp.FACTORIAL -> left
+                }
+            }
+            return left
+        }
+
+        private fun parsePrimary(): Expression {
+            if (pos >= tokens.size) {
+                // Dangling operator, e.g. "2 +"
+                syntaxError()
+                return Value.ZERO
+            }
+
+            val token = tokens[pos]
+            if (token is Token.OpToken && token.op == MathOp.MINUS) {
+                pos++
+                return parsePrimary().negate()
+            }
+            if (token is Token.OpToken && token.op == MathOp.PLUS) {
+                pos++
+                return parsePrimary()
+            }
+            if (token !is Token.ValueToken) {
+                // Operator without a left operand, e.g. "× 3"
+                syntaxError()
+                return Value.ZERO
+            }
+
+            pos++
+            var expr = token.expr
+            while (pos < tokens.size) {
+                val nextToken = tokens[pos]
+                if (nextToken is Token.OpToken && nextToken.op == MathOp.FACTORIAL) {
+                    pos++
+                    expr = computeFactorial(expr)
+                } else {
+                    break
+                }
+            }
+
+            return expr
+        }
+
+        private fun computeFactorial(expr: Expression): Expression {
+            val context = MathContext.current()
+            val canonical = expr.canonicalize(context)
+            if (context.shouldStop) return expr
+            val n: Long? = (canonical as? Value)?.let { value ->
+                val r = value.rational
+                if (r != null) {
+                    if (r.isFractional || r.isNegative) null
+                    else if (r.numerator > BigInt(MAX_FACTORIAL)) MAX_FACTORIAL + 1
+                    else r.numerator.toLong()
+                } else {
+                    val d = value.real.value
+                    if (d >= 0.0 && d == Math.floor(d)) minOf(d, (MAX_FACTORIAL + 1).toDouble()).toLong() else null
+                }
+            }
+            return when {
+                n == null -> {
+                    // Negative, fractional or symbolic arguments are not supported
+                    context.stopWithError(MathIssue.UNDEFINED)
+                    expr
+                }
+                n > MAX_FACTORIAL -> {
+                    context.stopWithError(MathIssue.VALUES_TOO_LARGE)
+                    expr
+                }
+                else -> Value(BigInt.factorial(n))
+            }
+        }
+    }
+
+    private companion object {
+        const val MAX_FACTORIAL = 3000L
+        const val MAX_EXACT_DECIMAL_SCALE = 10_000
+
+        fun syntaxError() {
+            MathContext.current().stopWithError(MathIssue.SYNTAX_ERROR)
+        }
+    }
+}

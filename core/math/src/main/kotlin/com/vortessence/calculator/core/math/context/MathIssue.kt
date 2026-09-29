@@ -1,0 +1,21 @@
+package com.vortessence.calculator.core.math.context
+
+/**
+ * Issues that may arise during evaluation, matching legacy MEIssue.
+ */
+enum class MathIssue(val userMessage: String) {
+    DIVISION_BY_ZERO("Division by zero"),
+    NEGATIVE_ROOT("Even root of negative number"),
+    LOGARITHMIC_DOMAIN("Logarithm argument/base out of domain"),
+    TRIGONOMETRIC_DOMAIN("Argument out of domain"),
+    VALUES_TOO_LARGE("Value too large to calculate"),
+    UNDEFINED("Calculation undefined"),
+    CONTRADICTION("Contradiction (no solution)"),
+    NO_REAL_SOLUTION("No real solution"),
+    CANT_SOLVE_GENERIC("Cannot solve this equation"),
+    INVALID_UNIT("Incompatible or invalid units"),
+    COMPLEX_RESULT("Complex result not supported in real mode"),
+    SYNTAX_ERROR("Incomplete or invalid expression"),
+    UNKNOWN_FUNCTION("Unknown function"),
+    TIMEOUT("Calculation timed out")
+}

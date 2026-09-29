@@ -1,0 +1,831 @@
+package com.vortessence.calculator.viewmodel
+
+import android.app.Application
+import android.content.Context
+import androidx.core.content.edit
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.vortessence.calculator.core.math.*
+import com.vortessence.calculator.core.math.context.AngleUnit
+import com.vortessence.calculator.core.math.context.CalculationMode
+import com.vortessence.calculator.core.math.context.MathContext
+import com.vortessence.calculator.core.math.solvers.Function1D
+import com.vortessence.calculator.core.math.type.*
+import com.vortessence.calculator.ui.keypad.KeyAction
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+
+data class CalculatorUiState(
+    val expression: MathString = MathString(),
+    val cursorPath: List<Int> = listOf(0),
+    val selectionRange: IntRange? = null,
+    /** Live result of the current [expression], updated while typing. */
+    val result: CalculationResult? = null,
+    /** True after Enter was pressed on an invalid line: show its error even if it is "incomplete". */
+    val showResultError: Boolean = false,
+    /** Committed calculations, newest first. */
+    val history: List<HistoryEntry> = emptyList(),
+    val mode: CalculationMode = CalculationMode.EXACT,
+    val angleUnit: AngleUnit = AngleUnit.RADIANS,
+    val isGraphOpen: Boolean = false,
+    /** Function shown in the graph, or null if the expression cannot be plotted. */
+    val plotFunction: Function1D? = null,
+    val isPlotLoading: Boolean = false,
+    val showUnitsDialog: Boolean = false,
+    val showConstantsDialog: Boolean = false,
+    val showSettingsDialog: Boolean = false
+)
+
+/** A committed calculation. [id] is stable, so list items can be animated and removed. */
+data class HistoryEntry(val id: Long, val calculation: CalculationResult)
+
+/**
+ * @param liveResultDelayMillis Debounce before the live result is recomputed after a change,
+ * so that fast typing does not start a calculation for every keystroke.
+ */
+class CalculatorViewModel @JvmOverloads constructor(
+    application: Application,
+    private val liveResultDelayMillis: Long = 120L
+) : AndroidViewModel(application) {
+
+    private val prefs = try {
+        application.getSharedPreferences("archimedes_calc", Context.MODE_PRIVATE)
+    } catch (e: Exception) {
+        null
+    }
+
+    private val _uiState = MutableStateFlow(CalculatorUiState())
+    val uiState: StateFlow<CalculatorUiState> = _uiState.asStateFlow()
+
+    private var nextHistoryId = 0L
+
+    private var commitJob: Job? = null
+    private var plotJob: Job? = null
+
+    init {
+        loadSavedMode()
+        observeLiveResult()
+    }
+
+    /**
+     * Recomputes the live result whenever the expression, mode or angle unit changes.
+     * collectLatest cancels a still running calculation as soon as the input changes again.
+     */
+    private fun observeLiveResult() {
+        viewModelScope.launch {
+            _uiState
+                .map { LiveInput(it.expression, it.mode, it.angleUnit) }
+                .distinctUntilChanged()
+                .collectLatest { input ->
+                    if (input.expression.isEmpty) {
+                        _uiState.update { it.copy(result = null, showResultError = false) }
+                        return@collectLatest
+                    }
+                    if (liveResultDelayMillis > 0) delay(liveResultDelayMillis)
+                    val res = MathEngine.calculate(input.expression, MathContext(mode = input.mode, angleUnit = input.angleUnit))
+                    _uiState.update {
+                        if (it.expression == input.expression) it.copy(result = res, showResultError = false) else it
+                    }
+                }
+        }
+    }
+
+    private data class LiveInput(val expression: MathString, val mode: CalculationMode, val angleUnit: AngleUnit)
+
+    private fun loadSavedMode() {
+        val savedModeStr = prefs?.getString("calc_mode", CalculationMode.EXACT.name) ?: CalculationMode.EXACT.name
+        val savedAngleStr = prefs?.getString("angle_unit", AngleUnit.RADIANS.name) ?: AngleUnit.RADIANS.name
+        val mode = try { CalculationMode.valueOf(savedModeStr) } catch (e: Exception) { CalculationMode.EXACT }
+        val angle = try { AngleUnit.valueOf(savedAngleStr) } catch (e: Exception) { AngleUnit.RADIANS }
+        _uiState.update { it.copy(mode = mode, angleUnit = angle) }
+    }
+
+    fun onKeyAction(action: KeyAction) {
+        when (action) {
+            is KeyAction.Number -> insertNode(NumberNode(action.digit))
+            is KeyAction.Operator -> {
+                if (action.opSymbol == "÷" || action.opSymbol == "/") {
+                    insertDivision()
+                } else {
+                    val op = when (action.opSymbol) {
+                        "+" -> MathOp.PLUS
+                        "−", "-" -> MathOp.MINUS
+                        "×", "*" -> MathOp.MULTIPLY
+                        "=" -> MathOp.EQUALS
+                        "!" -> MathOp.FACTORIAL
+                        else -> MathOp.PLUS
+                    }
+                    insertNode(OperatorNode(op))
+                }
+            }
+            is KeyAction.Variable -> insertNode(VariableNode(action.name))
+            is KeyAction.Constant -> insertNode(ConstantNode(action.symbol))
+            is KeyAction.Function -> insertNode(FunctionNode(action.name, MathString()))
+            is KeyAction.LogBase -> insertNode(LogBaseNode())
+            is KeyAction.EE -> insertEE()
+            is KeyAction.Parentheses -> onParenthesesAction()
+            is KeyAction.Fraction -> insertDivision()
+            is KeyAction.Power -> insertPower()
+            is KeyAction.Square -> insertPower(MathString(listOf(NumberNode("2"))))
+            is KeyAction.Sqrt -> insertSqrt()
+            is KeyAction.NthRoot -> insertNode(RadicalNode(MathString(), MathString()))
+            is KeyAction.LeftParen -> insertNode(ParenthesesNode(MathString()))
+            is KeyAction.RightParen -> moveCursorRight()
+            is KeyAction.Backspace -> deleteAtCursor()
+            is KeyAction.ClearLine -> clearLine()
+            is KeyAction.ClearAll -> clearAll()
+            is KeyAction.Clear -> clearLine()
+            is KeyAction.Enter -> commit()
+            is KeyAction.Ans -> insertAns()
+            is KeyAction.ToggleAngleUnit -> toggleAngleUnit()
+            is KeyAction.MoveLeft -> moveCursorLeft()
+            is KeyAction.MoveRight -> moveCursorRight()
+            is KeyAction.OpenUnits -> _uiState.update { it.copy(showUnitsDialog = true) }
+            is KeyAction.OpenConstants -> _uiState.update { it.copy(showConstantsDialog = true) }
+            is KeyAction.OpenGraph -> toggleGraph()
+            is KeyAction.OpenSettings -> _uiState.update { it.copy(showSettingsDialog = true) }
+            is KeyAction.Integral -> insertNode(IntegralNode())
+            is KeyAction.Matrix -> insertNode(MatrixNode(rows = 2, cols = 2, elements = List(4) { MathString() }))
+        }
+    }
+
+    fun setCursorPath(path: List<Int>) {
+        _uiState.update { it.copy(cursorPath = path, selectionRange = null) }
+    }
+
+    fun setSelection(path: List<Int>, range: IntRange) {
+        val fullCursorPath = path + (range.last + 1)
+        _uiState.update { it.copy(cursorPath = fullCursorPath, selectionRange = range) }
+    }
+
+    fun selectTokenAt(path: List<Int>, index: Int) {
+        val root = _uiState.value.expression
+        val target = getTargetString(root, path)
+        val tokenRange = target.getTokenRangeAt(index)
+        val fullCursorPath = path + (tokenRange.last + 1)
+        _uiState.update { it.copy(cursorPath = fullCursorPath, selectionRange = tokenRange) }
+    }
+
+    fun extendSelectionTo(path: List<Int>, clickedIndex: Int) {
+        val root = _uiState.value.expression
+        val target = getTargetString(root, path)
+        val currentRange = _uiState.value.selectionRange ?: (clickedIndex..clickedIndex)
+        val clickedToken = target.getTokenRangeAt(clickedIndex)
+
+        val newStart = minOf(currentRange.first, clickedToken.first)
+        val newEnd = maxOf(currentRange.last, clickedToken.last)
+        val tokenRange = newStart..newEnd
+        val fullCursorPath = path + (tokenRange.last + 1)
+        _uiState.update { it.copy(cursorPath = fullCursorPath, selectionRange = tokenRange) }
+    }
+
+    fun toggleMode() {
+        val newMode = if (_uiState.value.mode == CalculationMode.EXACT) CalculationMode.NUMERIC else CalculationMode.EXACT
+        prefs?.edit { putString("calc_mode", newMode.name) }
+        _uiState.update { it.copy(mode = newMode) }
+    }
+
+    fun toggleAngleUnit() {
+        val newUnit = if (_uiState.value.angleUnit == AngleUnit.RADIANS) AngleUnit.DEGREES else AngleUnit.RADIANS
+        prefs?.edit { putString("angle_unit", newUnit.name) }
+        _uiState.update { it.copy(angleUnit = newUnit) }
+    }
+
+    fun toggleGraph() {
+        val willOpen = !_uiState.value.isGraphOpen
+        _uiState.update { it.copy(isGraphOpen = willOpen) }
+        if (willOpen) {
+            updatePlotData()
+        }
+    }
+
+    fun closeGraph() {
+        plotJob?.cancel()
+        _uiState.update { it.copy(isGraphOpen = false, isPlotLoading = false) }
+    }
+
+    fun dismissUnitsDialog() {
+        _uiState.update { it.copy(showUnitsDialog = false) }
+    }
+
+    fun dismissConstantsDialog() {
+        _uiState.update { it.copy(showConstantsDialog = false) }
+    }
+
+    fun dismissSettingsDialog() {
+        _uiState.update { it.copy(showSettingsDialog = false) }
+    }
+
+    fun insertUnit(symbol: String) {
+        insertNode(UnitNode(symbol))
+        dismissUnitsDialog()
+    }
+
+    fun insertConstant(symbol: String) {
+        insertNode(ConstantNode(symbol))
+        dismissConstantsDialog()
+    }
+
+    fun selectHistoryItem(item: CalculationResult) {
+        _uiState.update {
+            it.copy(
+                expression = item.input.copy(),
+                cursorPath = listOf(item.input.length),
+                selectionRange = null
+            )
+        }
+    }
+
+    fun useResultAsInput(item: CalculationResult) {
+        val answer = item.answer ?: return
+        _uiState.update {
+            it.copy(
+                expression = answer.copy(),
+                cursorPath = listOf(answer.length),
+                selectionRange = null
+            )
+        }
+    }
+
+    fun insertAns() {
+        val state = _uiState.value
+        // Ans is the most recently committed result, not the live result of this line
+        val lastResult = state.history.firstOrNull { it.calculation.answer != null }?.calculation ?: return
+        val answer = lastResult.answer ?: return
+        val root = state.expression.copy()
+        val path = state.cursorPath
+        val target = getTargetString(root, path)
+        val pos = path.last().coerceIn(0, target.length)
+
+        // Keep the answer a single unit: without parentheses "2" followed by an answer "−3"
+        // would read as "2 − 3", and digits would merge with neighboring digits.
+        val nodesToInsert = if (answer.length == 1 && answer.nodeAt(0) !is NumberNode) {
+            answer.nodes.map { it.copy() }
+        } else {
+            listOf(ParenthesesNode(answer.copy()))
+        }
+        target.insertAll(pos, nodesToInsert)
+
+        val newPath = path.toMutableList().apply {
+            this[lastIndex] = pos + nodesToInsert.size
+        }
+        _uiState.update { it.copy(expression = root, cursorPath = newPath, selectionRange = null) }
+    }
+
+    private fun getTargetString(root: MathString, path: List<Int>): MathString {
+        var current = root
+        for (i in 0 until path.size - 1 step 2) {
+            val nodeIdx = path[i]
+            val childIdx = path[i + 1]
+            if (nodeIdx in current.nodes.indices) {
+                val node = current.nodes[nodeIdx]
+                if (childIdx in node.subStrings.indices) {
+                    current = node.subStrings[childIdx]
+                }
+            }
+        }
+        return current
+    }
+
+    private fun insertNode(node: MathNode) {
+        val root = _uiState.value.expression.copy()
+        val path = _uiState.value.cursorPath
+        val target = getTargetString(root, path)
+        val range = _uiState.value.selectionRange
+
+        val pos: Int
+        var nodeToInsert = node
+        if (range != null && !range.isEmpty()) {
+            val start = range.first.coerceIn(0, target.length)
+            val end = (range.last + 1).coerceIn(start, target.length)
+            val removed = mutableListOf<MathNode>()
+            for (i in (end - 1) downTo start) {
+                if (i in target.nodes.indices) {
+                    removed.add(0, target.removeAt(i)!!)
+                }
+            }
+            // Structured nodes wrap the selection (e.g. selecting "2x" and pressing sin gives
+            // sin(2x)) instead of replacing it
+            val wrapSlot = mainSlotIndex(node)
+            if (wrapSlot != null && removed.isNotEmpty()) {
+                nodeToInsert = node.replaceSubString(wrapSlot, MathString(removed))
+            }
+            pos = start
+        } else {
+            pos = path.last().coerceIn(0, target.length)
+        }
+
+        target.insert(pos, nodeToInsert)
+
+        val containerPath = if (path.isNotEmpty()) path.subList(0, path.size - 1) else emptyList()
+        val firstEmptySlot = nodeToInsert.subStrings.indexOfFirst { it.isEmpty }
+        val newPath = if (firstEmptySlot >= 0) {
+            containerPath + listOf(pos, firstEmptySlot, 0)
+        } else {
+            containerPath + (pos + 1)
+        }
+
+        _uiState.update { it.copy(expression = root, cursorPath = newPath, selectionRange = null) }
+    }
+
+    /** The slot that receives a wrapped selection, e.g. the argument of a function. */
+    private fun mainSlotIndex(node: MathNode): Int? = when (node) {
+        is FunctionNode, is ParenthesesNode -> 0
+        is LogBaseNode -> 1
+        is RadicalNode -> if (node.degree != null) 1 else 0
+        is IntegralNode -> 2
+        else -> null
+    }
+
+    private fun onParenthesesAction() {
+        val state = _uiState.value
+        val root = state.expression.copy()
+        val path = state.cursorPath
+        val target = getTargetString(root, path)
+        val range = state.selectionRange
+
+        if (range != null && !range.isEmpty()) {
+            val start = range.first.coerceIn(0, target.length)
+            val end = (range.last + 1).coerceIn(start, target.length)
+            val cutNodes = mutableListOf<MathNode>()
+            for (i in (end - 1) downTo start) {
+                if (i in target.nodes.indices) {
+                    cutNodes.add(0, target.removeAt(i)!!)
+                }
+            }
+            val parenNode = ParenthesesNode(MathString(cutNodes))
+            target.insert(start, parenNode)
+            val containerPath = if (path.isNotEmpty()) path.subList(0, path.size - 1) else emptyList()
+            val newPath = containerPath + (start + 1)
+            _uiState.update { it.copy(expression = root, cursorPath = newPath, selectionRange = null) }
+            return
+        }
+
+        // Check if cursor is at the end of a ParenthesesNode child
+        if (path.size > 1) {
+            val containerPath = path.subList(0, path.size - 2)
+            val containerTarget = getTargetString(root, containerPath)
+            val containerNodeIdx = containerPath.last()
+            if (containerNodeIdx in containerTarget.nodes.indices) {
+                val containerNode = containerTarget.nodeAt(containerNodeIdx)
+                val pos = path.last()
+                if (containerNode is ParenthesesNode && pos == containerNode.inner.length) {
+                    moveCursorRight()
+                    return
+                }
+            }
+        }
+        insertNode(ParenthesesNode(MathString()))
+    }
+
+    private fun insertEE() {
+        val root = _uiState.value.expression.copy()
+        val path = _uiState.value.cursorPath
+        val target = getTargetString(root, path)
+        val pos = path.last().coerceIn(0, target.length)
+
+        var insertPos = pos
+        if (pos > 0 && target.nodeAt(pos - 1) is NumberNode) {
+            target.insert(insertPos, OperatorNode(MathOp.MULTIPLY))
+            insertPos++
+        }
+        val expNode = ExponentNode(MathString(listOf(NumberNode("10"))), MathString())
+        target.insert(insertPos, expNode)
+
+        val containerPath = if (path.isNotEmpty()) path.subList(0, path.size - 1) else emptyList()
+        val newPath = containerPath + listOf(insertPos, 1, 0)
+        _uiState.update { it.copy(expression = root, cursorPath = newPath, selectionRange = null) }
+    }
+
+    private fun insertDivision() {
+        val root = _uiState.value.expression.copy()
+        val path = _uiState.value.cursorPath
+        val target = getTargetString(root, path)
+        val range = _uiState.value.selectionRange
+        val containerPath = if (path.isNotEmpty()) path.subList(0, path.size - 1) else emptyList()
+
+        val numString = MathString()
+        val insertIdx: Int
+        var cursorInNumerator = false
+
+        if (range != null && !range.isEmpty()) {
+            val start = range.first.coerceIn(0, target.length)
+            val end = (range.last + 1).coerceIn(start, target.length)
+            for (i in (end - 1) downTo start) {
+                if (i in target.nodes.indices) {
+                    numString.insert(0, target.removeAt(i)!!)
+                }
+            }
+            insertIdx = start
+        } else {
+            val pos = path.last().coerceIn(0, target.length)
+            if (pos > 0) {
+                val lastNode = target.nodeAt(pos - 1)
+                if (lastNode is OperatorNode) {
+                    // Operator before division: DO NOT move operator into numerator!
+                    insertIdx = pos
+                    cursorInNumerator = true
+                } else if (lastNode is NumberNode) {
+                    val grabbedNodes = mutableListOf<MathNode>()
+                    var p = pos - 1
+                    while (p >= 0 && target.nodeAt(p) is NumberNode) {
+                        grabbedNodes.add(0, target.removeAt(p)!!)
+                        p--
+                    }
+                    numString.insertAll(0, grabbedNodes)
+                    insertIdx = p + 1
+                } else {
+                    val prevNode = target.removeAt(pos - 1)!!
+                    numString.insert(0, prevNode)
+                    insertIdx = pos - 1
+                }
+            } else {
+                insertIdx = pos
+                cursorInNumerator = true
+            }
+        }
+
+        val fracNode = FractionNode(numString, MathString())
+        target.insert(insertIdx, fracNode)
+
+        val newPath = if (cursorInNumerator) {
+            containerPath + listOf(insertIdx, 0, 0)
+        } else {
+            containerPath + listOf(insertIdx, 1, 0)
+        }
+        _uiState.update { it.copy(expression = root, cursorPath = newPath, selectionRange = null) }
+    }
+
+    private fun insertPower(exponentStr: MathString = MathString()) {
+        val root = _uiState.value.expression.copy()
+        val path = _uiState.value.cursorPath
+        val target = getTargetString(root, path)
+        val range = _uiState.value.selectionRange
+        val containerPath = if (path.isNotEmpty()) path.subList(0, path.size - 1) else emptyList()
+
+        val baseStr = MathString()
+        val insertIdx: Int
+        if (range != null && !range.isEmpty()) {
+            val start = range.first.coerceIn(0, target.length)
+            val end = (range.last + 1).coerceIn(start, target.length)
+            for (i in (end - 1) downTo start) {
+                if (i in target.nodes.indices) {
+                    baseStr.insert(0, target.removeAt(i)!!)
+                }
+            }
+            insertIdx = start
+        } else {
+            val pos = path.last().coerceIn(0, target.length)
+            if (pos > 0) {
+                val lastNode = target.nodeAt(pos - 1)
+                if (lastNode is NumberNode) {
+                    val grabbedNodes = mutableListOf<MathNode>()
+                    var p = pos - 1
+                    while (p >= 0 && target.nodeAt(p) is NumberNode) {
+                        grabbedNodes.add(0, target.removeAt(p)!!)
+                        p--
+                    }
+                    baseStr.insertAll(0, grabbedNodes)
+                    insertIdx = p + 1
+                } else if (lastNode !is OperatorNode) {
+                    val prevNode = target.removeAt(pos - 1)!!
+                    baseStr.insert(0, prevNode)
+                    insertIdx = pos - 1
+                } else {
+                    insertIdx = pos
+                }
+            } else {
+                insertIdx = pos
+            }
+        }
+
+        // The base slot always exists (child 0); when nothing could be taken as the base it
+        // stays empty and receives the cursor first.
+        val expNode = ExponentNode(baseStr, exponentStr)
+        target.insert(insertIdx, expNode)
+
+        val newPath = when {
+            baseStr.isEmpty -> containerPath + listOf(insertIdx, 0, 0)
+            exponentStr.isEmpty -> containerPath + listOf(insertIdx, 1, 0)
+            else -> containerPath + (insertIdx + 1)
+        }
+        _uiState.update { it.copy(expression = root, cursorPath = newPath, selectionRange = null) }
+    }
+
+    private fun insertSqrt() {
+        val root = _uiState.value.expression.copy()
+        val path = _uiState.value.cursorPath
+        val target = getTargetString(root, path)
+        val range = _uiState.value.selectionRange
+        val containerPath = if (path.isNotEmpty()) path.subList(0, path.size - 1) else emptyList()
+
+        val radString = MathString()
+        val insertIdx: Int
+        if (range != null && !range.isEmpty()) {
+            val start = range.first.coerceIn(0, target.length)
+            val end = (range.last + 1).coerceIn(start, target.length)
+            for (i in (end - 1) downTo start) {
+                if (i in target.nodes.indices) {
+                    radString.insert(0, target.removeAt(i)!!)
+                }
+            }
+            insertIdx = start
+        } else {
+            insertIdx = path.last().coerceIn(0, target.length)
+        }
+
+        val radNode = RadicalNode(null, radString)
+        target.insert(insertIdx, radNode)
+
+        val newPath = containerPath + listOf(insertIdx, 0, radString.length)
+        _uiState.update { it.copy(expression = root, cursorPath = newPath, selectionRange = null) }
+    }
+
+    private fun deleteAtCursor() {
+        val range = _uiState.value.selectionRange
+        val root = _uiState.value.expression.copy()
+        val path = _uiState.value.cursorPath
+        val target = getTargetString(root, path)
+
+        if (range != null && !range.isEmpty()) {
+            val start = range.first.coerceIn(0, target.length)
+            val end = (range.last + 1).coerceIn(start, target.length)
+            for (i in (end - 1) downTo start) {
+                if (i in target.nodes.indices) {
+                    target.removeAt(i)
+                }
+            }
+            val containerPath = if (path.isNotEmpty()) path.subList(0, path.size - 1) else emptyList()
+            val newPath = containerPath + start
+            _uiState.update { it.copy(expression = root, cursorPath = newPath, selectionRange = null) }
+            return
+        }
+
+        val pos = path.last()
+        if (pos > 0) {
+            val nodeBefore = target.nodeAt(pos - 1)
+            if (nodeBefore.subStrings.any { it.isNotEmpty }) {
+                moveCursorLeft()
+                return
+            }
+            target.removeAt(pos - 1)
+            _uiState.update {
+                it.copy(
+                    expression = root,
+                    cursorPath = path.toMutableList().apply { this[lastIndex] = pos - 1 },
+                    selectionRange = null
+                )
+            }
+        } else if (path.size >= 3) {
+            // Cursor is at pos 0 inside a child of a composite node
+            val childIdx = path[path.size - 2]
+            val containerNodeIdx = path[path.size - 3]
+            val parentPath = path.subList(0, path.size - 3)
+            val parentString = getTargetString(root, parentPath)
+
+            if (containerNodeIdx in parentString.nodes.indices) {
+                val containerNode = parentString.nodeAt(containerNodeIdx)
+
+                when (containerNode) {
+                    is FractionNode -> {
+                        if (childIdx == 1 && target.isEmpty) {
+                            // In empty denominator: remove fraction, keep numerator
+                            parentString.removeAt(containerNodeIdx)
+                            val numNodes = containerNode.numerator.nodes.map { it.copy() }
+                            parentString.insertAll(containerNodeIdx, numNodes)
+                            val newPath = parentPath + (containerNodeIdx + numNodes.size)
+                            _uiState.update { it.copy(expression = root, cursorPath = newPath, selectionRange = null) }
+                            return
+                        } else if (childIdx == 0 && target.isEmpty) {
+                            // In empty numerator: remove fraction, keep denominator
+                            parentString.removeAt(containerNodeIdx)
+                            val denNodes = containerNode.denominator.nodes.map { it.copy() }
+                            parentString.insertAll(containerNodeIdx, denNodes)
+                            val newPath = parentPath + containerNodeIdx
+                            _uiState.update { it.copy(expression = root, cursorPath = newPath, selectionRange = null) }
+                            return
+                        }
+                    }
+                    is ExponentNode -> {
+                        // Child indices follow ExponentNode.subStrings: [base, exponent] or [exponent]
+                        val base = containerNode.base
+                        val exponentIdx = if (base != null) 1 else 0
+                        if (childIdx == exponentIdx && target.isEmpty) {
+                            // In empty exponent: remove exponent, keep base
+                            parentString.removeAt(containerNodeIdx)
+                            val baseNodes = base?.nodes?.map { it.copy() } ?: emptyList()
+                            parentString.insertAll(containerNodeIdx, baseNodes)
+                            val newPath = parentPath + (containerNodeIdx + baseNodes.size)
+                            _uiState.update { it.copy(expression = root, cursorPath = newPath, selectionRange = null) }
+                            return
+                        } else if (base != null && childIdx == 0 && target.isEmpty) {
+                            // In empty base: remove the power, keep the exponent's content
+                            parentString.removeAt(containerNodeIdx)
+                            val expNodes = containerNode.exponent.nodes.map { it.copy() }
+                            parentString.insertAll(containerNodeIdx, expNodes)
+                            val newPath = parentPath + containerNodeIdx
+                            _uiState.update { it.copy(expression = root, cursorPath = newPath, selectionRange = null) }
+                            return
+                        }
+                    }
+                    is RadicalNode -> {
+                        // Child indices follow RadicalNode.subStrings: [degree, radicand] or [radicand]
+                        val degree = containerNode.degree
+                        val radicandIdx = if (degree != null) 1 else 0
+                        if (childIdx == radicandIdx && target.isEmpty) {
+                            parentString.removeAt(containerNodeIdx)
+                            val degNodes = degree?.nodes?.map { it.copy() } ?: emptyList()
+                            parentString.insertAll(containerNodeIdx, degNodes)
+                            val newPath = parentPath + (containerNodeIdx + degNodes.size)
+                            _uiState.update { it.copy(expression = root, cursorPath = newPath, selectionRange = null) }
+                            return
+                        } else if (degree != null && childIdx == 0 && target.isEmpty) {
+                            // In empty degree: turn the n-th root into a square root, keep the radicand
+                            parentString.setNode(containerNodeIdx, RadicalNode(null, containerNode.radicand.copy()))
+                            val newPath = parentPath + listOf(containerNodeIdx, 0, 0)
+                            _uiState.update { it.copy(expression = root, cursorPath = newPath, selectionRange = null) }
+                            return
+                        }
+                    }
+                    is ParenthesesNode -> {
+                        if (target.isEmpty) {
+                            parentString.removeAt(containerNodeIdx)
+                            val newPath = parentPath + containerNodeIdx
+                            _uiState.update { it.copy(expression = root, cursorPath = newPath, selectionRange = null) }
+                            return
+                        }
+                    }
+                    is FunctionNode -> {
+                        if (target.isEmpty) {
+                            parentString.removeAt(containerNodeIdx)
+                            val newPath = parentPath + containerNodeIdx
+                            _uiState.update { it.copy(expression = root, cursorPath = newPath, selectionRange = null) }
+                            return
+                        }
+                    }
+                    else -> {
+                        if (containerNode.subStrings.all { it.isEmpty }) {
+                            parentString.removeAt(containerNodeIdx)
+                            val newPath = parentPath + containerNodeIdx
+                            _uiState.update { it.copy(expression = root, cursorPath = newPath, selectionRange = null) }
+                            return
+                        }
+                    }
+                }
+            }
+            moveCursorLeft()
+        } else if (path.size > 1) {
+            moveCursorLeft()
+        }
+    }
+
+    /** Removes a single calculation from the history (e.g. swiped away). */
+    fun deleteHistoryEntry(id: Long) {
+        _uiState.update { state -> state.copy(history = state.history.filterNot { it.id == id }) }
+    }
+
+    fun clearLine() {
+        _uiState.update {
+            it.copy(
+                expression = MathString(),
+                cursorPath = listOf(0),
+                selectionRange = null
+            )
+        }
+    }
+
+    fun clearAll() {
+        _uiState.update {
+            it.copy(
+                expression = MathString(),
+                cursorPath = listOf(0),
+                selectionRange = null,
+                history = emptyList()
+            )
+        }
+    }
+
+    private fun moveCursorLeft() {
+        val path = _uiState.value.cursorPath.toMutableList()
+        val pos = path.last()
+        val root = _uiState.value.expression
+
+        if (pos > 0) {
+            val target = getTargetString(root, path)
+            val nodeBefore = target.nodeAt(pos - 1)
+            if (nodeBefore.subStrings.isNotEmpty()) {
+                path[path.lastIndex] = pos - 1
+                val lastChildIdx = nodeBefore.subStrings.size - 1
+                path.add(lastChildIdx)
+                path.add(nodeBefore.subStrings[lastChildIdx].length)
+            } else {
+                path[path.lastIndex] = pos - 1
+            }
+        } else if (path.size > 1) {
+            val childIdx = path[path.size - 2]
+            val containerPath = path.subList(0, path.size - 2)
+            val containerTarget = getTargetString(root, containerPath)
+            val containerNodeIdx = containerPath.last()
+            val containerNode = containerTarget.nodeAt(containerNodeIdx)
+
+            if (childIdx > 0) {
+                path[path.size - 2] = childIdx - 1
+                val prevChild = containerNode.subStrings[childIdx - 1]
+                path[path.size - 1] = prevChild.length
+            } else {
+                path.removeAt(path.lastIndex)
+                path.removeAt(path.lastIndex)
+            }
+        }
+        _uiState.update { it.copy(cursorPath = path, selectionRange = null) }
+    }
+
+    private fun moveCursorRight() {
+        val path = _uiState.value.cursorPath.toMutableList()
+        val pos = path.last()
+        val root = _uiState.value.expression
+        val target = getTargetString(root, path)
+
+        if (pos < target.length) {
+            val nodeAt = target.nodeAt(pos)
+            if (nodeAt.subStrings.isNotEmpty()) {
+                path[path.lastIndex] = pos
+                path.add(0)
+                path.add(0)
+            } else {
+                path[path.lastIndex] = pos + 1
+            }
+        } else if (path.size > 1) {
+            val childIdx = path[path.size - 2]
+            val containerPath = path.subList(0, path.size - 2)
+            val containerTarget = getTargetString(root, containerPath)
+            val containerNodeIdx = containerPath.last()
+            val containerNode = containerTarget.nodeAt(containerNodeIdx)
+
+            if (childIdx < containerNode.subStrings.size - 1) {
+                path[path.size - 2] = childIdx + 1
+                path[path.size - 1] = 0
+            } else {
+                path.removeAt(path.lastIndex)
+                path.removeAt(path.lastIndex)
+                path[path.lastIndex] = path.last() + 1
+            }
+        }
+        _uiState.update { it.copy(cursorPath = path, selectionRange = null) }
+    }
+
+    /**
+     * Enter: moves the current line and its result into the history and clears the line.
+     * An invalid line stays in place and its error is shown instead.
+     */
+    fun commit() {
+        val state = _uiState.value
+        val expr = state.expression
+        if (expr.isEmpty) return
+
+        commitJob?.cancel()
+        commitJob = viewModelScope.launch {
+            // Reuse the live result if it is up to date, otherwise calculate right away
+            val res = state.result?.takeIf { it.input == expr }
+                ?: MathEngine.calculate(expr, MathContext(mode = state.mode, angleUnit = state.angleUnit))
+            if (_uiState.value.expression != expr) return@launch // edited meanwhile
+            if (!res.isSuccess) {
+                _uiState.update { it.copy(result = res, showResultError = true) }
+                return@launch
+            }
+            _uiState.update {
+                it.copy(
+                    history = listOf(HistoryEntry(nextHistoryId++, res)) + it.history,
+                    expression = MathString(),
+                    cursorPath = listOf(0),
+                    selectionRange = null,
+                    result = null
+                )
+            }
+        }
+    }
+
+    private fun updatePlotData() {
+        val state = _uiState.value
+        val expr = state.expression
+        plotJob?.cancel()
+        if (expr.isEmpty) {
+            _uiState.update { it.copy(plotFunction = null, isPlotLoading = false) }
+            return
+        }
+        _uiState.update { it.copy(plotFunction = null, isPlotLoading = true) }
+        plotJob = viewModelScope.launch {
+            val context = MathContext(mode = state.mode, angleUnit = state.angleUnit)
+            val fn = MathEngine.createPlotFunction(expr, context)
+            _uiState.update { it.copy(plotFunction = fn, isPlotLoading = false) }
+        }
+    }
+}
