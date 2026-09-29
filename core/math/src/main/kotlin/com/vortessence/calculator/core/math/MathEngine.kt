@@ -9,6 +9,7 @@ import com.vortessence.calculator.core.math.expressions.Variable
 import com.vortessence.calculator.core.math.expressions.UnitConversion
 import com.vortessence.calculator.core.math.expressions.toPreferredUnits
 import com.vortessence.calculator.core.math.solvers.Function1D
+import com.vortessence.calculator.core.math.solvers.NumericIntegrator
 import com.vortessence.calculator.core.math.solvers.NumericRootFinder
 import com.vortessence.calculator.core.math.type.MathParser
 import com.vortessence.calculator.core.math.type.MathString
@@ -44,8 +45,16 @@ data class PlotPoint(val x: Double, val y: Double)
 
 data class PlotData(
     val roots: List<Double>,
-    val extrema: List<PlotPoint>
-)
+    val maxima: List<PlotPoint>,
+    val minima: List<PlotPoint>,
+    val inflectionPoints: List<PlotPoint>
+) {
+    val extrema: List<PlotPoint> get() = maxima + minima
+
+    companion object {
+        val EMPTY = PlotData(emptyList(), emptyList(), emptyList(), emptyList())
+    }
+}
 
 object MathEngine {
     const val DEFAULT_TIMEOUT_MILLIS = 5_000L
@@ -246,8 +255,23 @@ object MathEngine {
         val roots = NumericRootFinder.findRoots(function, minX, maxX, steps, context)
         val extrema = NumericRootFinder.findExtrema(function, minX, maxX, steps, context)
             .map { PlotPoint(it, function.evaluateAt(it)) }
+        // findExtrema only returns true extrema, so one neighbour tells maximum from minimum
+        val probe = (maxX - minX) / steps / 4.0
+        val (maxima, minima) = extrema.partition { function.evaluateAt(it.x - probe) <= it.y }
+        val inflectionPoints = NumericRootFinder.findInflectionPoints(function, minX, maxX, steps, context)
+            .map { PlotPoint(it, function.evaluateAt(it)) }
         ensureActive()
-        PlotData(roots, extrema)
+        PlotData(roots, maxima, minima, inflectionPoints)
+    }
+
+    /** Signed area under [function] from [a] to [b]; NaN if it is undefined there or diverges. */
+    suspend fun integratePlot(function: Function1D, a: Double, b: Double): Double = withContext(Dispatchers.Default) {
+        val context = MathContext()
+        val job = coroutineContext[Job]
+        context.externalCancellation = { job?.isActive == false }
+        val area = NumericIntegrator.integrate(function, a, b, context)
+        ensureActive()
+        area
     }
 
     private val PREFERRED_VARIABLES = listOf(Variable("x"), Variable("y"), Variable("z"))

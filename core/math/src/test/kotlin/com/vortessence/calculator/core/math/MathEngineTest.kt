@@ -1,9 +1,11 @@
 package com.vortessence.calculator.core.math
 
+import com.vortessence.calculator.core.math.context.AngleUnit
 import com.vortessence.calculator.core.math.expressions.*
 import com.vortessence.calculator.core.math.numbers.BigInt
 import com.vortessence.calculator.core.math.numbers.Rational
 import com.vortessence.calculator.core.math.solvers.Function1D
+import com.vortessence.calculator.core.math.solvers.NumericIntegrator
 import com.vortessence.calculator.core.math.solvers.NumericRootFinder
 import com.vortessence.calculator.core.math.type.*
 import kotlinx.coroutines.runBlocking
@@ -258,5 +260,42 @@ class MathEngineTest {
         assertNotNull(frac)
         assertEquals("1", frac!!.numerator.toString())
         assertEquals("3", frac.denominator.toString())
+    }
+
+    @Test
+    fun plotAnalysisFindsInflectionPointsAndClassifiesExtrema() = runBlocking {
+        // f(x) = x^3 - 3x: maximum at -1, minimum at 1, inflection point at 0
+        val x = Variable("x")
+        val fn = Function1D(Additions(Power(x, Value(3L)), Multiplications(Value(-3L), x)), x)
+        val data = MathEngine.analyzePlot(fn, -3.0, 3.0)
+        assertEquals(1, data.maxima.size)
+        assertEquals(-1.0, data.maxima[0].x, 1e-4)
+        assertEquals(1, data.minima.size)
+        assertEquals(1.0, data.minima[0].x, 1e-4)
+        assertEquals(1, data.inflectionPoints.size)
+        assertEquals(0.0, data.inflectionPoints[0].x, 1e-4)
+
+        // Straight lines and poles have no inflection points
+        val line = Function1D(Additions(Multiplications(Value(2L), x), Value(1L)), x)
+        assertTrue(NumericRootFinder.findInflectionPoints(line, -5.0, 5.0).isEmpty())
+        val reciprocal = Function1D(Power(x, Value.MINUS_ONE), x)
+        assertTrue(NumericRootFinder.findInflectionPoints(reciprocal, -5.0, 5.0).isEmpty())
+    }
+
+    @Test
+    fun numericIntegratorComputesSignedArea() {
+        val x = Variable("x")
+        val square = Function1D(Power(x, Value.TWO), x)
+        assertEquals(1.0 / 3.0, NumericIntegrator.integrate(square, 0.0, 1.0), 1e-12)
+        assertEquals(-1.0 / 3.0, NumericIntegrator.integrate(square, 1.0, 0.0), 1e-12)
+
+        val sine = Function1D(TrigonometricFunction(TrigType.SIN, x, AngleUnit.RADIANS), x)
+        assertEquals(2.0, NumericIntegrator.integrate(sine, 0.0, Math.PI), 1e-10)
+        assertEquals(0.0, NumericIntegrator.integrate(sine, -Math.PI, Math.PI), 1e-10)
+
+        // Across a pole the integral diverges
+        val reciprocal = Function1D(Power(x, Value.MINUS_ONE), x)
+        assertTrue(NumericIntegrator.integrate(reciprocal, -1.0, 1.3).isNaN())
+        assertEquals(kotlin.math.ln(2.0), NumericIntegrator.integrate(reciprocal, 1.0, 2.0), 1e-10)
     }
 }

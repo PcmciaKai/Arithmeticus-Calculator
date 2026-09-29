@@ -13,6 +13,7 @@ import com.vortessence.calculator.core.math.context.UnitSystem
 import com.vortessence.calculator.core.math.solvers.Function1D
 import com.vortessence.calculator.core.math.type.*
 import com.vortessence.calculator.ui.keypad.KeyAction
+import com.vortessence.calculator.ui.theme.ThemeMode
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -48,6 +49,7 @@ data class CalculatorUiState(
     val decimalPlaces: Int? = null,
     /** Show large numbers with digit groups (300 000); display only. */
     val digitGrouping: Boolean = true,
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val isGraphOpen: Boolean = false,
     /** Function shown in the graph, or null if the expression cannot be plotted. */
     val plotFunction: Function1D? = null,
@@ -148,6 +150,8 @@ class CalculatorViewModel @JvmOverloads constructor(
         val form = ResultForm.entries.firstOrNull { it.name == savedForm } ?: ResultForm.EXACT
         val places = prefs?.getInt("decimal_places", -1)?.takeIf { it >= 0 }
         val grouping = prefs?.getBoolean("digit_grouping", true) ?: true
+        val savedTheme = prefs?.getString("theme_mode", null)
+        val themeMode = ThemeMode.entries.firstOrNull { it.name == savedTheme } ?: ThemeMode.SYSTEM
         _uiState.update {
             it.copy(
                 resultForm = form,
@@ -155,7 +159,8 @@ class CalculatorViewModel @JvmOverloads constructor(
                 unitSystem = unitSystem,
                 temperatureInKelvin = kelvin,
                 decimalPlaces = places,
-                digitGrouping = grouping
+                digitGrouping = grouping,
+                themeMode = themeMode
             )
         }
     }
@@ -276,6 +281,11 @@ class CalculatorViewModel @JvmOverloads constructor(
     fun setDigitGrouping(enabled: Boolean) {
         prefs?.edit { putBoolean("digit_grouping", enabled) }
         _uiState.update { it.copy(digitGrouping = enabled) }
+    }
+
+    fun setThemeMode(mode: ThemeMode) {
+        prefs?.edit { putString("theme_mode", mode.name) }
+        _uiState.update { it.copy(themeMode = mode) }
     }
 
     fun setUnitSystem(system: UnitSystem) {

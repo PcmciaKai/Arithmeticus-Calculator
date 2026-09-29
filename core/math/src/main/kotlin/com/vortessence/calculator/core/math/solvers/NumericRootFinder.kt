@@ -119,6 +119,72 @@ object NumericRootFinder {
         return extrema
     }
 
+    /**
+     * Finds inflection points, where the second derivative changes sign. Samples where f'' is
+     * within rounding noise of zero are skipped, so straight segments yield no points, and
+     * sign changes at poles (e.g. 1/x at 0) are rejected because |f''| grows there.
+     */
+    fun findInflectionPoints(
+        function: Function1D,
+        minX: Double,
+        maxX: Double,
+        steps: Int = 200,
+        context: MathContext? = null
+    ): List<Double> {
+        val points = mutableListOf<Double>()
+        val stepSize = (maxX - minX) / steps
+
+        // Last sample whose second derivative was clearly non-zero
+        var lastX = Double.NaN
+        var lastD = Double.NaN
+
+        for (i in 0..steps) {
+            if (i % 100 == 0 && context?.shouldStop == true) break
+            val x = minX + i * stepSize
+            val y = function.evaluateAt(x)
+            val d = function.secondDerivativeAt(x)
+            if (!y.isFinite() || !d.isFinite()) {
+                lastX = Double.NaN
+                lastD = Double.NaN
+                continue
+            }
+            if (abs(d) < 1e-5 * max(1.0, abs(y))) continue
+
+            if (!lastD.isNaN() && lastD * d < 0.0) {
+                var a = lastX
+                var b = x
+                var da = lastD
+                for (iter in 0..60) {
+                    if ((b - a) < 1e-10 * max(1.0, abs(a))) break
+                    val mid = (a + b) / 2.0
+                    val dMid = function.secondDerivativeAt(mid)
+                    if (!dMid.isFinite()) break
+                    if (dMid == 0.0) {
+                        a = mid
+                        b = mid
+                        break
+                    }
+                    if (da * dMid < 0.0) {
+                        b = mid
+                    } else {
+                        a = mid
+                        da = dMid
+                    }
+                }
+                val candidate = (a + b) / 2.0
+                val dCandidate = function.secondDerivativeAt(candidate)
+                if (function.evaluateAt(candidate).isFinite() && abs(dCandidate) <= max(abs(lastD), abs(d)) &&
+                    points.none { abs(it - candidate) < 1e-4 }
+                ) {
+                    points.add(candidate)
+                }
+            }
+            lastX = x
+            lastD = d
+        }
+        return points
+    }
+
     private fun bisection(function: Function1D, aIn: Double, bIn: Double, maxIter: Int = 60): Double? {
         var a = aIn
         var b = bIn

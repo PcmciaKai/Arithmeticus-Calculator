@@ -7,6 +7,8 @@ import com.vortessence.calculator.core.math.expressions.Additions
 import com.vortessence.calculator.core.math.expressions.Equals
 import com.vortessence.calculator.core.math.expressions.Expression
 import com.vortessence.calculator.core.math.expressions.Variable
+import kotlin.math.abs
+import kotlin.math.max
 
 class Function1D(
     val expression: Expression,
@@ -27,6 +29,10 @@ class Function1D(
         val y1 = evaluateAt(x + h)
         val y0 = evaluateAt(x - h)
         return (y1 - y0) / (2.0 * h)
+    }
+
+    fun secondDerivativeAt(x: Double, h: Double = 1e-4 * max(1.0, abs(x))): Double {
+        return (evaluateAt(x + h) - 2.0 * evaluateAt(x) + evaluateAt(x - h)) / (h * h)
     }
 
     companion object {

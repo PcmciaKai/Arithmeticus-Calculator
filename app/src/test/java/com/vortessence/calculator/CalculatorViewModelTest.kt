@@ -1,4 +1,5 @@
 import android.app.Application
+import com.vortessence.calculator.ui.theme.ThemeMode
 import com.vortessence.calculator.core.math.type.ExponentNode
 import com.vortessence.calculator.core.math.type.FunctionNode
 import com.vortessence.calculator.core.math.type.LogBaseNode
@@ -724,5 +725,13 @@ class CalculatorViewModelTest {
     @Test
     fun testDigitGroupingIsOnByDefault() {
         assertTrue(newViewModel().uiState.value.digitGrouping)
+    }
+
+    @Test
+    fun testThemeModeFollowsSystemByDefault() {
+        val vm = newViewModel()
+        assertEquals(ThemeMode.SYSTEM, vm.uiState.value.themeMode)
+        vm.setThemeMode(ThemeMode.DARK)
+        assertEquals(ThemeMode.DARK, vm.uiState.value.themeMode)
     }
 }

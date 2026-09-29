@@ -40,6 +40,16 @@ private val LightColorScheme = lightColorScheme(
     onSurfaceVariant = SlateLightTextSecondary
 )
 
+/** Light/dark appearance chosen in the settings. */
+enum class ThemeMode { SYSTEM, LIGHT, DARK }
+
+@Composable
+fun ThemeMode.isDark(): Boolean = when (this) {
+    ThemeMode.SYSTEM -> isSystemInDarkTheme()
+    ThemeMode.LIGHT -> false
+    ThemeMode.DARK -> true
+}
+
 @Composable
 fun CalculatorTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),

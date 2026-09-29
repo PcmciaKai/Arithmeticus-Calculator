@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vortessence.calculator.core.math.context.AngleUnit
 import com.vortessence.calculator.core.math.context.UnitSystem
+import com.vortessence.calculator.ui.theme.ThemeMode
 import java.util.Locale
 
 @Composable
@@ -22,11 +23,13 @@ fun SettingsDialog(
     temperatureInKelvin: Boolean,
     decimalPlaces: Int?,
     digitGrouping: Boolean,
+    themeMode: ThemeMode,
     onToggleAngleUnit: () -> Unit,
     onUnitSystemChange: (UnitSystem) -> Unit,
     onTemperatureInKelvinChange: (Boolean) -> Unit,
     onDecimalPlacesChange: (Int?) -> Unit,
     onDigitGroupingChange: (Boolean) -> Unit,
+    onThemeModeChange: (ThemeMode) -> Unit,
     onDismiss: () -> Unit
 ) {
     AlertDialog(
@@ -143,6 +146,29 @@ fun SettingsDialog(
                             )
                         }
                         Switch(checked = digitGrouping, onCheckedChange = onDigitGroupingChange)
+                    }
+                }
+
+                HorizontalDivider()
+
+                // Appearance
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Appearance", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                    val options = listOf(
+                        ThemeMode.SYSTEM to "System",
+                        ThemeMode.LIGHT to "Light",
+                        ThemeMode.DARK to "Dark"
+                    )
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        options.forEachIndexed { index, (mode, label) ->
+                            SegmentedButton(
+                                selected = themeMode == mode,
+                                onClick = { onThemeModeChange(mode) },
+                                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size)
+                            ) {
+                                Text(label, fontSize = 13.sp)
+                            }
+                        }
                     }
                 }
             }
