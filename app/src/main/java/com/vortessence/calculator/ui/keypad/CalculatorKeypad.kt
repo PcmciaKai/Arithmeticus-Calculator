@@ -3,16 +3,24 @@ package com.vortessence.calculator.ui.keypad
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.FlingBehavior
 import androidx.compose.foundation.gestures.ScrollScope
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowRightAlt
 import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.automirrored.filled.KeyboardReturn
 import androidx.compose.material.icons.filled.AutoGraph
@@ -24,13 +32,23 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.vortessence.calculator.core.math.context.AngleUnit
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
 import com.vortessence.calculator.ui.theme.*
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -49,6 +67,8 @@ sealed class KeyAction {
     data object Fraction : KeyAction()
     data object Power : KeyAction()
     data object Square : KeyAction()
+    /** Power with exponent −1 (x⁻¹). */
+    data object Reciprocal : KeyAction()
     data object Sqrt : KeyAction()
     data object NthRoot : KeyAction()
     data object LeftParen : KeyAction()
@@ -74,26 +94,40 @@ sealed class KeyAction {
     data object Matrix : KeyAction()
 }
 
+/** A second (or third) function of a key, reachable via long press. */
+private class KeyAlternate(val label: String, val onSelect: () -> Unit)
+
+// Column counts of the three pages; five columns are visible at once, so the
+// narrower side pages also show the adjacent columns of the main page.
+private const val LEFT_COLUMNS = 4
+private const val VISIBLE_COLUMNS = 5
+
+@Composable
+private fun keypadColors(): KeypadColors =
+    if (MaterialTheme.colorScheme.background.luminance() < 0.5f) DarkKeypadColors else LightKeypadColors
+
 @Composable
 fun CalculatorKeypad(
     modifier: Modifier = Modifier,
-    angleUnit: AngleUnit = AngleUnit.RADIANS,
     isLineEmpty: Boolean = true,
     onKeyAction: (KeyAction) -> Unit
 ) {
     val coroutineScope = rememberCoroutineScope()
+    val keyColors = keypadColors()
+    fun alt(label: String, action: KeyAction) = KeyAlternate(label) { onKeyAction(action) }
 
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
         val spacing = 8.dp
-        val buttonWidth = (this.maxWidth - 16.dp - spacing * 4) / 5
+        val buttonWidth = (this.maxWidth - 16.dp - spacing * (VISIBLE_COLUMNS - 1)) / VISIBLE_COLUMNS
         val density = LocalDensity.current
         val colStepPx = with(density) { (buttonWidth + spacing).toPx() }
+        val mainPagePx = (LEFT_COLUMNS * colStepPx).roundToInt()
         val scrollState = rememberScrollState()
 
         var initialScrollDone by remember { mutableStateOf(false) }
         LaunchedEffect(scrollState.maxValue, colStepPx) {
             if (!initialScrollDone && scrollState.maxValue > 0 && colStepPx > 0f) {
-                scrollState.scrollTo((5f * colStepPx).roundToInt())
+                scrollState.scrollTo(mainPagePx)
                 initialScrollDone = true
             }
         }
@@ -103,7 +137,7 @@ fun CalculatorKeypad(
                 override suspend fun ScrollScope.performFling(initialVelocity: Float): Float {
                     val current = scrollState.value.toFloat()
                     val p0 = 0f
-                    val p1 = (5f * colStepPx).roundToInt().toFloat()
+                    val p1 = mainPagePx.toFloat()
                     val p2 = scrollState.maxValue.toFloat().coerceAtLeast(p1)
 
                     val mid01 = p1 / 2f
@@ -146,7 +180,7 @@ fun CalculatorKeypad(
         // frequently changing scroll offset out of composition: only page changes recompose.
         val currentPage by remember(colStepPx) {
             derivedStateOf {
-                val p1Float = 5f * colStepPx
+                val p1Float = mainPagePx.toFloat()
                 val p2Float = scrollState.maxValue.toFloat().coerceAtLeast(p1Float)
                 val mid01 = p1Float / 2f
                 val mid12 = p1Float + (p2Float - p1Float) / 2f
@@ -180,15 +214,14 @@ fun CalculatorKeypad(
                             .size(if (isSelected) 7.dp else 5.dp)
                             .clip(CircleShape)
                             .background(
-                                if (isSelected) MaterialTheme.colorScheme.primary
+                                if (isSelected) keyColors.accentText
                                 else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f)
                             )
                             .clickable {
                                 val target = when (page) {
                                     0 -> 0
-                                    1 -> (5f * colStepPx).roundToInt()
                                     2 -> scrollState.maxValue
-                                    else -> (5f * colStepPx).roundToInt()
+                                    else -> mainPagePx
                                 }
                                 coroutineScope.launch {
                                     scrollState.animateScrollTo(target)
@@ -198,7 +231,7 @@ fun CalculatorKeypad(
                 }
             }
 
-            // Continuous horizontal scroll container containing all 13 columns across 4 rows
+            // Continuous horizontal scroll container containing all 11 columns across 4 rows
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -207,14 +240,23 @@ fun CalculatorKeypad(
             ) {
                 // Row 1
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing)) {
-                    // Page 0 (cols 0..4)
-                    KeyButton(text = "=", buttonWidth = buttonWidth, isOp = true) { onKeyAction(KeyAction.Operator("=")) }
-                    KeyButton(text = "x²", buttonWidth = buttonWidth, isAccent = true) { onKeyAction(KeyAction.Square) }
-                    KeyButton(text = "xʸ", buttonWidth = buttonWidth, isAccent = true) { onKeyAction(KeyAction.Power) }
-                    KeyButton(text = "√x", buttonWidth = buttonWidth, isAccent = true) { onKeyAction(KeyAction.Sqrt) }
-                    KeyButton(text = "ⁿ√x", buttonWidth = buttonWidth, isAccent = true) { onKeyAction(KeyAction.NthRoot) }
+                    // Page 0 (cols 0..3)
+                    KeyButton(text = "!", buttonWidth = buttonWidth, isAccent = true) { onKeyAction(KeyAction.Operator("!")) }
+                    KeyButton(text = "π", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Constant("π")) }
+                    KeyButton(
+                        text = "x²",
+                        buttonWidth = buttonWidth,
+                        isAccent = true,
+                        alternates = listOf(alt("xⁿ", KeyAction.Power), alt("x⁻¹", KeyAction.Reciprocal))
+                    ) { onKeyAction(KeyAction.Square) }
+                    KeyButton(
+                        text = "√x",
+                        buttonWidth = buttonWidth,
+                        isAccent = true,
+                        alternates = listOf(alt("ⁿ√x", KeyAction.NthRoot))
+                    ) { onKeyAction(KeyAction.Sqrt) }
 
-                    // Page 1 (cols 5..9)
+                    // Page 1 (cols 4..8)
                     KeyButton(text = "7", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("7")) }
                     KeyButton(text = "8", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("8")) }
                     KeyButton(text = "9", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("9")) }
@@ -224,38 +266,42 @@ fun CalculatorKeypad(
                         buttonWidth = buttonWidth
                     ) { onKeyAction(KeyAction.Backspace) }
 
-                    // Page 2 (cols 10..12)
+                    // Page 2 (cols 9..10)
                     KeyButton(
                         text = if (isLineEmpty) "AC" else "C",
                         buttonWidth = buttonWidth,
+                        colSpan = 2,
+                        spacing = spacing,
                         textColor = AccentRed
                     ) { onKeyAction(KeyAction.Clear) }
-                    KeyButton(text = "→", buttonWidth = buttonWidth, isAccent = true) { onKeyAction(KeyAction.Convert) }
-                    KeyButton(text = "Ans", buttonWidth = buttonWidth, textColor = MaterialTheme.colorScheme.primary) { onKeyAction(KeyAction.Ans) }
                 }
 
                 // Row 2
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing)) {
-                    // Page 0 (cols 0..4)
-                    KeyButton(text = "x", buttonWidth = buttonWidth, isAccent = true) { onKeyAction(KeyAction.Variable("x")) }
-                    KeyButton(text = "π", buttonWidth = buttonWidth, isAccent = true) { onKeyAction(KeyAction.Constant("π")) }
-                    KeyButton(text = "sin", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Function("sin")) }
-                    KeyButton(text = "cos", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Function("cos")) }
-                    KeyButton(text = "tan", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Function("tan")) }
+                    // Page 0 (cols 0..3)
+                    KeyButton(text = "[M]", buttonWidth = buttonWidth, isAccent = true) { onKeyAction(KeyAction.Matrix) }
+                    KeyButton(text = "e", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Constant("e")) }
+                    KeyButton(text = "ln", buttonWidth = buttonWidth, isAccent = true) { onKeyAction(KeyAction.Function("ln")) }
+                    KeyButton(
+                        text = "log",
+                        buttonWidth = buttonWidth,
+                        isAccent = true,
+                        alternates = listOf(alt("logₙ", KeyAction.LogBase))
+                    ) { onKeyAction(KeyAction.Function("log")) }
 
-                    // Page 1 (cols 5..9)
+                    // Page 1 (cols 4..8)
                     KeyButton(text = "4", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("4")) }
                     KeyButton(text = "5", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("5")) }
                     KeyButton(text = "6", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("6")) }
                     KeyButton(text = "+", buttonWidth = buttonWidth, isOp = true) { onKeyAction(KeyAction.Operator("+")) }
                     KeyButton(text = "−", buttonWidth = buttonWidth, isOp = true) { onKeyAction(KeyAction.Operator("−")) }
 
-                    // Page 2 (cols 10..12)
+                    // Page 2 (cols 9..10)
                     KeyButton(
                         buttonWidth = buttonWidth,
                         content = {
                             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                                Icon(Icons.Default.Straighten, contentDescription = "Units", tint = AccentBlue, modifier = Modifier.size(18.dp))
+                                Icon(Icons.Default.Straighten, contentDescription = "Units", tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.height(2.dp))
                                 Text("Units", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                             }
@@ -263,9 +309,56 @@ fun CalculatorKeypad(
                     ) { onKeyAction(KeyAction.OpenUnits) }
                     KeyButton(
                         buttonWidth = buttonWidth,
+                        isAccent = true,
                         content = {
                             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                                Icon(Icons.Default.Science, contentDescription = "Constants", tint = AccentPurple, modifier = Modifier.size(18.dp))
+                                // The arrow glyph is thin, so it is drawn larger within the same slot as the other pictograms
+                                Box(Modifier.size(18.dp), contentAlignment = Alignment.Center) {
+                                    Icon(Icons.AutoMirrored.Filled.ArrowRightAlt, contentDescription = "Convert to unit", tint = keyColors.functionText, modifier = Modifier.requiredSize(30.dp))
+                                }
+                                Spacer(Modifier.height(2.dp))
+                                Text("Unit", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = keyColors.functionText)
+                            }
+                        }
+                    ) { onKeyAction(KeyAction.Convert) }
+                }
+
+                // Row 3
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing)) {
+                    // Page 0 (cols 0..3)
+                    KeyButton(text = "∫dx", buttonWidth = buttonWidth, isAccent = true) { onKeyAction(KeyAction.Integral) }
+                    KeyButton(
+                        text = "sin",
+                        buttonWidth = buttonWidth,
+                        isAccent = true,
+                        alternates = listOf(alt("asin", KeyAction.Function("asin")))
+                    ) { onKeyAction(KeyAction.Function("sin")) }
+                    KeyButton(
+                        text = "cos",
+                        buttonWidth = buttonWidth,
+                        isAccent = true,
+                        alternates = listOf(alt("acos", KeyAction.Function("acos")))
+                    ) { onKeyAction(KeyAction.Function("cos")) }
+                    KeyButton(
+                        text = "tan",
+                        buttonWidth = buttonWidth,
+                        isAccent = true,
+                        alternates = listOf(alt("atan", KeyAction.Function("atan")))
+                    ) { onKeyAction(KeyAction.Function("tan")) }
+
+                    // Page 1 (cols 4..8)
+                    KeyButton(text = "1", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("1")) }
+                    KeyButton(text = "2", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("2")) }
+                    KeyButton(text = "3", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("3")) }
+                    KeyButton(text = "×", buttonWidth = buttonWidth, isOp = true) { onKeyAction(KeyAction.Operator("×")) }
+                    KeyButton(text = "÷", buttonWidth = buttonWidth, isOp = true) { onKeyAction(KeyAction.Operator("÷")) }
+
+                    // Page 2 (cols 9..10)
+                    KeyButton(
+                        buttonWidth = buttonWidth,
+                        content = {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                                Icon(Icons.Default.Science, contentDescription = "Constants", tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.height(2.dp))
                                 Text("Const", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                             }
@@ -275,7 +368,7 @@ fun CalculatorKeypad(
                         buttonWidth = buttonWidth,
                         content = {
                             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                                Icon(Icons.Default.AutoGraph, contentDescription = "Graph 2D", tint = AccentGreen, modifier = Modifier.size(18.dp))
+                                Icon(Icons.Default.AutoGraph, contentDescription = "Graph 2D", tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.height(2.dp))
                                 Text("Graph", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                             }
@@ -283,42 +376,27 @@ fun CalculatorKeypad(
                     ) { onKeyAction(KeyAction.OpenGraph) }
                 }
 
-                // Row 3
-                Row(horizontalArrangement = Arrangement.spacedBy(spacing)) {
-                    // Page 0 (cols 0..4)
-                    KeyButton(text = "y", buttonWidth = buttonWidth, isAccent = true) { onKeyAction(KeyAction.Variable("y")) }
-                    KeyButton(
-                        text = if (angleUnit == AngleUnit.RADIANS) "RAD" else "DEG",
-                        buttonWidth = buttonWidth,
-                        textColor = MaterialTheme.colorScheme.primary
-                    ) { onKeyAction(KeyAction.ToggleAngleUnit) }
-                    KeyButton(text = "asin", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Function("asin")) }
-                    KeyButton(text = "acos", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Function("acos")) }
-                    KeyButton(text = "atan", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Function("atan")) }
-
-                    // Page 1 (cols 5..9)
-                    KeyButton(text = "1", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("1")) }
-                    KeyButton(text = "2", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("2")) }
-                    KeyButton(text = "3", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("3")) }
-                    KeyButton(text = "×", buttonWidth = buttonWidth, isOp = true) { onKeyAction(KeyAction.Operator("×")) }
-                    KeyButton(text = "÷", buttonWidth = buttonWidth, isOp = true) { onKeyAction(KeyAction.Operator("÷")) }
-
-                    // Page 2 (cols 10..12)
-                    KeyButton(text = "∫dx", buttonWidth = buttonWidth, isAccent = true) { onKeyAction(KeyAction.Integral) }
-                    KeyButton(text = "[M]", buttonWidth = buttonWidth, isAccent = true) { onKeyAction(KeyAction.Matrix) }
-                    KeyButton(text = "!", buttonWidth = buttonWidth, isAccent = true) { onKeyAction(KeyAction.Operator("!")) }
-                }
-
                 // Row 4
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing)) {
-                    // Page 0 (cols 0..4)
-                    KeyButton(text = "z", buttonWidth = buttonWidth, isAccent = true) { onKeyAction(KeyAction.Variable("z")) }
-                    KeyButton(text = "e", buttonWidth = buttonWidth, isAccent = true) { onKeyAction(KeyAction.Constant("e")) }
-                    KeyButton(text = "ln", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Function("ln")) }
-                    KeyButton(text = "log", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Function("log")) }
-                    KeyButton(text = "logₙ", buttonWidth = buttonWidth) { onKeyAction(KeyAction.LogBase) }
+                    // Page 0 (cols 0..3)
+                    KeyButton(text = "=", buttonWidth = buttonWidth, isAccent = true) { onKeyAction(KeyAction.Operator("=")) }
+                    KeyButton(
+                        text = "x",
+                        buttonWidth = buttonWidth,
+                        alternates = listOf(alt("a", KeyAction.Variable("a")))
+                    ) { onKeyAction(KeyAction.Variable("x")) }
+                    KeyButton(
+                        text = "y",
+                        buttonWidth = buttonWidth,
+                        alternates = listOf(alt("b", KeyAction.Variable("b")))
+                    ) { onKeyAction(KeyAction.Variable("y")) }
+                    KeyButton(
+                        text = "z",
+                        buttonWidth = buttonWidth,
+                        alternates = listOf(alt("c", KeyAction.Variable("c")))
+                    ) { onKeyAction(KeyAction.Variable("z")) }
 
-                    // Page 1 (cols 5..9)
+                    // Page 1 (cols 4..8)
                     KeyButton(text = "0", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("0")) }
                     KeyButton(text = ".", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number(".")) }
                     KeyButton(text = "EE", buttonWidth = buttonWidth, isAccent = true) { onKeyAction(KeyAction.EE) }
@@ -327,39 +405,25 @@ fun CalculatorKeypad(
                             Icon(
                                 Icons.AutoMirrored.Filled.KeyboardReturn,
                                 contentDescription = "Enter",
-                                tint = MaterialTheme.colorScheme.onPrimary,
+                                tint = keyColors.enterContent,
                                 modifier = Modifier.size(28.dp)
                             )
                         },
                         buttonWidth = buttonWidth,
                         colSpan = 2,
                         spacing = spacing,
-                        bgColor = MaterialTheme.colorScheme.primary
+                        bgColor = keyColors.enterKey
                     ) { onKeyAction(KeyAction.Enter) }
 
-                    // Page 2 (cols 10..12)
+                    // Page 2 (cols 9..10)
+                    KeyButton(text = "Ans", buttonWidth = buttonWidth, textColor = keyColors.accentText) { onKeyAction(KeyAction.Ans) }
                     KeyButton(
                         buttonWidth = buttonWidth,
-                        colSpan = 3,
-                        spacing = spacing,
                         content = {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                Icon(
-                                    Icons.Default.Settings,
-                                    contentDescription = "Settings",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    "Settings",
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                                Icon(Icons.Default.Settings, contentDescription = "Settings", tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.height(2.dp))
+                                Text("Settings", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                             }
                         }
                     ) { onKeyAction(KeyAction.OpenSettings) }
@@ -381,30 +445,88 @@ private fun KeyButton(
     isAccent: Boolean = false,
     bgColor: Color? = null,
     textColor: Color? = null,
+    alternates: List<KeyAlternate> = emptyList(),
     onClick: () -> Unit
 ) {
+    val keyColors = keypadColors()
     val defaultBg = when {
         bgColor != null -> bgColor
-        isOp -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
-        isAccent -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.14f)
-        else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.75f)
+        isOp -> keyColors.operatorKey
+        isAccent -> keyColors.functionKey
+        else -> keyColors.key
     }
 
     val defaultText = when {
         textColor != null -> textColor
-        isOp -> MaterialTheme.colorScheme.primary
-        isAccent -> MaterialTheme.colorScheme.secondary
+        isOp -> keyColors.operatorText
+        isAccent -> keyColors.functionText
         else -> MaterialTheme.colorScheme.onSurface
     }
 
     val finalWidth = if (colSpan == 1) buttonWidth else buttonWidth * colSpan + spacing * (colSpan - 1)
+
+    // Index of the highlighted alternate while the long-press popup is shown
+    var popupSelection by remember { mutableStateOf<Int?>(null) }
+    val gestureModifier = if (alternates.isEmpty()) {
+        Modifier.clickable(onClick = onClick)
+    } else {
+        val haptics = LocalHapticFeedback.current
+        val interactionSource = remember { MutableInteractionSource() }
+        val cellPx = with(LocalDensity.current) { buttonWidth.toPx() }
+        val currentOnClick by rememberUpdatedState(onClick)
+        val currentAlternates by rememberUpdatedState(alternates)
+        Modifier
+            .indication(interactionSource, LocalIndication.current)
+            .pointerInput(cellPx) {
+                awaitEachGesture {
+                    val down = awaitFirstDown()
+                    val press = PressInteraction.Press(down.position)
+                    interactionSource.tryEmit(press)
+
+                    // Tap if released before the long-press timeout; a scroll cancels
+                    var cancelled = false
+                    val up = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                        waitForUpOrCancellation().also { if (it == null) cancelled = true }
+                    }
+                    if (up != null || cancelled) {
+                        if (up != null) {
+                            up.consume()
+                            interactionSource.tryEmit(PressInteraction.Release(press))
+                            currentOnClick()
+                        } else {
+                            interactionSource.tryEmit(PressInteraction.Cancel(press))
+                        }
+                        return@awaitEachGesture
+                    }
+
+                    // Long press: the finger slides over the alternates, lifting it picks one
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    val count = currentAlternates.size
+                    popupSelection = 0
+                    try {
+                        while (true) {
+                            val change = awaitPointerEvent().changes.firstOrNull { it.id == down.id } ?: break
+                            change.consume()
+                            if (!change.pressed) {
+                                popupSelection?.let { currentAlternates.getOrNull(it)?.onSelect?.invoke() }
+                                break
+                            }
+                            popupSelection = (change.position.x / cellPx).toInt().coerceIn(0, count - 1)
+                        }
+                    } finally {
+                        popupSelection = null
+                        interactionSource.tryEmit(PressInteraction.Release(press))
+                    }
+                }
+            }
+    }
 
     Box(
         modifier = Modifier
             .size(width = finalWidth, height = buttonWidth)
             .clip(RoundedCornerShape(16.dp))
             .background(defaultBg)
-            .clickable(onClick = onClick),
+            .then(gestureModifier),
         contentAlignment = Alignment.Center
     ) {
         if (content != null) {
@@ -419,5 +541,74 @@ private fun KeyButton(
         } else if (icon != null) {
             icon()
         }
+
+        if (alternates.isNotEmpty()) {
+            Text(
+                text = alternates.joinToString(" ") { it.label },
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Medium,
+                color = keyColors.accentText,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = 8.dp, bottom = 4.dp)
+            )
+        }
+
+        popupSelection?.let { selected ->
+            AlternatesPopup(alternates, selected, cellWidth = buttonWidth, keyColors = keyColors)
+        }
+    }
+}
+
+/** The alternates of a long-pressed key, shown above it with one cell per alternate. */
+@Composable
+private fun AlternatesPopup(
+    alternates: List<KeyAlternate>,
+    selected: Int,
+    cellWidth: Dp,
+    keyColors: KeypadColors
+) {
+    val gapPx = with(LocalDensity.current) { 6.dp.roundToPx() }
+    val positionProvider = remember(gapPx) { AboveKeyPositionProvider(gapPx) }
+    Popup(popupPositionProvider = positionProvider) {
+        Row(
+            modifier = Modifier
+                .shadow(8.dp, RoundedCornerShape(14.dp))
+                .clip(RoundedCornerShape(14.dp))
+                .background(keyColors.popup)
+        ) {
+            alternates.forEachIndexed { index, alternate ->
+                val isSelected = index == selected
+                Box(
+                    modifier = Modifier
+                        .size(width = cellWidth, height = cellWidth * 0.8f)
+                        .padding(4.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isSelected) keyColors.popupHighlight else Color.Transparent),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = alternate.label,
+                        fontSize = if (alternate.label.length > 3) 16.sp else 22.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = if (isSelected) keyColors.popupHighlightText else MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Places the popup directly above the key, left-aligned with it, so cells line up with the finger. */
+private class AboveKeyPositionProvider(private val gapPx: Int) : PopupPositionProvider {
+    override fun calculatePosition(
+        anchorBounds: IntRect,
+        windowSize: IntSize,
+        layoutDirection: LayoutDirection,
+        popupContentSize: IntSize
+    ): IntOffset {
+        val x = anchorBounds.left.coerceIn(0, (windowSize.width - popupContentSize.width).coerceAtLeast(0))
+        val y = (anchorBounds.top - popupContentSize.height - gapPx).coerceAtLeast(0)
+        return IntOffset(x, y)
     }
 }

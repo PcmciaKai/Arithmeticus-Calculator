@@ -360,6 +360,17 @@ class CalculatorViewModelTest {
         assertEquals("120", vm.uiState.value.result!!.result.toString())
     }
 
+    @Test
+    fun testReciprocalEvaluation() = runBlocking {
+        val vm = newViewModel()
+        // Type: 4 x⁻¹
+        vm.onKeyAction(KeyAction.Number("4"))
+        vm.onKeyAction(KeyAction.Reciprocal)
+
+        vm.awaitLiveResult()
+        assertEquals(0.25, vm.uiState.value.result!!.numericValue, 1e-12)
+    }
+
     /** Waits until the live result belongs to the current expression. */
     private suspend fun CalculatorViewModel.awaitLiveResult() {
         var attempts = 0

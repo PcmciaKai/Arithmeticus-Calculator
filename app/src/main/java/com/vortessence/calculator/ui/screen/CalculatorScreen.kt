@@ -130,7 +130,6 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
 
             // Keypad with swipe navigation (Other, Main, Advanced)
             CalculatorKeypad(
-                angleUnit = uiState.angleUnit,
                 isLineEmpty = uiState.expression.isEmpty,
                 onKeyAction = { action -> viewModel.onKeyAction(action) }
             )

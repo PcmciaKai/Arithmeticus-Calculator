@@ -192,6 +192,7 @@ class CalculatorViewModel @JvmOverloads constructor(
             is KeyAction.Fraction -> insertDivision()
             is KeyAction.Power -> insertPower()
             is KeyAction.Square -> insertPower(MathString(listOf(NumberNode("2"))))
+            is KeyAction.Reciprocal -> insertPower(MathString(listOf(OperatorNode(MathOp.MINUS), NumberNode("1"))))
             is KeyAction.Sqrt -> insertSqrt()
             is KeyAction.NthRoot -> insertNode(RadicalNode(MathString(), MathString()))
             is KeyAction.LeftParen -> insertNode(ParenthesesNode(MathString()))
