@@ -21,18 +21,20 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.AlignmentLine
+import androidx.compose.ui.layout.FirstBaseline
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.unit.toSize
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vortessence.calculator.core.math.type.*
+import kotlin.math.roundToInt
 
 /** Whether numbers are shown with digit groups (300 000). Display only, the text is unchanged. */
 val LocalDigitGrouping = staticCompositionLocalOf { false }
@@ -285,9 +287,7 @@ private fun MathNodeView(
         is VariableNode -> {
             Text(
                 text = node.name,
-                fontSize = (fontSize.value * 1.05f).sp,
-                fontFamily = FontFamily.Serif,
-                fontStyle = FontStyle.Italic,
+                fontSize = fontSize,
                 fontWeight = FontWeight.Normal,
                 color = textColor,
                 modifier = Modifier.padding(horizontal = 1.dp)
@@ -406,70 +406,107 @@ private fun ExponentView(node: ExponentNode, fontSize: TextUnit, slots: SlotCont
     }
 }
 
+/** Where the radical sign is drawn, in px; computed while measuring [RadicalView]. */
+private data class RadicalGeometry(
+    val stroke: Float,
+    val barStart: Offset,
+    val barEnd: Offset,
+    val bottom: Offset,
+    val top: Offset,
+    val overbarEnd: Float
+)
+
+/**
+ * A radical sign modelled on Roboto's √: a flat bar, a short stroke down and a long stroke up
+ * into the overbar. All sizes are relative to the font size (em), so the sign matches the text
+ * at any size; only the long stroke grows with the radicand. The degree sits above the bar and
+ * pushes the sign to the right when it is wider than the space there.
+ */
 @Composable
 private fun RadicalView(node: RadicalNode, fontSize: TextUnit, slots: SlotContext) {
     val radicandFontSize = (fontSize.value * 0.9f).sp
-    val degreeFontSize = (fontSize.value * 0.55f).sp
+    val degreeFontSize = (fontSize.value * 0.48f).sp
     val degree = node.degree
     val textColor = slots.textColor
+    var geometry by remember { mutableStateOf<RadicalGeometry?>(null) }
 
-    Row(
-        modifier = Modifier
-            .height(IntrinsicSize.Min)
-            .padding(end = 2.dp),
-        verticalAlignment = Alignment.Top
-    ) {
-        // Degree and Radical checkmark Canvas
-        Box(
-            modifier = Modifier
-                .width(18.dp)
-                .fillMaxHeight(),
-            contentAlignment = Alignment.TopStart
-        ) {
+    Layout(
+        content = {
             // Child indices must match RadicalNode.subStrings: the degree slot is shown whenever
             // it exists, so an empty degree is visible and can be tapped
             if (degree != null) {
-                slots.Slot(child = 0, string = degree, fontSize = degreeFontSize, modifier = Modifier.offset(y = 1.dp))
+                slots.Slot(child = 0, string = degree, fontSize = degreeFontSize)
             }
-
-            // Continuous vector checkmark matching exact height and meeting overbar at (w, strokeW/2)
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val h = size.height
-                val w = size.width
-                val strokeW = 1.8.dp.toPx()
-                val path = Path().apply {
-                    moveTo(w * 0.05f, h * 0.62f)
-                    lineTo(w * 0.28f, h * 0.54f)
-                    lineTo(w * 0.52f, h - strokeW / 2f)
-                    lineTo(w, strokeW / 2f)
-                }
-                drawPath(
-                    path = path,
-                    color = textColor,
-                    style = Stroke(width = strokeW, cap = StrokeCap.Round, join = StrokeJoin.Round)
-                )
+            slots.Slot(child = if (degree != null) 1 else 0, string = node.radicand, fontSize = radicandFontSize)
+        },
+        modifier = Modifier.drawBehind {
+            val g = geometry ?: return@drawBehind
+            val path = Path().apply {
+                moveTo(g.barStart.x, g.barStart.y)
+                lineTo(g.barEnd.x, g.barEnd.y)
+                lineTo(g.bottom.x, g.bottom.y)
+                lineTo(g.top.x, g.top.y)
+                lineTo(g.overbarEnd, g.top.y)
             }
-        }
-
-        // Radicand under the overbar
-        Column(
-            modifier = Modifier
-                .width(IntrinsicSize.Min)
-                .fillMaxHeight()
-        ) {
-            HorizontalDivider(
-                modifier = Modifier.fillMaxWidth(),
-                thickness = 1.8.dp,
-                color = textColor
+            drawPath(
+                path = path,
+                color = textColor,
+                style = Stroke(width = g.stroke, cap = StrokeCap.Butt, join = StrokeJoin.Round)
             )
-            Box(
-                modifier = Modifier
-                    .padding(top = 3.dp, start = 3.dp, end = 4.dp)
-                    .fillMaxHeight(),
-                contentAlignment = Alignment.CenterStart
-            ) {
-                slots.Slot(child = if (degree != null) 1 else 0, string = node.radicand, fontSize = radicandFontSize)
-            }
+        }
+    ) { measurables, constraints ->
+        val em = fontSize.toPx()
+        val stroke = 0.075f * em
+        val barLength = 0.13f * em
+        val downWidth = 0.12f * em
+        val upWidth = 0.26f * em
+        val barHeight = 0.4f * em        // bar centre above the bottom of the sign
+        val overbarGap = 0.1f * em       // between overbar and radicand
+        val radicandStart = 0.06f * em
+        val radicandEnd = 0.12f * em
+        val degreeOverhang = 0.18f * em  // how far the degree may reach over the bar
+        val degreeGap = 0.08f * em       // between the degree's baseline and the bar
+
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        val degreePlaceable = if (degree != null) measurables[0].measure(loose) else null
+        val radicandPlaceable = measurables.last().measure(loose)
+
+        // Horizontal: the sign starts after whatever part of the degree does not fit over the bar
+        val signStart = ((degreePlaceable?.width ?: 0) - degreeOverhang).coerceAtLeast(0f)
+        val topX = signStart + barLength + downWidth + upWidth
+        val radicandX = topX + radicandStart
+        val width = (radicandX + radicandPlaceable.width + radicandEnd).roundToInt()
+
+        // Vertical: the overbar is at the top, unless the degree reaches higher than that. The
+        // degree sits on the bar by its baseline, its box also holds padding and descender space.
+        val signHeight = stroke + overbarGap + radicandPlaceable.height
+        val degreeBaseline = degreePlaceable?.let { placeable ->
+            placeable[FirstBaseline].takeIf { it != AlignmentLine.Unspecified } ?: placeable.height
+        } ?: 0
+        val degreeTop = signHeight - barHeight - stroke / 2f - degreeGap - degreeBaseline
+        val offsetY = (-degreeTop).coerceAtLeast(0f)
+        val height = (offsetY + signHeight).roundToInt()
+
+        val signBottom = offsetY + signHeight - stroke / 2f
+        val barY = offsetY + signHeight - barHeight
+        geometry = RadicalGeometry(
+            stroke = stroke,
+            barStart = Offset(signStart, barY),
+            barEnd = Offset(signStart + barLength, barY),
+            bottom = Offset(signStart + barLength + downWidth, signBottom),
+            top = Offset(topX, offsetY + stroke / 2f),
+            overbarEnd = width.toFloat()
+        )
+
+        layout(width, height) {
+            degreePlaceable?.place(
+                x = (signStart + degreeOverhang - degreePlaceable.width).roundToInt().coerceAtLeast(0),
+                y = (offsetY + degreeTop).roundToInt()
+            )
+            radicandPlaceable.place(
+                x = radicandX.roundToInt(),
+                y = (offsetY + stroke + overbarGap).roundToInt()
+            )
         }
     }
 }
@@ -566,8 +603,6 @@ private fun IntegralView(node: IntegralNode, fontSize: TextUnit, slots: SlotCont
         Text(
             text = " d${node.variable}",
             fontSize = fontSize,
-            fontFamily = FontFamily.Serif,
-            fontStyle = FontStyle.Italic,
             fontWeight = FontWeight.Normal,
             color = slots.textColor
         )
