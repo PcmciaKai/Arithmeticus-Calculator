@@ -39,7 +39,11 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.BaselineShift
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
@@ -399,7 +403,22 @@ fun CalculatorKeypad(
                     // Page 1 (cols 4..8)
                     KeyButton(text = "0", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("0")) }
                     KeyButton(text = ".", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number(".")) }
-                    KeyButton(text = "EE", buttonWidth = buttonWidth, isAccent = true) { onKeyAction(KeyAction.EE) }
+                    KeyButton(
+                        buttonWidth = buttonWidth,
+                        isAccent = true,
+                        content = {
+                            // ×10ˣ with a real superscript: Roboto has no "ˣ" glyph
+                            Text(
+                                text = buildAnnotatedString {
+                                    append("×10")
+                                    withStyle(SpanStyle(fontSize = 13.sp, baselineShift = BaselineShift(0.6f))) { append("x") }
+                                },
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = keyColors.functionText
+                            )
+                        }
+                    ) { onKeyAction(KeyAction.EE) }
                     KeyButton(
                         icon = {
                             Icon(

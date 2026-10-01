@@ -23,17 +23,23 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.AlignmentLine
 import androidx.compose.ui.layout.FirstBaseline
+import androidx.compose.ui.layout.HorizontalAlignmentLine
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.Placeable
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vortessence.calculator.core.math.type.*
+import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.roundToInt
 
 /** Whether numbers are shown with digit groups (300 000). Display only, the text is unchanged. */
@@ -47,6 +53,7 @@ val LocalDigitGrouping = staticCompositionLocalOf { false }
  * of every node to [caretGeometry], which the editor uses for all touch handling.
  *
  * @param path The caret path prefix of [mathString] within the editor's root string.
+ * @param verticalPadding Space above and below the row.
  */
 @Composable
 fun MathExpressionView(
@@ -58,7 +65,8 @@ fun MathExpressionView(
     textColor: Color = MaterialTheme.colorScheme.onSurface,
     accentColor: Color = MaterialTheme.colorScheme.primary,
     caretGeometry: CaretGeometry? = null,
-    path: List<Int> = emptyList()
+    path: List<Int> = emptyList(),
+    verticalPadding: Dp = 4.dp
 ) {
     if (caretGeometry != null) {
         DisposableEffect(caretGeometry, path) {
@@ -76,7 +84,7 @@ fun MathExpressionView(
 
     Row(
         modifier = modifier
-            .padding(vertical = 4.dp)
+            .padding(vertical = verticalPadding)
             .then(
                 if (caretGeometry == null) Modifier
                 else Modifier.onGloballyPositioned { caretGeometry.setString(path, length, it) }
@@ -113,7 +121,7 @@ fun MathExpressionView(
 
         mathString.nodes.forEachIndexed { index, node ->
             if (isCursorHere && cursorPath[0] == index && selectionRange == null) {
-                BlinkingCursor(fontSize, accentColor)
+                BlinkingCursor(fontSize, accentColor, Modifier.centeredMathAxis().alignBy(MathAxis))
             }
 
             val isNodeFocused = cursorPath.size > 1 && cursorPath[0] == index
@@ -122,6 +130,8 @@ fun MathExpressionView(
 
             Box(
                 modifier = Modifier
+                    .mathAxisOrCenter()
+                    .alignBy(MathAxis)
                     .onPlaced { nodeBounds[index] = Rect(it.positionInParent(), it.size.toSize()) }
                     .then(
                         if (caretGeometry == null) Modifier
@@ -144,7 +154,7 @@ fun MathExpressionView(
         }
 
         if (isCursorHere && cursorPath[0] == length && selectionRange == null) {
-            BlinkingCursor(fontSize, accentColor)
+            BlinkingCursor(fontSize, accentColor, Modifier.centeredMathAxis().alignBy(MathAxis))
         }
     }
 }
@@ -188,6 +198,33 @@ internal fun groupDigits(nodes: List<MathNode>): Map<Int, String> {
     return result
 }
 
+/**
+ * The math axis: the height of the middle of "+" and of fraction bars. The nodes of a row are
+ * aligned on it, so a fraction bar stays level with the operators even when its numerator and
+ * denominator differ in height.
+ */
+private val MathAxis = HorizontalAlignmentLine(::min)
+
+/** The math axis of this placeable, or its vertical centre when it has none (plain text). */
+private fun Placeable.mathAxis(): Int =
+    this[MathAxis].takeIf { it != AlignmentLine.Unspecified } ?: (height / 2)
+
+/** Provides the math axis of the content, its vertical centre when the content has none. */
+private fun Modifier.mathAxisOrCenter() = layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints)
+    layout(placeable.width, placeable.height, mapOf(MathAxis to placeable.mathAxis())) {
+        placeable.place(0, 0)
+    }
+}
+
+/** Puts the math axis at the vertical centre, ignoring any axis of the content (e.g. scripts). */
+private fun Modifier.centeredMathAxis() = layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints)
+    layout(placeable.width, placeable.height, mapOf(MathAxis to placeable.height / 2)) {
+        placeable.place(0, 0)
+    }
+}
+
 /** Narrow no-break space, the SI digit group separator. */
 private const val GROUP_SEPARATOR = '\u202F'
 
@@ -205,7 +242,13 @@ private class SlotContext(
 
 /** Renders the nested string [string], which is child [child] of the node (see MathNode.subStrings). */
 @Composable
-private fun SlotContext.Slot(child: Int, string: MathString, fontSize: TextUnit, modifier: Modifier = Modifier) {
+private fun SlotContext.Slot(
+    child: Int,
+    string: MathString,
+    fontSize: TextUnit,
+    modifier: Modifier = Modifier,
+    verticalPadding: Dp = 4.dp
+) {
     val isFocused = focusedChildIdx == child
     MathExpressionView(
         mathString = string,
@@ -216,7 +259,8 @@ private fun SlotContext.Slot(child: Int, string: MathString, fontSize: TextUnit,
         textColor = textColor,
         accentColor = accentColor,
         caretGeometry = caretGeometry,
-        path = parentPath + listOf(nodeIndex, child)
+        path = parentPath + listOf(nodeIndex, child),
+        verticalPadding = verticalPadding
     )
 }
 
@@ -225,7 +269,7 @@ private fun SlotContext.Slot(child: Int, string: MathString, fontSize: TextUnit,
  * (not in every read-only history entry).
  */
 @Composable
-private fun BlinkingCursor(fontSize: TextUnit, color: Color) {
+private fun BlinkingCursor(fontSize: TextUnit, color: Color, modifier: Modifier = Modifier) {
     val infiniteTransition = rememberInfiniteTransition(label = "cursor")
     val alpha by infiniteTransition.animateFloat(
         initialValue = 1f,
@@ -237,7 +281,7 @@ private fun BlinkingCursor(fontSize: TextUnit, color: Color) {
         label = "cursorAlpha"
     )
     Box(
-        modifier = Modifier
+        modifier = modifier
             .padding(horizontal = 1.5.dp)
             .width(2.5.dp)
             .height(Dp(fontSize.value * 0.9f))
@@ -323,7 +367,7 @@ private fun MathNodeView(
         is ExponentNode -> ExponentView(node, fontSize, slots)
         is SciExponentNode -> {
             // Part of the number before it: no spacing, same color as digits
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.centeredMathAxis()) {
                 Text(text = "×10", fontSize = fontSize, fontWeight = FontWeight.Normal, color = textColor)
                 slots.Slot(
                     child = 0,
@@ -338,15 +382,17 @@ private fun MathNodeView(
         is LogBaseNode -> LogBaseView(node, fontSize, slots)
         is FunctionNode -> {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                val onAxis = Modifier.mathAxisOrCenter().alignBy(MathAxis)
                 Text(
                     text = node.name,
                     fontSize = (fontSize.value * 0.9f).sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = accentColor
+                    color = accentColor,
+                    modifier = onAxis
                 )
-                Text(text = "(", fontSize = fontSize, color = textColor)
-                slots.Slot(child = 0, string = node.argument, fontSize = (fontSize.value * 0.9f).sp)
-                Text(text = ")", fontSize = fontSize, color = textColor)
+                Text(text = "(", fontSize = fontSize, color = textColor, modifier = onAxis)
+                slots.Slot(child = 0, string = node.argument, fontSize = (fontSize.value * 0.9f).sp, modifier = onAxis)
+                Text(text = ")", fontSize = fontSize, color = textColor, modifier = onAxis)
             }
         }
         is IntegralNode -> IntegralView(node, fontSize, slots)
@@ -354,55 +400,98 @@ private fun MathNodeView(
     }
 }
 
+/** Numerator over denominator; the math axis runs through the middle of the bar. */
 @Composable
 private fun FractionView(node: FractionNode, fontSize: TextUnit, slots: SlotContext) {
     val childFontSize = (fontSize.value * 0.8f).sp
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-        modifier = Modifier
-            .width(IntrinsicSize.Max)
-            .padding(horizontal = 2.dp)
-    ) {
-        slots.Slot(
-            child = 0,
-            string = node.numerator,
-            fontSize = childFontSize,
-            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
-        )
-        HorizontalDivider(
-            modifier = Modifier.fillMaxWidth(),
-            thickness = 1.8.dp,
-            color = slots.textColor
-        )
-        slots.Slot(
-            child = 1,
-            string = node.denominator,
-            fontSize = childFontSize,
-            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
-        )
+    Layout(
+        content = {
+            slots.Slot(
+                child = 0,
+                string = node.numerator,
+                fontSize = childFontSize,
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+            )
+            HorizontalDivider(thickness = 1.8.dp, color = slots.textColor)
+            slots.Slot(
+                child = 1,
+                string = node.denominator,
+                fontSize = childFontSize,
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+            )
+        },
+        modifier = Modifier.padding(horizontal = 2.dp)
+    ) { measurables, constraints ->
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        val numerator = measurables[0].measure(loose)
+        val denominator = measurables[2].measure(loose)
+        val width = max(numerator.width, denominator.width)
+        val bar = measurables[1].measure(Constraints.fixedWidth(width))
+        val height = numerator.height + bar.height + denominator.height
+        layout(width, height, mapOf(MathAxis to numerator.height + bar.height / 2)) {
+            numerator.place((width - numerator.width) / 2, 0)
+            bar.place(0, numerator.height)
+            denominator.place((width - denominator.width) / 2, numerator.height + bar.height)
+        }
     }
 }
 
+/**
+ * The exponent is raised relative to the base, and the node keeps the base's math axis. Only the
+ * space the exponent actually needs is added above the base; nothing is added below it.
+ */
 @Composable
 private fun ExponentView(node: ExponentNode, fontSize: TextUnit, slots: SlotContext) {
     val expFontSize = (fontSize.value * 0.62f).sp
     val base = node.base
-    val supOffset = (fontSize.value * 0.28f).dp
 
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        // Child indices must match ExponentNode.subStrings: [base, exponent] whenever a base
-        // slot exists (even if still empty), otherwise [exponent]
-        if (base != null) {
-            slots.Slot(child = 0, string = base, fontSize = fontSize, modifier = Modifier.padding(vertical = supOffset))
-            Spacer(modifier = Modifier.width(2.5.dp))
+    Layout(
+        content = {
+            // Child indices must match ExponentNode.subStrings: [base, exponent] whenever a base
+            // slot exists (even if still empty), otherwise [exponent]. No row padding: the
+            // surrounding row already has it, and it would push a fraction bar away from y².
+            if (base != null) {
+                slots.Slot(child = 0, string = base, fontSize = fontSize, verticalPadding = 0.dp)
+            }
+            slots.Slot(
+                child = if (base != null) 1 else 0,
+                string = node.exponent,
+                fontSize = expFontSize,
+                verticalPadding = 0.dp
+            )
         }
-        slots.Slot(
-            child = if (base != null) 1 else 0,
-            string = node.exponent,
-            fontSize = expFontSize,
-            modifier = Modifier.padding(bottom = supOffset * 2)
-        )
+    ) { measurables, constraints ->
+        val em = fontSize.toPx()
+        val raise = 0.28f * em        // exponent centre above the base's axis
+        val topOverhang = 0.06f * em  // how far the exponent reaches above a tall base
+        val gap = 2.5.dp.roundToPx()
+
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        val basePlaceable = if (base != null) measurables[0].measure(loose) else null
+        val expPlaceable = measurables.last().measure(loose)
+
+        // Vertical positions relative to the top of the base (or of the exponent without a base)
+        val axis: Float
+        val expTop: Float
+        if (basePlaceable != null) {
+            axis = basePlaceable.mathAxis().toFloat()
+            // Next to one line of text the exponent is centred [raise] above the axis; next to a
+            // taller base (a fraction in parentheses) it goes up to the base's top
+            expTop = min(axis - raise - expPlaceable.height / 2f, -topOverhang)
+        } else {
+            expTop = 0f
+            axis = expPlaceable.height / 2f + raise
+        }
+        val top = min(0f, expTop)
+        val bottom = max(max(basePlaceable?.height?.toFloat() ?: 0f, expTop + expPlaceable.height), axis + raise)
+        val height = (bottom - top).roundToInt()
+        val baseWidth = basePlaceable?.let { it.width + gap } ?: 0
+        val width = baseWidth + expPlaceable.width
+
+        layout(width, height, mapOf(MathAxis to (axis - top).roundToInt())) {
+            basePlaceable?.place(0, (-top).roundToInt())
+            expPlaceable.place(baseWidth, (expTop - top).roundToInt())
+        }
     }
 }
 
@@ -498,22 +587,20 @@ private fun RadicalView(node: RadicalNode, fontSize: TextUnit, slots: SlotContex
             overbarEnd = width.toFloat()
         )
 
-        layout(width, height) {
+        val radicandY = (offsetY + stroke + overbarGap).roundToInt()
+        layout(width, height, mapOf(MathAxis to radicandY + radicandPlaceable.mathAxis())) {
             degreePlaceable?.place(
                 x = (signStart + degreeOverhang - degreePlaceable.width).roundToInt().coerceAtLeast(0),
                 y = (offsetY + degreeTop).roundToInt()
             )
-            radicandPlaceable.place(
-                x = radicandX.roundToInt(),
-                y = (offsetY + stroke + overbarGap).roundToInt()
-            )
+            radicandPlaceable.place(x = radicandX.roundToInt(), y = radicandY)
         }
     }
 }
 
 @Composable
 private fun LogBaseView(node: LogBaseNode, fontSize: TextUnit, slots: SlotContext) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.centeredMathAxis()) {
         Text(
             text = "log",
             fontSize = (fontSize.value * 0.9f).sp,
@@ -582,7 +669,7 @@ private fun IntegralView(node: IntegralNode, fontSize: TextUnit, slots: SlotCont
     val boundFontSize = (fontSize.value * 0.55f).sp
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.padding(horizontal = 2.dp)
+        modifier = Modifier.padding(horizontal = 2.dp).centeredMathAxis()
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -614,7 +701,7 @@ private fun MatrixView(node: MatrixNode, fontSize: TextUnit, slots: SlotContext)
     val elementFontSize = (fontSize.value * 0.8f).sp
     val textColor = slots.textColor
     Row(
-        modifier = Modifier.height(IntrinsicSize.Min),
+        modifier = Modifier.height(IntrinsicSize.Min).centeredMathAxis(),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Left Bracket Canvas
