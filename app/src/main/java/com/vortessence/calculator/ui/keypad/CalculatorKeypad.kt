@@ -95,7 +95,10 @@ sealed class KeyAction {
     data object OpenGraph : KeyAction()
     data object OpenSettings : KeyAction()
     data object Integral : KeyAction()
+    /** Opens the matrix size picker. */
     data object Matrix : KeyAction()
+    /** Transpose (superscript T) of the matrix before the cursor. */
+    data object Transpose : KeyAction()
 }
 
 /** A second (or third) function of a key, reachable via long press. */
@@ -283,7 +286,12 @@ fun CalculatorKeypad(
                 // Row 2
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing)) {
                     // Page 0 (cols 0..3)
-                    KeyButton(text = "[M]", buttonWidth = buttonWidth, isAccent = true) { onKeyAction(KeyAction.Matrix) }
+                    KeyButton(
+                        text = "[M]",
+                        buttonWidth = buttonWidth,
+                        isAccent = true,
+                        alternates = listOf(alt("Aᵀ", KeyAction.Transpose), alt("det", KeyAction.Function("det")))
+                    ) { onKeyAction(KeyAction.Matrix) }
                     KeyButton(text = "e", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Constant("e")) }
                     KeyButton(text = "ln", buttonWidth = buttonWidth, isAccent = true) { onKeyAction(KeyAction.Function("ln")) }
                     KeyButton(

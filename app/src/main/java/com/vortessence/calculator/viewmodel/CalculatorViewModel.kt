@@ -56,7 +56,11 @@ data class CalculatorUiState(
     val isPlotLoading: Boolean = false,
     val showUnitsDialog: Boolean = false,
     val showConstantsDialog: Boolean = false,
-    val showSettingsDialog: Boolean = false
+    val showSettingsDialog: Boolean = false,
+    val showMatrixDialog: Boolean = false,
+    /** Size of the most recently inserted matrix, preselected in the matrix dialog. */
+    val matrixRows: Int = 2,
+    val matrixCols: Int = 2
 )
 
 /**
@@ -150,6 +154,8 @@ class CalculatorViewModel @JvmOverloads constructor(
         val form = ResultForm.entries.firstOrNull { it.name == savedForm } ?: ResultForm.EXACT
         val places = prefs?.getInt("decimal_places", -1)?.takeIf { it >= 0 }
         val grouping = prefs?.getBoolean("digit_grouping", true) ?: true
+        val matrixRows = prefs?.getInt("matrix_rows", 2) ?: 2
+        val matrixCols = prefs?.getInt("matrix_cols", 2) ?: 2
         val savedTheme = prefs?.getString("theme_mode", null)
         val themeMode = ThemeMode.entries.firstOrNull { it.name == savedTheme } ?: ThemeMode.SYSTEM
         _uiState.update {
@@ -160,7 +166,9 @@ class CalculatorViewModel @JvmOverloads constructor(
                 temperatureInKelvin = kelvin,
                 decimalPlaces = places,
                 digitGrouping = grouping,
-                themeMode = themeMode
+                themeMode = themeMode,
+                matrixRows = matrixRows,
+                matrixCols = matrixCols
             )
         }
     }
@@ -217,7 +225,8 @@ class CalculatorViewModel @JvmOverloads constructor(
             is KeyAction.OpenGraph -> toggleGraph()
             is KeyAction.OpenSettings -> _uiState.update { it.copy(showSettingsDialog = true) }
             is KeyAction.Integral -> insertNode(IntegralNode())
-            is KeyAction.Matrix -> insertNode(MatrixNode(rows = 2, cols = 2, elements = List(4) { MathString() }))
+            is KeyAction.Matrix -> _uiState.update { it.copy(showMatrixDialog = true) }
+            is KeyAction.Transpose -> insertPower(MathString(listOf(VariableNode("T"))))
         }
     }
 
@@ -328,6 +337,19 @@ class CalculatorViewModel @JvmOverloads constructor(
 
     fun dismissSettingsDialog() {
         _uiState.update { it.copy(showSettingsDialog = false) }
+    }
+
+    fun dismissMatrixDialog() {
+        _uiState.update { it.copy(showMatrixDialog = false) }
+    }
+
+    fun insertMatrix(rows: Int, cols: Int) {
+        prefs?.edit {
+            putInt("matrix_rows", rows)
+            putInt("matrix_cols", cols)
+        }
+        _uiState.update { it.copy(showMatrixDialog = false, matrixRows = rows, matrixCols = cols) }
+        insertNode(MatrixNode(rows, cols, List(rows * cols) { MathString() }))
     }
 
     fun insertUnit(symbol: String) {

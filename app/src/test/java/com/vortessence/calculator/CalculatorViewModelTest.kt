@@ -3,6 +3,8 @@ import com.vortessence.calculator.ui.theme.ThemeMode
 import com.vortessence.calculator.core.math.type.ExponentNode
 import com.vortessence.calculator.core.math.type.FunctionNode
 import com.vortessence.calculator.core.math.type.LogBaseNode
+import com.vortessence.calculator.core.math.type.MatrixNode
+import com.vortessence.calculator.core.math.type.VariableNode
 import com.vortessence.calculator.core.math.type.RadicalNode
 import com.vortessence.calculator.core.math.type.SciExponentNode
 import com.vortessence.calculator.core.math.type.FractionNode
@@ -744,5 +746,35 @@ class CalculatorViewModelTest {
         assertEquals(ThemeMode.SYSTEM, vm.uiState.value.themeMode)
         vm.setThemeMode(ThemeMode.DARK)
         assertEquals(ThemeMode.DARK, vm.uiState.value.themeMode)
+    }
+
+    @Test
+    fun testMatrixKeyOpensSizePickerAndInsertsChosenSize() {
+        val vm = newViewModel()
+        vm.onKeyAction(KeyAction.Matrix)
+        assertTrue(vm.uiState.value.showMatrixDialog)
+
+        vm.insertMatrix(3, 4)
+        val state = vm.uiState.value
+        assertFalse(state.showMatrixDialog)
+        val matrix = state.expression.nodeAt(0) as MatrixNode
+        assertEquals(3, matrix.rows)
+        assertEquals(4, matrix.cols)
+        assertEquals(12, matrix.elements.size)
+        // Cursor in the first entry; the size is preselected next time
+        assertEquals(listOf(0, 0, 0), state.cursorPath)
+        assertEquals(3 to 4, state.matrixRows to state.matrixCols)
+    }
+
+    @Test
+    fun testTransposeAppliesToPrecedingMatrix() {
+        val vm = newViewModel()
+        vm.insertMatrix(2, 2)
+        vm.setCursorPath(listOf(1))
+        vm.onKeyAction(KeyAction.Transpose)
+
+        val power = vm.uiState.value.expression.nodeAt(0) as ExponentNode
+        assertTrue(power.base!!.nodeAt(0) is MatrixNode)
+        assertEquals(VariableNode("T"), power.exponent.nodeAt(0))
     }
 }

@@ -28,6 +28,12 @@ class Power(
         val cExp = exponent.canonicalize(context)
         if (context.shouldStop) return this
 
+        if (cExp is MatrixExpression) {
+            context.stopWithError(MathIssue.MATRIX_UNSUPPORTED)
+            return this
+        }
+        if (cBase is MatrixExpression) return matrixPower(cBase, cExp, context) ?: this
+
         if (cExp.isZero) return Value.ONE
         if (cExp == Value.ONE) return cBase
         // Powers of an absolute temperature use kelvin: 1/(25 °C) is 1/(298.15 K)

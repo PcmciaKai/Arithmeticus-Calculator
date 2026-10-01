@@ -17,5 +17,9 @@ enum class MathIssue(val userMessage: String) {
     COMPLEX_RESULT("Complex result not supported in real mode"),
     SYNTAX_ERROR("Incomplete or invalid expression"),
     UNKNOWN_FUNCTION("Unknown function"),
-    TIMEOUT("Calculation timed out")
+    TIMEOUT("Calculation timed out"),
+    DIMENSION_MISMATCH("Matrix dimensions do not match"),
+    MATRIX_NOT_SQUARE("Matrix must be square"),
+    SINGULAR_MATRIX("Matrix is not invertible"),
+    MATRIX_UNSUPPORTED("Not defined for matrices")
 }

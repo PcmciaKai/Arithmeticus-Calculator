@@ -26,6 +26,10 @@ class Logarithm(
         if (context.shouldStop) return this
         val cOperand = operand.canonicalize(context)
         if (context.shouldStop) return this
+        if (cBase is MatrixExpression || cOperand is MatrixExpression) {
+            context.stopWithError(MathIssue.MATRIX_UNSUPPORTED)
+            return this
+        }
 
         if (cOperand == Value.ONE) return Value.ZERO
         if (cBase == cOperand) return Value.ONE

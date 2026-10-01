@@ -123,6 +123,7 @@ class MathParser {
                         "ln" -> Logarithm.ln(arg)
                         "log", "log10" -> Logarithm.log10(arg)
                         "sqrt" -> Power.squareRoot(arg)
+                        "det" -> Determinant(arg)
                         else -> {
                             MathContext.current().stopWithError(MathIssue.UNKNOWN_FUNCTION)
                             arg

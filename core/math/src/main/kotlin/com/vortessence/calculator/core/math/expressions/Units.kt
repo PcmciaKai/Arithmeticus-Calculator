@@ -190,6 +190,7 @@ internal fun Expression.withUnitsAsSiFactors(): Expression =
  */
 fun Expression.toPreferredUnits(context: MathContext): Expression {
     if (!containsUnit()) return this
+    if (this is MatrixExpression) return MatrixExpression(rows, cols, elements.map { it.toPreferredUnits(context) })
     val dimension = dimensionOf(this)
     if (dimension == null) {
         context.stopWithError(MathIssue.INVALID_UNIT)

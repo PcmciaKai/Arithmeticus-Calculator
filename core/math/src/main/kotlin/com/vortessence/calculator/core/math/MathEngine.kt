@@ -4,6 +4,7 @@ import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.context.MathIssue
 import com.vortessence.calculator.core.math.expressions.Equals
 import com.vortessence.calculator.core.math.expressions.Expression
+import com.vortessence.calculator.core.math.expressions.MatrixExpression
 import com.vortessence.calculator.core.math.expressions.Value
 import com.vortessence.calculator.core.math.expressions.Variable
 import com.vortessence.calculator.core.math.expressions.UnitConversion
@@ -109,6 +110,10 @@ object MathEngine {
 
         val canonical = parsed.canonicalize(ctx)
         if (ctx.shouldStop) return failure(input, ctx, expression = parsed)
+        // A matrix that did not combine into the result (e.g. a factorial of a matrix)
+        if (canonical !is MatrixExpression && canonical.containsExpressionMatching { it is MatrixExpression }) {
+            return failure(input, ctx, MathIssue.MATRIX_UNSUPPORTED, canonical)
+        }
         // An explicit conversion (5 km → mi) keeps its target unit
         val simplified = if (parsed is UnitConversion) canonical else canonical.toPreferredUnits(ctx)
         if (ctx.shouldStop) return failure(input, ctx, expression = canonical)
@@ -133,6 +138,9 @@ object MathEngine {
     }
 
     private fun evaluateEquation(input: MathString, equation: Equals, ctx: MathContext): CalculationResult {
+        if (equation.containsExpressionMatching { it is MatrixExpression }) {
+            return failure(input, ctx, MathIssue.MATRIX_UNSUPPORTED, equation)
+        }
         val vars = equation.variables()
         if (vars.isEmpty()) {
             val truth = equation.truthValue(ctx) ?: return failure(input, ctx, MathIssue.UNDEFINED, equation)

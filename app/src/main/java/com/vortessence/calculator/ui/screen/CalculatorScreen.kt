@@ -27,6 +27,7 @@ import com.vortessence.calculator.core.math.context.MathIssue
 import com.vortessence.calculator.core.math.type.ResultForm
 import com.vortessence.calculator.core.math.type.ResultFormatter
 import com.vortessence.calculator.ui.dialogs.ConstantsDialog
+import com.vortessence.calculator.ui.dialogs.MatrixDialog
 import com.vortessence.calculator.ui.dialogs.UnitsDialog
 import com.vortessence.calculator.ui.graph.GraphPlotterView
 import com.vortessence.calculator.ui.keypad.CalculatorKeypad
@@ -151,6 +152,16 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
         ConstantsDialog(
             onDismiss = { viewModel.dismissConstantsDialog() },
             onConstantSelected = { symbol -> viewModel.insertConstant(symbol) }
+        )
+    }
+
+    // Matrix size picker
+    if (uiState.showMatrixDialog) {
+        MatrixDialog(
+            initialRows = uiState.matrixRows,
+            initialCols = uiState.matrixCols,
+            onDismiss = { viewModel.dismissMatrixDialog() },
+            onSizeSelected = { rows, cols -> viewModel.insertMatrix(rows, cols) }
         )
     }
 

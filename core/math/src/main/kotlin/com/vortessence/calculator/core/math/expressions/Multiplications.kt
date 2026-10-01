@@ -43,6 +43,12 @@ class Multiplications(val operands: List<Expression>) : Expression() {
         val canonicalOperands = operands.map { op ->
             op.canonicalize(context).also { if (context.shouldStop) return this }
         }
+        // Matrix products depend on the order of the factors, so they are computed here
+        // before like factors are merged
+        if (canonicalOperands.any { it is MatrixExpression }) {
+            val ordered = canonicalOperands.flatMap { if (it is Multiplications) it.operands else listOf(it) }
+            return multiplyWithMatrices(ordered, context) ?: this
+        }
         val flattened = mutableListOf<Expression>()
         var hasZeroFactor = false
         for (cOp in absoluteTemperaturesInKelvin(canonicalOperands, context) ?: return this) {

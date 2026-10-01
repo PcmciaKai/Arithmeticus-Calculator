@@ -39,6 +39,10 @@ class TrigonometricFunction(
     override fun canonicalize(context: MathContext): Expression {
         var op = operand.canonicalize(context)
         if (context.shouldStop) return this
+        if (op is MatrixExpression) {
+            context.stopWithError(MathIssue.MATRIX_UNSUPPORTED)
+            return this
+        }
 
         val resolvedUnit: AngleUnit
         if (!type.isInverse) {
