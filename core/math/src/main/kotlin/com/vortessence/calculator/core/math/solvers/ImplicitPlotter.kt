@@ -6,7 +6,9 @@ import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.expressions.Value
 import kotlin.math.abs
 import kotlin.math.hypot
+import kotlin.math.log10
 import kotlin.math.max
+import kotlin.math.pow
 
 /** Drawing and analysing implicit curves F(x, y) = 0. */
 object ImplicitPlotter {
@@ -16,6 +18,9 @@ object ImplicitPlotter {
      * [cols] × [rows] grid, and wherever it changes sign along a cell edge the crossing is
      * located by bisection. Sign changes at poles (|F| grows instead of shrinking) are ignored.
      * Curves that only touch zero without changing sign, like (x - y)² = 0, are not found.
+     *
+     * With [logX] / [logY] the grid is spaced evenly in log10 of that coordinate (the range
+     * must then be positive), matching a logarithmic axis on screen.
      */
     fun contour(
         curve: ImplicitCurve,
@@ -25,12 +30,16 @@ object ImplicitPlotter {
         maxY: Double,
         cols: Int,
         rows: Int,
-        context: MathContext? = null
+        context: MathContext? = null,
+        logX: Boolean = false,
+        logY: Boolean = false
     ): List<PlotSegment> {
-        val dx = (maxX - minX) / cols
-        val dy = (maxY - minY) / rows
-        fun xAt(i: Int) = minX + i * dx
-        fun yAt(j: Int) = minY + j * dy
+        val startX = if (logX) log10(minX) else minX
+        val startY = if (logY) log10(minY) else minY
+        val dx = ((if (logX) log10(maxX) else maxX) - startX) / cols
+        val dy = ((if (logY) log10(maxY) else maxY) - startY) / rows
+        fun xAt(i: Int) = if (logX) 10.0.pow(startX + i * dx) else startX + i * dx
+        fun yAt(j: Int) = if (logY) 10.0.pow(startY + j * dy) else startY + j * dy
 
         val values = Array(rows + 1) { DoubleArray(cols + 1) }
         for (j in 0..rows) {

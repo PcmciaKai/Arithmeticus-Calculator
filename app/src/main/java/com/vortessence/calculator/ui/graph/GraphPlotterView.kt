@@ -15,10 +15,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.AreaChart
 import androidx.compose.material.icons.filled.Timeline
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,11 +31,13 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -69,10 +72,39 @@ private const val DEFAULT_SCALE = 40f
 private const val MIN_SCALE = 5f
 private const val MAX_SCALE = 400f
 
+// On a logarithmic axis the scale is in pixels per decade
+private const val DEFAULT_LOG_DECADES = 5f
+private const val MIN_LOG_SCALE = 30f
+private const val MAX_LOG_SCALE = 20000f
+
 private enum class GraphTool(val label: String, val icon: ImageVector) {
     TRACE("Trace", Icons.Default.Timeline),
-    TANGENT("Tangent", Icons.AutoMirrored.Filled.TrendingUp),
+    TANGENT("Tangent", TangentIcon),
     INTEGRAL("Integral", Icons.Default.AreaChart)
+}
+
+/** A curve with a straight line touching it at one marked point; Material has no tangent icon. */
+private val TangentIcon: ImageVector by lazy {
+    ImageVector.Builder(name = "Tangent", defaultWidth = 24.dp, defaultHeight = 24.dp, viewportWidth = 24f, viewportHeight = 24f)
+        .apply {
+            // The parabola y = 8.4 + 0.2 (x - 12)² from x = 5 to 19 (screen coordinates, so a hill)
+            path(stroke = SolidColor(Color.Black), strokeLineWidth = 2f, strokeLineCap = StrokeCap.Round) {
+                moveTo(5f, 18.2f)
+                quadTo(12f, -1.4f, 19f, 18.2f)
+            }
+            // Its tangent at x = 11.3, just left of the top, so it is only slightly tilted
+            path(stroke = SolidColor(Color.Black), strokeLineWidth = 2f, strokeLineCap = StrokeCap.Round) {
+                moveTo(3f, 10.82f)
+                lineTo(21f, 5.78f)
+            }
+            path(fill = SolidColor(Color.Black)) {
+                moveTo(13.5f, 8.5f)
+                arcTo(2.2f, 2.2f, 0f, isMoreThanHalf = true, isPositiveArc = true, x1 = 9.1f, y1 = 8.5f)
+                arcTo(2.2f, 2.2f, 0f, isMoreThanHalf = true, isPositiveArc = true, x1 = 13.5f, y1 = 8.5f)
+                close()
+            }
+        }
+        .build()
 }
 
 /** What a touch grabbed: the trace/tangent cursor or one of the integration bounds. */
@@ -96,13 +128,30 @@ private fun PlotData.toKeyPoints(): List<KeyPoint> =
         inflectionPoints.map { KeyPoint(it.x, it.y, KeyPointKind.INFLECTION) } +
         yIntercepts.map { KeyPoint(0.0, it, KeyPointKind.Y_INTERCEPT) }
 
-/** Maps between math coordinates and canvas pixels. */
-private class Viewport(val originX: Float, val originY: Float, val scaleX: Float, val scaleY: Float) {
-    fun toScreenX(x: Double): Float = originX + (x * scaleX).toFloat()
-    fun toScreenY(y: Double): Float = originY - (y * scaleY).toFloat()
-    fun toMathX(px: Float): Double = ((px - originX) / scaleX).toDouble()
-    fun toMathY(py: Float): Double = ((originY - py) / scaleY).toDouble()
+/**
+ * Maps between math coordinates and canvas pixels. On a logarithmic axis, origin and scale
+ * apply to log10 of the value; zero and negative values have no position there (NaN).
+ */
+private class Viewport(
+    val originX: Float,
+    val originY: Float,
+    val scaleX: Float,
+    val scaleY: Float,
+    val logX: Boolean = false,
+    val logY: Boolean = false
+) {
+    private fun toAxis(value: Double, log: Boolean) = if (!log) value else if (value > 0) log10(value) else Double.NaN
+    private fun fromAxis(u: Double, log: Boolean) = if (log) 10.0.pow(u) else u
+
+    fun toScreenX(x: Double): Float = originX + (toAxis(x, logX) * scaleX).toFloat()
+    fun toScreenY(y: Double): Float = originY - (toAxis(y, logY) * scaleY).toFloat()
+    fun toMathX(px: Float): Double = fromAxis(((px - originX) / scaleX).toDouble(), logX)
+    fun toMathY(py: Float): Double = fromAxis(((originY - py) / scaleY).toDouble(), logY)
     fun toScreen(point: PlotPoint) = Offset(toScreenX(point.x), toScreenY(point.y))
+
+    /** Screen position of the line x = 0 / y = 0, or null on a log axis, which has no zero. */
+    val zeroX: Float? get() = if (logX) null else originX
+    val zeroY: Float? get() = if (logY) null else originY
 }
 
 @Composable
@@ -125,6 +174,9 @@ fun GraphPlotterView(
     var offsetX by remember { mutableFloatStateOf(0f) }
     var offsetY by remember { mutableFloatStateOf(0f) }
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
+    // Deliberately not saved: a forgotten log axis would be confusing on the next graph
+    var logX by remember { mutableStateOf(false) }
+    var logY by remember { mutableStateOf(false) }
 
     var tool by remember { mutableStateOf<GraphTool?>(null) }
     // Back leaves the active tool before it closes the graph
@@ -142,19 +194,32 @@ fun GraphPlotterView(
     // Implicit curves are drawn from line segments computed in the background
     var segments by remember(curve) { mutableStateOf(emptyList<PlotSegment>()) }
 
-    fun viewport() = Viewport(canvasSize.width / 2f + offsetX, canvasSize.height / 2f + offsetY, scaleX, scaleY)
+    fun viewport() = Viewport(canvasSize.width / 2f + offsetX, canvasSize.height / 2f + offsetY, scaleX, scaleY, logX, logY)
 
     // Zeros, extrema and inflection points of the visible x-range, recomputed in the background
     // after panning or zooming settles. Integration bounds snap to the zeros.
-    val visibleMinX = (-(canvasSize.width / 2f + offsetX) / scaleX).toDouble()
-    val visibleMaxX = ((canvasSize.width / 2f - offsetX) / scaleX).toDouble()
-    val visibleMinY = ((offsetY - canvasSize.height / 2f) / scaleY).toDouble()
-    val visibleMaxY = ((offsetY + canvasSize.height / 2f) / scaleY).toDouble()
+    val visibleViewport = viewport()
+    val visibleMinX = visibleViewport.toMathX(0f)
+    val visibleMaxX = visibleViewport.toMathX(canvasSize.width.toFloat())
+    val visibleMinY = visibleViewport.toMathY(canvasSize.height.toFloat())
+    val visibleMaxY = visibleViewport.toMathY(0f)
     val needsKeyPoints = tool == GraphTool.TRACE || tool == GraphTool.INTEGRAL
     LaunchedEffect(function, visibleMinX, visibleMaxX, needsKeyPoints) {
         if (function == null || canvasSize.width == 0 || !needsKeyPoints) return@LaunchedEffect
         delay(150)
-        keyPoints = MathEngine.analyzePlot(function, visibleMinX, visibleMaxX).toKeyPoints()
+        keyPoints = if (logX) {
+            // Even sampling would skip the small values of a log axis, so analyse decade by decade
+            val low = log10(visibleMinX)
+            val high = log10(visibleMaxX)
+            val pieces = ceil(high - low).toInt().coerceIn(1, 40)
+            (0 until pieces).flatMap { i ->
+                val from = 10.0.pow(low + (high - low) * i / pieces)
+                val to = 10.0.pow(low + (high - low) * (i + 1) / pieces)
+                MathEngine.analyzePlot(function, from, to, steps = 200).toKeyPoints()
+            }
+        } else {
+            MathEngine.analyzePlot(function, visibleMinX, visibleMaxX).toKeyPoints()
+        }
     }
 
     val density = LocalDensity.current
@@ -164,29 +229,31 @@ fun GraphPlotterView(
 
     // Implicit curves: segments for the visible area plus a margin, so that short pans do not
     // reveal gaps before the recomputation after the gesture settles
-    LaunchedEffect(implicit, visibleMinX, visibleMaxX, visibleMinY, visibleMaxY) {
+    /** The visible range extended by a quarter of the canvas on each side: minX, maxX, minY, maxY. */
+    fun rangeWithMargin(): List<Double> {
+        val vp = viewport()
+        val width = canvasSize.width.toFloat()
+        val height = canvasSize.height.toFloat()
+        return listOf(vp.toMathX(-width / 4f), vp.toMathX(width * 1.25f), vp.toMathY(height * 1.25f), vp.toMathY(-height / 4f))
+    }
+
+    LaunchedEffect(implicit, visibleMinX, visibleMaxX, visibleMinY, visibleMaxY, logX, logY) {
         if (implicit == null || canvasSize.width == 0) return@LaunchedEffect
         if (segments.isNotEmpty()) delay(100)
-        val marginX = (visibleMaxX - visibleMinX) / 4.0
-        val marginY = (visibleMaxY - visibleMinY) / 4.0
+        val (minX, maxX, minY, maxY) = rangeWithMargin()
         segments = MathEngine.contourImplicit(
-            implicit,
-            visibleMinX - marginX, visibleMaxX + marginX,
-            visibleMinY - marginY, visibleMaxY + marginY,
+            implicit, minX, maxX, minY, maxY,
             cols = (canvasSize.width * 1.5f / contourCellPx).toInt().coerceAtLeast(10),
-            rows = (canvasSize.height * 1.5f / contourCellPx).toInt().coerceAtLeast(10)
+            rows = (canvasSize.height * 1.5f / contourCellPx).toInt().coerceAtLeast(10),
+            logX = logX,
+            logY = logY
         )
     }
 
     LaunchedEffect(implicit, segments, tool == GraphTool.TRACE) {
         if (implicit == null || tool != GraphTool.TRACE || segments.isEmpty()) return@LaunchedEffect
-        val marginX = (visibleMaxX - visibleMinX) / 4.0
-        val marginY = (visibleMaxY - visibleMinY) / 4.0
-        keyPoints = MathEngine.analyzeImplicitPlot(
-            implicit, segments,
-            visibleMinX - marginX, visibleMaxX + marginX,
-            visibleMinY - marginY, visibleMaxY + marginY
-        ).toKeyPoints()
+        val (minX, maxX, minY, maxY) = rangeWithMargin()
+        keyPoints = MathEngine.analyzeImplicitPlot(implicit, segments, minX, maxX, minY, maxY).toKeyPoints()
         // The cursor may have been placed before the points were known; snap it now
         val vp = viewport()
         cursorPoint?.let { p ->
@@ -224,7 +291,9 @@ fun GraphPlotterView(
         }
         val onScreen = nearest ?: return
         val approximate = PlotPoint(vp.toMathX(onScreen.x), vp.toMathY(onScreen.y))
-        var point = curveNow.projectOntoCurve(approximate.x, approximate.y, maxDistance = 8.0 / min(scaleX, scaleY))
+        // Keep the exact point only if it stays where the finger is (it may jump near singular points)
+        var point = curveNow.projectOntoCurve(approximate.x, approximate.y)
+            ?.takeIf { (vp.toScreen(it) - onScreen).getDistance() <= snapRadiusPx }
             ?: approximate
         if (tool == GraphTool.TRACE) {
             val screenPoint = vp.toScreen(point)
@@ -294,8 +363,8 @@ fun GraphPlotterView(
 
     /** Pans and zooms so that the point under [centroid] stays under the fingers. */
     fun transform(centroid: Offset, pan: Offset, zoom: Float) {
-        val newScaleX = (scaleX * zoom).coerceIn(MIN_SCALE, MAX_SCALE)
-        val newScaleY = (scaleY * zoom).coerceIn(MIN_SCALE, MAX_SCALE)
+        val newScaleX = if (logX) (scaleX * zoom).coerceIn(MIN_LOG_SCALE, MAX_LOG_SCALE) else (scaleX * zoom).coerceIn(MIN_SCALE, MAX_SCALE)
+        val newScaleY = if (logY) (scaleY * zoom).coerceIn(MIN_LOG_SCALE, MAX_LOG_SCALE) else (scaleY * zoom).coerceIn(MIN_SCALE, MAX_SCALE)
         val originX = canvasSize.width / 2f + offsetX
         val originY = canvasSize.height / 2f + offsetY
         offsetX += centroid.x - (centroid.x - originX) * (newScaleX / scaleX) - originX + pan.x
@@ -304,30 +373,59 @@ fun GraphPlotterView(
         scaleY = newScaleY
     }
 
+    /** Brings the handles of [target] into view if they were panned away or lie off a log axis. */
+    fun placeHandlesInView(target: GraphTool) {
+        val vp = viewport()
+        val width = canvasSize.width.toFloat()
+        val height = canvasSize.height.toFloat()
+        val minX = vp.toMathX(0f)
+        val maxX = vp.toMathX(width)
+        when (target) {
+            GraphTool.TRACE, GraphTool.TANGENT -> if (implicit != null) {
+                val point = cursorPoint
+                if (point == null || point.x !in minX..maxX || point.y !in vp.toMathY(height)..vp.toMathY(0f)) {
+                    moveImplicitCursor(Offset(width / 2f, height / 2f))
+                }
+            } else if (cursorX !in minX..maxX) {
+                cursorX = vp.toMathX(width / 2f)
+            }
+            GraphTool.INTEGRAL ->
+                if (lowerBound !in minX..maxX || upperBound !in minX..maxX) {
+                    lowerBound = vp.toMathX(width / 4f)
+                    upperBound = vp.toMathX(width * 3f / 4f)
+                }
+        }
+    }
+
     fun selectTool(selected: GraphTool) {
         if (tool == selected) {
             tool = null
             return
         }
-        // Bring the handles into view if they were panned away
-        val span = visibleMaxX - visibleMinX
-        val center = (visibleMinX + visibleMaxX) / 2.0
-        when (selected) {
-            GraphTool.TRACE, GraphTool.TANGENT -> if (implicit != null) {
-                val point = cursorPoint
-                if (point == null || point.x !in visibleMinX..visibleMaxX || point.y !in visibleMinY..visibleMaxY) {
-                    moveImplicitCursor(Offset(canvasSize.width / 2f, canvasSize.height / 2f))
-                }
-            } else if (cursorX !in visibleMinX..visibleMaxX) {
-                cursorX = center
-            }
-            GraphTool.INTEGRAL ->
-                if (lowerBound !in visibleMinX..visibleMaxX || upperBound !in visibleMinX..visibleMaxX) {
-                    lowerBound = center - span / 4.0
-                    upperBound = center + span / 4.0
-                }
-        }
+        placeHandlesInView(selected)
         tool = selected
+    }
+
+    // A log axis starts out showing five decades around 1 to 1000; a linear one the default zoom
+    fun resetX() {
+        scaleX = if (logX) canvasSize.width / DEFAULT_LOG_DECADES else DEFAULT_SCALE
+        offsetX = if (logX) -1.5f * scaleX else 0f
+    }
+
+    fun resetY() {
+        scaleY = if (logY) canvasSize.height / DEFAULT_LOG_DECADES else DEFAULT_SCALE
+        offsetY = if (logY) 1.5f * scaleY else 0f
+    }
+
+    fun setLogScale(xAxis: Boolean, enabled: Boolean) {
+        if (xAxis) {
+            logX = enabled
+            resetX()
+        } else {
+            logY = enabled
+            resetY()
+        }
+        tool?.let { placeHandlesInView(it) }
     }
 
     val textMeasurer = rememberTextMeasurer()
@@ -355,11 +453,12 @@ fun GraphPlotterView(
     ) {
         GraphHeader(
             expression = expression,
+            logX = logX,
+            logY = logY,
+            onLogScaleChange = { xAxis, enabled -> setLogScale(xAxis, enabled) },
             onRecenter = {
-                scaleX = DEFAULT_SCALE
-                scaleY = DEFAULT_SCALE
-                offsetX = 0f
-                offsetY = 0f
+                resetX()
+                resetY()
             },
             onClose = onClose
         )
@@ -416,13 +515,13 @@ fun GraphPlotterView(
                 val width = size.width
                 val height = size.height
 
-                drawGrid(vp.originX, vp.originY, width, height, scaleX, scaleY, gridColor, axisColor, labelColor, textMeasurer)
+                drawGrid(vp, gridColor, axisColor, labelColor, textMeasurer)
 
                 if (function != null) {
                     if (tool == GraphTool.INTEGRAL) {
                         drawIntegralArea(function, vp, lowerBound, upperBound, curveColor, AccentRed)
                     }
-                    drawCurve(function, vp.originX, vp.originY, scaleX, scaleY, curveColor)
+                    drawCurve(function::evaluateAt, vp, curveColor)
 
                     when (tool) {
                         GraphTool.TRACE -> {
@@ -469,7 +568,7 @@ fun GraphPlotterView(
                 )
             }
 
-            if (curve != null && tool != null) {
+            if (curve != null && tool != null && canvasSize.width > 0) {
                 // The implicit cursor needs a curve to sit on; before that only a hint is shown
                 val point = if (implicit != null) cursorPoint else PlotPoint(cursorX, function!!.evaluateAt(cursorX))
                 val slope = when {
@@ -509,7 +608,14 @@ fun GraphPlotterView(
 }
 
 @Composable
-private fun GraphHeader(expression: MathString, onRecenter: () -> Unit, onClose: (() -> Unit)?) {
+private fun GraphHeader(
+    expression: MathString,
+    logX: Boolean,
+    logY: Boolean,
+    onLogScaleChange: (xAxis: Boolean, enabled: Boolean) -> Unit,
+    onRecenter: () -> Unit,
+    onClose: (() -> Unit)?
+) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -523,7 +629,7 @@ private fun GraphHeader(expression: MathString, onRecenter: () -> Unit, onClose:
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             // A plain f(x) is shown as y = f(x), rendered like a typed-in y = so both look the same
             val displayed = remember(expression) {
@@ -536,13 +642,46 @@ private fun GraphHeader(expression: MathString, onRecenter: () -> Unit, onClose:
                 fontSize = 18.sp,
                 modifier = Modifier.weight(1f)
             )
+            AxisScaleMenu(logX, logY, onLogScaleChange)
             IconButton(onClick = onRecenter) {
                 Icon(Icons.Default.Refresh, contentDescription = "Recenter")
             }
             if (onClose != null) {
-                Button(onClick = onClose, shape = RoundedCornerShape(8.dp)) {
-                    Text("Close")
+                // Filled so the way back to the calculator is easy to spot
+                FilledIconButton(
+                    onClick = onClose,
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = OrangePrimary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) {
+                    Icon(Icons.Default.Close, contentDescription = "Close graph")
                 }
+            }
+        }
+    }
+}
+
+/** Switches between linear and logarithmic axes; highlighted while a log axis is active. */
+@Composable
+private fun AxisScaleMenu(logX: Boolean, logY: Boolean, onChange: (xAxis: Boolean, enabled: Boolean) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { expanded = true }) {
+            Icon(
+                Icons.Default.Straighten,
+                contentDescription = "Axis scales",
+                tint = if (logX || logY) OrangePrimary else LocalContentColor.current
+            )
+        }
+        // Stays open after a change, so both axes can be switched in one go
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            for ((xAxis, enabled) in listOf(true to logX, false to logY)) {
+                DropdownMenuItem(
+                    text = { Text(if (xAxis) "Logarithmic x-axis" else "Logarithmic y-axis") },
+                    onClick = { onChange(xAxis, !enabled) },
+                    trailingIcon = { Switch(checked = enabled, onCheckedChange = null) }
+                )
             }
         }
     }
@@ -737,6 +876,7 @@ private fun DrawScope.drawKeyPoints(
 /** The movable cursor of trace and tangent: a dashed guide line and a dot on the curve. */
 private fun DrawScope.drawCursor(function: Function1D, vp: Viewport, x: Double, color: Color, guideColor: Color) {
     val cx = vp.toScreenX(x)
+    if (cx.isNaN()) return
     drawLine(
         color = guideColor.copy(alpha = 0.6f),
         start = Offset(cx, 0f),
@@ -758,6 +898,16 @@ private fun DrawScope.drawCursorDot(center: Offset, color: Color) {
 /** The tangent through [point] across the whole canvas; an infinite [slope] means vertical. */
 private fun DrawScope.drawTangentLine(vp: Viewport, point: PlotPoint, slope: Double, color: Color) {
     if (!point.x.isFinite() || !point.y.isFinite() || slope.isNaN()) return
+    if (slope.isInfinite()) {
+        val cx = vp.toScreenX(point.x)
+        if (!cx.isNaN()) drawLine(color = color, start = Offset(cx, 0f), end = Offset(cx, size.height), strokeWidth = 2.dp.toPx())
+        return
+    }
+    if (vp.logX || vp.logY) {
+        // A straight line is curved on a log axis, so follow it pixel by pixel
+        drawCurve({ x -> point.y + slope * (x - point.x) }, vp, color, strokeWidth = 2.dp.toPx())
+        return
+    }
     val center = vp.toScreen(point)
     // Direction on screen: one unit in x moves scaleX right and slope × scaleY up
     val direction = if (slope.isInfinite()) Offset(0f, 1f) else Offset(vp.scaleX, -(slope * vp.scaleY).toFloat())
@@ -790,9 +940,11 @@ private fun DrawScope.drawBoundHandle(
     textMeasurer: TextMeasurer
 ) {
     val cx = vp.toScreenX(x)
+    if (cx.isNaN()) return
     drawLine(color = color.copy(alpha = 0.7f), start = Offset(cx, 0f), end = Offset(cx, size.height), strokeWidth = 1.5.dp.toPx())
     val radius = 12.dp.toPx()
-    val center = Offset(cx, vp.originY.coerceIn(radius, size.height - radius))
+    if (cx.isNaN()) return
+    val center = Offset(cx, (vp.zeroY ?: size.height).coerceIn(radius, size.height - radius))
     drawCircle(color = color, radius = radius, center = center)
     val layout = textMeasurer.measure(
         text = AnnotatedString(label),
@@ -804,6 +956,7 @@ private fun DrawScope.drawBoundHandle(
 /**
  * Shades the area between the curve and the x-axis from [a] to [b]: parts above the axis in
  * [positiveColor], parts below in [negativeColor], matching the sign they add to the integral.
+ * A log y-axis has no zero line, so the area then reaches down to the bottom edge.
  */
 private fun DrawScope.drawIntegralArea(
     function: Function1D,
@@ -813,40 +966,38 @@ private fun DrawScope.drawIntegralArea(
     positiveColor: Color,
     negativeColor: Color
 ) {
-    val left = vp.toScreenX(min(a, b)).coerceIn(0f, size.width)
-    val right = vp.toScreenX(max(a, b)).coerceIn(0f, size.width)
+    // On a log x-axis bounds at or below zero lie off the left edge
+    val rawRight = vp.toScreenX(max(a, b))
+    if (rawRight.isNaN()) return
+    val rawLeft = vp.toScreenX(min(a, b)).let { if (it.isNaN()) 0f else it }
+    val left = rawLeft.coerceIn(0f, size.width)
+    val right = rawRight.coerceIn(0f, size.width)
     if (right <= left) return
+    val baseline = vp.zeroY ?: size.height
     val limit = size.height * 3f
     val path = Path()
-    path.moveTo(left, vp.originY)
+    path.moveTo(left, baseline)
     var px = left
     while (true) {
-        val y = function.evaluateAt(vp.toMathX(px))
-        // Gaps (undefined values) drop back to the axis
-        val cy = if (y.isFinite()) vp.toScreenY(y).coerceIn(-limit, limit) else vp.originY
-        path.lineTo(px, cy)
+        val cy = vp.toScreenY(function.evaluateAt(vp.toMathX(px)))
+        // Gaps (undefined values, or values a log axis cannot show) drop back to the axis
+        path.lineTo(px, if (cy.isFinite()) cy.coerceIn(-limit, limit) else baseline)
         if (px >= right) break
         px = min(px + 2f, right)
     }
-    path.lineTo(right, vp.originY)
+    path.lineTo(right, baseline)
     path.close()
 
-    clipRect(bottom = vp.originY) { drawPath(path, positiveColor.copy(alpha = 0.25f)) }
-    clipRect(top = vp.originY) { drawPath(path, negativeColor.copy(alpha = 0.2f)) }
+    clipRect(bottom = baseline) { drawPath(path, positiveColor.copy(alpha = 0.25f)) }
+    clipRect(top = baseline) { drawPath(path, negativeColor.copy(alpha = 0.2f)) }
 }
 
 /**
- * Draws the curve sample by sample. The path is interrupted at gaps (undefined values) and at
- * discontinuities such as the poles of tan(x), which would otherwise be drawn as vertical lines.
+ * Draws the curve sample by sample. The path is interrupted at gaps (undefined values, or values
+ * a log axis cannot show) and at discontinuities such as the poles of tan(x), which would
+ * otherwise be drawn as vertical lines.
  */
-private fun DrawScope.drawCurve(
-    function: Function1D,
-    originX: Float,
-    originY: Float,
-    scaleX: Float,
-    scaleY: Float,
-    color: Color
-) {
+private fun DrawScope.drawCurve(evaluate: (Double) -> Double, vp: Viewport, color: Color, strokeWidth: Float = 3.5f) {
     val width = size.width
     val height = size.height
     val path = Path()
@@ -854,15 +1005,11 @@ private fun DrawScope.drawCurve(
     val stepPx = 2f
     var px = 0f
 
-    fun toCanvasY(mathX: Double): Float? {
-        val mathY = function.evaluateAt(mathX)
-        if (!mathY.isFinite() || abs(mathY) > 1e6) return null
-        return originY - (mathY * scaleY).toFloat()
-    }
+    fun toCanvasY(screenX: Float): Float? =
+        vp.toScreenY(evaluate(vp.toMathX(screenX))).takeIf { it.isFinite() }
 
     while (px <= width) {
-        val mathX = ((px - originX) / scaleX).toDouble()
-        val canvasY = toCanvasY(mathX)?.takeIf { it in -height * 2f..height * 3f }
+        val canvasY = toCanvasY(px)?.takeIf { it in -height * 2f..height * 3f }
         val prev = previousY
         if (canvasY == null) {
             previousY = null
@@ -873,7 +1020,7 @@ private fun DrawScope.drawCurve(
             var connected = true
             if (abs(canvasY - prev) > height / 2f) {
                 // Big jump: continuous only if the midpoint lies between both samples
-                val midY = toCanvasY(((px - stepPx / 2f - originX) / scaleX).toDouble())
+                val midY = toCanvasY(px - stepPx / 2f)
                 connected = midY != null && midY in min(prev, canvasY)..max(prev, canvasY)
             }
             if (connected) path.lineTo(px, canvasY) else path.moveTo(px, canvasY)
@@ -881,54 +1028,119 @@ private fun DrawScope.drawCurve(
         }
         px += stepPx
     }
-    drawPath(path = path, color = color, style = Stroke(width = 3.5f))
+    drawPath(path = path, color = color, style = Stroke(width = strokeWidth))
 }
 
+/** A grid line at axis position [u] (log10 of the value on a log axis), optionally labelled. */
+private class AxisTick(val u: Double, val label: String?, val isMinor: Boolean = false)
+
+private const val MIN_TICK_SPACING_PX = 60f
+
+/** Lines at multiples of a nice step (1, 2, 5, 10, ...); 0 is left unlabelled for the axis. */
+private fun linearTicks(minU: Double, maxU: Double, scale: Float): List<AxisTick> {
+    val step = calculateGridStep(scale, MIN_TICK_SPACING_PX)
+    return (ceil(minU / step).toLong()..floor(maxU / step).toLong()).map { k ->
+        AxisTick(k * step, if (k == 0L) null else formatGridLabel(k * step, step))
+    }
+}
+
+/**
+ * Lines at powers of ten with lighter lines at 2-9 times them. Zoomed out far, only every n-th
+ * decade is labelled; zoomed in to a fraction of a decade, nice linear steps are used instead.
+ */
+private fun logTicks(minU: Double, maxU: Double, scale: Float): List<AxisTick> {
+    val ticks = mutableListOf<AxisTick>()
+    if (scale < 3000f) {
+        val every = max(1, ceil(MIN_TICK_SPACING_PX / scale).toInt())
+        for (k in floor(minU).toInt()..ceil(maxU).toInt()) {
+            if (k.mod(every) == 0) ticks.add(AxisTick(k.toDouble(), formatLogTick(10.0.pow(k))))
+            if (scale < MIN_TICK_SPACING_PX) continue
+            for (m in 2..9) {
+                // Labels that do not fit are skipped when drawing; decades take precedence
+                val label = if (scale >= 250f) formatLogTick(m * 10.0.pow(k)) else null
+                ticks.add(AxisTick(k + log10(m.toDouble()), label, isMinor = true))
+            }
+        }
+    } else {
+        // Spacing on screen is tightest at the largest value, so the step is chosen for that end
+        val low = 10.0.pow(minU)
+        val high = 10.0.pow(maxU)
+        val step = calculateGridStep((scale / (high * ln(10.0))).toFloat(), MIN_TICK_SPACING_PX)
+        for (k in ceil(low / step).toLong()..floor(high / step).toLong()) {
+            val value = k * step
+            if (value > 0) ticks.add(AxisTick(log10(value), formatGridLabel(value, step)))
+        }
+    }
+    return ticks.filter { it.u in minU..maxU }
+}
+
+/** 1000, 0.01 or 10⁸ rather than 1×10⁸ on a log axis. */
+private fun formatLogTick(value: Double): String = formatGraphNumber(value, 3).removePrefix("1\u00D7")
+
 private fun DrawScope.drawGrid(
-    originX: Float,
-    originY: Float,
-    width: Float,
-    height: Float,
-    scaleX: Float,
-    scaleY: Float,
+    vp: Viewport,
     gridColor: Color,
     axisColor: Color,
     labelColor: Color,
     textMeasurer: TextMeasurer
 ) {
-    // Choose nice step interval (1, 2, 5, 10, etc.)
-    val minPixelSpacing = 60f
-    val stepUnitX = calculateGridStep(scaleX, minPixelSpacing)
-    val stepUnitY = calculateGridStep(scaleY, minPixelSpacing)
+    val width = size.width
+    val height = size.height
     val labelStyle = TextStyle(fontSize = 10.sp, color = labelColor)
 
-    // Vertical grid lines at multiples of the step, labelled with their real value
-    val firstX = ceil(-originX / scaleX / stepUnitX).toLong()
-    val lastX = floor((width - originX) / scaleX / stepUnitX).toLong()
-    for (k in firstX..lastX) {
-        val x = originX + (k * stepUnitX * scaleX).toFloat()
-        drawLine(gridColor, Offset(x, 0f), Offset(x, height), strokeWidth = 1f)
-        if (k != 0L) {
-            val layout = textMeasurer.measure(AnnotatedString(formatGridLabel(k * stepUnitX, stepUnitX)), labelStyle)
-            drawText(layout, topLeft = Offset(x - layout.size.width / 2f, originY.coerceIn(10f, height - 30f) + 4f))
-        }
+    val minUx = ((0f - vp.originX) / vp.scaleX).toDouble()
+    val maxUx = ((width - vp.originX) / vp.scaleX).toDouble()
+    val minUy = ((vp.originY - height) / vp.scaleY).toDouble()
+    val maxUy = (vp.originY / vp.scaleY).toDouble()
+    val xTicks = if (vp.logX) logTicks(minUx, maxUx, vp.scaleX) else linearTicks(minUx, maxUx, vp.scaleX)
+    val yTicks = if (vp.logY) logTicks(minUy, maxUy, vp.scaleY) else linearTicks(minUy, maxUy, vp.scaleY)
+
+    for (tick in xTicks) {
+        val x = vp.originX + (tick.u * vp.scaleX).toFloat()
+        drawLine(if (tick.isMinor) gridColor.copy(alpha = 0.5f) else gridColor, Offset(x, 0f), Offset(x, height), strokeWidth = 1f)
+    }
+    for (tick in yTicks) {
+        val y = vp.originY - (tick.u * vp.scaleY).toFloat()
+        drawLine(if (tick.isMinor) gridColor.copy(alpha = 0.5f) else gridColor, Offset(0f, y), Offset(width, y), strokeWidth = 1f)
     }
 
-    // Horizontal grid lines
-    val firstY = ceil((originY - height) / scaleY / stepUnitY).toLong()
-    val lastY = floor(originY / scaleY / stepUnitY).toLong()
-    for (k in firstY..lastY) {
-        val y = originY - (k * stepUnitY * scaleY).toFloat()
-        drawLine(gridColor, Offset(0f, y), Offset(width, y), strokeWidth = 1f)
-        if (k != 0L) {
-            val layout = textMeasurer.measure(AnnotatedString(formatGridLabel(k * stepUnitY, stepUnitY)), labelStyle)
-            drawText(layout, topLeft = Offset(originX.coerceIn(10f, width - 40f) + 6f, y - layout.size.height / 2f))
-        }
+    // Main axes; a log axis has no zero, so its labels move to the canvas edge instead
+    vp.zeroY?.let { drawLine(axisColor, Offset(0f, it), Offset(width, it), strokeWidth = 2f) }
+    vp.zeroX?.let { drawLine(axisColor, Offset(it, 0f), Offset(it, height), strokeWidth = 2f) }
+
+    // Labels that would overlap one already drawn or be cut off at the edge are skipped; the
+    // log markers go first, then major ticks
+    val labelRects = mutableListOf<Rect>()
+    fun drawLabel(text: String, style: TextStyle = labelStyle, topLeft: (Size) -> Offset) {
+        val layout = textMeasurer.measure(AnnotatedString(text), style)
+        val labelSize = Size(layout.size.width.toFloat(), layout.size.height.toFloat())
+        val bounds = Rect(topLeft(labelSize), labelSize)
+        if (bounds.left < 0f || bounds.top < 0f || bounds.right > width || bounds.bottom > height) return
+        val rect = bounds.inflate(3f)
+        if (labelRects.any { it.overlaps(rect) }) return
+        labelRects.add(rect)
+        drawText(layout, topLeft = bounds.topLeft)
     }
 
-    // Main X & Y axes
-    drawLine(axisColor, Offset(0f, originY), Offset(width, originY), strokeWidth = 2f)
-    drawLine(axisColor, Offset(originX, 0f), Offset(originX, height), strokeWidth = 2f)
+    val labelHeight = textMeasurer.measure(AnnotatedString("0"), labelStyle).size.height.toFloat()
+    val xLabelTop = vp.zeroY?.let { it.coerceIn(10f, height - 30f) + 4f } ?: (height - labelHeight - 4f)
+    val yLabelLeft = vp.zeroX?.let { it.coerceIn(10f, width - 40f) + 6f } ?: 6f
+
+    // Marks which axis is logarithmic, at the end of its label row
+    val markerStyle = labelStyle.copy(fontWeight = FontWeight.Bold, color = OrangePrimary)
+    if (vp.logX) drawLabel("log x", markerStyle) { Offset(width - it.width - 6f, xLabelTop - it.height - 2f) }
+    if (vp.logY) drawLabel("log y", markerStyle) { Offset(yLabelLeft, 6f) }
+    for (tick in xTicks.sortedBy { it.isMinor }) {
+        val label = tick.label ?: continue
+        val x = vp.originX + (tick.u * vp.scaleX).toFloat()
+        drawLabel(label) { Offset(x - it.width / 2f, xLabelTop) }
+    }
+    for (tick in yTicks.sortedBy { it.isMinor }) {
+        val label = tick.label ?: continue
+        val y = vp.originY - (tick.u * vp.scaleY).toFloat()
+        drawLabel(label) { Offset(yLabelLeft, y - it.height / 2f) }
+    }
+
 }
 
 /** Formats a grid value with just enough decimals for the step size (e.g. 0.5, 0.2). */

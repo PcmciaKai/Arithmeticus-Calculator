@@ -272,7 +272,10 @@ object MathEngine {
         PlotData(roots, maxima, minima, inflectionPoints)
     }
 
-    /** Line segments approximating [curve] in the given range, on a [cols] × [rows] grid. */
+    /**
+     * Line segments approximating [curve] in the given range, on a [cols] × [rows] grid that is
+     * spaced logarithmically along an axis with [logX] / [logY].
+     */
     suspend fun contourImplicit(
         curve: ImplicitCurve,
         minX: Double,
@@ -280,12 +283,14 @@ object MathEngine {
         minY: Double,
         maxY: Double,
         cols: Int,
-        rows: Int
+        rows: Int,
+        logX: Boolean = false,
+        logY: Boolean = false
     ): List<PlotSegment> = withContext(Dispatchers.Default) {
         val context = MathContext()
         val job = coroutineContext[Job]
         context.externalCancellation = { job?.isActive == false }
-        val segments = ImplicitPlotter.contour(curve, minX, maxX, minY, maxY, cols, rows, context)
+        val segments = ImplicitPlotter.contour(curve, minX, maxX, minY, maxY, cols, rows, context, logX, logY)
         ensureActive()
         segments
     }

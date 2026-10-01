@@ -349,4 +349,16 @@ class MathEngineTest {
         assertTrue(segments.isNotEmpty())
         for (segment in segments) assertEquals(segment.start.x - 1.0, segment.start.y, 1e-3)
     }
+
+    @Test
+    fun implicitContourOnLogGrid() {
+        // x·y = 1 over five decades: a log-spaced grid still finds the curve at both ends
+        val x = Variable("x")
+        val y = Variable("y")
+        val curve = PlotCurve.fromExpression(Equals(Multiplications(x, y), Value.ONE)) as ImplicitCurve
+        val segments = ImplicitPlotter.contour(curve, 0.01, 100.0, 0.01, 100.0, 50, 50, logX = true, logY = true)
+        val points = segments.flatMap { listOf(it.start, it.end) }
+        for (p in points) assertEquals(1.0, p.x * p.y, 1e-3)
+        assertTrue(points.any { it.x < 0.05 } && points.any { it.x > 20.0 })
+    }
 }
