@@ -464,7 +464,10 @@ private fun ExponentView(node: ExponentNode, fontSize: TextUnit, slots: SlotCont
         val em = fontSize.toPx()
         val raise = 0.28f * em        // exponent centre above the base's axis
         val topOverhang = 0.06f * em  // how far the exponent reaches above a tall base
-        val gap = 2.5.dp.roundToPx()
+        // Glyph side bearings already separate base and exponent, so the gap is slightly negative;
+        // the trailing gap keeps the next node (the y in 2²y) from crowding the exponent
+        val gap = (-0.02f * em).roundToInt()
+        val trailingGap = (0.07f * em).roundToInt()
 
         val loose = constraints.copy(minWidth = 0, minHeight = 0)
         val basePlaceable = if (base != null) measurables[0].measure(loose) else null
@@ -486,7 +489,7 @@ private fun ExponentView(node: ExponentNode, fontSize: TextUnit, slots: SlotCont
         val bottom = max(max(basePlaceable?.height?.toFloat() ?: 0f, expTop + expPlaceable.height), axis + raise)
         val height = (bottom - top).roundToInt()
         val baseWidth = basePlaceable?.let { it.width + gap } ?: 0
-        val width = baseWidth + expPlaceable.width
+        val width = baseWidth + expPlaceable.width + trailingGap
 
         layout(width, height, mapOf(MathAxis to (axis - top).roundToInt())) {
             basePlaceable?.place(0, (-top).roundToInt())

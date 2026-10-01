@@ -53,6 +53,7 @@ import com.vortessence.calculator.core.math.solvers.PlotCurve
 import com.vortessence.calculator.core.math.type.MathOp
 import com.vortessence.calculator.core.math.type.MathString
 import com.vortessence.calculator.core.math.type.OperatorNode
+import com.vortessence.calculator.core.math.type.VariableNode
 import com.vortessence.calculator.ui.math.MathExpressionView
 import com.vortessence.calculator.ui.theme.AccentBlue
 import com.vortessence.calculator.ui.theme.AccentGreen
@@ -524,16 +525,14 @@ private fun GraphHeader(expression: MathString, onRecenter: () -> Unit, onClose:
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            val isEquation = expression.nodes.any { it is OperatorNode && it.op == MathOp.EQUALS }
-            if (!isEquation) {
-                Text(
-                    text = "y =",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
+            // A plain f(x) is shown as y = f(x), rendered like a typed-in y = so both look the same
+            val displayed = remember(expression) {
+                val isEquation = expression.nodes.any { it is OperatorNode && it.op == MathOp.EQUALS }
+                if (isEquation) expression
+                else MathString(listOf(VariableNode("y"), OperatorNode(MathOp.EQUALS)) + expression.nodes)
             }
             MathExpressionView(
-                mathString = expression,
+                mathString = displayed,
                 fontSize = 18.sp,
                 modifier = Modifier.weight(1f)
             )
