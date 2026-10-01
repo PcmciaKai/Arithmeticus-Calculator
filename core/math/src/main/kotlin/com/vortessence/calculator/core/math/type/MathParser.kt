@@ -16,7 +16,25 @@ import java.math.BigInteger
  */
 class MathParser {
 
+    /**
+     * Parses the whole input. Input with several (non-empty) lines is an [EquationSystem];
+     * empty lines are ignored, so a trailing line break does not change the meaning.
+     */
     fun parse(string: MathString): Expression {
+        if (string.nodes.none { it is LineBreakNode }) return parseLine(string)
+        val lines = mutableListOf(MathString())
+        for (node in string.nodes) {
+            if (node is LineBreakNode) lines.add(MathString()) else lines.last().insert(lines.last().length, node)
+        }
+        val parsed = lines.filter { it.isNotEmpty }.map { parseLine(it) }
+        return when (parsed.size) {
+            0 -> Value.ZERO
+            1 -> parsed.single()
+            else -> EquationSystem(parsed)
+        }
+    }
+
+    private fun parseLine(string: MathString): Expression {
         val tokens = tokenize(string)
         if (tokens.isEmpty()) return Value.ZERO
         val parser = TokenParser(tokens)
@@ -29,7 +47,7 @@ class MathParser {
             syntaxError()
             return Value.ZERO
         }
-        return parse(string)
+        return parseLine(string)
     }
 
     private sealed class Token {
@@ -146,7 +164,8 @@ class MathParser {
                     val elements = node.elements.map { parseSlot(it) }
                     tokens.add(Token.ValueToken(MatrixExpression(node.rows, node.cols, elements)))
                 }
-                is TextNode -> syntaxError()
+                // A line break inside a slot, e.g. a fraction wrapped around two lines
+                is TextNode, is LineBreakNode -> syntaxError()
             }
             i++
         }
@@ -179,7 +198,7 @@ class MathParser {
             MathContext.current().stopWithError(MathIssue.INVALID_UNIT)
             Value.ONE
         }
-        is ExponentNode -> Power.of(parse(node.base!!), parseSlot(node.exponent))
+        is ExponentNode -> Power.of(parseLine(node.base!!), parseSlot(node.exponent))
         else -> error("not a unit node")
     }
 

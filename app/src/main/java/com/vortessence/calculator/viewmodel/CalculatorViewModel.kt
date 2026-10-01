@@ -216,6 +216,7 @@ class CalculatorViewModel @JvmOverloads constructor(
                 _uiState.update { it.copy(showUnitsDialog = true) }
             }
             is KeyAction.Enter -> commit()
+            is KeyAction.NewLine -> insertLineBreak()
             is KeyAction.Ans -> insertAns()
             is KeyAction.ToggleAngleUnit -> toggleAngleUnit()
             is KeyAction.MoveLeft -> moveCursorLeft()
@@ -462,6 +463,22 @@ class CalculatorViewModel @JvmOverloads constructor(
         }
 
         _uiState.update { it.copy(expression = root, cursorPath = newPath, selectionRange = null) }
+    }
+
+    /**
+     * Starts a new line. Lines only exist at the top level: inside a fraction, root, ... the
+     * new line starts after that whole structure.
+     */
+    private fun insertLineBreak() {
+        val path = _uiState.value.cursorPath
+        if (path.size == 1) {
+            insertNode(LineBreakNode)
+            return
+        }
+        val root = _uiState.value.expression.copy()
+        val pos = path.first() + 1
+        root.insert(pos, LineBreakNode)
+        _uiState.update { it.copy(expression = root, cursorPath = listOf(pos + 1), selectionRange = null) }
     }
 
     /** The slot that receives a wrapped selection, e.g. the argument of a function. */

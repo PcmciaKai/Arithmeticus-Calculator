@@ -8,6 +8,7 @@ import com.vortessence.calculator.core.math.type.VariableNode
 import com.vortessence.calculator.core.math.type.RadicalNode
 import com.vortessence.calculator.core.math.type.SciExponentNode
 import com.vortessence.calculator.core.math.type.FractionNode
+import com.vortessence.calculator.core.math.type.LineBreakNode
 import com.vortessence.calculator.core.math.type.OperatorNode
 import com.vortessence.calculator.core.math.type.ParenthesesNode
 import com.vortessence.calculator.ui.keypad.KeyAction
@@ -776,5 +777,48 @@ class CalculatorViewModelTest {
         val power = vm.uiState.value.expression.nodeAt(0) as ExponentNode
         assertTrue(power.base!!.nodeAt(0) is MatrixNode)
         assertEquals(VariableNode("T"), power.exponent.nodeAt(0))
+    }
+
+    @Test
+    fun testNewLineSolvesSystemOfEquations() = runBlocking {
+        val vm = newViewModel()
+        // −2x + y = −3, new line, 3x + 2y = 8
+        listOf(
+            KeyAction.Operator("−"), KeyAction.Number("2"), KeyAction.Variable("x"), KeyAction.Operator("+"),
+            KeyAction.Variable("y"), KeyAction.Operator("="), KeyAction.Operator("−"), KeyAction.Number("3"),
+            KeyAction.NewLine,
+            KeyAction.Number("3"), KeyAction.Variable("x"), KeyAction.Operator("+"), KeyAction.Number("2"),
+            KeyAction.Variable("y"), KeyAction.Operator("="), KeyAction.Number("8")
+        ).forEach { vm.onKeyAction(it) }
+        assertEquals(LineBreakNode, vm.uiState.value.expression.nodeAt(8))
+
+        vm.awaitLiveResult()
+        assertEquals("x = 2, y = 1", vm.uiState.value.result!!.result.toString())
+
+        // Enter still commits, the whole system at once
+        vm.onKeyAction(KeyAction.Enter)
+        vm.awaitCommit()
+        assertEquals(1, vm.uiState.value.history.size)
+        assertEquals("x = 2, y = 1", vm.uiState.value.history[0].calculation.result.toString())
+        assertEquals("", vm.uiState.value.expression.toString())
+    }
+
+    @Test
+    fun testNewLineInsideSlotStartsLineAfterTheStructure() {
+        val vm = newViewModel()
+        vm.onKeyAction(KeyAction.Number("1"))
+        vm.onKeyAction(KeyAction.Operator("÷"))
+        vm.onKeyAction(KeyAction.Number("2"))
+        // The cursor is in the denominator; the line break goes after the whole fraction
+        vm.onKeyAction(KeyAction.NewLine)
+        val state = vm.uiState.value
+        assertTrue(state.expression.nodeAt(0) is FractionNode)
+        assertEquals(LineBreakNode, state.expression.nodeAt(1))
+        assertEquals(listOf(2), state.cursorPath)
+
+        // Backspace at the start of a line joins it with the previous one
+        vm.onKeyAction(KeyAction.Backspace)
+        assertEquals(1, vm.uiState.value.expression.length)
+        assertEquals(listOf(1), vm.uiState.value.cursorPath)
     }
 }

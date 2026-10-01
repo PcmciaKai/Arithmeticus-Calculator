@@ -78,6 +78,12 @@ class MathWriter(
                 result.append(OperatorNode(MathOp.EQUALS))
                 result.appendAll(write(expr.right))
             }
+            is EquationSystem -> {
+                for ((idx, line) in expr.lines.withIndex()) {
+                    if (idx > 0) result.append(LineBreakNode)
+                    result.appendAll(write(line))
+                }
+            }
             is Integral -> {
                 result.append(IntegralNode(
                     writeExpr(expr.lowerBound),

@@ -48,12 +48,13 @@ val LocalDigitGrouping = staticCompositionLocalOf { false }
 /**
  * Natural WYSIWYG mathematical expression layout in Jetpack Compose.
  * Supports fractions, radicals, exponents, parentheses, functions, cursor and selection display.
+ * A string with line breaks (several equations) is shown as one row per line.
  *
  * The view itself is not interactive. Inside [MathEditor] it reports the on-screen position
  * of every node to [caretGeometry], which the editor uses for all touch handling.
  *
  * @param path The caret path prefix of [mathString] within the editor's root string.
- * @param verticalPadding Space above and below the row.
+ * @param verticalPadding Space above and below the row(s).
  */
 @Composable
 fun MathExpressionView(
@@ -73,26 +74,78 @@ fun MathExpressionView(
             onDispose { caretGeometry.removeString(path) }
         }
     }
-    // The cursor/selection is in this string (not in a nested one) when only a position is left
-    val isCursorHere = cursorPath.size == 1
     val length = mathString.length
-    // Node bounds within this row, used to draw the selection as one continuous band
-    val nodeBounds = remember { mutableStateMapOf<Int, Rect>() }
-    val activeSelection = if (isCursorHere) selectionRange else null
-    val selectionColor = accentColor.copy(alpha = 0.25f)
-    val groupedDigits = if (LocalDigitGrouping.current) groupDigits(mathString.nodes) else emptyMap()
+    val row = ExpressionRow(
+        mathString = mathString,
+        cursorPath = cursorPath,
+        selectionRange = selectionRange,
+        fontSize = fontSize,
+        textColor = textColor,
+        accentColor = accentColor,
+        caretGeometry = caretGeometry,
+        path = path,
+        groupedDigits = if (LocalDigitGrouping.current) groupDigits(mathString.nodes) else emptyMap()
+    )
+    val breaks = mathString.nodes.indices.filter { mathString.nodes[it] is LineBreakNode }
+    val stringModifier = modifier
+        .padding(vertical = verticalPadding)
+        .then(
+            if (caretGeometry == null) Modifier
+            else Modifier.onGloballyPositioned { caretGeometry.setString(path, length, breaks.size + 1, it) }
+        )
 
-    Row(
-        modifier = modifier
-            .padding(vertical = verticalPadding)
-            .then(
-                if (caretGeometry == null) Modifier
-                else Modifier.onGloballyPositioned { caretGeometry.setString(path, length, it) }
+    if (breaks.isEmpty()) {
+        row.Line(start = 0, end = length, isOnlyLine = true, modifier = stringModifier)
+        return
+    }
+    // Line i covers the nodes before its line break; caret positions start..end (the break)
+    val starts = listOf(0) + breaks.map { it + 1 }
+    val ends = breaks + length
+    Column(modifier = stringModifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        for (line in starts.indices) {
+            row.Line(
+                start = starts[line],
+                end = ends[line],
+                isOnlyLine = false,
+                modifier = if (caretGeometry == null) Modifier else Modifier.onGloballyPositioned {
+                    caretGeometry.setLine(path, line, starts.size, starts[line], ends[line], it)
+                }
             )
-            .drawBehind {
+        }
+    }
+}
+
+/** Renders the lines of one string; all node indices and caret positions are those of the whole string. */
+private class ExpressionRow(
+    val mathString: MathString,
+    val cursorPath: List<Int>,
+    val selectionRange: IntRange?,
+    val fontSize: TextUnit,
+    val textColor: Color,
+    val accentColor: Color,
+    val caretGeometry: CaretGeometry?,
+    val path: List<Int>,
+    val groupedDigits: Map<Int, String>
+) {
+    /**
+     * The nodes start until end, followed by the line break at [end] unless this is the last
+     * line. [isOnlyLine]: a string without line breaks; empty, it shows a placeholder box.
+     */
+    @Composable
+    fun Line(start: Int, end: Int, isOnlyLine: Boolean, modifier: Modifier) {
+        // The cursor/selection is in this string (not in a nested one) when only a position is left
+        val isCursorHere = cursorPath.size == 1
+        // Node bounds within this row, used to draw the selection as one continuous band
+        val nodeBounds = remember { mutableStateMapOf<Int, Rect>() }
+        val activeSelection = if (isCursorHere) selectionRange else null
+        val selectionColor = accentColor.copy(alpha = 0.25f)
+        val hasBreak = end < mathString.length
+
+        Row(
+            modifier = modifier.drawBehind {
                 if (activeSelection == null) return@drawBehind
-                // One highlight spanning all selected nodes, as tall as the tallest of them
-                val rects = activeSelection.mapNotNull { nodeBounds[it] }
+                // One highlight spanning the selected nodes of this line, as tall as the tallest of them
+                val rects = activeSelection.mapNotNull { if (it in start..end) nodeBounds[it] else null }
                 if (rects.isEmpty()) return@drawBehind
                 val band = Rect(
                     left = rects.minOf { it.left },
@@ -107,55 +160,81 @@ fun MathExpressionView(
                     cornerRadius = CornerRadius(6.dp.toPx())
                 )
             },
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Start
-    ) {
-        if (mathString.isEmpty) {
-            if (isCursorHere && cursorPath[0] == 0) {
-                BlinkingCursor(fontSize, accentColor)
-            } else {
-                EmptySlotPlaceholder(fontSize = fontSize, color = textColor)
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start
+        ) {
+            val showCursorAtStart = isCursorHere && cursorPath[0] == start && selectionRange == null
+            if (start == end) {
+                when {
+                    showCursorAtStart ->
+                        BlinkingCursor(fontSize, accentColor, Modifier.centeredMathAxis().alignBy(MathAxis))
+                    isOnlyLine -> EmptySlotPlaceholder(fontSize = fontSize, color = textColor)
+                    // An empty line keeps the height of a line
+                    else -> Spacer(Modifier.size(width = 0.dp, height = Dp(fontSize.value * 0.9f)).centeredMathAxis().alignBy(MathAxis))
+                }
+                if (hasBreak) LineBreakMarker(end, nodeBounds)
+                return@Row
             }
-            return@Row
-        }
 
-        mathString.nodes.forEachIndexed { index, node ->
-            if (isCursorHere && cursorPath[0] == index && selectionRange == null) {
+            for (index in start until end) {
+                val node = mathString.nodes[index]
+                if (isCursorHere && cursorPath[0] == index && selectionRange == null) {
+                    BlinkingCursor(fontSize, accentColor, Modifier.centeredMathAxis().alignBy(MathAxis))
+                }
+
+                val isNodeFocused = cursorPath.size > 1 && cursorPath[0] == index
+                val isUnaryMinus = node is OperatorNode && node.op == MathOp.MINUS &&
+                    (index == start || mathString.nodes[index - 1] is OperatorNode)
+
+                Box(
+                    modifier = Modifier
+                        .mathAxisOrCenter()
+                        .alignBy(MathAxis)
+                        .onPlaced { nodeBounds[index] = Rect(it.positionInParent(), it.size.toSize()) }
+                        .then(
+                            if (caretGeometry == null) Modifier
+                            else Modifier.onGloballyPositioned { caretGeometry.setNode(path, index, it) }
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    val slots = SlotContext(
+                        parentPath = path,
+                        nodeIndex = index,
+                        focusedChildIdx = if (isNodeFocused) cursorPath[1] else -1,
+                        childCursorPath = if (isNodeFocused) cursorPath.drop(2) else emptyList(),
+                        selectionRange = if (isNodeFocused) selectionRange else null,
+                        textColor = textColor,
+                        accentColor = accentColor,
+                        caretGeometry = caretGeometry
+                    )
+                    MathNodeView(node, fontSize, slots, isUnaryMinus, groupedDigits[index])
+                }
+            }
+
+            if (isCursorHere && cursorPath[0] == end && selectionRange == null) {
                 BlinkingCursor(fontSize, accentColor, Modifier.centeredMathAxis().alignBy(MathAxis))
             }
+            if (hasBreak) LineBreakMarker(end, nodeBounds)
+        }
+    }
 
-            val isNodeFocused = cursorPath.size > 1 && cursorPath[0] == index
-            val isUnaryMinus = node is OperatorNode && node.op == MathOp.MINUS &&
-                (index == 0 || mathString.nodes[index - 1] is OperatorNode)
-
-            Box(
-                modifier = Modifier
-                    .mathAxisOrCenter()
-                    .alignBy(MathAxis)
-                    .onPlaced { nodeBounds[index] = Rect(it.positionInParent(), it.size.toSize()) }
-                    .then(
-                        if (caretGeometry == null) Modifier
-                        else Modifier.onGloballyPositioned { caretGeometry.setNode(path, index, it) }
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                val slots = SlotContext(
-                    parentPath = path,
-                    nodeIndex = index,
-                    focusedChildIdx = if (isNodeFocused) cursorPath[1] else -1,
-                    childCursorPath = if (isNodeFocused) cursorPath.drop(2) else emptyList(),
-                    selectionRange = if (isNodeFocused) selectionRange else null,
-                    textColor = textColor,
-                    accentColor = accentColor,
-                    caretGeometry = caretGeometry
+    /**
+     * The line break node at [index]: invisible, at the end of its line, so that it has a
+     * position like every other node (for hit testing and selection handles).
+     */
+    @Composable
+    private fun RowScope.LineBreakMarker(index: Int, nodeBounds: MutableMap<Int, Rect>) {
+        Spacer(
+            modifier = Modifier
+                .size(width = 0.dp, height = Dp(fontSize.value * 0.9f))
+                .centeredMathAxis()
+                .alignBy(MathAxis)
+                .onPlaced { nodeBounds[index] = Rect(it.positionInParent(), it.size.toSize()) }
+                .then(
+                    if (caretGeometry == null) Modifier
+                    else Modifier.onGloballyPositioned { caretGeometry.setNode(path, index, it) }
                 )
-                MathNodeView(node, fontSize, slots, isUnaryMinus, groupedDigits[index])
-            }
-        }
-
-        if (isCursorHere && cursorPath[0] == length && selectionRange == null) {
-            BlinkingCursor(fontSize, accentColor, Modifier.centeredMathAxis().alignBy(MathAxis))
-        }
+        )
     }
 }
 
@@ -355,6 +434,8 @@ private fun MathNodeView(
                 color = textColor.copy(alpha = 0.75f)
             )
         }
+        // Line breaks are laid out by MathExpressionView, see ExpressionRow.LineBreakMarker
+        is LineBreakNode -> {}
         is TextNode -> {
             Text(
                 text = node.text,

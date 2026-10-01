@@ -36,6 +36,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
@@ -88,6 +89,8 @@ sealed class KeyAction {
     data object Convert : KeyAction()
     /** Commits the current line and its result to the history. */
     data object Enter : KeyAction()
+    /** Starts a new line, e.g. for the next equation of a system. */
+    data object NewLine : KeyAction()
     data object Ans : KeyAction()
     data object ToggleAngleUnit : KeyAction()
     data object MoveLeft : KeyAction()
@@ -103,8 +106,11 @@ sealed class KeyAction {
     data object Transpose : KeyAction()
 }
 
-/** A second (or third) function of a key, reachable via long press. */
-private class KeyAlternate(val label: AnnotatedString, val onSelect: () -> Unit)
+/**
+ * A second (or third) function of a key, reachable via long press. With an [icon] the popup
+ * shows it instead of the [label] (which then only describes it).
+ */
+private class KeyAlternate(val label: AnnotatedString, val icon: ImageVector? = null, val onSelect: () -> Unit)
 
 /**
  * A label with a raised and/or lowered part, drawn in Roboto: the font lacks most
@@ -452,7 +458,9 @@ fun CalculatorKeypad(
                         buttonWidth = buttonWidth,
                         colSpan = 2,
                         spacing = spacing,
-                        bgColor = keyColors.enterKey
+                        bgColor = keyColors.enterKey,
+                        popupIcon = Icons.AutoMirrored.Filled.KeyboardReturn,
+                        alternates = listOf(alt("new line", KeyAction.NewLine))
                     ) { onKeyAction(KeyAction.Enter) }
 
                     // Page 2 (cols 9..10)
@@ -486,6 +494,8 @@ private fun KeyButton(
     bgColor: Color? = null,
     textColor: Color? = null,
     alternates: List<KeyAlternate> = emptyList(),
+    /** Stands for the main function in the long-press popup of a key without [text]. */
+    popupIcon: ImageVector? = null,
     onClick: () -> Unit
 ) {
     val keyColors = keypadColors()
@@ -525,7 +535,7 @@ private fun KeyButton(
         val currentOnClick by rememberUpdatedState(onClick)
         // The popup starts with the main function, preselected, so an accidental long press
         // does what a tap would have done
-        val popupEntries by rememberUpdatedState(listOf(KeyAlternate(AnnotatedString(text.orEmpty()), onClick)) + alternates)
+        val popupEntries by rememberUpdatedState(listOf(KeyAlternate(AnnotatedString(text.orEmpty()), popupIcon, onClick)) + alternates)
         Modifier
             .indication(interactionSource, LocalIndication.current)
             .pointerInput(cellPx) {
@@ -598,13 +608,15 @@ private fun KeyButton(
             icon()
         }
 
-        // Second function bottom left, third bottom centre, a fourth would go bottom right
+        // Second function bottom left, third bottom centre, a fourth would go bottom right.
+        // The accent color would vanish on the (accent colored) Enter key.
+        val hintColor = if (bgColor == keyColors.enterKey) keyColors.enterContent.copy(alpha = 0.7f) else keyColors.accentText
         alternates.take(HINT_POSITIONS.size).forEachIndexed { index, alternate ->
             Text(
                 text = alternate.label,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Medium,
-                color = keyColors.accentText,
+                color = hintColor,
                 modifier = Modifier
                     .align(HINT_POSITIONS[index])
                     .padding(start = 8.dp, end = 8.dp, bottom = 4.dp)
@@ -612,7 +624,7 @@ private fun KeyButton(
         }
 
         popupSelection?.let { selected ->
-            AlternatesPopup(listOf(KeyAlternate(AnnotatedString(text.orEmpty()), onClick)) + alternates, selected, cellWidth = buttonWidth, keyColors = keyColors)
+            AlternatesPopup(listOf(KeyAlternate(AnnotatedString(text.orEmpty()), popupIcon, onClick)) + alternates, selected, cellWidth = buttonWidth, keyColors = keyColors)
         }
     }
 }
@@ -644,12 +656,21 @@ private fun AlternatesPopup(
                         .background(if (isSelected) keyColors.popupHighlight else Color.Transparent),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = alternate.label,
-                        fontSize = if (alternate.label.length > 3) 16.sp else 22.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = if (isSelected) keyColors.popupHighlightText else MaterialTheme.colorScheme.onSurface
-                    )
+                    val color = if (isSelected) keyColors.popupHighlightText else MaterialTheme.colorScheme.onSurface
+                    if (alternate.icon != null) {
+                        Icon(alternate.icon, contentDescription = alternate.label.text, tint = color, modifier = Modifier.size(26.dp))
+                    } else {
+                        Text(
+                            text = alternate.label,
+                            fontSize = when {
+                                alternate.label.length > 5 -> 13.sp
+                                alternate.label.length > 3 -> 16.sp
+                                else -> 22.sp
+                            },
+                            fontWeight = FontWeight.Medium,
+                            color = color
+                        )
+                    }
                 }
             }
         }

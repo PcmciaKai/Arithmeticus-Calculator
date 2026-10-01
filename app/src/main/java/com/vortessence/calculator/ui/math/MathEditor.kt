@@ -258,8 +258,14 @@ private fun SelectionHandle(
 class CaretGeometry {
     private class StringInfo(val bounds: Rect, val length: Int)
 
+    /** A line of a string with line breaks: caret positions [start]..[end] (its line break). */
+    private data class LineInfo(val bounds: Rect, val start: Int, val end: Int)
+
     private val strings = HashMap<List<Int>, StringInfo>()
     private val nodes = HashMap<List<Int>, HashMap<Int, Rect>>()
+    /** Lines by index, only for strings with line breaks; [lineCounts] tells which are current. */
+    private val lines = HashMap<List<Int>, HashMap<Int, LineInfo>>()
+    private val lineCounts = HashMap<List<Int>, Int>()
     private var editorOrigin = Offset.Zero
 
     /** Changes whenever a position changes, so handles are re-placed. */
@@ -277,7 +283,11 @@ class CaretGeometry {
         }
     }
 
-    internal fun setString(path: List<Int>, length: Int, coordinates: LayoutCoordinates) {
+    internal fun setString(path: List<Int>, length: Int, lineCount: Int, coordinates: LayoutCoordinates) {
+        if (lineCount == 1 && lineCounts.remove(path) != null) {
+            lines.remove(path)
+            version++
+        }
         val bounds = boundsInRoot(coordinates)
         val old = strings[path]
         if (old == null || old.bounds != bounds || old.length != length) {
@@ -295,10 +305,41 @@ class CaretGeometry {
         }
     }
 
+    /** Line [index] of [count] of the string at [path], covering caret positions [start]..[end]. */
+    internal fun setLine(path: List<Int>, index: Int, count: Int, start: Int, end: Int, coordinates: LayoutCoordinates) {
+        val info = LineInfo(boundsInRoot(coordinates), start, end)
+        val map = lines.getOrPut(path) { HashMap() }
+        if (map[index] != info || lineCounts[path] != count) {
+            map[index] = info
+            lineCounts[path] = count
+            version++
+        }
+    }
+
     internal fun removeString(path: List<Int>) {
         strings.remove(path)
         nodes.remove(path)
+        lines.remove(path)
+        lineCounts.remove(path)
         version++
+    }
+
+    /**
+     * The caret positions of the line at the height of [point] (or the nearest line), or all
+     * positions of a string without line breaks.
+     */
+    private fun lineAt(path: List<Int>, length: Int, point: Offset): IntRange {
+        val count = lineCounts[path] ?: return 0..length
+        val current = (0 until count).mapNotNull { lines[path]?.get(it) }
+        if (current.size != count) return 0..length
+        val line = current.minBy { line ->
+            when {
+                point.y < line.bounds.top -> line.bounds.top - point.y
+                point.y > line.bounds.bottom -> point.y - line.bounds.bottom
+                else -> 0f
+            }
+        }
+        return line.start..line.end
     }
 
     private fun boundsInRoot(coordinates: LayoutCoordinates): Rect =
@@ -326,16 +367,17 @@ class CaretGeometry {
         val path = stringAt(point) ?: return null
         val info = strings[path] ?: return null
         val rects = nodeRects(path) ?: return null
-        if (rects.isEmpty()) return path + 0
-        // Candidate caret x positions: before each node and after the last one
-        val caretXs = FloatArray(rects.size + 1) { i ->
+        val line = lineAt(path, info.length, point)
+        if (line.first == line.last) return path + line.first
+        // Candidate caret x positions: before each node of the line and after its last one
+        val caretXs = line.associateWith { i ->
             when (i) {
-                0 -> rects[0].left
-                rects.size -> rects.last().right
+                line.first -> rects[i].left
+                line.last -> rects[i - 1].right
                 else -> (rects[i - 1].right + rects[i].left) / 2f
             }
         }
-        val index = caretXs.indices.minBy { abs(caretXs[it] - point.x) }
+        val index = caretXs.keys.minBy { abs(caretXs.getValue(it) - point.x) }
         return path + index.coerceIn(0, info.length)
     }
 
@@ -344,9 +386,11 @@ class CaretGeometry {
         val point = localPoint + editorOrigin
         val path = stringAt(point) ?: return null
         val rects = nodeRects(path) ?: return null
-        if (rects.isEmpty()) return null
-        val index = rects.indices.firstOrNull { point.x >= rects[it].left && point.x <= rects[it].right }
-            ?: rects.indices.minBy { abs(rects[it].center.x - point.x) }
+        // The nodes of the line under the point, without its (invisible) line break
+        val line = lineAt(path, rects.size, point).let { it.first until it.last }
+        if (line.isEmpty()) return null
+        val index = line.firstOrNull { point.x >= rects[it].left && point.x <= rects[it].right }
+            ?: line.minBy { abs(rects[it].center.x - point.x) }
         return path to index
     }
 

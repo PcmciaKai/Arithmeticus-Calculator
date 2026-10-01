@@ -2,6 +2,7 @@ package com.vortessence.calculator.core.math
 
 import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.context.MathIssue
+import com.vortessence.calculator.core.math.expressions.EquationSystem
 import com.vortessence.calculator.core.math.expressions.Equals
 import com.vortessence.calculator.core.math.expressions.Expression
 import com.vortessence.calculator.core.math.expressions.MatrixExpression
@@ -12,6 +13,7 @@ import com.vortessence.calculator.core.math.expressions.toPreferredUnits
 import com.vortessence.calculator.core.math.solvers.Function1D
 import com.vortessence.calculator.core.math.solvers.ImplicitCurve
 import com.vortessence.calculator.core.math.solvers.ImplicitPlotter
+import com.vortessence.calculator.core.math.solvers.LinearSystemSolver
 import com.vortessence.calculator.core.math.solvers.NumericIntegrator
 import com.vortessence.calculator.core.math.solvers.NumericRootFinder
 import com.vortessence.calculator.core.math.solvers.PlotCurve
@@ -107,6 +109,7 @@ object MathEngine {
         if (ctx.shouldStop) return failure(input, ctx, expression = parsed)
 
         if (parsed is Equals) return evaluateEquation(input, parsed, ctx)
+        if (parsed is EquationSystem) return evaluateSystem(input, parsed, ctx)
 
         val canonical = parsed.canonicalize(ctx)
         if (ctx.shouldStop) return failure(input, ctx, expression = parsed)
@@ -177,7 +180,53 @@ object MathEngine {
         )
     }
 
-    private fun truthResult(input: MathString, equation: Equals, truth: Boolean, ctx: MathContext) =
+    /**
+     * A system of equations, one per line, e.g. −2x + y = −3 and 3x + 2y = 8 gives
+     * "x = 2, y = 1". Only linear systems are solved.
+     */
+    private fun evaluateSystem(input: MathString, system: EquationSystem, ctx: MathContext): CalculationResult {
+        // A line without "=" is still being typed
+        val equations = system.lines.map { it as? Equals ?: return failure(input, ctx, MathIssue.SYNTAX_ERROR, system) }
+        if (system.containsExpressionMatching { it is MatrixExpression }) {
+            return failure(input, ctx, MathIssue.MATRIX_UNSUPPORTED, system)
+        }
+        val vars = system.variables()
+        if (vars.isEmpty()) {
+            val truths = equations.map { it.truthValue(ctx) ?: return failure(input, ctx, MathIssue.UNDEFINED, system) }
+            return truthResult(input, system, truths.all { it }, ctx)
+        }
+
+        // x, y, z first, then alphabetically, which is also the order of the solutions
+        val orderedVars = PREFERRED_VARIABLES.filter { it in vars } +
+            (vars - PREFERRED_VARIABLES.toSet()).sortedBy { it.identifier }
+        val solution = LinearSystemSolver.solve(equations, orderedVars, ctx)
+            ?: return failure(input, ctx, MathIssue.CANT_SOLVE_GENERIC, system)
+        if (ctx.shouldStop) return failure(input, ctx, MathIssue.CANT_SOLVE_GENERIC, system)
+        if (solution.isEmpty()) {
+            // Every line is an identity such as x + y = y + x
+            return truthResult(input, system, true, ctx)
+        }
+
+        val solved = orderedVars.filter { it in solution }.map { it to solution.getValue(it).toPreferredUnits(ctx) }
+        val display = displayWriter(ctx)
+        val combinedResult = MathString()
+        for ((idx, pair) in solved.withIndex()) {
+            if (idx > 0) combinedResult.insert(combinedResult.length, TextNode(", "))
+            combinedResult.insertAll(combinedResult.length, display.write(Equals(pair.first, pair.second)).nodes)
+        }
+        val first = solved.first().second
+        return CalculationResult(
+            input = input,
+            result = combinedResult,
+            expression = system,
+            numericValue = Double.NaN,
+            issues = ctx.issues,
+            answer = answerWriter.write(first),
+            decimalPlaces = ctx.decimalPlaces
+        )
+    }
+
+    private fun truthResult(input: MathString, equation: Expression, truth: Boolean, ctx: MathContext) =
         CalculationResult(
             input = input,
             result = MathString(listOf(TextNode(if (truth) "true" else "false"))),

@@ -119,6 +119,15 @@ data class TextNode(val text: String) : MathNode() {
     override fun toString(): String = text
 }
 
+/**
+ * Ends a line of the input, e.g. between the equations of a system. Line breaks only appear in
+ * the root string; inside a slot (numerator, exponent, ...) the parser rejects them.
+ */
+data object LineBreakNode : MathNode() {
+    override fun copy(): MathNode = this
+    override fun toString(): String = "\n"
+}
+
 /** Logarithm to an arbitrary base: log_base(argument). */
 data class LogBaseNode(
     val base: MathString = MathString(),
