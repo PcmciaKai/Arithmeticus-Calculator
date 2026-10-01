@@ -390,9 +390,12 @@ private fun MathNodeView(
                     color = accentColor,
                     modifier = onAxis
                 )
-                Text(text = "(", fontSize = fontSize, color = textColor, modifier = onAxis)
-                slots.Slot(child = 0, string = node.argument, fontSize = (fontSize.value * 0.9f).sp, modifier = onAxis)
-                Text(text = ")", fontSize = fontSize, color = textColor, modifier = onAxis)
+                slots.Slot(
+                    child = 0,
+                    string = node.argument,
+                    fontSize = (fontSize.value * 0.9f).sp,
+                    modifier = onAxis.stretchyParentheses(textColor)
+                )
             }
         }
         is IntegralNode -> IntegralView(node, fontSize, slots)
@@ -616,56 +619,43 @@ private fun LogBaseView(node: LogBaseNode, fontSize: TextUnit, slots: SlotContex
             fontSize = (fontSize.value * 0.6f).sp,
             modifier = Modifier.padding(top = (fontSize.value * 0.45f).dp)
         )
-        Text(text = "(", fontSize = fontSize, color = slots.textColor)
-        slots.Slot(child = 1, string = node.argument, fontSize = (fontSize.value * 0.9f).sp)
-        Text(text = ")", fontSize = fontSize, color = slots.textColor)
+        slots.Slot(
+            child = 1,
+            string = node.argument,
+            fontSize = (fontSize.value * 0.9f).sp,
+            modifier = Modifier.stretchyParentheses(slots.textColor)
+        )
     }
 }
 
 @Composable
 private fun ParenthesesView(node: ParenthesesNode, fontSize: TextUnit, slots: SlotContext) {
-    val textColor = slots.textColor
-    Row(
-        modifier = Modifier.height(IntrinsicSize.Min),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Left Parenthesis dynamically stretched to match height of contents
-        Canvas(
-            modifier = Modifier
-                .width(9.dp)
-                .fillMaxHeight()
-                .padding(vertical = 1.dp)
-        ) {
-            val h = size.height
-            val w = size.width
-            val strokeW = 1.8.dp.toPx()
-            val path = Path().apply {
-                moveTo(w, strokeW / 2f)
-                cubicTo(w * 0.05f, h * 0.28f, w * 0.05f, h * 0.72f, w, h - strokeW / 2f)
-            }
-            drawPath(path = path, color = textColor, style = Stroke(width = strokeW, cap = StrokeCap.Round))
-        }
-
-        slots.Slot(child = 0, string = node.inner, fontSize = fontSize, modifier = Modifier.padding(horizontal = 2.dp))
-
-        // Right Parenthesis dynamically stretched to match height of contents
-        Canvas(
-            modifier = Modifier
-                .width(9.dp)
-                .fillMaxHeight()
-                .padding(vertical = 1.dp)
-        ) {
-            val h = size.height
-            val w = size.width
-            val strokeW = 1.8.dp.toPx()
-            val path = Path().apply {
-                moveTo(0f, strokeW / 2f)
-                cubicTo(w * 0.95f, h * 0.28f, w * 0.95f, h * 0.72f, 0f, h - strokeW / 2f)
-            }
-            drawPath(path = path, color = textColor, style = Stroke(width = strokeW, cap = StrokeCap.Round))
-        }
-    }
+    slots.Slot(child = 0, string = node.inner, fontSize = fontSize, modifier = Modifier.stretchyParentheses(slots.textColor))
 }
+
+/** Parentheses around the content, stretched to its full height (e.g. around a fraction or matrix). */
+private fun Modifier.stretchyParentheses(color: Color) = this
+    .drawBehind {
+        val w = 9.dp.toPx()
+        val inset = 1.dp.toPx()
+        val strokeW = 1.8.dp.toPx()
+        val top = inset + strokeW / 2f
+        val bottom = size.height - inset - strokeW / 2f
+        val h = bottom - top
+        val left = Path().apply {
+            moveTo(w, top)
+            cubicTo(w * 0.05f, top + h * 0.28f, w * 0.05f, top + h * 0.72f, w, bottom)
+        }
+        val right = Path().apply {
+            val x0 = size.width - w
+            moveTo(x0, top)
+            cubicTo(x0 + w * 0.95f, top + h * 0.28f, x0 + w * 0.95f, top + h * 0.72f, x0, bottom)
+        }
+        val stroke = Stroke(width = strokeW, cap = StrokeCap.Round)
+        drawPath(path = left, color = color, style = stroke)
+        drawPath(path = right, color = color, style = stroke)
+    }
+    .padding(horizontal = 11.dp)
 
 @Composable
 private fun IntegralView(node: IntegralNode, fontSize: TextUnit, slots: SlotContext) {
@@ -702,58 +692,70 @@ private fun IntegralView(node: IntegralNode, fontSize: TextUnit, slots: SlotCont
 @Composable
 private fun MatrixView(node: MatrixNode, fontSize: TextUnit, slots: SlotContext) {
     val elementFontSize = (fontSize.value * 0.8f).sp
-    val textColor = slots.textColor
-    Row(
-        modifier = Modifier.height(IntrinsicSize.Min).centeredMathAxis(),
-        verticalAlignment = Alignment.CenterVertically
+    MatrixGrid(
+        rows = node.rows,
+        cols = node.cols,
+        modifier = Modifier.centeredMathAxis().squareBrackets(slots.textColor)
     ) {
-        // Left Bracket Canvas
-        Canvas(
-            modifier = Modifier
-                .width(8.dp)
-                .fillMaxHeight()
-                .padding(vertical = 1.dp)
-        ) {
-            val w = size.width
-            val h = size.height
-            val strokeW = 1.8.dp.toPx()
-            drawLine(textColor, Offset(w, 0f), Offset(0f, 0f), strokeWidth = strokeW, cap = StrokeCap.Round)
-            drawLine(textColor, Offset(0f, 0f), Offset(0f, h), strokeWidth = strokeW, cap = StrokeCap.Round)
-            drawLine(textColor, Offset(0f, h), Offset(w, h), strokeWidth = strokeW, cap = StrokeCap.Round)
-        }
-
-        Column(
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.padding(horizontal = 6.dp)
-        ) {
-            for (r in 0 until node.rows) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    for (c in 0 until node.cols) {
-                        val idx = r * node.cols + c
-                        if (idx < node.elements.size) {
-                            slots.Slot(child = idx, string = node.elements[idx], fontSize = elementFontSize)
-                        }
-                    }
-                }
-            }
-        }
-
-        // Right Bracket Canvas
-        Canvas(
-            modifier = Modifier
-                .width(8.dp)
-                .fillMaxHeight()
-                .padding(vertical = 1.dp)
-        ) {
-            val w = size.width
-            val h = size.height
-            val strokeW = 1.8.dp.toPx()
-            drawLine(textColor, Offset(0f, 0f), Offset(w, 0f), strokeWidth = strokeW, cap = StrokeCap.Round)
-            drawLine(textColor, Offset(w, 0f), Offset(w, h), strokeWidth = strokeW, cap = StrokeCap.Round)
-            drawLine(textColor, Offset(w, h), Offset(0f, h), strokeWidth = strokeW, cap = StrokeCap.Round)
+        node.elements.forEachIndexed { idx, element ->
+            slots.Slot(child = idx, string = element, fontSize = elementFontSize)
         }
     }
 }
+
+/**
+ * Lays out [rows] × [cols] entries (row by row) as a table: each column is as wide as its widest
+ * entry and the entries are centred in it, so a "−" or a long number does not shift the others.
+ * The entries of a row share their math axis, like the nodes of an expression.
+ */
+@Composable
+private fun MatrixGrid(
+    rows: Int,
+    cols: Int,
+    modifier: Modifier = Modifier,
+    columnGap: Dp = 12.dp,
+    rowGap: Dp = 8.dp,
+    content: @Composable () -> Unit
+) {
+    Layout(content = content, modifier = modifier) { measurables, _ ->
+        val placeables = measurables.map { it.measure(Constraints()) }
+        fun cell(r: Int, c: Int) = placeables[r * cols + c]
+        val colWidths = IntArray(cols) { c -> (0 until rows).maxOf { r -> cell(r, c).width } }
+        val aboveAxis = IntArray(rows) { r -> (0 until cols).maxOf { c -> cell(r, c).mathAxis() } }
+        val belowAxis = IntArray(rows) { r -> (0 until cols).maxOf { c -> cell(r, c).let { it.height - it.mathAxis() } } }
+        val colGapPx = columnGap.roundToPx()
+        val rowGapPx = rowGap.roundToPx()
+        val width = colWidths.sum() + colGapPx * (cols - 1)
+        val height = (0 until rows).sumOf { aboveAxis[it] + belowAxis[it] } + rowGapPx * (rows - 1)
+        layout(width, height) {
+            var y = 0
+            for (r in 0 until rows) {
+                var x = 0
+                for (c in 0 until cols) {
+                    val p = cell(r, c)
+                    p.place(x + (colWidths[c] - p.width) / 2, y + aboveAxis[r] - p.mathAxis())
+                    x += colWidths[c] + colGapPx
+                }
+                y += aboveAxis[r] + belowAxis[r] + rowGapPx
+            }
+        }
+    }
+}
+
+/** Square brackets around the content, as tall as it is. */
+private fun Modifier.squareBrackets(color: Color) = this
+    .drawBehind {
+        val w = 8.dp.toPx()
+        val inset = 1.dp.toPx()
+        val strokeW = 1.8.dp.toPx()
+        val top = inset
+        val bottom = size.height - inset
+        val right = size.width
+        drawLine(color, Offset(w, top), Offset(0f, top), strokeWidth = strokeW, cap = StrokeCap.Round)
+        drawLine(color, Offset(0f, top), Offset(0f, bottom), strokeWidth = strokeW, cap = StrokeCap.Round)
+        drawLine(color, Offset(0f, bottom), Offset(w, bottom), strokeWidth = strokeW, cap = StrokeCap.Round)
+        drawLine(color, Offset(right - w, top), Offset(right, top), strokeWidth = strokeW, cap = StrokeCap.Round)
+        drawLine(color, Offset(right, top), Offset(right, bottom), strokeWidth = strokeW, cap = StrokeCap.Round)
+        drawLine(color, Offset(right, bottom), Offset(right - w, bottom), strokeWidth = strokeW, cap = StrokeCap.Round)
+    }
+    .padding(horizontal = 14.dp, vertical = 1.dp)
