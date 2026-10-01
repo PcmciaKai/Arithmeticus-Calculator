@@ -9,8 +9,11 @@ import com.vortessence.calculator.core.math.expressions.Variable
 import com.vortessence.calculator.core.math.expressions.UnitConversion
 import com.vortessence.calculator.core.math.expressions.toPreferredUnits
 import com.vortessence.calculator.core.math.solvers.Function1D
+import com.vortessence.calculator.core.math.solvers.ImplicitCurve
+import com.vortessence.calculator.core.math.solvers.ImplicitPlotter
 import com.vortessence.calculator.core.math.solvers.NumericIntegrator
 import com.vortessence.calculator.core.math.solvers.NumericRootFinder
+import com.vortessence.calculator.core.math.solvers.PlotCurve
 import com.vortessence.calculator.core.math.type.MathParser
 import com.vortessence.calculator.core.math.type.MathString
 import com.vortessence.calculator.core.math.type.MathWriter
@@ -43,11 +46,16 @@ data class CalculationResult(
 
 data class PlotPoint(val x: Double, val y: Double)
 
+/** A piece of an implicit curve between two points on it. */
+data class PlotSegment(val start: PlotPoint, val end: PlotPoint)
+
 data class PlotData(
     val roots: List<Double>,
     val maxima: List<PlotPoint>,
     val minima: List<PlotPoint>,
-    val inflectionPoints: List<PlotPoint>
+    val inflectionPoints: List<PlotPoint>,
+    /** Only for implicit curves, which can cross the y-axis several times. */
+    val yIntercepts: List<Double> = emptyList()
 ) {
     val extrema: List<PlotPoint> get() = maxima + minima
 
@@ -224,16 +232,16 @@ object MathEngine {
      * Builds the function to plot for [input], using the angle unit and mode of [context].
      * Returns null if the input is invalid or has no single variable to plot against.
      */
-    suspend fun createPlotFunction(
+    suspend fun createPlotCurve(
         input: MathString,
         context: MathContext = MathContext()
-    ): Function1D? = withContext(Dispatchers.Default) {
+    ): PlotCurve? = withContext(Dispatchers.Default) {
         val execContext = context.copy()
         execContext.deadlineMillis = System.currentTimeMillis() + DEFAULT_TIMEOUT_MILLIS
         try {
             MathContext.withContext(execContext) {
                 val parsed = parser.parse(input)
-                if (execContext.shouldStop) null else Function1D.fromExpression(parsed, execContext)
+                if (execContext.shouldStop) null else PlotCurve.fromExpression(parsed, execContext)
             }
         } catch (e: ArithmeticException) {
             null
@@ -262,6 +270,46 @@ object MathEngine {
             .map { PlotPoint(it, function.evaluateAt(it)) }
         ensureActive()
         PlotData(roots, maxima, minima, inflectionPoints)
+    }
+
+    /** Line segments approximating [curve] in the given range, on a [cols] × [rows] grid. */
+    suspend fun contourImplicit(
+        curve: ImplicitCurve,
+        minX: Double,
+        maxX: Double,
+        minY: Double,
+        maxY: Double,
+        cols: Int,
+        rows: Int
+    ): List<PlotSegment> = withContext(Dispatchers.Default) {
+        val context = MathContext()
+        val job = coroutineContext[Job]
+        context.externalCancellation = { job?.isActive == false }
+        val segments = ImplicitPlotter.contour(curve, minX, maxX, minY, maxY, cols, rows, context)
+        ensureActive()
+        segments
+    }
+
+    /**
+     * Axis intercepts and highest/lowest points (horizontal tangents) of an implicit curve,
+     * using [segments] from [contourImplicit]. Inflection points are not looked for.
+     */
+    suspend fun analyzeImplicitPlot(
+        curve: ImplicitCurve,
+        segments: List<PlotSegment>,
+        minX: Double,
+        maxX: Double,
+        minY: Double,
+        maxY: Double
+    ): PlotData = withContext(Dispatchers.Default) {
+        val context = MathContext()
+        val job = coroutineContext[Job]
+        context.externalCancellation = { job?.isActive == false }
+        val xIntercepts = ImplicitPlotter.xIntercepts(curve, minX, maxX, context)
+        val yIntercepts = ImplicitPlotter.yIntercepts(curve, minY, maxY, context)
+        val (maxima, minima) = ImplicitPlotter.horizontalTangents(curve, segments, context)
+        ensureActive()
+        PlotData(xIntercepts, maxima, minima, emptyList(), yIntercepts)
     }
 
     /** Signed area under [function] from [a] to [b]; NaN if it is undefined there or diverges. */

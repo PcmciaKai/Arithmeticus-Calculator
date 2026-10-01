@@ -60,7 +60,7 @@ class MatrixExpression(
         return null
     }
 
-    override fun evaluateNumerically(value: Double, variable: Variable?): Double {
+    override fun evaluateNumerically(bindings: Map<Variable, Double>): Double {
         return Double.NaN
     }
 

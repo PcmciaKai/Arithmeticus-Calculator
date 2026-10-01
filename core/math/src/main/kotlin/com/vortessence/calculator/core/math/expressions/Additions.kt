@@ -81,8 +81,8 @@ class Additions(val operands: List<Expression>) : Expression() {
         return Additions(merged)
     }
 
-    override fun evaluateNumerically(value: Double, variable: Variable?): Double {
-        return operands.sumOf { it.evaluateNumerically(value, variable) }
+    override fun evaluateNumerically(bindings: Map<Variable, Double>): Double {
+        return operands.sumOf { it.evaluateNumerically(bindings) }
     }
 
     override fun equals(other: Any?): Boolean {

@@ -7,6 +7,8 @@ import com.vortessence.calculator.core.math.context.MathIssue
 import com.vortessence.calculator.core.math.expressions.*
 import com.vortessence.calculator.core.math.numbers.BigInt
 import com.vortessence.calculator.core.math.solvers.Function1D
+import com.vortessence.calculator.core.math.solvers.ImplicitCurve
+import com.vortessence.calculator.core.math.solvers.ImplicitPlotter
 import com.vortessence.calculator.core.math.solvers.NumericRootFinder
 import com.vortessence.calculator.core.math.type.*
 import kotlinx.coroutines.runBlocking
@@ -17,6 +19,7 @@ import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.math.sqrt
 import kotlin.math.tan
 
 /** Regression tests for issues found during code review. */
@@ -293,7 +296,7 @@ class MathEngineRegressionTest {
 
     @Test
     fun plotFunctionUsesAngleUnit() = runBlocking {
-        val fn = MathEngine.createPlotFunction(ms(fn("sin", v("x"))), MathContext(angleUnit = AngleUnit.DEGREES))
+        val fn = MathEngine.createPlotCurve(ms(fn("sin", v("x"))), MathContext(angleUnit = AngleUnit.DEGREES)) as? Function1D
         assertNotNull(fn)
         assertEquals(1.0, fn!!.evaluateAt(90.0), 1e-12)
         val data = MathEngine.analyzePlot(fn, -100.0, 100.0)
@@ -315,5 +318,23 @@ class MathEngineRegressionTest {
         assertEquals(0..2, tokens.getTokenRangeAt(0))
         assertEquals(0..2, tokens.getTokenRangeAt(2))
         assertEquals(4..4, tokens.getTokenRangeAt(4))
+    }
+
+    @Test
+    fun implicitHyperbolaKeepsItsSigns() = runBlocking {
+        // y = 1 − 0.2x² + 0.2y²  ⇔  (y − 2.5)² − x² = 1.25: two branches, vertices at 2.5 ± √1.25
+        val input = ms(
+            v("y"), op(MathOp.EQUALS), n("1"), op(MathOp.MINUS), n("0.2"), ExponentNode(ms(v("x")), ms(n("2"))),
+            op(MathOp.PLUS), n("0.2"), ExponentNode(ms(v("y")), ms(n("2")))
+        )
+        val curve = MathEngine.createPlotCurve(input) as ImplicitCurve
+        val segments = ImplicitPlotter.contour(curve, -4.0, 4.0, -4.0, 9.0, 80, 130)
+        val points = segments.flatMap { listOf(it.start, it.end) }
+        for (p in points) assertEquals(1.25, (p.y - 2.5) * (p.y - 2.5) - p.x * p.x, 1e-3)
+        assertTrue(points.any { it.y < 2.5 } && points.any { it.y > 2.5 })
+
+        val (maxima, minima) = ImplicitPlotter.horizontalTangents(curve, segments)
+        assertEquals(2.5 - sqrt(1.25), maxima.single().y, 1e-6)
+        assertEquals(2.5 + sqrt(1.25), minima.single().y, 1e-6)
     }
 }

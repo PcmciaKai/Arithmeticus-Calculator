@@ -72,9 +72,9 @@ class Logarithm(
         return null
     }
 
-    override fun evaluateNumerically(value: Double, variable: Variable?): Double {
-        val b = base.evaluateNumerically(value, variable)
-        val op = operand.evaluateNumerically(value, variable)
+    override fun evaluateNumerically(bindings: Map<Variable, Double>): Double {
+        val b = base.evaluateNumerically(bindings)
+        val op = operand.evaluateNumerically(bindings)
         return ln(op) / ln(b)
     }
 

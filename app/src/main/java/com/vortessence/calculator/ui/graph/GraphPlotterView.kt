@@ -30,6 +30,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
@@ -44,7 +45,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vortessence.calculator.core.math.MathEngine
 import com.vortessence.calculator.core.math.PlotData
+import com.vortessence.calculator.core.math.PlotPoint
+import com.vortessence.calculator.core.math.PlotSegment
 import com.vortessence.calculator.core.math.solvers.Function1D
+import com.vortessence.calculator.core.math.solvers.ImplicitCurve
+import com.vortessence.calculator.core.math.solvers.PlotCurve
 import com.vortessence.calculator.core.math.type.MathOp
 import com.vortessence.calculator.core.math.type.MathString
 import com.vortessence.calculator.core.math.type.OperatorNode
@@ -76,7 +81,9 @@ private enum class KeyPointKind(val label: String, val color: Color) {
     ZERO("Zero", AccentRed),
     MAXIMUM("Maximum", AccentGreen),
     MINIMUM("Minimum", AccentBlue),
-    INFLECTION("Inflection point", AccentPurple)
+    INFLECTION("Inflection point", AccentPurple),
+    // Implicit curves only; they have no inflection points, so the colour is free
+    Y_INTERCEPT("y-intercept", AccentPurple)
 }
 
 private data class KeyPoint(val x: Double, val y: Double, val kind: KeyPointKind)
@@ -85,24 +92,32 @@ private fun PlotData.toKeyPoints(): List<KeyPoint> =
     roots.map { KeyPoint(it, 0.0, KeyPointKind.ZERO) } +
         maxima.map { KeyPoint(it.x, it.y, KeyPointKind.MAXIMUM) } +
         minima.map { KeyPoint(it.x, it.y, KeyPointKind.MINIMUM) } +
-        inflectionPoints.map { KeyPoint(it.x, it.y, KeyPointKind.INFLECTION) }
+        inflectionPoints.map { KeyPoint(it.x, it.y, KeyPointKind.INFLECTION) } +
+        yIntercepts.map { KeyPoint(0.0, it, KeyPointKind.Y_INTERCEPT) }
 
 /** Maps between math coordinates and canvas pixels. */
 private class Viewport(val originX: Float, val originY: Float, val scaleX: Float, val scaleY: Float) {
     fun toScreenX(x: Double): Float = originX + (x * scaleX).toFloat()
     fun toScreenY(y: Double): Float = originY - (y * scaleY).toFloat()
     fun toMathX(px: Float): Double = ((px - originX) / scaleX).toDouble()
+    fun toMathY(py: Float): Double = ((originY - py) / scaleY).toDouble()
+    fun toScreen(point: PlotPoint) = Offset(toScreenX(point.x), toScreenY(point.y))
 }
 
 @Composable
 fun GraphPlotterView(
-    function: Function1D?,
+    curve: PlotCurve?,
     expression: MathString,
     modifier: Modifier = Modifier,
     isLoading: Boolean = false,
     onClose: (() -> Unit)? = null
 ) {
     if (onClose != null) BackHandler(onBack = onClose)
+
+    // A function y = f(x) supports all tools; an implicit curve like x² + y² = 1 has no
+    // integral and its cursor moves freely along the curve instead of left to right
+    val function = curve as? Function1D
+    val implicit = curve as? ImplicitCurve
 
     var scaleX by remember { mutableFloatStateOf(DEFAULT_SCALE) } // pixels per unit
     var scaleY by remember { mutableFloatStateOf(DEFAULT_SCALE) }
@@ -116,11 +131,15 @@ fun GraphPlotterView(
 
     // Shared by trace and tangent, so switching between them keeps the position
     var cursorX by remember { mutableDoubleStateOf(0.0) }
+    // Cursor on an implicit curve; null until placed on it
+    var cursorPoint by remember(curve) { mutableStateOf<PlotPoint?>(null) }
     var lowerBound by remember { mutableDoubleStateOf(-1.0) }
     var upperBound by remember { mutableDoubleStateOf(1.0) }
-    var keyPoints by remember(function) { mutableStateOf(emptyList<KeyPoint>()) }
+    var keyPoints by remember(curve) { mutableStateOf(emptyList<KeyPoint>()) }
     // Null while the first value is computed; afterwards the previous value stays while dragging
     var area by remember(function) { mutableStateOf<Double?>(null) }
+    // Implicit curves are drawn from line segments computed in the background
+    var segments by remember(curve) { mutableStateOf(emptyList<PlotSegment>()) }
 
     fun viewport() = Viewport(canvasSize.width / 2f + offsetX, canvasSize.height / 2f + offsetY, scaleX, scaleY)
 
@@ -128,11 +147,51 @@ fun GraphPlotterView(
     // after panning or zooming settles. Integration bounds snap to the zeros.
     val visibleMinX = (-(canvasSize.width / 2f + offsetX) / scaleX).toDouble()
     val visibleMaxX = ((canvasSize.width / 2f - offsetX) / scaleX).toDouble()
+    val visibleMinY = ((offsetY - canvasSize.height / 2f) / scaleY).toDouble()
+    val visibleMaxY = ((offsetY + canvasSize.height / 2f) / scaleY).toDouble()
     val needsKeyPoints = tool == GraphTool.TRACE || tool == GraphTool.INTEGRAL
     LaunchedEffect(function, visibleMinX, visibleMaxX, needsKeyPoints) {
         if (function == null || canvasSize.width == 0 || !needsKeyPoints) return@LaunchedEffect
         delay(150)
         keyPoints = MathEngine.analyzePlot(function, visibleMinX, visibleMaxX).toKeyPoints()
+    }
+
+    val density = LocalDensity.current
+    val touchRadiusPx = with(density) { 28.dp.toPx() }
+    val snapRadiusPx = with(density) { 14.dp.toPx() }
+    val contourCellPx = with(density) { 4.dp.toPx() }
+
+    // Implicit curves: segments for the visible area plus a margin, so that short pans do not
+    // reveal gaps before the recomputation after the gesture settles
+    LaunchedEffect(implicit, visibleMinX, visibleMaxX, visibleMinY, visibleMaxY) {
+        if (implicit == null || canvasSize.width == 0) return@LaunchedEffect
+        if (segments.isNotEmpty()) delay(100)
+        val marginX = (visibleMaxX - visibleMinX) / 4.0
+        val marginY = (visibleMaxY - visibleMinY) / 4.0
+        segments = MathEngine.contourImplicit(
+            implicit,
+            visibleMinX - marginX, visibleMaxX + marginX,
+            visibleMinY - marginY, visibleMaxY + marginY,
+            cols = (canvasSize.width * 1.5f / contourCellPx).toInt().coerceAtLeast(10),
+            rows = (canvasSize.height * 1.5f / contourCellPx).toInt().coerceAtLeast(10)
+        )
+    }
+
+    LaunchedEffect(implicit, segments, tool == GraphTool.TRACE) {
+        if (implicit == null || tool != GraphTool.TRACE || segments.isEmpty()) return@LaunchedEffect
+        val marginX = (visibleMaxX - visibleMinX) / 4.0
+        val marginY = (visibleMaxY - visibleMinY) / 4.0
+        keyPoints = MathEngine.analyzeImplicitPlot(
+            implicit, segments,
+            visibleMinX - marginX, visibleMaxX + marginX,
+            visibleMinY - marginY, visibleMaxY + marginY
+        ).toKeyPoints()
+        // The cursor may have been placed before the points were known; snap it now
+        val vp = viewport()
+        cursorPoint?.let { p ->
+            keyPoints.firstOrNull { (vp.toScreen(PlotPoint(it.x, it.y)) - vp.toScreen(p)).getDistance() <= snapRadiusPx }
+                ?.let { cursorPoint = PlotPoint(it.x, it.y) }
+        }
     }
 
     LaunchedEffect(function, tool == GraphTool.INTEGRAL, lowerBound, upperBound) {
@@ -141,11 +200,46 @@ fun GraphPlotterView(
         area = MathEngine.integratePlot(function, lowerBound, upperBound)
     }
 
-    val density = LocalDensity.current
-    val touchRadiusPx = with(density) { 28.dp.toPx() }
-    val snapRadiusPx = with(density) { 14.dp.toPx() }
+    /** Puts the implicit-curve cursor on the curve point nearest to [position]. */
+    fun moveImplicitCursor(position: Offset) {
+        val curveNow = implicit ?: return
+        val vp = viewport()
+        // Nearest point on the drawn segments, measured on screen
+        var nearest: Offset? = null
+        var nearestDistance = Float.POSITIVE_INFINITY
+        for (segment in segments) {
+            val a = vp.toScreen(segment.start)
+            val b = vp.toScreen(segment.end)
+            val ab = b - a
+            val lengthSquared = ab.x * ab.x + ab.y * ab.y
+            val t = if (lengthSquared == 0f) 0f else
+                (((position.x - a.x) * ab.x + (position.y - a.y) * ab.y) / lengthSquared).coerceIn(0f, 1f)
+            val candidate = a + ab * t
+            val distance = (candidate - position).getDistance()
+            if (distance < nearestDistance) {
+                nearestDistance = distance
+                nearest = candidate
+            }
+        }
+        val onScreen = nearest ?: return
+        val approximate = PlotPoint(vp.toMathX(onScreen.x), vp.toMathY(onScreen.y))
+        var point = curveNow.projectOntoCurve(approximate.x, approximate.y, maxDistance = 8.0 / min(scaleX, scaleY))
+            ?: approximate
+        if (tool == GraphTool.TRACE) {
+            val screenPoint = vp.toScreen(point)
+            keyPoints.minByOrNull { (vp.toScreen(PlotPoint(it.x, it.y)) - screenPoint).getDistance() }
+                ?.takeIf { (vp.toScreen(PlotPoint(it.x, it.y)) - screenPoint).getDistance() <= snapRadiusPx }
+                ?.let { point = PlotPoint(it.x, it.y) }
+        }
+        cursorPoint = point
+    }
 
-    fun moveHandle(handle: GraphHandle, px: Float) {
+    fun moveHandle(handle: GraphHandle, position: Offset) {
+        if (implicit != null) {
+            if (handle == GraphHandle.CURSOR) moveImplicitCursor(position)
+            return
+        }
+        val px = position.x
         val vp = viewport()
         var x = vp.toMathX(px)
         val snapTargets = when {
@@ -165,6 +259,13 @@ fun GraphPlotterView(
 
     fun handleAt(position: Offset): GraphHandle? {
         val vp = viewport()
+        if (implicit != null) {
+            // The cursor can sit anywhere on the curve, so grab it by its distance in 2D
+            val point = cursorPoint ?: return null
+            val isNear = tool != null && tool != GraphTool.INTEGRAL &&
+                (vp.toScreen(point) - position).getDistance() <= touchRadiusPx * 1.3f
+            return if (isNear) GraphHandle.CURSOR else null
+        }
         val candidates = when (tool) {
             GraphTool.TRACE, GraphTool.TANGENT -> listOf(GraphHandle.CURSOR to cursorX)
             GraphTool.INTEGRAL -> listOf(GraphHandle.LOWER_BOUND to lowerBound, GraphHandle.UPPER_BOUND to upperBound)
@@ -179,12 +280,12 @@ fun GraphPlotterView(
 
     fun onTap(position: Offset) {
         when (tool) {
-            GraphTool.TRACE, GraphTool.TANGENT -> moveHandle(GraphHandle.CURSOR, position.x)
+            GraphTool.TRACE, GraphTool.TANGENT -> moveHandle(GraphHandle.CURSOR, position)
             GraphTool.INTEGRAL -> {
                 // Move whichever bound is closer to the tap
                 val vp = viewport()
                 val closerToLower = abs(vp.toScreenX(lowerBound) - position.x) <= abs(vp.toScreenX(upperBound) - position.x)
-                moveHandle(if (closerToLower) GraphHandle.LOWER_BOUND else GraphHandle.UPPER_BOUND, position.x)
+                moveHandle(if (closerToLower) GraphHandle.LOWER_BOUND else GraphHandle.UPPER_BOUND, position)
             }
             null -> {}
         }
@@ -211,8 +312,14 @@ fun GraphPlotterView(
         val span = visibleMaxX - visibleMinX
         val center = (visibleMinX + visibleMaxX) / 2.0
         when (selected) {
-            GraphTool.TRACE, GraphTool.TANGENT ->
-                if (cursorX !in visibleMinX..visibleMaxX) cursorX = center
+            GraphTool.TRACE, GraphTool.TANGENT -> if (implicit != null) {
+                val point = cursorPoint
+                if (point == null || point.x !in visibleMinX..visibleMaxX || point.y !in visibleMinY..visibleMaxY) {
+                    moveImplicitCursor(Offset(canvasSize.width / 2f, canvasSize.height / 2f))
+                }
+            } else if (cursorX !in visibleMinX..visibleMaxX) {
+                cursorX = center
+            }
             GraphTool.INTEGRAL ->
                 if (lowerBound !in visibleMinX..visibleMaxX || upperBound !in visibleMinX..visibleMaxX) {
                     lowerBound = center - span / 4.0
@@ -233,9 +340,12 @@ fun GraphPlotterView(
     val backgroundColor = MaterialTheme.colorScheme.background
 
     // Trace snaps exactly onto key points, but they are recomputed after panning, so compare loosely
-    val snappedPoint = if (tool == GraphTool.TRACE) {
-        keyPoints.firstOrNull { abs(it.x - cursorX) <= 1e-9 * max(1.0, abs(cursorX)) }
-    } else null
+    fun isSame(a: Double, b: Double) = abs(a - b) <= 1e-9 * max(1.0, abs(b))
+    val snappedPoint = when {
+        tool != GraphTool.TRACE -> null
+        implicit != null -> cursorPoint?.let { p -> keyPoints.firstOrNull { isSame(it.x, p.x) && isSame(it.y, p.y) } }
+        else -> keyPoints.firstOrNull { isSame(it.x, cursorX) }
+    }
 
     Column(
         modifier = modifier
@@ -263,15 +373,15 @@ fun GraphPlotterView(
                 modifier = Modifier
                     .fillMaxSize()
                     .onSizeChanged { canvasSize = it }
-                    .pointerInput(function) {
+                    .pointerInput(curve) {
                         awaitEachGesture {
                             val down = awaitFirstDown(requireUnconsumed = false)
-                            val handle = if (function != null) handleAt(down.position) else null
+                            val handle = if (curve != null) handleAt(down.position) else null
                             if (handle != null) {
                                 // Dragging a handle follows the first finger only
-                                moveHandle(handle, down.position.x)
+                                moveHandle(handle, down.position)
                                 drag(down.id) { change ->
-                                    moveHandle(handle, change.position.x)
+                                    moveHandle(handle, change.position)
                                     change.consume()
                                 }
                                 return@awaitEachGesture
@@ -297,7 +407,7 @@ fun GraphPlotterView(
                                     event.changes.forEach { it.consume() }
                                 }
                             }
-                            if (!isTransforming && function != null) onTap(down.position)
+                            if (!isTransforming && curve != null) onTap(down.position)
                         }
                     }
             ) {
@@ -320,18 +430,7 @@ fun GraphPlotterView(
                         }
                         GraphTool.TANGENT -> {
                             val y = function.evaluateAt(cursorX)
-                            val slope = function.derivativeAt(cursorX)
-                            if (y.isFinite() && slope.isFinite()) {
-                                // Line through (x, y) with the slope, drawn across the whole width
-                                val x0 = vp.toMathX(0f)
-                                val x1 = vp.toMathX(width)
-                                drawLine(
-                                    color = AccentBlue,
-                                    start = Offset(0f, vp.toScreenY(y + slope * (x0 - cursorX))),
-                                    end = Offset(width, vp.toScreenY(y + slope * (x1 - cursorX))),
-                                    strokeWidth = 2.dp.toPx()
-                                )
-                            }
+                            drawTangentLine(vp, PlotPoint(cursorX, y), function.derivativeAt(cursorX), AccentBlue)
                             drawCursor(function, vp, cursorX, AccentBlue, axisColor)
                         }
                         GraphTool.INTEGRAL -> {
@@ -341,11 +440,27 @@ fun GraphPlotterView(
                         null -> {}
                     }
                 }
+
+                if (implicit != null) {
+                    drawSegments(segments, vp, curveColor)
+                    val point = cursorPoint
+                    when (tool) {
+                        GraphTool.TRACE -> {
+                            drawKeyPoints(keyPoints, vp, backgroundColor, textMeasurer)
+                            if (point != null) drawCursorDot(vp.toScreen(point), snappedPoint?.kind?.color ?: curveColor)
+                        }
+                        GraphTool.TANGENT -> if (point != null) {
+                            drawTangentLine(vp, point, implicit.slopeAt(point.x, point.y), AccentBlue)
+                            drawCursorDot(vp.toScreen(point), AccentBlue)
+                        }
+                        else -> {}
+                    }
+                }
             }
 
             when {
                 isLoading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                function == null -> Text(
+                curve == null -> Text(
                     text = "This expression cannot be plotted",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -353,13 +468,20 @@ fun GraphPlotterView(
                 )
             }
 
-            if (function != null && tool != null) {
+            if (curve != null && tool != null) {
+                // The implicit cursor needs a curve to sit on; before that only a hint is shown
+                val point = if (implicit != null) cursorPoint else PlotPoint(cursorX, function!!.evaluateAt(cursorX))
+                val slope = when {
+                    point == null -> Double.NaN
+                    implicit != null -> implicit.slopeAt(point.x, point.y)
+                    else -> function!!.derivativeAt(cursorX)
+                }
                 GraphInfoCard(modifier = Modifier.align(Alignment.TopCenter).padding(8.dp)) {
-                    when (tool) {
-                        GraphTool.TRACE -> TraceInfo(function, cursorX, snappedPoint)
-                        GraphTool.TANGENT -> TangentInfo(function, cursorX)
-                        GraphTool.INTEGRAL -> IntegralInfo(lowerBound, upperBound, area)
-                        null -> {}
+                    when {
+                        tool == GraphTool.INTEGRAL -> IntegralInfo(lowerBound, upperBound, area)
+                        point == null -> InfoHint("Tap the curve to place the cursor")
+                        tool == GraphTool.TRACE -> TraceInfo(point, snappedPoint, isImplicit = implicit != null)
+                        tool == GraphTool.TANGENT -> TangentInfo(point, slope)
                     }
                 }
             }
@@ -375,7 +497,8 @@ fun GraphPlotterView(
                 GraphToolButton(
                     tool = entry,
                     selected = tool == entry,
-                    enabled = function != null,
+                    // The area under a curve is only defined for functions
+                    enabled = if (entry == GraphTool.INTEGRAL) function != null else curve != null,
                     onClick = { selectTool(entry) },
                     modifier = Modifier.weight(1f)
                 )
@@ -500,24 +623,27 @@ private fun InfoHint(text: String) {
 }
 
 @Composable
-private fun TraceInfo(function: Function1D, x: Double, snapped: KeyPoint?) {
+private fun TraceInfo(point: PlotPoint, snapped: KeyPoint?, isImplicit: Boolean) {
     InfoTitle(snapped?.kind?.label ?: "Trace", snapped?.kind?.color ?: OrangePrimary)
-    InfoValues("x" to formatGraphNumber(x), "y" to formatGraphNumber(function.evaluateAt(x)))
-    if (snapped == null) InfoHint("Drag along the graph; snaps to highlighted points")
+    InfoValues("x" to formatGraphNumber(point.x), "y" to formatGraphNumber(point.y))
+    if (snapped == null) {
+        InfoHint(if (isImplicit) "Drag the point along the curve; snaps to highlighted points" else "Drag along the graph; snaps to highlighted points")
+    }
 }
 
 @Composable
-private fun TangentInfo(function: Function1D, x: Double) {
-    val y = function.evaluateAt(x)
-    val slope = function.derivativeAt(x)
+private fun TangentInfo(point: PlotPoint, slope: Double) {
     InfoTitle("Tangent", AccentBlue)
-    InfoValues("x" to formatGraphNumber(x), "y" to formatGraphNumber(y))
+    InfoValues("x" to formatGraphNumber(point.x), "y" to formatGraphNumber(point.y))
     Text(
-        text = "slope = ${formatGraphNumber(slope)}",
+        text = if (slope.isInfinite()) "vertical tangent" else "slope = ${formatGraphNumber(slope)}",
         style = MaterialTheme.typography.titleMedium,
         fontWeight = FontWeight.SemiBold
     )
-    if (y.isFinite() && slope.isFinite()) InfoHint(formatLineEquation(slope, y - slope * x))
+    when {
+        slope.isInfinite() -> InfoHint("x = ${formatGraphNumber(point.x)}")
+        point.y.isFinite() && slope.isFinite() -> InfoHint(formatLineEquation(slope, point.y - slope * point.x))
+    }
 }
 
 @Composable
@@ -589,7 +715,9 @@ private fun DrawScope.drawKeyPoints(
         drawCircle(color = point.kind.color, radius = 3.5.dp.toPx(), center = center)
 
         val layout = textMeasurer.measure(
-            text = AnnotatedString("x=${formatKeyPointX(point.x)}"),
+            text = AnnotatedString(
+                if (point.kind == KeyPointKind.Y_INTERCEPT) "y=${formatKeyPointX(point.y)}" else "x=${formatKeyPointX(point.x)}"
+            ),
             style = TextStyle(
                 fontSize = 10.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -619,10 +747,38 @@ private fun DrawScope.drawCursor(function: Function1D, vp: Viewport, x: Double, 
     )
     val y = function.evaluateAt(x)
     if (!y.isFinite()) return
-    val center = Offset(cx, vp.toScreenY(y))
-    if (center.y !in 0f..size.height) return
+    drawCursorDot(Offset(cx, vp.toScreenY(y)), color)
+}
+
+private fun DrawScope.drawCursorDot(center: Offset, color: Color) {
+    if (center.y !in 0f..size.height || center.x !in 0f..size.width) return
     drawCircle(color = Color.White, radius = 8.dp.toPx(), center = center)
     drawCircle(color = color, radius = 5.5.dp.toPx(), center = center)
+}
+
+/** The tangent through [point] across the whole canvas; an infinite [slope] means vertical. */
+private fun DrawScope.drawTangentLine(vp: Viewport, point: PlotPoint, slope: Double, color: Color) {
+    if (!point.x.isFinite() || !point.y.isFinite() || slope.isNaN()) return
+    val center = vp.toScreen(point)
+    // Direction on screen: one unit in x moves scaleX right and slope × scaleY up
+    val direction = if (slope.isInfinite()) Offset(0f, 1f) else Offset(vp.scaleX, -(slope * vp.scaleY).toFloat())
+    val length = direction.getDistance()
+    if (!length.isFinite() || length == 0f) return
+    val reach = hypot(size.width, size.height) * 2f
+    val step = direction * (reach / length)
+    drawLine(color = color, start = center - step, end = center + step, strokeWidth = 2.dp.toPx())
+}
+
+/** An implicit curve from its segments, as one path. */
+private fun DrawScope.drawSegments(segments: List<PlotSegment>, vp: Viewport, color: Color) {
+    val path = Path()
+    for (segment in segments) {
+        val a = vp.toScreen(segment.start)
+        val b = vp.toScreen(segment.end)
+        path.moveTo(a.x, a.y)
+        path.lineTo(b.x, b.y)
+    }
+    drawPath(path = path, color = color, style = Stroke(width = 3.5f, cap = StrokeCap.Round))
 }
 
 /** A vertical integration bound with a labelled knob on the x-axis (kept on screen). */

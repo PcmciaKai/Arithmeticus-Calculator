@@ -8,8 +8,8 @@ data class Variable(val identifier: String) : Expression() {
 
     override fun variables(): Set<Variable> = setOf(this)
 
-    override fun evaluateNumerically(value: Double, variable: Variable?): Double {
-        return if (variable == this) value else Double.NaN
+    override fun evaluateNumerically(bindings: Map<Variable, Double>): Double {
+        return bindings[this] ?: Double.NaN
     }
 
     override fun equals(other: Any?): Boolean {

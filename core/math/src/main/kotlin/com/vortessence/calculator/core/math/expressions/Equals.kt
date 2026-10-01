@@ -193,9 +193,9 @@ class Equals(
         return listOf(sol1, sol2)
     }
 
-    override fun evaluateNumerically(value: Double, variable: Variable?): Double {
-        val l = left.evaluateNumerically(value, variable)
-        val r = right.evaluateNumerically(value, variable)
+    override fun evaluateNumerically(bindings: Map<Variable, Double>): Double {
+        val l = left.evaluateNumerically(bindings)
+        val r = right.evaluateNumerically(bindings)
         return l - r
     }
 

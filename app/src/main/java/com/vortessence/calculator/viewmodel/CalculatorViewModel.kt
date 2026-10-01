@@ -10,7 +10,7 @@ import com.vortessence.calculator.core.math.context.AngleUnit
 import com.vortessence.calculator.core.math.context.CalculationMode
 import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.context.UnitSystem
-import com.vortessence.calculator.core.math.solvers.Function1D
+import com.vortessence.calculator.core.math.solvers.PlotCurve
 import com.vortessence.calculator.core.math.type.*
 import com.vortessence.calculator.ui.keypad.KeyAction
 import com.vortessence.calculator.ui.theme.ThemeMode
@@ -51,8 +51,8 @@ data class CalculatorUiState(
     val digitGrouping: Boolean = true,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val isGraphOpen: Boolean = false,
-    /** Function shown in the graph, or null if the expression cannot be plotted. */
-    val plotFunction: Function1D? = null,
+    /** Function or implicit curve shown in the graph, or null if the expression cannot be plotted. */
+    val plotCurve: PlotCurve? = null,
     val isPlotLoading: Boolean = false,
     val showUnitsDialog: Boolean = false,
     val showConstantsDialog: Boolean = false,
@@ -939,14 +939,14 @@ class CalculatorViewModel @JvmOverloads constructor(
         val expr = state.expression
         plotJob?.cancel()
         if (expr.isEmpty) {
-            _uiState.update { it.copy(plotFunction = null, isPlotLoading = false) }
+            _uiState.update { it.copy(plotCurve = null, isPlotLoading = false) }
             return
         }
-        _uiState.update { it.copy(plotFunction = null, isPlotLoading = true) }
+        _uiState.update { it.copy(plotCurve = null, isPlotLoading = true) }
         plotJob = viewModelScope.launch {
             val context = state.mathContext().toMathContext()
-            val fn = MathEngine.createPlotFunction(expr, context)
-            _uiState.update { it.copy(plotFunction = fn, isPlotLoading = false) }
+            val curve = MathEngine.createPlotCurve(expr, context)
+            _uiState.update { it.copy(plotCurve = curve, isPlotLoading = false) }
         }
     }
 }

@@ -109,7 +109,11 @@ abstract class Expression {
 
     abstract fun canonicalize(context: MathContext = MathContext.current()): Expression
 
-    abstract fun evaluateNumerically(value: Double = 0.0, variable: Variable? = null): Double
+    /** Evaluates with the given variable values; unbound variables evaluate to NaN. */
+    abstract fun evaluateNumerically(bindings: Map<Variable, Double>): Double
+
+    fun evaluateNumerically(value: Double = 0.0, variable: Variable? = null): Double =
+        evaluateNumerically(if (variable == null) emptyMap() else mapOf(variable to value))
 
     open val isNegative: Boolean get() = false
     open val isZero: Boolean get() = false

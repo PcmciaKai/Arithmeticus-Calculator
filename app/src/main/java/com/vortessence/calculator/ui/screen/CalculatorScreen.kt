@@ -55,7 +55,7 @@ fun CalculatorScreen(
 private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: CalculatorUiState) {
     if (uiState.isGraphOpen) {
         GraphPlotterView(
-            function = uiState.plotFunction,
+            curve = uiState.plotCurve,
             expression = uiState.expression,
             isLoading = uiState.isPlotLoading,
             modifier = Modifier.fillMaxSize(),

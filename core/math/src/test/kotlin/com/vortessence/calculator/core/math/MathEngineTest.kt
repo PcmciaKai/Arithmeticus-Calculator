@@ -5,8 +5,11 @@ import com.vortessence.calculator.core.math.expressions.*
 import com.vortessence.calculator.core.math.numbers.BigInt
 import com.vortessence.calculator.core.math.numbers.Rational
 import com.vortessence.calculator.core.math.solvers.Function1D
+import com.vortessence.calculator.core.math.solvers.ImplicitCurve
+import com.vortessence.calculator.core.math.solvers.ImplicitPlotter
 import com.vortessence.calculator.core.math.solvers.NumericIntegrator
 import com.vortessence.calculator.core.math.solvers.NumericRootFinder
+import com.vortessence.calculator.core.math.solvers.PlotCurve
 import com.vortessence.calculator.core.math.type.*
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
@@ -297,5 +300,53 @@ class MathEngineTest {
         val reciprocal = Function1D(Power(x, Value.MINUS_ONE), x)
         assertTrue(NumericIntegrator.integrate(reciprocal, -1.0, 1.3).isNaN())
         assertEquals(kotlin.math.ln(2.0), NumericIntegrator.integrate(reciprocal, 1.0, 2.0), 1e-10)
+    }
+
+    @Test
+    fun equationsWithYOnBothSidesBecomeImplicitCurves() {
+        val x = Variable("x")
+        val y = Variable("y")
+        // y = x² + y² is the circle around (0, 0.5) with radius 0.5
+        val circle = PlotCurve.fromExpression(Equals(y, Additions(Power(x, Value.TWO), Power(y, Value.TWO))))
+        assertTrue(circle is ImplicitCurve)
+        assertTrue(PlotCurve.fromExpression(Equals(y, Power(x, Value.TWO))) is Function1D)
+        // Other variables than x and y cannot be plotted
+        assertNull(PlotCurve.fromExpression(Equals(y, Additions(x, Variable("z")))))
+        assertNull(PlotCurve.fromExpression(Equals(Additions(x, y), Variable("z"))))
+
+        val curve = circle as ImplicitCurve
+        val segments = ImplicitPlotter.contour(curve, -2.0, 2.0, -2.0, 2.0, 80, 80)
+        assertTrue(segments.size > 20)
+        for (segment in segments) {
+            for (p in listOf(segment.start, segment.end)) {
+                assertEquals(0.5, kotlin.math.hypot(p.x, p.y - 0.5), 1e-3)
+            }
+        }
+
+        val (maxima, minima) = ImplicitPlotter.horizontalTangents(curve, segments)
+        assertEquals(1, maxima.size)
+        assertEquals(0.0, maxima[0].x, 1e-6)
+        assertEquals(1.0, maxima[0].y, 1e-6)
+        assertEquals(1, minima.size)
+        assertEquals(0.0, minima[0].y, 1e-6)
+
+        val onCurve = curve.projectOntoCurve(0.4, 0.9)!!
+        assertEquals(0.5, kotlin.math.hypot(onCurve.x, onCurve.y - 0.5), 1e-9)
+        // Tangent at the rightmost point is vertical, at 45° it has slope -1
+        assertTrue(curve.slopeAt(0.5, 0.5).isInfinite())
+        val r = 0.5 / kotlin.math.sqrt(2.0)
+        assertEquals(-1.0, curve.slopeAt(r, 0.5 + r), 1e-6)
+        assertEquals(listOf(1.0), ImplicitPlotter.yIntercepts(curve, 0.2, 2.0).map { Math.round(it * 1e6) / 1e6 })
+    }
+
+    @Test
+    fun implicitContourSkipsPoles() {
+        // 1/(x - y) = 1 is the line y = x - 1; F changes sign across y = x without a zero there
+        val x = Variable("x")
+        val y = Variable("y")
+        val curve = PlotCurve.fromExpression(Equals(Power(Additions(x, y.negate()), Value.MINUS_ONE), Value.ONE)) as ImplicitCurve
+        val segments = ImplicitPlotter.contour(curve, -3.0, 3.0, -3.0, 3.0, 60, 60)
+        assertTrue(segments.isNotEmpty())
+        for (segment in segments) assertEquals(segment.start.x - 1.0, segment.start.y, 1e-3)
     }
 }

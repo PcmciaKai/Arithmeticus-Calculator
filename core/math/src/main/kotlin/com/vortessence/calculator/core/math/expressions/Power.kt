@@ -165,9 +165,9 @@ class Power(
         return (exponent.canonicalize(scratch) as? Value)?.rational
     }
 
-    override fun evaluateNumerically(value: Double, variable: Variable?): Double {
-        val b = base.evaluateNumerically(value, variable)
-        val e = exponent.evaluateNumerically(value, variable)
+    override fun evaluateNumerically(bindings: Map<Variable, Double>): Double {
+        val b = base.evaluateNumerically(bindings)
+        val e = exponent.evaluateNumerically(bindings)
         return realPow(b, e, (exponent as? Value)?.rational)
     }
 

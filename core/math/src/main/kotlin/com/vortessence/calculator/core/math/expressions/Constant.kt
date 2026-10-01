@@ -35,8 +35,8 @@ class Constant(
         }
     }
 
-    override fun evaluateNumerically(value: Double, variable: Variable?): Double {
-        return this.value.evaluateNumerically(value, variable)
+    override fun evaluateNumerically(bindings: Map<Variable, Double>): Double {
+        return this.value.evaluateNumerically(bindings)
     }
 
     override fun equals(other: Any?): Boolean {

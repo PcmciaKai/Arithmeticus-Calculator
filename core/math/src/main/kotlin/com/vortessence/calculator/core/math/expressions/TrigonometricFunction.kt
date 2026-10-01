@@ -181,8 +181,8 @@ class TrigonometricFunction(
         }
     }
 
-    override fun evaluateNumerically(value: Double, variable: Variable?): Double {
-        val v = operand.evaluateNumerically(value, variable)
+    override fun evaluateNumerically(bindings: Map<Variable, Double>): Double {
+        val v = operand.evaluateNumerically(bindings)
         return evaluate(v, angleUnit ?: MathContext.current().angleUnit)
     }
 

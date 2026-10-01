@@ -14,7 +14,7 @@ class Function1D(
     val expression: Expression,
     val variable: Variable = Variable("x"),
     val angleUnit: AngleUnit = AngleUnit.RADIANS
-) {
+) : PlotCurve {
     // Only read during evaluation (angle unit for unresolved trig nodes), so one shared
     // instance is safe to use from several threads.
     private val evaluationContext = MathContext(mode = CalculationMode.NUMERIC, angleUnit = angleUnit)
@@ -39,15 +39,17 @@ class Function1D(
         /**
          * Builds a plottable function from [expr], simplifying it with [context] so that the
          * user's angle unit and calculation mode apply. Returns null if there is no single
-         * free variable to plot against.
+         * free variable to plot against, e.g. for equations like x² + y² = 1 (see
+         * [ImplicitCurve]).
          */
         fun fromExpression(expr: Expression, context: MathContext = MathContext()): Function1D? {
             val vars = expr.variables()
             val xVar = Variable("x")
             val yVar = Variable("y")
+            fun isFunctionOfX(side: Expression) = side.containsVariable(xVar) && side.variables().all { it == xVar }
             val (body, variable) = when {
-                expr is Equals && expr.left == yVar && expr.right.containsVariable(xVar) -> expr.right to xVar
-                expr is Equals && expr.right == yVar && expr.left.containsVariable(xVar) -> expr.left to xVar
+                expr is Equals && expr.left == yVar && isFunctionOfX(expr.right) -> expr.right to xVar
+                expr is Equals && expr.right == yVar && isFunctionOfX(expr.left) -> expr.left to xVar
                 expr is Equals -> {
                     val nonYVars = vars.filter { it != yVar }
                     if (nonYVars.size != 1 || vars.contains(yVar)) return null
@@ -57,12 +59,7 @@ class Function1D(
                 vars.size == 1 -> expr to vars.first()
                 else -> return null
             }
-            val scratch = context.copy()
-            val canonical = MathContext.withContext(scratch) { body.canonicalize(scratch) }
-            // If simplification failed (e.g. a domain error for one constant part), plot the
-            // raw expression: numeric evaluation just yields gaps where it is undefined.
-            val target = if (scratch.shouldStop) body else canonical
-            return Function1D(target, variable, context.angleUnit)
+            return Function1D(PlotCurve.canonicalForPlotting(body, context), variable, context.angleUnit)
         }
     }
 }

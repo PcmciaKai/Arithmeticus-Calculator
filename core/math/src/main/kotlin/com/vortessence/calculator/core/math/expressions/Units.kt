@@ -98,7 +98,7 @@ class UnitExpression(
 
     override fun canonicalize(context: MathContext): Expression = this
 
-    override fun evaluateNumerically(value: Double, variable: Variable?): Double = 1.0
+    override fun evaluateNumerically(bindings: Map<Variable, Double>): Double = 1.0
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -284,8 +284,8 @@ class UnitConversion(val value: Expression, val target: Expression) : Expression
         return cValue.convertToUnit(cTarget, includeUnitInResult = true, context = context) ?: this
     }
 
-    override fun evaluateNumerically(value: Double, variable: Variable?): Double =
-        this.value.evaluateNumerically(value, variable)
+    override fun evaluateNumerically(bindings: Map<Variable, Double>): Double =
+        this.value.evaluateNumerically(bindings)
 
     override fun equals(other: Any?): Boolean =
         other is UnitConversion && value == other.value && target == other.target

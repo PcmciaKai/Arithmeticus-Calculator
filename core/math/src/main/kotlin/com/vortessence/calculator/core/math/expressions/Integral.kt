@@ -54,22 +54,28 @@ class Integral(
         return intExpr
     }
 
-    override fun evaluateNumerically(value: Double, variable: Variable?): Double {
-        val a = lowerBound.evaluateNumerically(value, variable)
-        val b = upperBound.evaluateNumerically(value, variable)
+    override fun evaluateNumerically(bindings: Map<Variable, Double>): Double {
+        val a = lowerBound.evaluateNumerically(bindings)
+        val b = upperBound.evaluateNumerically(bindings)
         if (a.isNaN() || b.isNaN() || a.isInfinite() || b.isInfinite()) return Double.NaN
 
         // Simpson's rule for numerical integration
         val n = 1000
         val h = (b - a) / n
-        var sum = integrand.evaluateNumerically(a, this.variable) + integrand.evaluateNumerically(b, this.variable)
+        // The integrand sees the outer variables too, with the integration variable bound on top
+        val inner = HashMap(bindings)
+        fun integrandAt(x: Double): Double {
+            inner[this.variable] = x
+            return integrand.evaluateNumerically(inner)
+        }
+        var sum = integrandAt(a) + integrandAt(b)
 
         val context = MathContext.current()
         for (i in 1 until n) {
             if (i % 100 == 0 && context.shouldStop) return Double.NaN
             val x = a + i * h
             val weight = if (i % 2 == 0) 2.0 else 4.0
-            sum += weight * integrand.evaluateNumerically(x, this.variable)
+            sum += weight * integrandAt(x)
         }
 
         return (h / 3.0) * sum

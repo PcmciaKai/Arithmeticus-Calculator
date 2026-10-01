@@ -159,10 +159,10 @@ class Multiplications(val operands: List<Expression>) : Expression() {
         }
     }
 
-    override fun evaluateNumerically(value: Double, variable: Variable?): Double {
+    override fun evaluateNumerically(bindings: Map<Variable, Double>): Double {
         var prod = 1.0
         for (op in operands) {
-            prod *= op.evaluateNumerically(value, variable)
+            prod *= op.evaluateNumerically(bindings)
         }
         return prod
     }

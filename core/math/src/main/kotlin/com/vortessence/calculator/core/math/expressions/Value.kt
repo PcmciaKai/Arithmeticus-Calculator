@@ -34,7 +34,7 @@ class Value(
         }
     }
 
-    override fun evaluateNumerically(value: Double, variable: Variable?): Double = real.value
+    override fun evaluateNumerically(bindings: Map<Variable, Double>): Double = real.value
 
     fun plus(other: Value): Value {
         return if (rational != null && other.rational != null) {
