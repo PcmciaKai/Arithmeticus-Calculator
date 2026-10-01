@@ -1,5 +1,6 @@
 package com.vortessence.calculator.ui.keypad
 
+import android.view.HapticFeedbackConstants
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -35,10 +36,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
@@ -465,12 +465,21 @@ private fun KeyButton(
 
     val finalWidth = if (colSpan == 1) buttonWidth else buttonWidth * colSpan + spacing * (colSpan - 1)
 
+    // Like a keyboard, every key gives feedback as soon as it is touched; the system's
+    // touch feedback setting decides whether it vibrates
+    val view = LocalView.current
+    val touchFeedback = Modifier.pointerInput(view) {
+        awaitEachGesture {
+            awaitFirstDown(requireUnconsumed = false)
+            view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+        }
+    }
+
     // Index of the highlighted alternate while the long-press popup is shown
     var popupSelection by remember { mutableStateOf<Int?>(null) }
     val gestureModifier = if (alternates.isEmpty()) {
         Modifier.clickable(onClick = onClick)
     } else {
-        val haptics = LocalHapticFeedback.current
         val interactionSource = remember { MutableInteractionSource() }
         val cellPx = with(LocalDensity.current) { buttonWidth.toPx() }
         val currentOnClick by rememberUpdatedState(onClick)
@@ -500,7 +509,7 @@ private fun KeyButton(
                     }
 
                     // Long press: the finger slides over the alternates, lifting it picks one
-                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
                     val count = currentAlternates.size
                     popupSelection = 0
                     try {
@@ -511,7 +520,11 @@ private fun KeyButton(
                                 popupSelection?.let { currentAlternates.getOrNull(it)?.onSelect?.invoke() }
                                 break
                             }
-                            popupSelection = (change.position.x / cellPx).toInt().coerceIn(0, count - 1)
+                            val selection = (change.position.x / cellPx).toInt().coerceIn(0, count - 1)
+                            if (selection != popupSelection) {
+                                view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                                popupSelection = selection
+                            }
                         }
                     } finally {
                         popupSelection = null
@@ -526,6 +539,7 @@ private fun KeyButton(
             .size(width = finalWidth, height = buttonWidth)
             .clip(RoundedCornerShape(16.dp))
             .background(defaultBg)
+            .then(touchFeedback)
             .then(gestureModifier),
         contentAlignment = Alignment.Center
     ) {
