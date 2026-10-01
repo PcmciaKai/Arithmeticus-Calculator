@@ -186,6 +186,22 @@ class UnitsTest {
     }
 
     @Test
+    fun chemistryAndElectromagneticConstants() {
+        // F = N_A · e
+        val faraday = calc(ms(ConstantNode("F")))
+        assertTrue(faraday.issues.toString(), faraday.isSuccess)
+        assertEquals(96485.33212, faraday.numericValue, 1e-6)
+        // 1 / (4π ε₀) = k_e
+        val coulomb = calc(ms(FractionNode(ms(n("1")), ms(n("4"), ConstantNode("π"), ConstantNode("ε₀")))))
+        assertTrue(coulomb.issues.toString(), coulomb.isSuccess)
+        assertEquals(8.9875517923e9, coulomb.numericValue, 1e0)
+        for (name in listOf("m_n", "m_u", "V_m", "μ₀", "k_e", "α", "a₀", "R_∞", "μ_B", "σ", "b")) {
+            val res = calc(ms(ConstantNode(name)))
+            assertTrue("$name: ${res.issues}", res.isSuccess)
+        }
+    }
+
+    @Test
     fun temperatureDifferencesAndOffsets() {
         assertResult("60Δ°C", calc(ms(n("80"), u("°C"), op(MathOp.MINUS), n("20"), u("°C"))))
         assertResult("108Δ°F", calc(ms(n("80"), u("°C"), op(MathOp.MINUS), n("20"), u("°C")), UnitSystem.IMPERIAL))

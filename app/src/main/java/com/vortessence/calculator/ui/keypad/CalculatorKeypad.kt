@@ -39,6 +39,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -50,6 +51,7 @@ import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
@@ -102,12 +104,25 @@ sealed class KeyAction {
 }
 
 /** A second (or third) function of a key, reachable via long press. */
-private class KeyAlternate(val label: String, val onSelect: () -> Unit)
+private class KeyAlternate(val label: AnnotatedString, val onSelect: () -> Unit)
+
+/**
+ * A label with a raised and/or lowered part, drawn in Roboto: the font lacks most
+ * superscript and subscript characters (ᵀ, ⁻, ₙ, ˣ), which would fall back to another font.
+ */
+private fun scriptLabel(base: String, sup: String = "", sub: String = ""): AnnotatedString = buildAnnotatedString {
+    append(base)
+    if (sup.isNotEmpty()) withStyle(SpanStyle(fontSize = 0.65.em, baselineShift = BaselineShift(0.6f))) { append(sup) }
+    if (sub.isNotEmpty()) withStyle(SpanStyle(fontSize = 0.65.em, baselineShift = BaselineShift(-0.2f))) { append(sub) }
+}
 
 // Column counts of the three pages; five columns are visible at once, so the
 // narrower side pages also show the adjacent columns of the main page.
 private const val LEFT_COLUMNS = 4
 private const val VISIBLE_COLUMNS = 5
+
+/** Where the long-press functions of a key are hinted, in order. */
+private val HINT_POSITIONS = listOf(Alignment.BottomStart, Alignment.BottomCenter, Alignment.BottomEnd)
 
 @Composable
 private fun keypadColors(): KeypadColors =
@@ -121,7 +136,9 @@ fun CalculatorKeypad(
 ) {
     val coroutineScope = rememberCoroutineScope()
     val keyColors = keypadColors()
-    fun alt(label: String, action: KeyAction) = KeyAlternate(label) { onKeyAction(action) }
+    fun alt(label: CharSequence, action: KeyAction) = KeyAlternate(
+        label as? AnnotatedString ?: AnnotatedString(label.toString())
+    ) { onKeyAction(action) }
 
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
         val spacing = 8.dp
@@ -254,7 +271,7 @@ fun CalculatorKeypad(
                         text = "x²",
                         buttonWidth = buttonWidth,
                         isAccent = true,
-                        alternates = listOf(alt("xⁿ", KeyAction.Power), alt("x⁻¹", KeyAction.Reciprocal))
+                        alternates = listOf(alt(scriptLabel("x", sup = "n"), KeyAction.Power), alt(scriptLabel("x", sup = "−1"), KeyAction.Reciprocal))
                     ) { onKeyAction(KeyAction.Square) }
                     KeyButton(
                         text = "√x",
@@ -290,7 +307,7 @@ fun CalculatorKeypad(
                         text = "[M]",
                         buttonWidth = buttonWidth,
                         isAccent = true,
-                        alternates = listOf(alt("Aᵀ", KeyAction.Transpose), alt("det", KeyAction.Function("det")))
+                        alternates = listOf(alt(scriptLabel("[M]", sup = "T"), KeyAction.Transpose), alt("det", KeyAction.Function("det")))
                     ) { onKeyAction(KeyAction.Matrix) }
                     KeyButton(text = "e", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Constant("e")) }
                     KeyButton(text = "ln", buttonWidth = buttonWidth, isAccent = true) { onKeyAction(KeyAction.Function("ln")) }
@@ -298,7 +315,7 @@ fun CalculatorKeypad(
                         text = "log",
                         buttonWidth = buttonWidth,
                         isAccent = true,
-                        alternates = listOf(alt("logₙ", KeyAction.LogBase))
+                        alternates = listOf(alt(scriptLabel("log", sub = "n"), KeyAction.LogBase))
                     ) { onKeyAction(KeyAction.Function("log")) }
 
                     // Page 1 (cols 4..8)
@@ -415,12 +432,8 @@ fun CalculatorKeypad(
                         buttonWidth = buttonWidth,
                         isAccent = true,
                         content = {
-                            // ×10ˣ with a real superscript: Roboto has no "ˣ" glyph
                             Text(
-                                text = buildAnnotatedString {
-                                    append("×10")
-                                    withStyle(SpanStyle(fontSize = 13.sp, baselineShift = BaselineShift(0.6f))) { append("x") }
-                                },
+                                text = scriptLabel("×10", sup = "x"),
                                 fontSize = 20.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = keyColors.functionText
@@ -510,7 +523,9 @@ private fun KeyButton(
         val interactionSource = remember { MutableInteractionSource() }
         val cellPx = with(LocalDensity.current) { buttonWidth.toPx() }
         val currentOnClick by rememberUpdatedState(onClick)
-        val currentAlternates by rememberUpdatedState(alternates)
+        // The popup starts with the main function, preselected, so an accidental long press
+        // does what a tap would have done
+        val popupEntries by rememberUpdatedState(listOf(KeyAlternate(AnnotatedString(text.orEmpty()), onClick)) + alternates)
         Modifier
             .indication(interactionSource, LocalIndication.current)
             .pointerInput(cellPx) {
@@ -537,14 +552,14 @@ private fun KeyButton(
 
                     // Long press: the finger slides over the alternates, lifting it picks one
                     view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                    val count = currentAlternates.size
+                    val count = popupEntries.size
                     popupSelection = 0
                     try {
                         while (true) {
                             val change = awaitPointerEvent().changes.firstOrNull { it.id == down.id } ?: break
                             change.consume()
                             if (!change.pressed) {
-                                popupSelection?.let { currentAlternates.getOrNull(it)?.onSelect?.invoke() }
+                                popupSelection?.let { popupEntries.getOrNull(it)?.onSelect?.invoke() }
                                 break
                             }
                             val selection = (change.position.x / cellPx).toInt().coerceIn(0, count - 1)
@@ -583,25 +598,26 @@ private fun KeyButton(
             icon()
         }
 
-        if (alternates.isNotEmpty()) {
+        // Second function bottom left, third bottom centre, a fourth would go bottom right
+        alternates.take(HINT_POSITIONS.size).forEachIndexed { index, alternate ->
             Text(
-                text = alternates.joinToString(" ") { it.label },
+                text = alternate.label,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Medium,
                 color = keyColors.accentText,
                 modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(start = 8.dp, bottom = 4.dp)
+                    .align(HINT_POSITIONS[index])
+                    .padding(start = 8.dp, end = 8.dp, bottom = 4.dp)
             )
         }
 
         popupSelection?.let { selected ->
-            AlternatesPopup(alternates, selected, cellWidth = buttonWidth, keyColors = keyColors)
+            AlternatesPopup(listOf(KeyAlternate(AnnotatedString(text.orEmpty()), onClick)) + alternates, selected, cellWidth = buttonWidth, keyColors = keyColors)
         }
     }
 }
 
-/** The alternates of a long-pressed key, shown above it with one cell per alternate. */
+/** The functions of a long-pressed key (main one first), shown above it with one cell each. */
 @Composable
 private fun AlternatesPopup(
     alternates: List<KeyAlternate>,

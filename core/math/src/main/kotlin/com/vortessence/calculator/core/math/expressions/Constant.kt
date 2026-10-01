@@ -70,11 +70,28 @@ class Constant(
         val GAS_CONSTANT = Constant("R", exact("8.31446261815324"), listOf("J" to 1, "mol" to -1, "K" to -1))
         val ELECTRON_MASS = Constant("m_e", exact("9.1093837015e-31"), listOf("kg" to 1))
         val PROTON_MASS = Constant("m_p", exact("1.67262192369e-27"), listOf("kg" to 1))
+        val NEUTRON_MASS = Constant("m_n", exact("1.67492749804e-27"), listOf("kg" to 1))
+        val ATOMIC_MASS = Constant("m_u", exact("1.66053906660e-27"), listOf("kg" to 1))
+        // F = N_A · e, exact
+        val FARADAY = Constant("F", exact("96485.33212"), listOf("C" to 1, "mol" to -1))
+        // Ideal gas at 273.15 K and 101.325 kPa
+        val MOLAR_VOLUME = Constant("V_m", exact("22.41396954"), listOf("L" to 1, "mol" to -1))
+        val VACUUM_PERMITTIVITY = Constant("ε₀", exact("8.8541878128e-12"), listOf("F" to 1, "m" to -1))
+        val VACUUM_PERMEABILITY = Constant("μ₀", exact("1.25663706212e-6"), listOf("H" to 1, "m" to -1))
+        val COULOMB = Constant("k_e", exact("8.9875517923e9"), listOf("N" to 1, "m" to 2, "C" to -2))
+        val FINE_STRUCTURE = Constant("α", exact("7.2973525693e-3"))
+        val BOHR_RADIUS = Constant("a₀", exact("5.29177210903e-11"), listOf("m" to 1))
+        val RYDBERG = Constant("R_∞", exact("10973731.568160"), listOf("m" to -1))
+        val BOHR_MAGNETON = Constant("μ_B", exact("9.2740100783e-24"), listOf("J" to 1, "T" to -1))
+        val STEFAN_BOLTZMANN = Constant("σ", exact("5.670374419e-8"), listOf("W" to 1, "m" to -2, "K" to -4))
+        val WIEN = Constant("b", exact("2.897771955e-3"), listOf("m" to 1, "K" to 1))
 
         private val allConstants = listOf(
             PI, E, PHI, SQRT2, C, H, H_BAR, G, GRAVITY,
             ELEMENTARY_CHARGE, BOLTZMANN, AVOGADRO, GAS_CONSTANT,
-            ELECTRON_MASS, PROTON_MASS
+            ELECTRON_MASS, PROTON_MASS, NEUTRON_MASS, ATOMIC_MASS, FARADAY, MOLAR_VOLUME,
+            VACUUM_PERMITTIVITY, VACUUM_PERMEABILITY, COULOMB, FINE_STRUCTURE, BOHR_RADIUS,
+            RYDBERG, BOHR_MAGNETON, STEFAN_BOLTZMANN, WIEN
         )
 
         fun findByName(name: String): Constant? {
@@ -92,6 +109,15 @@ class Constant(
                 "r" -> GAS_CONSTANT
                 "m_e", "me" -> ELECTRON_MASS
                 "m_p", "mp" -> PROTON_MASS
+                "m_n", "mn" -> NEUTRON_MASS
+                "m_u", "mu" -> ATOMIC_MASS
+                "ε₀", "epsilon0", "eps0" -> VACUUM_PERMITTIVITY
+                "μ₀", "mu0" -> VACUUM_PERMEABILITY
+                "α", "alpha" -> FINE_STRUCTURE
+                "a₀", "a0" -> BOHR_RADIUS
+                "r_∞", "rinf" -> RYDBERG
+                "μ_b", "mub" -> BOHR_MAGNETON
+                "σ", "sigma" -> STEFAN_BOLTZMANN
                 else -> allConstants.firstOrNull { it.name.equals(name, ignoreCase = true) }
             }
         }
