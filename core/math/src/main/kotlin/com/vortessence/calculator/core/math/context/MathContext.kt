@@ -16,7 +16,9 @@ class MathContext(
     /** Decimal places for displayed decimals; `null` = automatic (see MathWriter). */
     var decimalPlaces: Int? = null,
     /** The value "Ans" stands for, or null if there is no previous result. */
-    var ans: MathString? = null
+    var ans: MathString? = null,
+    /** Values of the variables defined with ":=", by name. */
+    var variables: Map<String, MathString> = emptyMap()
 ) {
     private val _issues = mutableListOf<MathIssue>()
     val issues: List<MathIssue> get() = _issues
@@ -57,7 +59,7 @@ class MathContext(
     }
 
     fun copy(): MathContext {
-        val copy = MathContext(mode, angleUnit, maxPrecision, unitSystem, temperatureInKelvin, decimalPlaces, ans)
+        val copy = MathContext(mode, angleUnit, maxPrecision, unitSystem, temperatureInKelvin, decimalPlaces, ans, variables)
         copy._issues.addAll(_issues)
         copy.isCancelled.set(isCancelled.get())
         copy.deadlineMillis = deadlineMillis

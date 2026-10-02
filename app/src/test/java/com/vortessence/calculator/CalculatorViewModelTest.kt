@@ -524,6 +524,70 @@ class CalculatorViewModelTest {
         assertEquals(listOf(MathIssue.NO_ANS), vm.uiState.value.result!!.issues)
     }
 
+    /** Types "name := value" and commits it. */
+    private suspend fun CalculatorViewModel.defineVariable(name: String, vararg value: String) {
+        onKeyAction(KeyAction.Variable(name))
+        onKeyAction(KeyAction.Operator(":="))
+        type(*value)
+        onKeyAction(KeyAction.Enter)
+        awaitCommit()
+    }
+
+    /** Types [keys] after variable [name] and waits for the live result. */
+    private suspend fun CalculatorViewModel.liveResultOf(name: String, vararg keys: String): String {
+        clearLine()
+        onKeyAction(KeyAction.Variable(name))
+        type(*keys)
+        awaitLiveResult()
+        return uiState.value.result!!.result.toString()
+    }
+
+    @Test
+    fun testDefinedVariableStaysUntilDefinitionIsSwipedAway() = runBlocking {
+        val vm = newViewModel()
+        vm.defineVariable("a", "2")
+        assertEquals("a = 2", vm.uiState.value.history[0].calculation.result.toString())
+        vm.type("5")
+        vm.onKeyAction(KeyAction.Enter)
+        vm.awaitCommit()
+
+        // Still defined after other calculations
+        assertEquals("3", vm.liveResultOf("a", "+", "1"))
+
+        // Swiping away the definition makes a a plain symbol again
+        vm.deleteHistoryEntry(vm.uiState.value.history.single { it.calculation.definedVariable == "a" }.id)
+        vm.awaitLiveResultText("a + 1")
+    }
+
+    @Test
+    fun testRemovingNewerDefinitionRestoresOlderOne() = runBlocking {
+        val vm = newViewModel()
+        vm.defineVariable("f", "2")
+        vm.defineVariable("f", "7")
+        assertEquals("8", vm.liveResultOf("f", "+", "1"))
+
+        vm.deleteHistoryEntry(vm.uiState.value.history[0].id)
+        vm.awaitLiveResultText("3")
+    }
+
+    @Test
+    fun testClearAllRemovesDefinitions() = runBlocking {
+        val vm = newViewModel()
+        vm.defineVariable("j", "4")
+        vm.onKeyAction(KeyAction.Clear) // line is empty: clears everything
+        assertTrue(vm.uiState.value.history.isEmpty())
+        assertEquals("j + 1", vm.liveResultOf("j", "+", "1"))
+    }
+
+    private suspend fun CalculatorViewModel.awaitLiveResultText(expected: String) {
+        var attempts = 0
+        while (uiState.value.result?.result?.toString() != expected && attempts < 100) {
+            delay(20)
+            attempts++
+        }
+        assertEquals(expected, uiState.value.result?.result?.toString())
+    }
+
     @Test
     fun testLiveResultUpdatesWhileTyping() = runBlocking {
         val vm = newViewModel()

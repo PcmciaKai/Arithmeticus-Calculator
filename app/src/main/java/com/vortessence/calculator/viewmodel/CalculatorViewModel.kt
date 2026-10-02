@@ -131,7 +131,8 @@ class CalculatorViewModel @JvmOverloads constructor(
         val unitSystem: UnitSystem,
         val temperatureInKelvin: Boolean,
         val decimalPlaces: Int?,
-        val ans: MathString?
+        val ans: MathString?,
+        val variables: Map<String, MathString>
     ) {
         // Always exact; decimal display is a matter of the result form
         fun toMathContext() = MathContext(
@@ -140,16 +141,27 @@ class CalculatorViewModel @JvmOverloads constructor(
             unitSystem = unitSystem,
             temperatureInKelvin = temperatureInKelvin,
             decimalPlaces = decimalPlaces,
-            ans = ans
+            ans = ans,
+            variables = variables
         )
     }
 
     private fun CalculatorUiState.mathContext() =
-        Settings(angleUnit, unitSystem, temperatureInKelvin, decimalPlaces, ans())
+        Settings(angleUnit, unitSystem, temperatureInKelvin, decimalPlaces, ans(), variables())
 
     /** Ans is the most recently committed result, not the live result of this line. */
     private fun CalculatorUiState.ans(): MathString? =
         history.firstNotNullOfOrNull { it.calculation.answer }
+
+    /**
+     * Variables defined with ":=" by calculations in the history; the newest definition of a
+     * name wins. A variable stays defined until its definition is removed from the history.
+     */
+    private fun CalculatorUiState.variables(): Map<String, MathString> =
+        history.asReversed().mapNotNull { entry ->
+            val name = entry.calculation.definedVariable ?: return@mapNotNull null
+            entry.calculation.answer?.let { name to it }
+        }.toMap()
 
     private fun loadSettings() {
         val savedAngleStr = prefs?.getString("angle_unit", AngleUnit.RADIANS.name) ?: AngleUnit.RADIANS.name
@@ -192,6 +204,7 @@ class CalculatorViewModel @JvmOverloads constructor(
                         "−", "-" -> MathOp.MINUS
                         "×", "*" -> MathOp.MULTIPLY
                         "=" -> MathOp.EQUALS
+                        ":=" -> MathOp.DEFINE
                         "!" -> MathOp.FACTORIAL
                         else -> MathOp.PLUS
                     }

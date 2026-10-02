@@ -15,7 +15,9 @@ enum class MathOp(val symbol: String, val precedence: Int) {
     EQUALS("=", 0),
     FACTORIAL("!", 3),
     /** Unit conversion, e.g. "5 km → mi". Binds weakest of all operators. */
-    CONVERT("→", -1)
+    CONVERT("→", -1),
+    /** Definition of a variable, "a := 2x²". Only valid right after the variable at the start of a line. */
+    DEFINE(":=", -2)
 }
 
 data class NumberNode(val text: String) : MathNode() {

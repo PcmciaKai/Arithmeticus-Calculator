@@ -9,6 +9,7 @@ import com.vortessence.calculator.core.math.expressions.MatrixExpression
 import com.vortessence.calculator.core.math.expressions.Value
 import com.vortessence.calculator.core.math.expressions.Variable
 import com.vortessence.calculator.core.math.expressions.UnitConversion
+import com.vortessence.calculator.core.math.expressions.substituteVariables
 import com.vortessence.calculator.core.math.expressions.toPreferredUnits
 import com.vortessence.calculator.core.math.solvers.Function1D
 import com.vortessence.calculator.core.math.solvers.ImplicitCurve
@@ -17,10 +18,13 @@ import com.vortessence.calculator.core.math.solvers.LinearSystemSolver
 import com.vortessence.calculator.core.math.solvers.NumericIntegrator
 import com.vortessence.calculator.core.math.solvers.NumericRootFinder
 import com.vortessence.calculator.core.math.solvers.PlotCurve
+import com.vortessence.calculator.core.math.type.MathOp
 import com.vortessence.calculator.core.math.type.MathParser
 import com.vortessence.calculator.core.math.type.MathString
 import com.vortessence.calculator.core.math.type.MathWriter
+import com.vortessence.calculator.core.math.type.OperatorNode
 import com.vortessence.calculator.core.math.type.TextNode
+import com.vortessence.calculator.core.math.type.VariableNode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.ensureActive
@@ -44,7 +48,9 @@ data class CalculationResult(
     val answer: MathString? = if (isSuccess) result else null,
     val unit: MathString? = null,
     /** The decimal places setting [result] was written with (null = automatic). */
-    val decimalPlaces: Int? = null
+    val decimalPlaces: Int? = null,
+    /** For a definition such as "a := 2x²" the defined variable ("a"); its value is [answer]. */
+    val definedVariable: String? = null
 )
 
 data class PlotPoint(val x: Double, val y: Double)
@@ -105,9 +111,15 @@ object MathEngine {
     }
 
     private fun evaluate(input: MathString, ctx: MathContext): CalculationResult {
-        val parsed = parser.parse(input)
+        val definition = splitDefinition(input)
+        if (definition != null && definition.value.isEmpty) return failure(input, ctx, MathIssue.SYNTAX_ERROR)
+        val parsed = parse(definition?.value ?: input, ctx)
         if (ctx.shouldStop) return failure(input, ctx, expression = parsed)
 
+        if (definition != null && (parsed is Equals || parsed is EquationSystem)) {
+            // A variable stands for a value, not for an equation
+            return failure(input, ctx, MathIssue.SYNTAX_ERROR, parsed)
+        }
         if (parsed is Equals) return evaluateEquation(input, parsed, ctx)
         if (parsed is EquationSystem) return evaluateSystem(input, parsed, ctx)
 
@@ -128,16 +140,38 @@ object MathEngine {
         }
         val display = displayWriter(ctx)
         val issues = ctx.issues
+        // A definition shows what the variable now stands for: "a = 2x²"
+        val shown = if (definition != null) Equals(Variable(definition.name), simplified) else simplified
         return CalculationResult(
             input = input,
-            result = display.write(simplified),
+            result = display.write(shown),
             expression = simplified,
             numericValue = numVal,
             issues = issues,
             answer = if (issues.isEmpty()) answerWriter.write(simplified) else null,
             unit = simplified.partWithUnit()?.let { display.writeUnit(it) },
-            decimalPlaces = ctx.decimalPlaces
+            decimalPlaces = ctx.decimalPlaces,
+            definedVariable = definition?.name
         )
+    }
+
+    /** "a := 2x²": the variable [name] gets the [value] on the right. */
+    private class Definition(val name: String, val value: MathString)
+
+    /** The definition in [input], or null if it is none (a misplaced ":=" is left to the parser). */
+    private fun splitDefinition(input: MathString): Definition? {
+        val nodes = input.nodes
+        if (nodes.size < 2 || (nodes[1] as? OperatorNode)?.op != MathOp.DEFINE) return null
+        val name = (nodes[0] as? VariableNode)?.name ?: return null
+        return Definition(name, MathString(nodes.subList(2, nodes.size)))
+    }
+
+    /** Parses [input] and replaces the variables defined in [ctx] by their values. */
+    private fun parse(input: MathString, ctx: MathContext): Expression {
+        val parsed = parser.parse(input)
+        if (ctx.variables.isEmpty() || ctx.shouldStop) return parsed
+        val values = ctx.variables.entries.associate { (name, value) -> Variable(name) to parser.parse(value) }
+        return parsed.substituteVariables(values)
     }
 
     private fun evaluateEquation(input: MathString, equation: Equals, ctx: MathContext): CalculationResult {
@@ -270,7 +304,7 @@ object MathEngine {
         execContext.deadlineMillis = System.currentTimeMillis() + DEFAULT_TIMEOUT_MILLIS
         try {
             MathContext.withContext(execContext) {
-                val parsed = parser.parse(input)
+                val parsed = parse(input, execContext)
                 if (parsed is Equals && !execContext.shouldStop) {
                     val solutions = parsed.solveForVariable(variable, execContext)
                     solutions.map { writer.write(it) }
@@ -297,7 +331,7 @@ object MathEngine {
         execContext.deadlineMillis = System.currentTimeMillis() + DEFAULT_TIMEOUT_MILLIS
         try {
             MathContext.withContext(execContext) {
-                val parsed = parser.parse(input)
+                val parsed = parse(input, execContext)
                 if (execContext.shouldStop) null else PlotCurve.fromExpression(parsed, execContext)
             }
         } catch (e: ArithmeticException) {

@@ -22,3 +22,27 @@ data class Variable(val identifier: String) : Expression() {
 
     override fun toString(): String = identifier
 }
+
+/**
+ * Replaces the free variables in [values] by their values, e.g. a by 2x² after "a := 2x²".
+ * Values may use other variables, which are replaced as well; a variable is not replaced
+ * within its own value, so definitions such as "x := 2x" cannot expand forever.
+ * Integration variables are bound and keep their meaning inside the integrand.
+ */
+fun Expression.substituteVariables(values: Map<Variable, Expression>): Expression {
+    if (values.isEmpty()) return this
+    return when (this) {
+        is Variable -> values[this]?.substituteVariables(values - this) ?: this
+        is Integral -> Integral(
+            lowerBound.substituteVariables(values),
+            upperBound.substituteVariables(values),
+            integrand.substituteVariables(values - variable),
+            variable
+        )
+        else -> {
+            val oldChildren = children
+            val newChildren = oldChildren.map { it.substituteVariables(values) }
+            if (newChildren.indices.all { newChildren[it] === oldChildren[it] }) this else copyWithChildren(newChildren)
+        }
+    }
+}

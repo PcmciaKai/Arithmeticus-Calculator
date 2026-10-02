@@ -275,6 +275,11 @@ class MathParser {
                         Equals(left, right)
                     }
                     MathOp.FACTORIAL -> left
+                    // Definitions are split off by MathEngine; anywhere else ":=" is invalid
+                    MathOp.DEFINE -> {
+                        syntaxError()
+                        left
+                    }
                     MathOp.CONVERT -> {
                         if (left is UnitConversion || right is UnitConversion) syntaxError()
                         UnitConversion(left, right)

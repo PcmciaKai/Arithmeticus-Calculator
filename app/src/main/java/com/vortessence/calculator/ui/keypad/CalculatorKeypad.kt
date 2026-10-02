@@ -139,6 +139,8 @@ fun CalculatorKeypad(
     fun alt(label: CharSequence, action: KeyAction) = KeyAlternate(
         label as? AnnotatedString ?: AnnotatedString(label.toString())
     ) { onKeyAction(action) }
+    // Letters that do not look like a constant (e, c, h, ...) or a unit (g, d, ...)
+    fun variableAlternates(vararg names: String) = names.map { alt(it, KeyAction.Variable(it)) }
 
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
         val spacing = 8.dp
@@ -408,21 +410,26 @@ fun CalculatorKeypad(
                 // Row 4
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing)) {
                     // Page 0 (cols 0..3)
-                    KeyButton(text = "=", buttonWidth = buttonWidth, isAccent = true) { onKeyAction(KeyAction.Operator("=")) }
+                    KeyButton(
+                        text = "=",
+                        buttonWidth = buttonWidth,
+                        isAccent = true,
+                        alternates = listOf(alt(":=", KeyAction.Operator(":=")))
+                    ) { onKeyAction(KeyAction.Operator("=")) }
                     KeyButton(
                         text = "x",
                         buttonWidth = buttonWidth,
-                        alternates = listOf(alt("a", KeyAction.Variable("a")))
+                        alternates = variableAlternates("a", "f", "j")
                     ) { onKeyAction(KeyAction.Variable("x")) }
                     KeyButton(
                         text = "y",
                         buttonWidth = buttonWidth,
-                        alternates = listOf(alt("b", KeyAction.Variable("b")))
+                        alternates = variableAlternates("k", "n", "p")
                     ) { onKeyAction(KeyAction.Variable("y")) }
                     KeyButton(
                         text = "z",
                         buttonWidth = buttonWidth,
-                        alternates = listOf(alt("c", KeyAction.Variable("c")))
+                        alternates = variableAlternates("q", "r", "u")
                     ) { onKeyAction(KeyAction.Variable("z")) }
 
                     // Page 1 (cols 4..8)
