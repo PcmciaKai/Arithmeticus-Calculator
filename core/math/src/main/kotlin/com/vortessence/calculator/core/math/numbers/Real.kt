@@ -1,6 +1,5 @@
 package com.vortessence.calculator.core.math.numbers
 
-import java.util.Locale
 import kotlin.math.*
 
 /**
@@ -15,7 +14,6 @@ class Real(val value: Double) : Comparable<Real> {
     val isNaN: Boolean get() = value.isNaN()
     val isInfinite: Boolean get() = value.isInfinite()
     val isFinite: Boolean get() = !value.isNaN() && !value.isInfinite()
-    val isPositive: Boolean get() = value > 0.0
     val isNegative: Boolean get() = value < 0.0
     val isZero: Boolean get() = value == 0.0
 
@@ -35,7 +33,6 @@ class Real(val value: Double) : Comparable<Real> {
 
     fun abs(): Real = Real(abs(value))
     fun inv(): Real = Real(1.0 / value)
-    fun sqr(): Real = Real(value * value)
     fun sqrt(): Real = Real(sqrt(value))
     fun pow(exponent: Real): Real = Real(value.pow(exponent.value))
     fun pow(exponent: Double): Real = Real(value.pow(exponent))
@@ -68,18 +65,12 @@ class Real(val value: Double) : Comparable<Real> {
 
     override fun toString(): String = value.toString()
 
-    fun scientificFormatString(): String = String.format(Locale.US, "%.10E", value)
-
     companion object {
         val ZERO = Real(0.0)
         val ONE = Real(1.0)
         val MINUS_ONE = Real(-1.0)
-        val PI = Real(Math.PI)
-        val E = Real(Math.E)
+        val PI = Real(kotlin.math.PI)
+        val E = Real(kotlin.math.E)
         val POSITIVE_INFINITY = Real(Double.POSITIVE_INFINITY)
-        val NEGATIVE_INFINITY = Real(Double.NEGATIVE_INFINITY)
-        val NAN = Real(Double.NaN)
-
-        fun atan2(y: Real, x: Real): Real = Real(atan2(y.value, x.value))
     }
 }

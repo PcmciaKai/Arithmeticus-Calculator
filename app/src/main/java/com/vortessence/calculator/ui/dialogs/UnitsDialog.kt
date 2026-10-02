@@ -129,7 +129,7 @@ fun UnitsDialog(
                             )
                         }
                     }
-                    items(families, key = { "${title}-${it.name}" }) { family ->
+                    items(families, key = { "$title-${it.name}" }) { family ->
                         UnitFamilyRow(family = family, onUnitSelected = onUnitSelected)
                     }
                 }

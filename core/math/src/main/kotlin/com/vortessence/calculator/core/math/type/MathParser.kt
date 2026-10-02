@@ -8,6 +8,7 @@ import com.vortessence.calculator.core.math.numbers.Rational
 import com.vortessence.calculator.core.math.numbers.Real
 import java.math.BigDecimal
 import java.math.BigInteger
+import kotlin.math.floor
 
 /**
  * Converts a [MathString] into an [Expression]. Problems such as empty slots, dangling
@@ -338,7 +339,7 @@ class MathParser {
                     else r.numerator.toLong()
                 } else {
                     val d = value.real.value
-                    if (d >= 0.0 && d == Math.floor(d)) minOf(d, (MAX_FACTORIAL + 1).toDouble()).toLong() else null
+                    if (d >= 0.0 && d == floor(d)) minOf(d, (MAX_FACTORIAL + 1).toDouble()).toLong() else null
                 }
             }
             return when {

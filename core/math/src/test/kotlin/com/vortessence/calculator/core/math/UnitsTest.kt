@@ -7,6 +7,7 @@ import com.vortessence.calculator.core.math.context.UnitSystem
 import com.vortessence.calculator.core.math.expressions.Dimension
 import com.vortessence.calculator.core.math.expressions.UnitRegistry
 import com.vortessence.calculator.core.math.type.*
+import kotlin.math.PI
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Test
@@ -108,7 +109,7 @@ class UnitsTest {
         val rad = calc(ms(n("180"), u("°")))
         assertTrue(rad.isSuccess)
         assertEquals("rad", rad.unit.toString())
-        assertEquals(Math.PI, rad.expression.withoutUnitNumeric(), 1e-12)
+        assertEquals(PI, rad.expression.withoutUnitNumeric(), 1e-12)
     }
 
     @Test

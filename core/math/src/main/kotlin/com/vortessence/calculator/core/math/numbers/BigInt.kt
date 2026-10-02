@@ -12,8 +12,6 @@ class BigInt(val value: BigInteger) : Comparable<BigInt> {
     constructor(str: String) : this(BigInteger(str))
 
     val isZero: Boolean get() = value == BigInteger.ZERO
-    val isOne: Boolean get() = value == BigInteger.ONE
-    val isPositive: Boolean get() = value.signum() > 0
     val isNegative: Boolean get() = value.signum() < 0
     val isEven: Boolean get() = !value.testBit(0)
     val isOdd: Boolean get() = value.testBit(0)
@@ -65,11 +63,6 @@ class BigInt(val value: BigInteger) : Comparable<BigInt> {
     }
 
     fun gcd(other: BigInt): BigInt = BigInt(value.gcd(other.value))
-
-    fun lcm(other: BigInt): BigInt {
-        if (isZero || other.isZero) return ZERO
-        return (this * other).abs() / gcd(other)
-    }
 
     override fun compareTo(other: BigInt): Int = value.compareTo(other.value)
     fun compareTo(other: Long): Int = value.compareTo(BigInteger.valueOf(other))

@@ -17,7 +17,6 @@ val LavenderLight = Color(0xFF4F4585)
 val SlateLightBg = Color(0xFFF6F7F9)
 val SlateLightSurface = Color(0xFFFFFFFF)
 val SlateLightKey = Color(0xFFE9E9EE)
-val SlateLightKeyAction = Color(0xFFD6DBE4)
 val SlateLightText = Color(0xFF1C1C1E)
 val SlateLightTextSecondary = Color(0xFF8E8E93)
 

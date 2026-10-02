@@ -69,10 +69,6 @@ data class PlotData(
     val yIntercepts: List<Double> = emptyList()
 ) {
     val extrema: List<PlotPoint> get() = maxima + minima
-
-    companion object {
-        val EMPTY = PlotData(emptyList(), emptyList(), emptyList(), emptyList())
-    }
 }
 
 object MathEngine {

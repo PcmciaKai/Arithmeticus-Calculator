@@ -97,7 +97,7 @@ class Additions(val operands: List<Expression>) : Expression() {
 
     override fun toString(): String {
         return operands.joinToString(" + ") {
-            if (it.isNegative) "(${it})" else it.toString()
+            if (it.isNegative) "($it)" else it.toString()
         }
     }
 

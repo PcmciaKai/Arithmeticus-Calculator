@@ -108,7 +108,7 @@ fun SettingsDialog(
                             Text("Decimal places", fontWeight = FontWeight.Medium, fontSize = 15.sp)
                             Text(
                                 if (decimalPlaces == null) "Automatic, up to 10 significant digits"
-                                else "Always $decimalPlaces, e.g. ${String.format(Locale.US, "%.${decimalPlaces}f", 2.5)}",
+                                else "Always $decimalPlaces, e.g. ${"%.${decimalPlaces}f".format(Locale.US, 2.5)}",
                                 fontSize = 13.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

@@ -1,5 +1,7 @@
 package com.vortessence.calculator.core.math.numbers
 
+import kotlin.math.abs
+
 /**
  * Exact arbitrary-precision rational number (fraction) representing numerator / denominator.
  * Automatically canonicalized to lowest terms with positive denominator.
@@ -11,8 +13,6 @@ class Rational private constructor(
 
     val isFractional: Boolean get() = denominator != BigInt.ONE
     val isZero: Boolean get() = numerator.isZero
-    val isOne: Boolean get() = numerator == BigInt.ONE && denominator == BigInt.ONE
-    val isPositive: Boolean get() = numerator.isPositive
     val isNegative: Boolean get() = numerator.isNegative
     val signum: Int get() = numerator.signum
 
@@ -135,9 +135,9 @@ class Rational private constructor(
                 h1 = h2
                 k0 = k1
                 k1 = k2
-                if (Math.abs(b - a.toDouble()) < 1e-12) break
+                if (abs(b - a.toDouble()) < 1e-12) break
                 b = 1.0 / (b - a.toDouble())
-            } while (Math.abs(x - h1.toDouble() / k1.toDouble()) > 1e-9)
+            } while (abs(x - h1.toDouble() / k1.toDouble()) > 1e-9)
 
             if (k1 == 0L) return null
             val finalH = if (isNeg) -h1 else h1

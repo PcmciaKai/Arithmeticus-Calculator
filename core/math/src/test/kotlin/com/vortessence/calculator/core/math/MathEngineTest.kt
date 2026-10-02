@@ -11,6 +11,8 @@ import com.vortessence.calculator.core.math.solvers.NumericIntegrator
 import com.vortessence.calculator.core.math.solvers.NumericRootFinder
 import com.vortessence.calculator.core.math.solvers.PlotCurve
 import com.vortessence.calculator.core.math.type.*
+import kotlin.math.PI
+import kotlin.math.roundToLong
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Test
@@ -293,8 +295,8 @@ class MathEngineTest {
         assertEquals(-1.0 / 3.0, NumericIntegrator.integrate(square, 1.0, 0.0), 1e-12)
 
         val sine = Function1D(TrigonometricFunction(TrigType.SIN, x, AngleUnit.RADIANS), x)
-        assertEquals(2.0, NumericIntegrator.integrate(sine, 0.0, Math.PI), 1e-10)
-        assertEquals(0.0, NumericIntegrator.integrate(sine, -Math.PI, Math.PI), 1e-10)
+        assertEquals(2.0, NumericIntegrator.integrate(sine, 0.0, PI), 1e-10)
+        assertEquals(0.0, NumericIntegrator.integrate(sine, -PI, PI), 1e-10)
 
         // Across a pole the integral diverges
         val reciprocal = Function1D(Power(x, Value.MINUS_ONE), x)
@@ -336,7 +338,7 @@ class MathEngineTest {
         assertTrue(curve.slopeAt(0.5, 0.5).isInfinite())
         val r = 0.5 / kotlin.math.sqrt(2.0)
         assertEquals(-1.0, curve.slopeAt(r, 0.5 + r), 1e-6)
-        assertEquals(listOf(1.0), ImplicitPlotter.yIntercepts(curve, 0.2, 2.0).map { Math.round(it * 1e6) / 1e6 })
+        assertEquals(listOf(1.0), ImplicitPlotter.yIntercepts(curve, 0.2, 2.0).map { (it * 1e6).roundToLong() / 1e6 })
     }
 
     @Test

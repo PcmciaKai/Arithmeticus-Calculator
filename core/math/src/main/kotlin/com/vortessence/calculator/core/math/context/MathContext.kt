@@ -34,12 +34,6 @@ class MathContext(
         isCancelled.set(true)
     }
 
-    fun reportIssue(issue: MathIssue) {
-        if (!_issues.contains(issue)) {
-            _issues.add(issue)
-        }
-    }
-
     fun cancel() {
         isCancelled.set(true)
     }
@@ -49,12 +43,6 @@ class MathContext(
 
     val isTimedOut: Boolean
         get() = System.currentTimeMillis() > deadlineMillis
-
-    fun reset() {
-        _issues.clear()
-        isCancelled.set(false)
-        deadlineMillis = Long.MAX_VALUE
-    }
 
     fun copy(): MathContext {
         val copy = MathContext(mode, angleUnit, maxPrecision, unitSystem, decimalPlaces, ans, variables)

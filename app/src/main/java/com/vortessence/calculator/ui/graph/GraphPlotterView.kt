@@ -822,13 +822,13 @@ internal fun formatGraphNumber(value: Double, significantDigits: Int = 6): Strin
     if (magnitude >= 1e-4 && magnitude < 1e7) return rounded.toPlainString()
     val exponent = rounded.precision() - rounded.scale() - 1
     val mantissa = rounded.movePointLeft(exponent).toPlainString()
-    return "${mantissa}\u00D710${toSuperscript(exponent)}"
+    return "$mantissa\u00D710${toSuperscript(exponent)}"
 }
 
 /** Short x-value for point labels: at most three decimals, so -10.996 does not become -11. */
 private fun formatKeyPointX(x: Double): String {
     if (abs(x) < 5e-4) return "0"
-    return String.format(Locale.US, "%.3f", x).trimEnd('0').trimEnd('.')
+    return "%.3f".format(Locale.US, x).trimEnd('0').trimEnd('.')
 }
 
 private fun toSuperscript(n: Int): String {
@@ -1146,7 +1146,7 @@ private fun DrawScope.drawGrid(
 /** Formats a grid value with just enough decimals for the step size (e.g. 0.5, 0.2). */
 private fun formatGridLabel(value: Double, step: Double): String {
     val decimals = if (step >= 1.0) 0 else ceil(-log10(step)).toInt()
-    return String.format(Locale.US, "%.${decimals}f", value)
+    return "%.${decimals}f".format(Locale.US, value)
 }
 
 private fun calculateGridStep(scale: Float, minSpacing: Float): Double {

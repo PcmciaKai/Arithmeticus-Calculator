@@ -21,7 +21,6 @@ class Value(
 
     override val isNegative: Boolean get() = real.isNegative
     override val isZero: Boolean get() = real.isZero
-    val isOne: Boolean get() = rational?.isOne == true || real.value == 1.0
 
     override fun coefficient(): Value = this
     override fun partWithoutCoefficient(): Expression? = null

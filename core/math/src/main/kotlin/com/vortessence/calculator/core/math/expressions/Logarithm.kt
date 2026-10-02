@@ -5,6 +5,7 @@ import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.context.MathIssue
 import com.vortessence.calculator.core.math.numbers.Rational
 import com.vortessence.calculator.core.math.numbers.Real
+import kotlin.math.E
 import kotlin.math.abs
 import kotlin.math.ln
 import kotlin.math.roundToLong
@@ -91,7 +92,7 @@ class Logarithm(
     override fun hashCode(): Int = base.hashCode() * 31 + operand.hashCode()
 
     override fun toString(): String {
-        return if (base == Constant.E || (base is Value && base.real.value == Math.E)) {
+        return if (base == Constant.E || (base is Value && base.real.value == E)) {
             "ln($operand)"
         } else if (base is Value && base.real.value == 10.0) {
             "log10($operand)"

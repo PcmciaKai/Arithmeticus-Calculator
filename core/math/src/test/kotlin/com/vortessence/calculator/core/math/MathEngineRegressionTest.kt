@@ -15,6 +15,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Test
 import java.math.BigInteger
+import kotlin.math.E
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
@@ -124,7 +125,7 @@ class MathEngineRegressionTest {
         val eToX = ExponentNode(ms(ConstantNode("e")), ms(v("x")))
         val res = calc(ms(IntegralNode(ms(n("0")), ms(n("1")), ms(eToX))))
         assertSuccess(res)
-        assertEquals(Math.E - 1, res.numericValue, 1e-9)
+        assertEquals(E - 1, res.numericValue, 1e-9)
         assertTrue(res.result.nodes.none { it is FractionNode })
 
         val sinIntegral = calc(ms(IntegralNode(ms(n("0")), ms(ConstantNode("π")), ms(fn("sin", v("x"))))), CalculationMode.NUMERIC)
@@ -177,7 +178,7 @@ class MathEngineRegressionTest {
         val res = calc(ms(RadicalNode(null, ms(frac(ms(n("1")), ms(n("2")))))))
         assertSuccess(res)
         assertEquals("(sqrt(2))/(2)", res.result.toString())
-        assertEquals(Math.sqrt(0.5), res.numericValue, 1e-12)
+        assertEquals(sqrt(0.5), res.numericValue, 1e-12)
     }
 
     @Test
