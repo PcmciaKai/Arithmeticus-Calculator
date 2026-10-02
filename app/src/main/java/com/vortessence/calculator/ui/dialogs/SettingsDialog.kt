@@ -30,6 +30,11 @@ fun SettingsDialog(
     onThemeModeChange: (ThemeMode) -> Unit,
     onDismiss: () -> Unit
 ) {
+    var showSupport by remember { mutableStateOf(false) }
+    if (showSupport) {
+        SupportDialog(onDismiss = { showSupport = false })
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -154,11 +159,45 @@ fun SettingsDialog(
                         }
                     }
                 }
+
+                HorizontalDivider()
+
+                OutlinedButton(
+                    onClick = { showSupport = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("♥︎ Support this app")
+                }
             }
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
                 Text("Done")
+            }
+        },
+        shape = RoundedCornerShape(20.dp)
+    )
+}
+
+@Composable
+private fun SupportDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text("♥︎ Support this app", fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Text(
+                "I'm very glad that you like this app. This app is open-source and will always be free, " +
+                    "but I'd be happy if you were to buy me a coffee.\n\n" +
+                    "Unfortunately, due to Google's policies, I can't just add a button that would link to " +
+                    "a page where you can easily donate. I'm sure that if you can find this project on " +
+                    "my GitHub (PcmciaKai), you can also find a way to leave a tip."
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
             }
         },
         shape = RoundedCornerShape(20.dp)
