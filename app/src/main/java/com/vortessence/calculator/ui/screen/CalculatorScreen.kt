@@ -13,7 +13,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -64,9 +63,6 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
         )
         return
     }
-
-    // The unit picker reopens on the category used last
-    var unitCategory by rememberSaveable { mutableIntStateOf(0) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background
@@ -142,8 +138,9 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
         UnitsDialog(
             onDismiss = { viewModel.dismissUnitsDialog() },
             onUnitSelected = { symbol -> viewModel.insertUnit(symbol) },
-            selectedCategory = unitCategory,
-            onCategorySelected = { unitCategory = it }
+            selectedCategory = uiState.unitCategory,
+            onCategorySelected = { viewModel.selectUnitCategory(it) },
+            scrollToFamily = uiState.unitFamilyToShow
         )
     }
 

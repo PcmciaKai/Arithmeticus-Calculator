@@ -9,6 +9,8 @@ import com.vortessence.calculator.core.math.expressions.MatrixExpression
 import com.vortessence.calculator.core.math.expressions.Value
 import com.vortessence.calculator.core.math.expressions.Variable
 import com.vortessence.calculator.core.math.expressions.UnitConversion
+import com.vortessence.calculator.core.math.expressions.Dimension
+import com.vortessence.calculator.core.math.expressions.dimensionOf
 import com.vortessence.calculator.core.math.expressions.substituteVariables
 import com.vortessence.calculator.core.math.expressions.toPreferredUnits
 import com.vortessence.calculator.core.math.solvers.Function1D
@@ -333,6 +335,24 @@ object MathEngine {
             MathContext.withContext(execContext) {
                 val parsed = parse(input, execContext)
                 if (execContext.shouldStop) null else PlotCurve.fromExpression(parsed, execContext)
+            }
+        } catch (e: ArithmeticException) {
+            null
+        } catch (e: IllegalArgumentException) {
+            null
+        }
+    }
+
+    /**
+     * The physical dimension of [input], e.g. volume for "2 m³" or for an Ans that has a volume,
+     * or null if it has no (consistent) unit. Only parses, so it is fast enough to call directly.
+     */
+    fun unitDimension(input: MathString, context: MathContext = MathContext()): Dimension? {
+        val execContext = context.copy()
+        return try {
+            MathContext.withContext(execContext) {
+                val parsed = parse(input, execContext)
+                if (execContext.shouldStop) null else dimensionOf(parsed)?.takeUnless { it.isNone }
             }
         } catch (e: ArithmeticException) {
             null

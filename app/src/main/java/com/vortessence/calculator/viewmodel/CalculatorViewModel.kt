@@ -10,6 +10,7 @@ import com.vortessence.calculator.core.math.context.AngleUnit
 import com.vortessence.calculator.core.math.context.CalculationMode
 import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.context.UnitSystem
+import com.vortessence.calculator.core.math.expressions.UnitRegistry
 import com.vortessence.calculator.core.math.solvers.PlotCurve
 import com.vortessence.calculator.core.math.type.*
 import com.vortessence.calculator.ui.keypad.KeyAction
@@ -55,6 +56,10 @@ data class CalculatorUiState(
     val plotCurve: PlotCurve? = null,
     val isPlotLoading: Boolean = false,
     val showUnitsDialog: Boolean = false,
+    /** Category shown in the unit picker; it reopens on the category used last. */
+    val unitCategory: Int = 0,
+    /** Family of [unitCategory] the unit picker scrolls to when it opens, e.g. for a conversion. */
+    val unitFamilyToShow: Int? = null,
     val showConstantsDialog: Boolean = false,
     val showSettingsDialog: Boolean = false,
     val showMatrixDialog: Boolean = false,
@@ -230,11 +235,7 @@ class CalculatorViewModel @JvmOverloads constructor(
             is KeyAction.ClearAll -> clearAll()
             // One key: clears the line, or everything once the line is already empty
             is KeyAction.Clear -> if (_uiState.value.expression.isEmpty) clearAll() else clearLine()
-            is KeyAction.Convert -> {
-                insertNode(OperatorNode(MathOp.CONVERT))
-                // The target of a conversion is a unit: offer the unit picker right away
-                _uiState.update { it.copy(showUnitsDialog = true) }
-            }
+            is KeyAction.Convert -> insertConversion()
             is KeyAction.Enter -> commit()
             is KeyAction.NewLine -> insertLineBreak()
             is KeyAction.Ans -> insertAns()
@@ -349,7 +350,43 @@ class CalculatorViewModel @JvmOverloads constructor(
     }
 
     fun dismissUnitsDialog() {
-        _uiState.update { it.copy(showUnitsDialog = false) }
+        _uiState.update { it.copy(showUnitsDialog = false, unitFamilyToShow = null) }
+    }
+
+    fun selectUnitCategory(index: Int) {
+        _uiState.update { it.copy(unitCategory = index, unitFamilyToShow = null) }
+    }
+
+    /**
+     * Inserts "→". Its target is a unit, so the unit picker opens right away, on the units the
+     * value before the arrow can be converted to (e.g. volumes for "Ans →" if Ans is 2 m³).
+     */
+    private fun insertConversion() {
+        val state = _uiState.value
+        val dimension = MathEngine.unitDimension(conversionSource(state), state.mathContext().toMathContext())
+        val location = dimension?.let { UnitRegistry.locate(it) }
+        insertNode(OperatorNode(MathOp.CONVERT))
+        _uiState.update {
+            it.copy(
+                showUnitsDialog = true,
+                unitCategory = location?.category ?: it.unitCategory,
+                unitFamilyToShow = location?.family
+            )
+        }
+    }
+
+    /**
+     * What an arrow inserted at the cursor would convert: everything before it, back to the
+     * previous "=", ":=", "→" or line break.
+     */
+    private fun conversionSource(state: CalculatorUiState): MathString {
+        val target = getTargetString(state.expression, state.cursorPath)
+        val end = (state.selectionRange?.first ?: state.cursorPath.last()).coerceIn(0, target.length)
+        val before = target.nodes.subList(0, end)
+        val start = before.indexOfLast {
+            it is LineBreakNode || (it is OperatorNode && it.op in SOURCE_DELIMITERS)
+        } + 1
+        return MathString(before.subList(start, end))
     }
 
     fun dismissConstantsDialog() {
@@ -985,5 +1022,9 @@ class CalculatorViewModel @JvmOverloads constructor(
             val curve = MathEngine.createPlotCurve(expr, context)
             _uiState.update { it.copy(plotCurve = curve, isPlotLoading = false) }
         }
+    }
+
+    private companion object {
+        val SOURCE_DELIMITERS = setOf(MathOp.EQUALS, MathOp.DEFINE, MathOp.CONVERT)
     }
 }

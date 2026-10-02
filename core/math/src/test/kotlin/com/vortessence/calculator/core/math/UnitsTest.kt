@@ -247,4 +247,28 @@ class UnitsTest {
         assertEquals("m³", res.unit.toString())
         assertEquals(2 * 8.31446261815324 * 298.15 / 101300, res.numericValue, 1e-12)
     }
+
+    @Test
+    fun testUnitDimensionFindsCategoryForConversion() {
+        val categories = UnitRegistry.categories.map { it.name }
+        fun locate(input: MathString, ctx: MathContext = MathContext()) =
+            MathEngine.unitDimension(input, ctx)?.let { UnitRegistry.locate(it) }
+
+        // 2 m × 3 m × 4 m is a volume, even though no single unit node says so
+        val volume = locate(ms(n("2"), u("m"), op(MathOp.MULTIPLY), n("3"), u("m"), op(MathOp.MULTIPLY), n("4"), u("m")))
+        assertEquals("Volume", categories[volume!!.category])
+
+        // Several dimensions share a category: voltage is a family further down "Electricity"
+        val voltage = locate(ms(n("5"), u("V")))!!
+        assertEquals("Electricity", categories[voltage.category])
+        assertEquals("Voltage", UnitRegistry.categories[voltage.category].families[voltage.family].name)
+
+        // Ans and defined variables count with the unit of their value
+        val ans = MathContext(ans = ms(n("3"), u("km")))
+        assertEquals("Length", categories[locate(ms(AnsNode), ans)!!.category])
+
+        // No unit, or units that do not fit together
+        assertNull(locate(ms(n("5"))))
+        assertNull(locate(ms(n("5"), u("m"), op(MathOp.PLUS), n("2"), u("s"))))
+    }
 }

@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -26,6 +27,9 @@ import com.vortessence.calculator.core.math.expressions.UnitRegistry
  * Unit picker: categories (Length, Pressure, ...) are chosen with chips; each category shows
  * its families (e.g. "Metre: nm µm mm cm m km") as rows of tappable units. Searching looks
  * through all unit symbols, unit names, family and category names.
+ *
+ * @param scrollToFamily Family of the selected category to scroll to when the picker opens,
+ * e.g. the units a value can be converted to.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,7 +37,8 @@ fun UnitsDialog(
     onDismiss: () -> Unit,
     onUnitSelected: (String) -> Unit,
     selectedCategory: Int = 0,
-    onCategorySelected: (Int) -> Unit = {}
+    onCategorySelected: (Int) -> Unit = {},
+    scrollToFamily: Int? = null
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var query by rememberSaveable { mutableStateOf("") }
@@ -48,6 +53,14 @@ fun UnitsDialog(
                 search(category, query.trim())?.let { category.name to it }
             }
         }
+    }
+
+    val chipListState = rememberLazyListState()
+    val unitListState = rememberLazyListState()
+    // Show the selected category's chip and the requested family, even if far down the lists
+    LaunchedEffect(Unit) {
+        chipListState.scrollToItem(categoryIndex)
+        if (scrollToFamily != null) unitListState.scrollToItem(scrollToFamily)
     }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
@@ -78,7 +91,7 @@ fun UnitsDialog(
             )
 
             if (query.isBlank()) {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                LazyRow(state = chipListState, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     itemsIndexed(categories) { index, category ->
                         FilterChip(
                             selected = index == categoryIndex,
@@ -90,6 +103,7 @@ fun UnitsDialog(
             }
 
             LazyColumn(
+                state = unitListState,
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 460.dp),

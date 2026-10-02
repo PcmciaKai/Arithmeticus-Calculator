@@ -114,6 +114,9 @@ class UnitExpression(
 /** Related units shown together in the unit picker, e.g. nm, µm, mm, cm, m, km. */
 data class UnitFamily(val name: String, val units: List<UnitExpression>)
 
+/** Position of a family in [UnitRegistry.categories]. */
+data class UnitLocation(val category: Int, val family: Int)
+
 /** A group of families measuring the same kind of quantity, e.g. "Length". */
 data class UnitCategory(val name: String, val families: List<UnitFamily>) {
     val units: List<UnitExpression> get() = families.flatMap { it.units }
@@ -561,6 +564,18 @@ object UnitRegistry {
 
     init {
         require(bySymbol.size == allUnits.size) { "Unit symbols must be unique" }
+    }
+
+    /**
+     * Where units of [dimension] are listed: the first category and family with such a unit
+     * (e.g. Volume / Litre for m³), or null if no unit has this dimension.
+     */
+    fun locate(dimension: Dimension): UnitLocation? {
+        for ((categoryIndex, category) in categories.withIndex()) {
+            val familyIndex = category.families.indexOfFirst { family -> family.units.any { it.dimension == dimension } }
+            if (familyIndex >= 0) return UnitLocation(categoryIndex, familyIndex)
+        }
+        return null
     }
 
     /** Exact, case-sensitive lookup (mm and Mm, t and T are different units). */

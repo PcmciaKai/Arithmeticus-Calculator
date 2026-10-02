@@ -579,6 +579,45 @@ class CalculatorViewModelTest {
         assertEquals("j + 1", vm.liveResultOf("j", "+", "1"))
     }
 
+    private fun categoryName(vm: CalculatorViewModel) =
+        com.vortessence.calculator.core.math.expressions.UnitRegistry.categories[vm.uiState.value.unitCategory].name
+
+    @Test
+    fun testConvertingAnsOpensUnitPickerOnItsCategory() = runBlocking {
+        val vm = newViewModel()
+        vm.type("2")
+        vm.insertUnit("m³")
+        vm.onKeyAction(KeyAction.Enter)
+        vm.awaitCommit()
+
+        vm.onKeyAction(KeyAction.Ans)
+        vm.onKeyAction(KeyAction.Convert)
+        assertTrue(vm.uiState.value.showUnitsDialog)
+        assertEquals("Volume", categoryName(vm))
+        assertEquals("Ans → ", vm.uiState.value.expression.toString().trimStart())
+    }
+
+    @Test
+    fun testConvertLooksOnlyAtValueBeforeArrow() = runBlocking {
+        val vm = newViewModel()
+        // In "a := 3 h →" the value to convert is the time 3 h
+        vm.onKeyAction(KeyAction.Variable("a"))
+        vm.onKeyAction(KeyAction.Operator(":="))
+        vm.type("3")
+        vm.insertUnit("h")
+        vm.onKeyAction(KeyAction.Convert)
+        assertEquals("Time", categoryName(vm))
+        vm.dismissUnitsDialog()
+
+        // Without a unit, the picker stays on the category used last
+        vm.clearLine()
+        vm.selectUnitCategory(2)
+        vm.type("5")
+        vm.onKeyAction(KeyAction.Convert)
+        assertEquals(2, vm.uiState.value.unitCategory)
+        assertNull(vm.uiState.value.unitFamilyToShow)
+    }
+
     private suspend fun CalculatorViewModel.awaitLiveResultText(expected: String) {
         var attempts = 0
         while (uiState.value.result?.result?.toString() != expected && attempts < 100) {
