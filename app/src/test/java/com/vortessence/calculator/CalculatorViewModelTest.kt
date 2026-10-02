@@ -1,5 +1,7 @@
 import android.app.Application
 import com.vortessence.calculator.ui.theme.ThemeMode
+import com.vortessence.calculator.core.math.context.MathIssue
+import com.vortessence.calculator.core.math.type.AnsNode
 import com.vortessence.calculator.core.math.type.ExponentNode
 import com.vortessence.calculator.core.math.type.FunctionNode
 import com.vortessence.calculator.core.math.type.LogBaseNode
@@ -463,6 +465,63 @@ class CalculatorViewModelTest {
         vm.onKeyAction(KeyAction.Ans)
         vm.awaitLiveResult()
         assertEquals(-6.0, vm.uiState.value.result!!.numericValue, 1e-12)
+    }
+
+    @Test
+    fun testAnsIsInsertedAsVariableForLastResult() = runBlocking {
+        val vm = newViewModel()
+        vm.type("7")
+        vm.onKeyAction(KeyAction.Enter)
+        vm.awaitCommit()
+
+        vm.onKeyAction(KeyAction.Ans)
+        vm.type("+", "1")
+        assertEquals("Ans + 1", vm.uiState.value.expression.toString())
+        assertEquals(AnsNode, vm.uiState.value.expression.nodeAt(0))
+        vm.awaitLiveResult()
+        assertEquals("8", vm.uiState.value.result!!.result.toString())
+
+        // Committing it makes 8 the new Ans: pressing Enter on "Ans + 1" again counts up
+        vm.onKeyAction(KeyAction.Enter)
+        vm.awaitCommit()
+        vm.onKeyAction(KeyAction.Ans)
+        vm.type("+", "1")
+        vm.onKeyAction(KeyAction.Enter)
+        vm.awaitCommit()
+        assertEquals("9", vm.uiState.value.history[0].calculation.result.toString())
+    }
+
+    @Test
+    fun testAnsFollowsHistoryChanges() = runBlocking {
+        val vm = newViewModel()
+        vm.type("2")
+        vm.onKeyAction(KeyAction.Enter)
+        vm.awaitCommit()
+        vm.type("5")
+        vm.onKeyAction(KeyAction.Enter)
+        vm.awaitCommit()
+
+        vm.onKeyAction(KeyAction.Ans)
+        vm.awaitLiveResult()
+        assertEquals("5", vm.uiState.value.result!!.result.toString())
+
+        // Removing the newest calculation makes the one before it Ans again
+        vm.deleteHistoryEntry(vm.uiState.value.history[0].id)
+        var attempts = 0
+        while (vm.uiState.value.result?.result?.toString() != "2" && attempts < 100) {
+            delay(20)
+            attempts++
+        }
+        assertEquals("2", vm.uiState.value.result!!.result.toString())
+    }
+
+    @Test
+    fun testAnsWithoutPreviousResultIsAnError() = runBlocking {
+        val vm = newViewModel()
+        vm.onKeyAction(KeyAction.Ans)
+        assertEquals(AnsNode, vm.uiState.value.expression.nodeAt(0))
+        vm.awaitLiveResult()
+        assertEquals(listOf(MathIssue.NO_ANS), vm.uiState.value.result!!.issues)
     }
 
     @Test

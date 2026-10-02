@@ -101,6 +101,14 @@ class MathParser {
                     tokens.add(Token.ValueToken(constant))
                 }
                 is UnitNode -> tokens.add(Token.ValueToken(parseUnitNode(node)))
+                is AnsNode -> {
+                    // The answer is written losslessly, so parsing it again gives the exact value
+                    val ans = MathContext.current().ans?.takeIf { it.isNotEmpty } ?: run {
+                        MathContext.current().stopWithError(MathIssue.NO_ANS)
+                        MathString()
+                    }
+                    tokens.add(Token.ValueToken(parseLine(ans)))
+                }
                 is FractionNode -> {
                     val numExpr = parseSlot(node.numerator)
                     val denExpr = parseSlot(node.denominator)

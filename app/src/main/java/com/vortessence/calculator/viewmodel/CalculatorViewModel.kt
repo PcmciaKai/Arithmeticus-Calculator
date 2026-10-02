@@ -130,7 +130,8 @@ class CalculatorViewModel @JvmOverloads constructor(
         val angleUnit: AngleUnit,
         val unitSystem: UnitSystem,
         val temperatureInKelvin: Boolean,
-        val decimalPlaces: Int?
+        val decimalPlaces: Int?,
+        val ans: MathString?
     ) {
         // Always exact; decimal display is a matter of the result form
         fun toMathContext() = MathContext(
@@ -138,11 +139,17 @@ class CalculatorViewModel @JvmOverloads constructor(
             angleUnit = angleUnit,
             unitSystem = unitSystem,
             temperatureInKelvin = temperatureInKelvin,
-            decimalPlaces = decimalPlaces
+            decimalPlaces = decimalPlaces,
+            ans = ans
         )
     }
 
-    private fun CalculatorUiState.mathContext() = Settings(angleUnit, unitSystem, temperatureInKelvin, decimalPlaces)
+    private fun CalculatorUiState.mathContext() =
+        Settings(angleUnit, unitSystem, temperatureInKelvin, decimalPlaces, ans())
+
+    /** Ans is the most recently committed result, not the live result of this line. */
+    private fun CalculatorUiState.ans(): MathString? =
+        history.firstNotNullOfOrNull { it.calculation.answer }
 
     private fun loadSettings() {
         val savedAngleStr = prefs?.getString("angle_unit", AngleUnit.RADIANS.name) ?: AngleUnit.RADIANS.name
@@ -384,30 +391,8 @@ class CalculatorViewModel @JvmOverloads constructor(
         }
     }
 
-    fun insertAns() {
-        val state = _uiState.value
-        // Ans is the most recently committed result, not the live result of this line
-        val lastResult = state.history.firstOrNull { it.calculation.answer != null }?.calculation ?: return
-        val answer = lastResult.answer ?: return
-        val root = state.expression.copy()
-        val path = state.cursorPath
-        val target = getTargetString(root, path)
-        val pos = path.last().coerceIn(0, target.length)
-
-        // Keep the answer a single unit: without parentheses "2" followed by an answer "−3"
-        // would read as "2 − 3", and digits would merge with neighboring digits.
-        val nodesToInsert = if (answer.length == 1 && answer.nodeAt(0) !is NumberNode) {
-            answer.nodes.map { it.copy() }
-        } else {
-            listOf(ParenthesesNode(answer.copy()))
-        }
-        target.insertAll(pos, nodesToInsert)
-
-        val newPath = path.toMutableList().apply {
-            this[lastIndex] = pos + nodesToInsert.size
-        }
-        _uiState.update { it.copy(expression = root, cursorPath = newPath, selectionRange = null) }
-    }
+    /** Inserts "Ans", which stands for the most recently committed result when calculated. */
+    fun insertAns() = insertNode(AnsNode)
 
     private fun getTargetString(root: MathString, path: List<Int>): MathString {
         var current = root

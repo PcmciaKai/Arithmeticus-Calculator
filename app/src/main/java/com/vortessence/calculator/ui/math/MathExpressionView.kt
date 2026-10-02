@@ -424,6 +424,15 @@ private fun MathNodeView(
                 color = accentColor
             )
         }
+        is AnsNode -> {
+            Text(
+                text = "Ans",
+                fontSize = fontSize,
+                fontWeight = FontWeight.Medium,
+                color = accentColor,
+                modifier = Modifier.padding(horizontal = 1.dp)
+            )
+        }
         is UnitNode -> {
             // Angle marks attach directly to the number (30°, 5′); other units are spaced (5 km)
             val isAngleMark = node.symbol == "°" || node.symbol == "′" || node.symbol == "″"

@@ -38,6 +38,15 @@ data class ConstantNode(val name: String) : MathNode() {
     override fun toString(): String = name
 }
 
+/**
+ * "Ans": the most recent result, looked up when the expression is calculated (see
+ * [com.vortessence.calculator.core.math.context.MathContext.ans]).
+ */
+data object AnsNode : MathNode() {
+    override fun copy(): MathNode = this
+    override fun toString(): String = "Ans"
+}
+
 data class UnitNode(val symbol: String) : MathNode() {
     override fun copy(): MathNode = UnitNode(symbol)
     override fun toString(): String = symbol

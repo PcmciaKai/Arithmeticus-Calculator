@@ -1,5 +1,6 @@
 package com.vortessence.calculator.core.math.context
 
+import com.vortessence.calculator.core.math.type.MathString
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -13,7 +14,9 @@ class MathContext(
     /** Show temperatures in kelvin (the SI unit) instead of °C/°F. */
     var temperatureInKelvin: Boolean = false,
     /** Decimal places for displayed decimals; `null` = automatic (see MathWriter). */
-    var decimalPlaces: Int? = null
+    var decimalPlaces: Int? = null,
+    /** The value "Ans" stands for, or null if there is no previous result. */
+    var ans: MathString? = null
 ) {
     private val _issues = mutableListOf<MathIssue>()
     val issues: List<MathIssue> get() = _issues
@@ -54,7 +57,7 @@ class MathContext(
     }
 
     fun copy(): MathContext {
-        val copy = MathContext(mode, angleUnit, maxPrecision, unitSystem, temperatureInKelvin, decimalPlaces)
+        val copy = MathContext(mode, angleUnit, maxPrecision, unitSystem, temperatureInKelvin, decimalPlaces, ans)
         copy._issues.addAll(_issues)
         copy.isCancelled.set(isCancelled.get())
         copy.deadlineMillis = deadlineMillis

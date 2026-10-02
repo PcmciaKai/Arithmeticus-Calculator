@@ -21,5 +21,6 @@ enum class MathIssue(val userMessage: String) {
     DIMENSION_MISMATCH("Matrix dimensions do not match"),
     MATRIX_NOT_SQUARE("Matrix must be square"),
     SINGULAR_MATRIX("Matrix is not invertible"),
-    MATRIX_UNSUPPORTED("Not defined for matrices")
+    MATRIX_UNSUPPORTED("Not defined for matrices"),
+    NO_ANS("No previous result for Ans")
 }

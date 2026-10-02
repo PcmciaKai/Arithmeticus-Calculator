@@ -13,31 +13,37 @@ import androidx.compose.ui.platform.LocalContext
 private val DarkColorScheme = darkColorScheme(
     primary = OrangePrimary,
     onPrimary = SlateLightText,
-    primaryContainer = OrangeDark,
-    onPrimaryContainer = SlateDarkText,
-    secondary = AccentBlue,
-    onSecondary = SlateDarkText,
+    primaryContainer = OrangeContainerDark,
+    onPrimaryContainer = OrangePrimary,
+    secondary = LavenderDark,
+    onSecondary = SlateLightText,
+    secondaryContainer = LavenderContainerDark,
+    onSecondaryContainer = LavenderDark,
     background = SlateDarkBg,
     onBackground = SlateDarkText,
     surface = SlateDarkSurface,
     onSurface = SlateDarkText,
     surfaceVariant = SlateDarkKey,
-    onSurfaceVariant = SlateDarkTextSecondary
+    onSurfaceVariant = SlateDarkTextSecondary,
+    surfaceBright = SlateDarkKeyAction
 )
 
 private val LightColorScheme = lightColorScheme(
     primary = OrangePrimary,
-    onPrimary = SlateLightSurface,
-    primaryContainer = OrangeLight,
-    onPrimaryContainer = SlateLightText,
-    secondary = AccentBlue,
+    onPrimary = SlateLightText,
+    primaryContainer = OrangeContainerLight,
+    onPrimaryContainer = OrangeTextLight,
+    secondary = LavenderLight,
     onSecondary = SlateLightSurface,
+    secondaryContainer = LavenderContainerLight,
+    onSecondaryContainer = LavenderLight,
     background = SlateLightBg,
     onBackground = SlateLightText,
     surface = SlateLightSurface,
     onSurface = SlateLightText,
     surfaceVariant = SlateLightKey,
-    onSurfaceVariant = SlateLightTextSecondary
+    onSurfaceVariant = SlateLightTextSecondary,
+    surfaceBright = SlateLightSurface
 )
 
 /** Light/dark appearance chosen in the settings. */

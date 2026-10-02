@@ -35,7 +35,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -131,17 +130,12 @@ private const val VISIBLE_COLUMNS = 5
 private val HINT_POSITIONS = listOf(Alignment.BottomStart, Alignment.BottomCenter, Alignment.BottomEnd)
 
 @Composable
-private fun keypadColors(): KeypadColors =
-    if (MaterialTheme.colorScheme.background.luminance() < 0.5f) DarkKeypadColors else LightKeypadColors
-
-@Composable
 fun CalculatorKeypad(
     modifier: Modifier = Modifier,
     isLineEmpty: Boolean = true,
     onKeyAction: (KeyAction) -> Unit
 ) {
     val coroutineScope = rememberCoroutineScope()
-    val keyColors = keypadColors()
     fun alt(label: CharSequence, action: KeyAction) = KeyAlternate(
         label as? AnnotatedString ?: AnnotatedString(label.toString())
     ) { onKeyAction(action) }
@@ -244,7 +238,7 @@ fun CalculatorKeypad(
                             .size(if (isSelected) 7.dp else 5.dp)
                             .clip(CircleShape)
                             .background(
-                                if (isSelected) keyColors.accentText
+                                if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
                                 else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f)
                             )
                             .clickable {
@@ -349,10 +343,10 @@ fun CalculatorKeypad(
                             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                                 // The arrow glyph is thin, so it is drawn larger within the same slot as the other pictograms
                                 Box(Modifier.size(18.dp), contentAlignment = Alignment.Center) {
-                                    Icon(Icons.AutoMirrored.Filled.ArrowRightAlt, contentDescription = "Convert to unit", tint = keyColors.functionText, modifier = Modifier.requiredSize(30.dp))
+                                    Icon(Icons.AutoMirrored.Filled.ArrowRightAlt, contentDescription = "Convert to unit", tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.requiredSize(30.dp))
                                 }
                                 Spacer(Modifier.height(2.dp))
-                                Text("Unit", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = keyColors.functionText)
+                                Text("Unit", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSecondaryContainer)
                             }
                         }
                     ) { onKeyAction(KeyAction.Convert) }
@@ -442,7 +436,7 @@ fun CalculatorKeypad(
                                 text = scriptLabel("×10", sup = "x"),
                                 fontSize = 20.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = keyColors.functionText
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
                             )
                         }
                     ) { onKeyAction(KeyAction.EE) }
@@ -451,20 +445,20 @@ fun CalculatorKeypad(
                             Icon(
                                 Icons.AutoMirrored.Filled.KeyboardReturn,
                                 contentDescription = "Enter",
-                                tint = keyColors.enterContent,
+                                tint = MaterialTheme.colorScheme.onPrimary,
                                 modifier = Modifier.size(28.dp)
                             )
                         },
                         buttonWidth = buttonWidth,
                         colSpan = 2,
                         spacing = spacing,
-                        bgColor = keyColors.enterKey,
+                        bgColor = MaterialTheme.colorScheme.primary,
                         popupIcon = Icons.AutoMirrored.Filled.KeyboardReturn,
                         alternates = listOf(alt("new line", KeyAction.NewLine))
                     ) { onKeyAction(KeyAction.Enter) }
 
                     // Page 2 (cols 9..10)
-                    KeyButton(text = "Ans", buttonWidth = buttonWidth, textColor = keyColors.accentText) { onKeyAction(KeyAction.Ans) }
+                    KeyButton(text = "Ans", buttonWidth = buttonWidth, textColor = MaterialTheme.colorScheme.onPrimaryContainer) { onKeyAction(KeyAction.Ans) }
                     KeyButton(
                         buttonWidth = buttonWidth,
                         content = {
@@ -498,18 +492,17 @@ private fun KeyButton(
     popupIcon: ImageVector? = null,
     onClick: () -> Unit
 ) {
-    val keyColors = keypadColors()
     val defaultBg = when {
         bgColor != null -> bgColor
-        isOp -> keyColors.operatorKey
-        isAccent -> keyColors.functionKey
-        else -> keyColors.key
+        isOp -> MaterialTheme.colorScheme.primaryContainer
+        isAccent -> MaterialTheme.colorScheme.secondaryContainer
+        else -> MaterialTheme.colorScheme.surfaceVariant
     }
 
     val defaultText = when {
         textColor != null -> textColor
-        isOp -> keyColors.operatorText
-        isAccent -> keyColors.functionText
+        isOp -> MaterialTheme.colorScheme.onPrimaryContainer
+        isAccent -> MaterialTheme.colorScheme.onSecondaryContainer
         else -> MaterialTheme.colorScheme.onSurface
     }
 
@@ -610,7 +603,7 @@ private fun KeyButton(
 
         // Second function bottom left, third bottom centre, a fourth would go bottom right.
         // The accent color would vanish on the (accent colored) Enter key.
-        val hintColor = if (bgColor == keyColors.enterKey) keyColors.enterContent.copy(alpha = 0.7f) else keyColors.accentText
+        val hintColor = if (bgColor == MaterialTheme.colorScheme.primary) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onPrimaryContainer
         alternates.take(HINT_POSITIONS.size).forEachIndexed { index, alternate ->
             Text(
                 text = alternate.label,
@@ -624,7 +617,7 @@ private fun KeyButton(
         }
 
         popupSelection?.let { selected ->
-            AlternatesPopup(listOf(KeyAlternate(AnnotatedString(text.orEmpty()), popupIcon, onClick)) + alternates, selected, cellWidth = buttonWidth, keyColors = keyColors)
+            AlternatesPopup(listOf(KeyAlternate(AnnotatedString(text.orEmpty()), popupIcon, onClick)) + alternates, selected, cellWidth = buttonWidth)
         }
     }
 }
@@ -634,8 +627,7 @@ private fun KeyButton(
 private fun AlternatesPopup(
     alternates: List<KeyAlternate>,
     selected: Int,
-    cellWidth: Dp,
-    keyColors: KeypadColors
+    cellWidth: Dp
 ) {
     val gapPx = with(LocalDensity.current) { 6.dp.roundToPx() }
     val positionProvider = remember(gapPx) { AboveKeyPositionProvider(gapPx) }
@@ -644,7 +636,7 @@ private fun AlternatesPopup(
             modifier = Modifier
                 .shadow(8.dp, RoundedCornerShape(14.dp))
                 .clip(RoundedCornerShape(14.dp))
-                .background(keyColors.popup)
+                .background(MaterialTheme.colorScheme.surfaceBright)
         ) {
             alternates.forEachIndexed { index, alternate ->
                 val isSelected = index == selected
@@ -653,10 +645,10 @@ private fun AlternatesPopup(
                         .size(width = cellWidth, height = cellWidth * 0.8f)
                         .padding(4.dp)
                         .clip(RoundedCornerShape(10.dp))
-                        .background(if (isSelected) keyColors.popupHighlight else Color.Transparent),
+                        .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent),
                     contentAlignment = Alignment.Center
                 ) {
-                    val color = if (isSelected) keyColors.popupHighlightText else MaterialTheme.colorScheme.onSurface
+                    val color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
                     if (alternate.icon != null) {
                         Icon(alternate.icon, contentDescription = alternate.label.text, tint = color, modifier = Modifier.size(26.dp))
                     } else {

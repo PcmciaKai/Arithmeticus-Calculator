@@ -361,4 +361,19 @@ class MathEngineTest {
         for (p in points) assertEquals(1.0, p.x * p.y, 1e-3)
         assertTrue(points.any { it.x < 0.05 } && points.any { it.x > 20.0 })
     }
+
+    @Test
+    fun testAnsUsesValueFromContext() = runBlocking {
+        val ctx = com.vortessence.calculator.core.math.context.MathContext(
+            ans = MathString(listOf(OperatorNode(MathOp.MINUS), NumberNode("3")))
+        )
+        // 2 Ans is 2 × (−3), and Ans² is (−3)², not −(3²)
+        val product = MathEngine.calculate(MathString(listOf(NumberNode("2"), AnsNode)), ctx)
+        assertEquals(-6.0, product.numericValue, 1e-12)
+        val square = MathEngine.calculate(MathString(listOf(AnsNode, ExponentNode(exponent = MathString(listOf(NumberNode("2")))))), ctx)
+        assertEquals(9.0, square.numericValue, 1e-12)
+
+        val missing = MathEngine.calculate(MathString(listOf(AnsNode)))
+        assertEquals(listOf(com.vortessence.calculator.core.math.context.MathIssue.NO_ANS), missing.issues)
+    }
 }
