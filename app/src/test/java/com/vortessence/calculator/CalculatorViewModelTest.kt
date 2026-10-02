@@ -754,28 +754,26 @@ class CalculatorViewModelTest {
     @Test
     fun testUnitSettingsChangeTheLiveResult() = runBlocking {
         val vm = newViewModel()
-        vm.onKeyAction(KeyAction.Number("0"))
+        vm.type("1")
+        vm.insertUnit("km")
+        vm.awaitLiveResult()
+        assertEquals("1000m", vm.uiState.value.result!!.result.toString())
+
+        vm.setUnitSystem(com.vortessence.calculator.core.math.context.UnitSystem.US_CUSTOMARY)
+        vm.awaitLiveResultText("3280.839895ft")
+    }
+
+    @Test
+    fun testTemperaturesAreShownInKelvinInEveryUnitSystem() = runBlocking {
+        val vm = newViewModel()
+        vm.type("0")
         vm.insertUnit("°C")
-        // Kelvin is the default for temperatures
-        assertTrue(vm.uiState.value.temperatureInKelvin)
         vm.awaitLiveResult()
         assertEquals("273.15K", vm.uiState.value.result!!.result.toString())
 
-        vm.setTemperatureInKelvin(false)
-        var attempts = 0
-        while (vm.uiState.value.result?.result.toString() != "0°C" && attempts < 100) {
-            delay(20)
-            attempts++
-        }
-        assertEquals("0°C", vm.uiState.value.result!!.result.toString())
-
         vm.setUnitSystem(com.vortessence.calculator.core.math.context.UnitSystem.US_CUSTOMARY)
-        attempts = 0
-        while (vm.uiState.value.result?.result.toString() != "32°F" && attempts < 100) {
-            delay(20)
-            attempts++
-        }
-        assertEquals("32°F", vm.uiState.value.result!!.result.toString())
+        delay(100)
+        assertEquals("273.15K", vm.uiState.value.result!!.result.toString())
     }
 
     @Test

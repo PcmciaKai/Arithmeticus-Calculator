@@ -21,10 +21,9 @@ class UnitsTest {
     private fun calc(
         input: MathString,
         system: UnitSystem = UnitSystem.METRIC,
-        angle: AngleUnit = AngleUnit.RADIANS,
-        kelvin: Boolean = false
+        angle: AngleUnit = AngleUnit.RADIANS
     ): CalculationResult = runBlocking {
-        MathEngine.calculate(input, MathContext(unitSystem = system, angleUnit = angle, temperatureInKelvin = kelvin))
+        MathEngine.calculate(input, MathContext(unitSystem = system, angleUnit = angle))
     }
 
     private val to = OperatorNode(MathOp.CONVERT)
@@ -84,11 +83,15 @@ class UnitsTest {
     }
 
     @Test
-    fun temperaturesUseTheSystemsScale() {
-        assertResult("68°F", calc(ms(n("20"), u("°C")), UnitSystem.IMPERIAL))
-        assertResult("100°C", calc(ms(n("373.15"), u("K"))))
+    fun temperaturesAreShownInKelvinInEverySystem() {
+        assertResult("293.15K", calc(ms(n("20"), u("°C"))))
+        assertResult("293.15K", calc(ms(n("20"), u("°C")), UnitSystem.IMPERIAL))
+        assertResult("293.15K", calc(ms(n("68"), u("°F")), UnitSystem.US_CUSTOMARY))
+        assertResult("373.15K", calc(ms(n("373.15"), u("K"))))
         // Two absolute temperatures add up in kelvin: 293.15 K + 283.15 K = 576.3 K
-        assertResult("303.15°C", calc(ms(n("20"), u("°C"), op(MathOp.PLUS), n("50"), u("°F"))))
+        assertResult("576.3K", calc(ms(n("20"), u("°C"), op(MathOp.PLUS), n("50"), u("°F"))))
+        // An explicit conversion still gives °C or °F
+        assertResult("20°C", calc(ms(n("293.15"), u("K"), to, u("°C"))))
     }
 
     @Test
@@ -153,14 +156,6 @@ class UnitsTest {
     }
 
     @Test
-    fun kelvinOptionShowsTemperaturesInKelvin() {
-        assertResult("293.15K", calc(ms(n("20"), u("°C")), kelvin = true))
-        assertResult("293.15K", calc(ms(n("68"), u("°F")), UnitSystem.IMPERIAL, kelvin = true))
-        // An explicit conversion still wins
-        assertResult("20°C", calc(ms(n("293.15"), u("K"), to, u("°C")), kelvin = true))
-    }
-
-    @Test
     fun idealGasLawWithCelsiusAndGasConstant() {
         // (2 mol · R · 25 °C) / 1.013 bar ≈ 48.94 L, the example that exposed the bugs
         val input = ms(frac(
@@ -203,20 +198,19 @@ class UnitsTest {
 
     @Test
     fun temperatureDifferencesAndOffsets() {
-        assertResult("60Δ°C", calc(ms(n("80"), u("°C"), op(MathOp.MINUS), n("20"), u("°C"))))
-        assertResult("108Δ°F", calc(ms(n("80"), u("°C"), op(MathOp.MINUS), n("20"), u("°C")), UnitSystem.IMPERIAL))
-        assertResult("60K", calc(ms(n("80"), u("°C"), op(MathOp.MINUS), n("20"), u("°C")), kelvin = true))
-        // 50 °F = 10 °C, so the difference is 70 Δ°C (the sign is applied after the offset)
-        assertResult("70Δ°C", calc(ms(n("80"), u("°C"), op(MathOp.MINUS), n("50"), u("°F"))))
+        // A difference of 60 °C is a difference of 60 K, in every unit system
+        assertResult("60K", calc(ms(n("80"), u("°C"), op(MathOp.MINUS), n("20"), u("°C"))))
+        assertResult("60K", calc(ms(n("80"), u("°C"), op(MathOp.MINUS), n("20"), u("°C")), UnitSystem.IMPERIAL))
+        // 50 °F = 10 °C, so the difference is 70 K (the sign is applied after the offset)
+        assertResult("70K", calc(ms(n("80"), u("°C"), op(MathOp.MINUS), n("50"), u("°F"))))
         // Temperature plus a difference stays a temperature
-        assertResult("25°C", calc(ms(n("20"), u("°C"), op(MathOp.PLUS), n("5"), u("K"))))
-        assertResult("25°C", calc(ms(n("20"), u("°C"), op(MathOp.PLUS), n("5"), u("Δ°C"))))
+        assertResult("298.15K", calc(ms(n("20"), u("°C"), op(MathOp.PLUS), n("5"), u("K"))))
+        assertResult("298.15K", calc(ms(n("20"), u("°C"), op(MathOp.PLUS), n("5"), u("Δ°C"))))
         // Averages of temperatures work
         val average = ms(frac(ms(n("20"), u("°C"), op(MathOp.PLUS), n("30"), u("°C")), ms(n("2"))))
-        assertResult("25°C", calc(average))
+        assertResult("298.15K", calc(average))
         // Negative temperatures stay temperatures
-        assertEquals(-5.0, calc(ms(op(MathOp.MINUS), n("5"), u("°C"))).numericValue, 1e-12)
-        assertResult("268.15K", calc(ms(op(MathOp.MINUS), n("5"), u("°C")), kelvin = true))
+        assertResult("268.15K", calc(ms(op(MathOp.MINUS), n("5"), u("°C"))))
         // 1/T uses the absolute temperature
         val inverse = calc(ms(frac(ms(n("1")), ms(n("25"), u("°C")))))
         assertEquals(1 / 298.15, inverse.numericValue, 1e-15)

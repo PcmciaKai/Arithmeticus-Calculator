@@ -11,8 +11,6 @@ class MathContext(
     var angleUnit: AngleUnit = AngleUnit.RADIANS,
     var maxPrecision: Int = 30,
     var unitSystem: UnitSystem = UnitSystem.METRIC,
-    /** Show temperatures in kelvin (the SI unit) instead of °C/°F. */
-    var temperatureInKelvin: Boolean = false,
     /** Decimal places for displayed decimals; `null` = automatic (see MathWriter). */
     var decimalPlaces: Int? = null,
     /** The value "Ans" stands for, or null if there is no previous result. */
@@ -59,7 +57,7 @@ class MathContext(
     }
 
     fun copy(): MathContext {
-        val copy = MathContext(mode, angleUnit, maxPrecision, unitSystem, temperatureInKelvin, decimalPlaces, ans, variables)
+        val copy = MathContext(mode, angleUnit, maxPrecision, unitSystem, decimalPlaces, ans, variables)
         copy._issues.addAll(_issues)
         copy.isCancelled.set(isCancelled.get())
         copy.deadlineMillis = deadlineMillis

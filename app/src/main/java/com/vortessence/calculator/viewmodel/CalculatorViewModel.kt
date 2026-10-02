@@ -44,8 +44,6 @@ data class CalculatorUiState(
     val angleUnit: AngleUnit = AngleUnit.RADIANS,
     /** Units that results with units are expressed in. */
     val unitSystem: UnitSystem = UnitSystem.METRIC,
-    /** Show temperatures in kelvin instead of °C/°F. */
-    val temperatureInKelvin: Boolean = true,
     /** Fixed number of decimal places for displayed decimals, or null for automatic. */
     val decimalPlaces: Int? = null,
     /** Show large numbers with digit groups (300 000); display only. */
@@ -134,7 +132,6 @@ class CalculatorViewModel @JvmOverloads constructor(
     private data class Settings(
         val angleUnit: AngleUnit,
         val unitSystem: UnitSystem,
-        val temperatureInKelvin: Boolean,
         val decimalPlaces: Int?,
         val ans: MathString?,
         val variables: Map<String, MathString>
@@ -144,7 +141,6 @@ class CalculatorViewModel @JvmOverloads constructor(
             mode = CalculationMode.EXACT,
             angleUnit = angleUnit,
             unitSystem = unitSystem,
-            temperatureInKelvin = temperatureInKelvin,
             decimalPlaces = decimalPlaces,
             ans = ans,
             variables = variables
@@ -152,7 +148,7 @@ class CalculatorViewModel @JvmOverloads constructor(
     }
 
     private fun CalculatorUiState.mathContext() =
-        Settings(angleUnit, unitSystem, temperatureInKelvin, decimalPlaces, ans(), variables())
+        Settings(angleUnit, unitSystem, decimalPlaces, ans(), variables())
 
     /** Ans is the most recently committed result, not the live result of this line. */
     private fun CalculatorUiState.ans(): MathString? =
@@ -173,7 +169,6 @@ class CalculatorViewModel @JvmOverloads constructor(
         val angle = try { AngleUnit.valueOf(savedAngleStr) } catch (e: Exception) { AngleUnit.RADIANS }
         val savedUnitSystem = prefs?.getString("unit_system", null)
         val unitSystem = UnitSystem.entries.firstOrNull { it.name == savedUnitSystem } ?: UnitSystem.METRIC
-        val kelvin = prefs?.getBoolean("temperature_kelvin", true) ?: true
         val savedForm = prefs?.getString("result_form", null)
         val form = ResultForm.entries.firstOrNull { it.name == savedForm } ?: ResultForm.EXACT
         val places = prefs?.getInt("decimal_places", -1)?.takeIf { it >= 0 }
@@ -187,7 +182,6 @@ class CalculatorViewModel @JvmOverloads constructor(
                 resultForm = form,
                 angleUnit = angle,
                 unitSystem = unitSystem,
-                temperatureInKelvin = kelvin,
                 decimalPlaces = places,
                 digitGrouping = grouping,
                 themeMode = themeMode,
@@ -323,11 +317,6 @@ class CalculatorViewModel @JvmOverloads constructor(
     fun setUnitSystem(system: UnitSystem) {
         prefs?.edit { putString("unit_system", system.name) }
         _uiState.update { it.copy(unitSystem = system) }
-    }
-
-    fun setTemperatureInKelvin(enabled: Boolean) {
-        prefs?.edit { putBoolean("temperature_kelvin", enabled) }
-        _uiState.update { it.copy(temperatureInKelvin = enabled) }
     }
 
     fun toggleAngleUnit() {

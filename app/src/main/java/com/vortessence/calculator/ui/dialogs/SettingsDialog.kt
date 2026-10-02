@@ -20,13 +20,11 @@ import java.util.Locale
 fun SettingsDialog(
     angleUnit: AngleUnit,
     unitSystem: UnitSystem,
-    temperatureInKelvin: Boolean,
     decimalPlaces: Int?,
     digitGrouping: Boolean,
     themeMode: ThemeMode,
     onToggleAngleUnit: () -> Unit,
     onUnitSystemChange: (UnitSystem) -> Unit,
-    onTemperatureInKelvinChange: (Boolean) -> Unit,
     onDecimalPlacesChange: (Int?) -> Unit,
     onDigitGroupingChange: (Boolean) -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit,
@@ -93,21 +91,6 @@ fun SettingsDialog(
                                 Text(label, fontSize = 13.sp)
                             }
                         }
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Temperatures in kelvin", fontWeight = FontWeight.Medium, fontSize = 15.sp)
-                            Text(
-                                "Scientific absolute scale instead of °C/°F",
-                                fontSize = 13.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Switch(checked = temperatureInKelvin, onCheckedChange = onTemperatureInKelvinChange)
                     }
                 }
 
@@ -183,9 +166,9 @@ fun SettingsDialog(
 }
 
 private fun unitSystemDescription(system: UnitSystem): String = when (system) {
-    UnitSystem.METRIC -> "SI units: m, kg, m³, N, Pa, J, °C, …"
-    UnitSystem.IMPERIAL -> "British imperial: ft, lb, imperial gallon, psi, °F, …"
-    UnitSystem.US_CUSTOMARY -> "US customary: ft, lb, US gallon, psi, °F, …"
+    UnitSystem.METRIC -> "SI units: m, kg, m³, N, Pa, J, K, …"
+    UnitSystem.IMPERIAL -> "British imperial: ft, lb, imperial gallon, psi, …"
+    UnitSystem.US_CUSTOMARY -> "US customary: ft, lb, US gallon, psi, …"
 }
 
 /** "Auto" or a fixed number of decimal places from 0 to [MAX_DECIMAL_PLACES]. */

@@ -167,13 +167,11 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
         SettingsDialog(
             angleUnit = uiState.angleUnit,
             unitSystem = uiState.unitSystem,
-            temperatureInKelvin = uiState.temperatureInKelvin,
             decimalPlaces = uiState.decimalPlaces,
             digitGrouping = uiState.digitGrouping,
             themeMode = uiState.themeMode,
             onToggleAngleUnit = { viewModel.toggleAngleUnit() },
             onUnitSystemChange = { viewModel.setUnitSystem(it) },
-            onTemperatureInKelvinChange = { viewModel.setTemperatureInKelvin(it) },
             onDecimalPlacesChange = { viewModel.setDecimalPlaces(it) },
             onDigitGroupingChange = { viewModel.setDigitGrouping(it) },
             onThemeModeChange = { viewModel.setThemeMode(it) },

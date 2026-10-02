@@ -188,7 +188,8 @@ internal fun Expression.withUnitsAsSiFactors(): Expression =
 
 /**
  * Expresses a result in the preferred units of the context's [UnitSystem], e.g. 5 km + 300 m
- * as 5300 m (metric) or 17388.45 ft (imperial). Results without units are returned unchanged;
+ * as 5300 m (metric) or 17388.45 ft (imperial). Temperatures, and temperature differences,
+ * are always in kelvin, the unit formulas expect. Results without units are returned unchanged;
  * units that cancel out (e.g. m / km) give a plain number.
  */
 fun Expression.toPreferredUnits(context: MathContext): Expression {
@@ -200,13 +201,7 @@ fun Expression.toPreferredUnits(context: MathContext): Expression {
         return this
     }
     if (dimension.isNone) return withUnitsAsSiFactors().canonicalize(context)
-    val isTemperatureDifference = dimension == Dimension.TEMPERATURE &&
-        containsExpressionMatching { it is UnitExpression && it.isDifference }
-    val target = if (isTemperatureDifference) {
-        UnitRegistry.preferredDifferenceUnit(context.unitSystem, context.temperatureInKelvin)
-    } else {
-        UnitRegistry.preferredUnit(dimension, context.unitSystem, context.angleUnit, context.temperatureInKelvin)
-    }
+    val target = UnitRegistry.preferredUnit(dimension, context.unitSystem, context.angleUnit)
     return convertToUnit(target, includeUnitInResult = true, context = context) ?: this
 }
 
@@ -594,29 +589,21 @@ object UnitRegistry {
     val CELSIUS = get("°C")
     val FAHRENHEIT = get("°F")
     val DELTA_CELSIUS = get("Δ°C")
-    val DELTA_FAHRENHEIT = get("Δ°F")
-
-    /** The unit temperature differences are shown in. */
-    fun preferredDifferenceUnit(system: UnitSystem, temperatureInKelvin: Boolean): UnitExpression = when {
-        temperatureInKelvin -> K
-        system == UnitSystem.METRIC -> DELTA_CELSIUS
-        else -> DELTA_FAHRENHEIT
-    }
 
     // --- Output units per unit system -------------------------------------------------------
 
     private fun preferred(vararg symbols: String): Map<Dimension, UnitExpression> =
         symbols.map { get(it) }.associateBy { it.dimension }
 
-    // Coherent SI units, with two deliberate exceptions: °C (switchable to K in the settings)
-    // and mol/L, the standard unit of concentration in chemistry (nobody uses mol/m³)
+    // Coherent SI units, with one deliberate exception: mol/L, the standard unit of
+    // concentration in chemistry (nobody uses mol/m³). Temperatures stay in K in every system.
     private val metricPreferred = preferred(
-        "m", "m²", "m³", "kg", "s", "m/s", "m/s²", "N", "Pa", "J", "W", "°C", "Hz",
+        "m", "m²", "m³", "kg", "s", "m/s", "m/s²", "N", "Pa", "J", "W", "K", "Hz",
         "A", "C", "V", "Ω", "S", "F", "H", "T", "Wb", "mol", "mol/L", "g/mol", "kg/m³", "cd", "lx"
     )
 
     private val imperialPreferred = metricPreferred + preferred(
-        "ft", "ft²", "imp gal", "lb", "mph", "ft/s²", "lbf", "psi", "ft·lbf", "hp", "°F", "lb/ft³"
+        "ft", "ft²", "imp gal", "lb", "mph", "ft/s²", "lbf", "psi", "ft·lbf", "hp", "lb/ft³"
     )
 
     private val usCustomaryPreferred = imperialPreferred + preferred("gal")
@@ -629,12 +616,10 @@ object UnitRegistry {
     fun preferredUnit(
         dimension: Dimension,
         system: UnitSystem,
-        angleUnit: AngleUnit,
-        temperatureInKelvin: Boolean = false
+        angleUnit: AngleUnit
     ): Expression {
         val angleBase = if (angleUnit == AngleUnit.DEGREES) DEG else RAD
         if (dimension == Dimension.ANGLE) return angleBase
-        if (dimension == Dimension.TEMPERATURE && temperatureInKelvin) return K
         val named = when (system) {
             UnitSystem.METRIC -> metricPreferred
             UnitSystem.IMPERIAL -> imperialPreferred
