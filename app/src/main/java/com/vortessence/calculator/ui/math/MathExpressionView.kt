@@ -400,12 +400,16 @@ private fun MathNodeView(
             )
         }
         is OperatorNode -> {
-            Text(
-                text = if (node.op == MathOp.FACTORIAL || isUnaryMinus) node.op.symbol else " ${node.op.symbol} ",
-                fontSize = fontSize,
-                fontWeight = if (node.op == MathOp.FACTORIAL) FontWeight.Normal else FontWeight.Light,
-                color = if (node.op == MathOp.FACTORIAL) textColor else accentColor
-            )
+            if (node.op == MathOp.CONVERT) {
+                ConversionArrow(fontSize, accentColor)
+            } else {
+                Text(
+                    text = if (node.op == MathOp.FACTORIAL || isUnaryMinus) node.op.symbol else " ${node.op.symbol} ",
+                    fontSize = fontSize,
+                    fontWeight = if (node.op == MathOp.FACTORIAL) FontWeight.Normal else FontWeight.Light,
+                    color = if (node.op == MathOp.FACTORIAL) textColor else accentColor
+                )
+            }
         }
         is VariableNode -> {
             Text(
@@ -715,6 +719,37 @@ private fun LogBaseView(node: LogBaseNode, fontSize: TextUnit, slots: SlotContex
             fontSize = (fontSize.value * 0.9f).sp,
             modifier = Modifier.stretchyParentheses(slots.textColor)
         )
+    }
+}
+
+/**
+ * The unit conversion arrow "→", drawn rather than typed: Roboto has no arrow glyph, and the
+ * fallback font's taller line box would put a typed one below the other operators (nodes are
+ * aligned by their vertical centre). Centred in its own box, it sits on the operator axis.
+ */
+@Composable
+private fun ConversionArrow(fontSize: TextUnit, color: Color) {
+    val em = fontSize.value
+    Canvas(
+        modifier = Modifier
+            // The same footprint as " → ": a space on either side of the arrow
+            .padding(horizontal = (em * 0.25f).dp)
+            .size(width = (em * 0.75f).dp, height = (em * 0.9f).dp)
+    ) {
+        // About the stem width of the light "+" and "−"
+        val strokeW = (em * 0.055f).dp.toPx()
+        val midY = size.height / 2f
+        val start = strokeW / 2f
+        val tip = size.width - strokeW / 2f
+        val head = (em * 0.2f).dp.toPx()
+        val stroke = Stroke(width = strokeW, cap = StrokeCap.Round, join = StrokeJoin.Round)
+        drawLine(color, Offset(start, midY), Offset(tip, midY), strokeWidth = strokeW, cap = StrokeCap.Round)
+        val arrowHead = Path().apply {
+            moveTo(tip - head, midY - head)
+            lineTo(tip, midY)
+            lineTo(tip - head, midY + head)
+        }
+        drawPath(path = arrowHead, color = color, style = stroke)
     }
 }
 
