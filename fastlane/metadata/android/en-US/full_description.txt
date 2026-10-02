@@ -1,0 +1,22 @@
+A free and open-source scientific calculator with natural math input. Expressions are shown the way you would write them on paper: fractions, powers, roots and integrals are displayed in proper two-dimensional notation while you type.
+
+<b>Features</b>
+
+<ul>
+<li><b>Natural display:</b> Fractions, exponents, roots and integrals rendered as proper math notation while you type</li>
+<li><b>Scientific functions:</b> Trigonometric and inverse trigonometric functions, logarithms, factorials, n-th roots</li>
+<li><b>Variables and functions:</b> Define your own variables and reuse them, also reuse the last result with 'Ans'</li>
+<li><b>Equation solving:</b> Single equations and systems of linear equations</li>
+<li><b>Matrices:</b> Transpose, inverse and determinant</li>
+<li><b>Numeric integration:</b> Definite integrals</li>
+<li><b>Units:</b> Calculate and convert across 18 categories (length, mass, energy, pressure, temperature, electricity, …) with metric, imperial or US customary result preferences</li>
+<li><b>Constants:</b> Searchable library of mathematical and physical constants</li>
+<li><b>Graph plotter:</b> 2D plots of functions and implicit curves</li>
+<li><b>Display options:</b> Fixed or automatic decimal places, digit grouping, light/dark/system theme</li>
+</ul>
+
+<b>Privacy</b>
+
+No ads, no tracking, no network access. Everything is calculated on your device.
+
+Calculator is licensed under the GNU General Public License v3.0.
