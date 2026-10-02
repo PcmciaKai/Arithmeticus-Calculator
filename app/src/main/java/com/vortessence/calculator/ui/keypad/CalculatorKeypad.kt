@@ -150,6 +150,9 @@ fun CalculatorKeypad(
         val mainPagePx = (LEFT_COLUMNS * colStepPx).roundToInt()
         val scrollState = rememberScrollState()
 
+        // The page the keypad rests on (0 left, 1 main, 2 right); a swipe moves at most one page from it
+        var restingPage by remember { mutableIntStateOf(1) }
+
         var initialScrollDone by remember { mutableStateOf(false) }
         LaunchedEffect(scrollState.maxValue, colStepPx) {
             if (!initialScrollDone && scrollState.maxValue > 0 && colStepPx > 0f) {
@@ -162,26 +165,18 @@ fun CalculatorKeypad(
             object : FlingBehavior {
                 override suspend fun ScrollScope.performFling(initialVelocity: Float): Float {
                     val current = scrollState.value.toFloat()
-                    val p0 = 0f
                     val p1 = mainPagePx.toFloat()
-                    val p2 = scrollState.maxValue.toFloat().coerceAtLeast(p1)
+                    val pages = listOf(0f, p1, scrollState.maxValue.toFloat().coerceAtLeast(p1))
 
-                    val mid01 = p1 / 2f
-                    val mid12 = p1 + (p2 - p1) / 2f
-
-                    val target = if (abs(initialVelocity) > 300f) {
-                        if (initialVelocity > 0f) {
-                            if (current < p1 - 20f) p1 else p2
-                        } else {
-                            if (current > p1 + 20f) p1 else p0
-                        }
+                    // A fast swipe goes one page in its direction, a slow one to the nearest page;
+                    // either way never further than the page next to the one the swipe started on
+                    val targetPage = if (abs(initialVelocity) > 300f) {
+                        restingPage + if (initialVelocity > 0f) 1 else -1
                     } else {
-                        when {
-                            current < mid01 -> p0
-                            current > mid12 -> p2
-                            else -> p1
-                        }
-                    }
+                        pages.indices.minBy { abs(pages[it] - current) }
+                    }.coerceIn(restingPage - 1, restingPage + 1).coerceIn(pages.indices)
+                    restingPage = targetPage
+                    val target = pages[targetPage]
 
                     var lastValue = current
                     val anim = Animatable(current)
@@ -249,6 +244,7 @@ fun CalculatorKeypad(
                                     2 -> scrollState.maxValue
                                     else -> mainPagePx
                                 }
+                                restingPage = page
                                 coroutineScope.launch {
                                     scrollState.animateScrollTo(target)
                                 }
