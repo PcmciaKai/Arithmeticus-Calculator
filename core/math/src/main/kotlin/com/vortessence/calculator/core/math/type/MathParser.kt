@@ -169,6 +169,11 @@ class MathParser {
                     val integrand = parseSlot(node.integrand)
                     tokens.add(Token.ValueToken(Integral(lower, upper, integrand, Variable(node.variable))))
                 }
+                is DerivativeNode -> {
+                    val body = parseSlot(node.body)
+                    val point = node.point?.let { parseSlot(it) }
+                    tokens.add(Token.ValueToken(Derivative(body, Variable(node.variable), point)))
+                }
                 is MatrixNode -> {
                     val elements = node.elements.map { parseSlot(it) }
                     tokens.add(Token.ValueToken(MatrixExpression(node.rows, node.cols, elements)))

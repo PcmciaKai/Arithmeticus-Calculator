@@ -185,6 +185,26 @@ data class IntegralNode(
     override fun toString(): String = "int_{$lowerBound}^{$upperBound} ($integrand) d$variable"
 }
 
+/**
+ * The derivative d/dx of [body], or with a [point] its value there: d/dx(body)|ₓ₌ₚₒᵢₙₜ.
+ */
+data class DerivativeNode(
+    val body: MathString = MathString(),
+    val point: MathString? = null,
+    val variable: String = "x"
+) : MathNode() {
+    override val subStrings: List<MathString> get() = listOfNotNull(body, point)
+    override fun replaceSubString(index: Int, newString: MathString): MathNode {
+        return when {
+            index == 0 -> copy(body = newString)
+            index == 1 && point != null -> copy(point = newString)
+            else -> this
+        }
+    }
+    override fun copy(): MathNode = DerivativeNode(body.copy(), point?.copy(), variable)
+    override fun toString(): String = "d/d$variable($body)" + if (point != null) "|$variable=($point)" else ""
+}
+
 data class MatrixNode(
     val rows: Int,
     val cols: Int,

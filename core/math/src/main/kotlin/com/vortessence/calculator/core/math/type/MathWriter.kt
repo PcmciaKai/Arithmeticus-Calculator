@@ -92,6 +92,13 @@ class MathWriter(
                     expr.variable.identifier
                 ))
             }
+            is Derivative -> {
+                result.append(DerivativeNode(
+                    writeExpr(expr.body),
+                    expr.point?.let { writeExpr(it) },
+                    expr.variable.identifier
+                ))
+            }
             is MatrixExpression -> {
                 result.append(MatrixNode(
                     expr.rows,

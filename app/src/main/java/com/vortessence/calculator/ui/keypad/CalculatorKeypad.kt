@@ -106,6 +106,10 @@ sealed class KeyAction {
     data object OpenGraph : KeyAction()
     data object OpenSettings : KeyAction()
     data object Integral : KeyAction()
+    /** Symbolic derivative d/dx. */
+    data object Derivative : KeyAction()
+    /** Value of the derivative at a point, d/dx(…)|ₓ₌ₐ. */
+    data object DerivativeAt : KeyAction()
     /** Opens the matrix size picker. */
     data object Matrix : KeyAction()
     /** Transpose (superscript T) of the matrix before the cursor. */
@@ -360,7 +364,17 @@ fun CalculatorKeypad(
                 // Row 3
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing)) {
                     // Page 0 (cols 0..3)
-                    KeyButton(text = "∫dx", buttonWidth = buttonWidth, isAccent = true) { onKeyAction(KeyAction.Integral) }
+                    KeyButton(
+                        text = "∫dx",
+                        buttonWidth = buttonWidth,
+                        isAccent = true,
+                        alternates = listOf(
+                            alt("d/dx", KeyAction.Derivative),
+                            alt(scriptLabel("d/dx", sub = "x=a"), KeyAction.DerivativeAt)
+                        ),
+                        // Both labels do not fit on the key; the popup shows the second
+                        hintCount = 1
+                    ) { onKeyAction(KeyAction.Integral) }
                     KeyButton(
                         text = "sin",
                         buttonWidth = buttonWidth,
@@ -393,7 +407,7 @@ fun CalculatorKeypad(
                         isOp = true,
                         alternates = listOf(alt("÷", KeyAction.InlineDivide)),
                         popupIcon = FractionIcon,
-                        showHints = false
+                        hintCount = 0
                     ) { onKeyAction(KeyAction.Operator("÷")) }
 
                     // Page 2 (cols 9..10)
@@ -509,8 +523,8 @@ private fun KeyButton(
     alternates: List<KeyAlternate> = emptyList(),
     /** Stands for the main function in the long-press popup (instead of [text]). */
     popupIcon: ImageVector? = null,
-    /** Whether the long-press functions are hinted on the key. */
-    showHints: Boolean = true,
+    /** How many of the long-press functions are hinted on the key (the popup shows all). */
+    hintCount: Int = HINT_POSITIONS.size,
     onClick: () -> Unit
 ) {
     val defaultBg = when {
@@ -633,7 +647,7 @@ private fun KeyButton(
         // Second function bottom left, third bottom centre, a fourth would go bottom right.
         // The accent color would vanish on the (accent colored) Enter key.
         val hintColor = if (bgColor == MaterialTheme.colorScheme.primary) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onPrimaryContainer
-        if (showHints) alternates.take(HINT_POSITIONS.size).forEachIndexed { index, alternate ->
+        alternates.take(minOf(hintCount, HINT_POSITIONS.size)).forEachIndexed { index, alternate ->
             Text(
                 text = alternate.label,
                 fontSize = 10.sp,

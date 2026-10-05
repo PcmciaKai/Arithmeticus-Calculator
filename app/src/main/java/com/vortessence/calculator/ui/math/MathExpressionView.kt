@@ -493,6 +493,7 @@ private fun MathNodeView(
             }
         }
         is IntegralNode -> IntegralView(node, fontSize, slots)
+        is DerivativeNode -> DerivativeView(node, fontSize, slots)
         is MatrixNode -> MatrixView(node, fontSize, slots)
     }
 }
@@ -811,6 +812,35 @@ private fun IntegralView(node: IntegralNode, fontSize: TextUnit, slots: SlotCont
             fontWeight = FontWeight.Normal,
             color = slots.textColor
         )
+    }
+}
+
+/** d/dx as a small fraction, the expression in parentheses and, at a point, the bar |ₓ₌ₐ. */
+@Composable
+private fun DerivativeView(node: DerivativeNode, fontSize: TextUnit, slots: SlotContext) {
+    val labelFontSize = (fontSize.value * 0.7f).sp
+    val subscriptFontSize = (fontSize.value * 0.55f).sp
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(horizontal = 2.dp).centeredMathAxis()
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.width(IntrinsicSize.Max)
+        ) {
+            Text(text = "d", fontSize = labelFontSize, color = slots.accentColor, fontWeight = FontWeight.SemiBold)
+            HorizontalDivider(thickness = 1.5.dp, color = slots.accentColor)
+            Text(text = "d${node.variable}", fontSize = labelFontSize, color = slots.accentColor, fontWeight = FontWeight.SemiBold)
+        }
+        slots.Slot(child = 0, string = node.body, fontSize = fontSize, modifier = Modifier.stretchyParentheses(slots.textColor))
+        val point = node.point
+        if (point != null) {
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(text = "|", fontSize = (fontSize.value * 1.4f).sp, fontWeight = FontWeight.ExtraLight, color = slots.textColor)
+                Text(text = "${node.variable}=", fontSize = subscriptFontSize, color = slots.textColor)
+                slots.Slot(child = 1, string = point, fontSize = subscriptFontSize)
+            }
+        }
     }
 }
 

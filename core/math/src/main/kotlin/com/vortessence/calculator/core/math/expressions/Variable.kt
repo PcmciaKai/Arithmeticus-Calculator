@@ -27,7 +27,8 @@ data class Variable(val identifier: String) : Expression() {
  * Replaces the free variables in [values] by their values, e.g. a by 2x² after "a := 2x²".
  * Values may use other variables, which are replaced as well; a variable is not replaced
  * within its own value, so definitions such as "x := 2x" cannot expand forever.
- * Integration variables are bound and keep their meaning inside the integrand.
+ * Integration and differentiation variables are bound and keep their meaning inside the
+ * integrand or the differentiated expression.
  */
 fun Expression.substituteVariables(values: Map<Variable, Expression>): Expression {
     if (values.isEmpty()) return this
@@ -39,6 +40,7 @@ fun Expression.substituteVariables(values: Map<Variable, Expression>): Expressio
             integrand.substituteVariables(values - variable),
             variable
         )
+        is Derivative -> Derivative(body.substituteVariables(values - variable), variable, point?.substituteVariables(values))
         else -> {
             val oldChildren = children
             val newChildren = oldChildren.map { it.substituteVariables(values) }

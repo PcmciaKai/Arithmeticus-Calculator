@@ -242,6 +242,8 @@ class CalculatorViewModel @JvmOverloads constructor(
             is KeyAction.OpenGraph -> toggleGraph()
             is KeyAction.OpenSettings -> _uiState.update { it.copy(showSettingsDialog = true) }
             is KeyAction.Integral -> insertNode(IntegralNode())
+            is KeyAction.Derivative -> insertNode(DerivativeNode())
+            is KeyAction.DerivativeAt -> insertNode(DerivativeNode(point = MathString()))
             is KeyAction.Matrix -> _uiState.update { it.copy(showMatrixDialog = true) }
             is KeyAction.Transpose -> insertPower(MathString(listOf(VariableNode("T"))))
         }
@@ -512,6 +514,7 @@ class CalculatorViewModel @JvmOverloads constructor(
         is LogBaseNode -> 1
         is RadicalNode -> if (node.degree != null) 1 else 0
         is IntegralNode -> 2
+        is DerivativeNode -> 0
         else -> null
     }
 
