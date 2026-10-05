@@ -155,7 +155,7 @@ class CalculatorViewModelTest {
     }
 
     @Test
-    fun testSingleParenthesisAutoStepOut() {
+    fun testSingleParenthesisNestsAtEdges() {
         val vm = newViewModel()
         // Press single parenthesis button on empty expression
         vm.onKeyAction(KeyAction.Parentheses)
@@ -163,13 +163,17 @@ class CalculatorViewModelTest {
         // Creates "()", cursor inside [0, 0, 0]
         assertEquals(listOf(0, 0, 0), vm.uiState.value.cursorPath)
 
-        // Type 5
-        vm.onKeyAction(KeyAction.Number("5"))
-        assertEquals(listOf(0, 0, 1), vm.uiState.value.cursorPath)
-
-        // Press single parenthesis button at the end: steps out to [1]
+        // Pressing it again right after the opening parenthesis nests: "(())"
         vm.onKeyAction(KeyAction.Parentheses)
-        assertEquals(listOf(1), vm.uiState.value.cursorPath)
+        assertEquals(listOf(0, 0, 0, 0, 0), vm.uiState.value.cursorPath)
+
+        // Type 5, then press it at the end of the inner content: nests again
+        vm.onKeyAction(KeyAction.Number("5"))
+        assertEquals(listOf(0, 0, 0, 0, 1), vm.uiState.value.cursorPath)
+        vm.onKeyAction(KeyAction.Parentheses)
+        assertEquals(listOf(0, 0, 0, 0, 1, 0, 0), vm.uiState.value.cursorPath)
+        val inner = (vm.uiState.value.expression.nodeAt(0) as ParenthesesNode).inner.nodeAt(0) as ParenthesesNode
+        assertTrue(inner.inner.nodeAt(1) is ParenthesesNode)
     }
 
     @Test

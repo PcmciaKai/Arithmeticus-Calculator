@@ -538,20 +538,7 @@ class CalculatorViewModel @JvmOverloads constructor(
             return
         }
 
-        // Check if cursor is at the end of a ParenthesesNode child
-        if (path.size > 1) {
-            val containerPath = path.subList(0, path.size - 2)
-            val containerTarget = getTargetString(root, containerPath)
-            val containerNodeIdx = containerPath.last()
-            if (containerNodeIdx in containerTarget.nodes.indices) {
-                val containerNode = containerTarget.nodeAt(containerNodeIdx)
-                val pos = path.last()
-                if (containerNode is ParenthesesNode && pos == containerNode.inner.length) {
-                    moveCursorRight()
-                    return
-                }
-            }
-        }
+        // Always insert a new pair (even right inside another one), so parentheses can be nested
         insertNode(ParenthesesNode(MathString()))
     }
 
