@@ -4,6 +4,7 @@ import com.vortessence.calculator.core.math.context.CalculationMode
 import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.context.MathIssue
 import com.vortessence.calculator.core.math.numbers.Rational
+import com.vortessence.calculator.core.math.solvers.NumericIntegrator
 import kotlin.math.*
 
 class Integral(
@@ -41,9 +42,11 @@ class Integral(
                 context.stopWithError(MathIssue.UNDEFINED)
                 return this
             }
-            // Only recognize results that are (numerically) exact simple fractions, e.g. 1/3.
-            // A loose tolerance would turn every irrational result into a fake fraction.
             if (context.mode == CalculationMode.EXACT) {
+                exactValue(cLower, cUpper, cIntegrand, numVal, context)?.let { return it }
+                if (context.shouldStop) return this
+                // Otherwise only recognize results that are (numerically) exact simple fractions,
+                // e.g. 1/3. A loose tolerance would turn every irrational result into a fake fraction.
                 val rat = Rational.approximateFromDouble(numVal, maxDenominator = MAX_SNAP_DENOMINATOR)
                 if (rat != null && abs(rat.toDouble() - numVal) < SNAP_TOLERANCE * max(1.0, abs(numVal))) {
                     return Value(rat)
@@ -54,31 +57,37 @@ class Integral(
         return intExpr
     }
 
+    /**
+     * F(b) − F(a) with the symbolic antiderivative F, e.g. π/4 for ∫₀¹ 1/(1+x²) dx, or null if
+     * there is none. F(b) − F(a) is wrong if the integrand has a pole between the bounds (it
+     * gives −2 for ∫₋₁¹ 1/x² dx), so the result must agree with the [numeric] value.
+     */
+    private fun exactValue(a: Expression, b: Expression, f: Expression, numeric: Double, context: MathContext): Expression? {
+        val antiderivative = Integrator(context).antiderivative(f, variable) ?: return null
+        val scratch = context.copy()
+        val difference = Additions(listOf(
+            antiderivative.substituteVariables(mapOf(variable to b)),
+            Multiplications(listOf(Value.MINUS_ONE, antiderivative.substituteVariables(mapOf(variable to a))))
+        )).canonicalize(scratch)
+        if (scratch.shouldStop || difference.variables().isNotEmpty()) return null
+        val value = difference.evaluateNumerically()
+        if (!value.isFinite() || abs(value - numeric) > EXACT_AGREEMENT * max(1.0, abs(numeric))) return null
+        return difference
+    }
+
     override fun evaluateNumerically(bindings: Map<Variable, Double>): Double {
         val a = lowerBound.evaluateNumerically(bindings)
         val b = upperBound.evaluateNumerically(bindings)
         if (a.isNaN() || b.isNaN() || a.isInfinite() || b.isInfinite()) return Double.NaN
 
-        // Simpson's rule for numerical integration
-        val n = 1000
-        val h = (b - a) / n
         // The integrand sees the outer variables too, with the integration variable bound on top
         val inner = HashMap(bindings)
         fun integrandAt(x: Double): Double {
             inner[this.variable] = x
             return integrand.evaluateNumerically(inner)
         }
-        var sum = integrandAt(a) + integrandAt(b)
-
-        val context = MathContext.current()
-        for (i in 1 until n) {
-            if (i % 100 == 0 && context.shouldStop) return Double.NaN
-            val x = a + i * h
-            val weight = if (i % 2 == 0) 2.0 else 4.0
-            sum += weight * integrandAt(x)
-        }
-
-        return (h / 3.0) * sum
+        // Adaptive, so it also notices a pole between the bounds (the integral diverges: NaN)
+        return NumericIntegrator.integrate(::integrandAt, a, b, MathContext.current())
     }
 
     override fun equals(other: Any?): Boolean {
@@ -103,5 +112,10 @@ class Integral(
     companion object {
         private const val MAX_SNAP_DENOMINATOR = 100L
         private const val SNAP_TOLERANCE = 1e-10
+        /**
+         * How closely an exact result must match the numeric value. Loose, because the numeric
+         * value is less accurate where the integrand is steep; a wrong F(b) − F(a) is far off.
+         */
+        private const val EXACT_AGREEMENT = 1e-4
     }
 }

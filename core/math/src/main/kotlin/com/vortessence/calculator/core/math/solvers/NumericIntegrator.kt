@@ -5,7 +5,8 @@ import kotlin.math.abs
 import kotlin.math.max
 
 /**
- * Numerical definite integration for the graph, using adaptive Simpson's rule.
+ * Numerical definite integration (for the graph and for ∫ in calculations), using adaptive
+ * Simpson's rule.
  */
 object NumericIntegrator {
     private const val PIECES = 64
@@ -25,6 +26,15 @@ object NumericIntegrator {
         b: Double,
         context: MathContext? = null,
         tolerance: Double = 1e-10
+    ): Double = integrate(function::evaluateAt, a, b, context, tolerance)
+
+    /** Like the [Function1D] variant, for any function of one variable. */
+    fun integrate(
+        function: (Double) -> Double,
+        a: Double,
+        b: Double,
+        context: MathContext? = null,
+        tolerance: Double = 1e-10
     ): Double {
         if (!a.isFinite() || !b.isFinite()) return Double.NaN
         if (a == b) return 0.0
@@ -34,7 +44,7 @@ object NumericIntegrator {
         fun f(x: Double): Double {
             if (++evaluations > MAX_EVALUATIONS) throw Diverged()
             if (evaluations % 1000 == 0 && context?.shouldStop == true) throw Diverged()
-            val y = function.evaluateAt(x)
+            val y = function(x)
             if (!y.isFinite()) throw Diverged()
             return y
         }
