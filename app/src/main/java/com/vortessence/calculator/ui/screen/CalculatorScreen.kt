@@ -17,6 +17,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -40,6 +43,7 @@ import com.vortessence.calculator.ui.theme.AccentRed
 import com.vortessence.calculator.ui.theme.CalculatorTheme
 import com.vortessence.calculator.viewmodel.CalculatorUiState
 import com.vortessence.calculator.viewmodel.CalculatorViewModel
+import kotlin.math.roundToInt
 
 @Composable
 fun CalculatorScreen(
@@ -351,17 +355,20 @@ private fun HistoryItemCard(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            // Input expression
+            // Input expression; shrunk when too long instead of being squeezed (which made its
+            // text wrap and parts overlap). Not scrollable, so swiping always deletes the entry.
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable(onClick = onInputClick)
             ) {
-                MathExpressionView(
-                    mathString = item.input,
-                    fontSize = 20.sp,
-                    textColor = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                ShrinkToFitWidth {
+                    MathExpressionView(
+                        mathString = item.input,
+                        fontSize = 20.sp,
+                        textColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
             // Result
@@ -371,23 +378,50 @@ private fun HistoryItemCard(
                     .clickable(onClick = onResultClick),
                 contentAlignment = Alignment.CenterEnd
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        text = "= ",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Light,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    MathExpressionView(
-                        // Shown as chosen when committed; tapping it still reuses the exact value
-                        mathString = ResultFormatter.format(item, form),
-                        fontSize = 22.sp,
-                        textColor = MaterialTheme.colorScheme.onBackground
-                    )
+                ShrinkToFitWidth {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = "= ",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Light,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        MathExpressionView(
+                            // Shown as chosen when committed; tapping it still reuses the exact value
+                            mathString = ResultFormatter.format(item, form),
+                            fontSize = 22.sp,
+                            textColor = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Lays out [content] at its natural width and scales it down uniformly when that is wider
+ * than the available space, so it never gets squeezed (wrapping, overlapping) or clipped.
+ */
+@Composable
+private fun ShrinkToFitWidth(content: @Composable () -> Unit) {
+    Layout(content = content) { measurables, constraints ->
+        val placeable = measurables.single().measure(constraints.copy(minWidth = 0, maxWidth = Constraints.Infinity))
+        val scale = if (constraints.hasBoundedWidth && placeable.width > constraints.maxWidth) {
+            constraints.maxWidth.toFloat() / placeable.width
+        } else {
+            1f
+        }
+        val width = (placeable.width * scale).roundToInt()
+        val height = (placeable.height * scale).roundToInt()
+        layout(width, height) {
+            placeable.placeWithLayer(0, 0) {
+                scaleX = scale
+                scaleY = scale
+                transformOrigin = TransformOrigin(0f, 0f)
             }
         }
     }
