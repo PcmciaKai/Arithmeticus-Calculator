@@ -380,6 +380,23 @@ class CalculatorViewModelTest {
         assertEquals(0.25, vm.uiState.value.result!!.numericValue, 1e-12)
     }
 
+    @Test
+    fun testInlineDivideEvaluation() = runBlocking {
+        val vm = newViewModel()
+        // Type: 6 ÷ 3 ÷ 2 with the inline division (long press), not fractions
+        vm.onKeyAction(KeyAction.Number("6"))
+        vm.onKeyAction(KeyAction.InlineDivide)
+        vm.onKeyAction(KeyAction.Number("3"))
+        vm.onKeyAction(KeyAction.InlineDivide)
+        vm.onKeyAction(KeyAction.Number("2"))
+        assertTrue(vm.uiState.value.expression.nodeAt(1) is OperatorNode)
+        assertEquals(listOf(5), vm.uiState.value.cursorPath)
+
+        // Left to right: (6 ÷ 3) ÷ 2
+        vm.awaitLiveResult()
+        assertEquals(1.0, vm.uiState.value.result!!.numericValue, 1e-12)
+    }
+
     /** Waits until the live result belongs to the current expression. */
     private suspend fun CalculatorViewModel.awaitLiveResult() {
         var attempts = 0

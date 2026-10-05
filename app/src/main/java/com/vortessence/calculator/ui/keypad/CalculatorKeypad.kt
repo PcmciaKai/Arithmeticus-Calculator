@@ -35,10 +35,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -71,6 +76,8 @@ sealed class KeyAction {
     data object EE : KeyAction()
     data object Parentheses : KeyAction()
     data object Fraction : KeyAction()
+    /** Division as an inline "÷" operator instead of a fraction. */
+    data object InlineDivide : KeyAction()
     data object Power : KeyAction()
     data object Square : KeyAction()
     /** Power with exponent −1 (x⁻¹). */
@@ -378,7 +385,16 @@ fun CalculatorKeypad(
                     KeyButton(text = "2", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("2")) }
                     KeyButton(text = "3", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("3")) }
                     KeyButton(text = "×", buttonWidth = buttonWidth, isOp = true) { onKeyAction(KeyAction.Operator("×")) }
-                    KeyButton(text = "÷", buttonWidth = buttonWidth, isOp = true) { onKeyAction(KeyAction.Operator("÷")) }
+                    // Long press for an inline "÷"; not hinted on the key, the popup tells the
+                    // two apart by showing the main function as a fraction
+                    KeyButton(
+                        text = "÷",
+                        buttonWidth = buttonWidth,
+                        isOp = true,
+                        alternates = listOf(alt("÷", KeyAction.InlineDivide)),
+                        popupIcon = FractionIcon,
+                        showHints = false
+                    ) { onKeyAction(KeyAction.Operator("÷")) }
 
                     // Page 2 (cols 9..10)
                     KeyButton(
@@ -491,8 +507,10 @@ private fun KeyButton(
     bgColor: Color? = null,
     textColor: Color? = null,
     alternates: List<KeyAlternate> = emptyList(),
-    /** Stands for the main function in the long-press popup of a key without [text]. */
+    /** Stands for the main function in the long-press popup (instead of [text]). */
     popupIcon: ImageVector? = null,
+    /** Whether the long-press functions are hinted on the key. */
+    showHints: Boolean = true,
     onClick: () -> Unit
 ) {
     val defaultBg = when {
@@ -523,6 +541,11 @@ private fun KeyButton(
 
     // Index of the highlighted alternate while the long-press popup is shown
     var popupSelection by remember { mutableStateOf<Int?>(null) }
+    // Near the right screen edge the popup opens to the left (main function above the key,
+    // alternates to its left), so the finger can still reach every entry
+    var popupOpensLeft by remember { mutableStateOf(false) }
+    var keyLeftInWindow by remember { mutableFloatStateOf(0f) }
+    val windowWidth = LocalWindowInfo.current.containerSize.width
     val gestureModifier = if (alternates.isEmpty()) {
         Modifier.clickable(onClick = onClick)
     } else {
@@ -559,6 +582,7 @@ private fun KeyButton(
                     // Long press: the finger slides over the alternates, lifting it picks one
                     view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
                     val count = popupEntries.size
+                    popupOpensLeft = keyLeftInWindow + count * cellPx > windowWidth
                     popupSelection = 0
                     try {
                         while (true) {
@@ -568,7 +592,8 @@ private fun KeyButton(
                                 popupSelection?.let { popupEntries.getOrNull(it)?.onSelect?.invoke() }
                                 break
                             }
-                            val selection = (change.position.x / cellPx).toInt().coerceIn(0, count - 1)
+                            val offset = if (popupOpensLeft) size.width - change.position.x else change.position.x
+                            val selection = (offset / cellPx).toInt().coerceIn(0, count - 1)
                             if (selection != popupSelection) {
                                 view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                                 popupSelection = selection
@@ -585,6 +610,7 @@ private fun KeyButton(
     Box(
         modifier = Modifier
             .size(width = finalWidth, height = buttonWidth)
+            .onGloballyPositioned { keyLeftInWindow = it.positionInWindow().x }
             .clip(RoundedCornerShape(16.dp))
             .background(defaultBg)
             .then(touchFeedback)
@@ -607,7 +633,7 @@ private fun KeyButton(
         // Second function bottom left, third bottom centre, a fourth would go bottom right.
         // The accent color would vanish on the (accent colored) Enter key.
         val hintColor = if (bgColor == MaterialTheme.colorScheme.primary) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onPrimaryContainer
-        alternates.take(HINT_POSITIONS.size).forEachIndexed { index, alternate ->
+        if (showHints) alternates.take(HINT_POSITIONS.size).forEachIndexed { index, alternate ->
             Text(
                 text = alternate.label,
                 fontSize = 10.sp,
@@ -620,20 +646,43 @@ private fun KeyButton(
         }
 
         popupSelection?.let { selected ->
-            AlternatesPopup(listOf(KeyAlternate(AnnotatedString(text.orEmpty()), popupIcon, onClick)) + alternates, selected, cellWidth = buttonWidth)
+            AlternatesPopup(
+                listOf(KeyAlternate(AnnotatedString(text.orEmpty()), popupIcon, onClick)) + alternates,
+                selected,
+                cellWidth = buttonWidth,
+                opensLeft = popupOpensLeft
+            )
         }
     }
 }
+
+/** A fraction template (box over box), for the popup of the division key. */
+private val FractionIcon: ImageVector = ImageVector.Builder(
+    name = "Fraction",
+    defaultWidth = 24.dp,
+    defaultHeight = 24.dp,
+    viewportWidth = 24f,
+    viewportHeight = 24f
+).apply {
+    path(stroke = SolidColor(Color.Black), strokeLineWidth = 1.8f) {
+        moveTo(8f, 2f); lineTo(16f, 2f); lineTo(16f, 9f); lineTo(8f, 9f); close()
+        moveTo(8f, 15f); lineTo(16f, 15f); lineTo(16f, 22f); lineTo(8f, 22f); close()
+    }
+    path(fill = SolidColor(Color.Black)) {
+        moveTo(4f, 11.1f); lineTo(20f, 11.1f); lineTo(20f, 12.9f); lineTo(4f, 12.9f); close()
+    }
+}.build()
 
 /** The functions of a long-pressed key (main one first), shown above it with one cell each. */
 @Composable
 private fun AlternatesPopup(
     alternates: List<KeyAlternate>,
     selected: Int,
-    cellWidth: Dp
+    cellWidth: Dp,
+    opensLeft: Boolean
 ) {
     val gapPx = with(LocalDensity.current) { 6.dp.roundToPx() }
-    val positionProvider = remember(gapPx) { AboveKeyPositionProvider(gapPx) }
+    val positionProvider = remember(gapPx, opensLeft) { AboveKeyPositionProvider(gapPx, opensLeft) }
     Popup(popupPositionProvider = positionProvider) {
         Row(
             modifier = Modifier
@@ -641,7 +690,9 @@ private fun AlternatesPopup(
                 .clip(RoundedCornerShape(14.dp))
                 .background(MaterialTheme.colorScheme.surfaceBright)
         ) {
-            alternates.forEachIndexed { index, alternate ->
+            // Opening to the left, the main function is the rightmost cell (above the key)
+            val ordered = alternates.withIndex().let { if (opensLeft) it.reversed() else it.toList() }
+            ordered.forEach { (index, alternate) ->
                 val isSelected = index == selected
                 Box(
                     modifier = Modifier
@@ -672,15 +723,19 @@ private fun AlternatesPopup(
     }
 }
 
-/** Places the popup directly above the key, left-aligned with it, so cells line up with the finger. */
-private class AboveKeyPositionProvider(private val gapPx: Int) : PopupPositionProvider {
+/**
+ * Places the popup directly above the key, left-aligned with it (right-aligned if it
+ * [opensLeft]), so cells line up with the finger.
+ */
+private class AboveKeyPositionProvider(private val gapPx: Int, private val opensLeft: Boolean) : PopupPositionProvider {
     override fun calculatePosition(
         anchorBounds: IntRect,
         windowSize: IntSize,
         layoutDirection: LayoutDirection,
         popupContentSize: IntSize
     ): IntOffset {
-        val x = anchorBounds.left.coerceIn(0, (windowSize.width - popupContentSize.width).coerceAtLeast(0))
+        val left = if (opensLeft) anchorBounds.right - popupContentSize.width else anchorBounds.left
+        val x = left.coerceIn(0, (windowSize.width - popupContentSize.width).coerceAtLeast(0))
         val y = (anchorBounds.top - popupContentSize.height - gapPx).coerceAtLeast(0)
         return IntOffset(x, y)
     }

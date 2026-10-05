@@ -210,6 +210,7 @@ class CalculatorViewModel @JvmOverloads constructor(
                     insertNode(OperatorNode(op))
                 }
             }
+            is KeyAction.InlineDivide -> insertNode(OperatorNode(MathOp.DIVIDE))
             is KeyAction.Variable -> insertNode(VariableNode(action.name))
             is KeyAction.Constant -> insertNode(ConstantNode(action.symbol))
             is KeyAction.Function -> insertNode(FunctionNode(action.name, MathString()))
