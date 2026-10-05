@@ -47,9 +47,13 @@ class Equals(
     fun solveForVariable(variable: Variable, context: MathContext = MathContext.current()): Set<Expression> {
         val diff = Additions(left, right.negate()).canonicalize(context)
         if (context.shouldStop) return emptySet()
+        // Multiplied out, (x+1)² = x² + 2x + 1 is recognized as an identity and (x+1)² = 4 as a
+        // quadratic equation. The numeric solver keeps the original form, which is more accurate.
+        val polynomial = if (hasExpandableProducts(diff)) expandProducts(diff).canonicalize(context) else diff
+        if (context.shouldStop) return emptySet()
 
-        if (!diff.containsVariable(variable)) {
-            if (diff.isZero) {
+        if (!polynomial.containsVariable(variable)) {
+            if (polynomial.isZero) {
                 // Infinite solutions (identity)
                 return setOf(variable)
             } else {
@@ -61,11 +65,11 @@ class Equals(
         // Check if diff is a polynomial in variable
         // For linear: a * x + b = 0 => x = -b / a
         // For quadratic: a * x^2 + b * x + c = 0
-        val linearSol = trySolveLinear(diff, variable, context)
+        val linearSol = trySolveLinear(polynomial, variable, context)
         if (linearSol != null) return setOf(linearSol)
         if (context.shouldStop) return emptySet()
 
-        val quadraticSols = trySolveQuadratic(diff, variable, context)
+        val quadraticSols = trySolveQuadratic(polynomial, variable, context)
         if (quadraticSols != null) return quadraticSols.toSet()
         if (context.shouldStop) return emptySet()
 

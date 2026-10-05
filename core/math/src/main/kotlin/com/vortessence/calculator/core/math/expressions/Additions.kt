@@ -80,7 +80,25 @@ class Additions(val operands: List<Expression>) : Expression() {
 
         if (merged.isEmpty()) return Value.ZERO
         if (merged.size == 1) return merged[0]
-        return Additions(merged)
+        val sum = Additions(merged)
+        return multipliedOutIfShorter(sum, context) ?: sum
+    }
+
+    /**
+     * [sum] with its products and powers of sums multiplied out, if that makes it shorter
+     * because terms cancel: (x+1)² − x² = 2x + 1, but (x+1)² + 1 stays as it is.
+     */
+    private fun multipliedOutIfShorter(sum: Additions, context: MathContext): Expression? {
+        // Multiplying out creates sums that are canonicalized again; they must not recurse
+        if (isMultiplyingOut.get() || !hasExpandableProducts(sum)) return null
+        isMultiplyingOut.set(true)
+        try {
+            val expanded = expandProducts(sum).canonicalize(context)
+            if (context.shouldStop) return null
+            return expanded.takeIf { expressionSize(it) < expressionSize(sum) }
+        } finally {
+            isMultiplyingOut.set(false)
+        }
     }
 
     override fun evaluateNumerically(bindings: Map<Variable, Double>): Double {
@@ -102,6 +120,8 @@ class Additions(val operands: List<Expression>) : Expression() {
     }
 
     companion object {
+        private val isMultiplyingOut = ThreadLocal.withInitial { false }
+
         fun of(vararg exprs: Expression): Expression {
             return if (exprs.size == 1) exprs[0] else Additions(exprs.toList())
         }

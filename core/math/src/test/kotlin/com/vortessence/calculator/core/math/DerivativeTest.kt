@@ -64,7 +64,7 @@ class DerivativeTest {
         assertResult("(1)/(1 + (x)^(2))", calc(d(f("atan", x))))
         assertResult("(1)/(sqrt(1 − (x)^(2)))", calc(d(f("asin", x))))
         // In degrees, x is an angle in degrees: d/dx sin(x°) = π/180·cos(x°)
-        assertResult("(πcos((xπ)/(180)))/(180)", calc(d(f("sin", x)), AngleUnit.DEGREES))
+        assertResult("(πcos((πx)/(180)))/(180)", calc(d(f("sin", x)), AngleUnit.DEGREES))
         assertEquals(0.0, calc(d(f("sin", x), at = ms(n("90"))), AngleUnit.DEGREES).numericValue, 1e-12)
     }
 
@@ -87,7 +87,7 @@ class DerivativeTest {
 
     @Test
     fun otherVariablesAreConstants() {
-        assertResult("2yx", calc(d(VariableNode("y"), x, pow(n("2")))))
+        assertResult("2xy", calc(d(VariableNode("y"), x, pow(n("2")))))
     }
 
     @Test

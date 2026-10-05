@@ -220,31 +220,9 @@ internal class Integrator(private val context: MathContext) {
 
     /** Products and powers of sums multiplied out, e.g. x(x+1)² = x³ + 2x² + x. */
     private fun expanded(e: Expression, v: Variable, depth: Int): Expression? {
-        val expanded = canonical(expand(e)) ?: return null
+        val expanded = canonical(expandProducts(e)) ?: return null
         if (expanded == e || expanded !is Additions) return null
         return integrate(expanded, v, depth + 1)
-    }
-
-    private fun expand(e: Expression): Expression = when (e) {
-        is Additions -> Additions(e.operands.map { expand(it) })
-        is Multiplications -> e.operands.map { expand(it) }.reduce { a, b -> multiplyOut(a, b) }
-        is Power -> {
-            val n = (e.exponent as? Value)?.rational
-            if (e.base is Additions && n != null && !n.isFractional && !n.isNegative && n.numerator.value.toInt() in 2..MAX_EXPANDED_POWER) {
-                val base = expand(e.base)
-                (2..n.numerator.value.toInt()).fold(base) { acc, _ -> multiplyOut(acc, base) }
-            } else {
-                e
-            }
-        }
-        else -> e
-    }
-
-    private fun multiplyOut(a: Expression, b: Expression): Expression {
-        val aTerms = if (a is Additions) a.operands else listOf(a)
-        val bTerms = if (b is Additions) b.operands else listOf(b)
-        val products = aTerms.flatMap { x -> bTerms.map { y -> Multiplications(listOf(x, y)) } }
-        return if (products.size == 1) products.single() else Additions(products)
     }
 
     /**
@@ -340,7 +318,6 @@ internal class Integrator(private val context: MathContext) {
 
     companion object {
         private const val MAX_DEPTH = 12
-        private const val MAX_EXPANDED_POWER = 8
         private const val MAX_POLYNOMIAL_DEGREE = 8
         private const val TOLERANCE = 1e-7
         private const val MIN_CHECKED_POINTS = 3

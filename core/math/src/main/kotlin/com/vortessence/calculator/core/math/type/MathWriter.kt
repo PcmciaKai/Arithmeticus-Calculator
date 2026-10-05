@@ -290,7 +290,9 @@ class MathWriter(
     }
 
     private fun writeFactors(factors: List<Expression>, result: MathString) {
-        for ((idx, op) in factors.withIndex()) {
+        // The usual order: 6x(x² + 1)² rather than 6(x² + 1)²x, 2xy rather than 2yx
+        val ordered = factors.sortedWith(compareBy({ factorRank(it) }, { variableName(it) }))
+        for ((idx, op) in ordered.withIndex()) {
             var nodes = writeExpr(op)
             if (op is Additions || op is Equals) {
                 nodes = MathString(listOf(ParenthesesNode(nodes)))
@@ -301,6 +303,19 @@ class MathWriter(
             result.appendAll(nodes)
         }
     }
+
+    /** Numbers, then constants (π), variables and their powers, functions, and sums last. */
+    private fun factorRank(factor: Expression): Int = when {
+        factor is Value -> 0
+        factor is Constant -> 1
+        variableName(factor) != null -> 2
+        factor is Additions || (factor is Power && factor.base is Additions) -> 4
+        else -> 3
+    }
+
+    /** The variable of a factor x or xⁿ, which orders such factors alphabetically. */
+    private fun variableName(factor: Expression): String? =
+        ((if (factor is Power) factor.base else factor) as? Variable)?.identifier
 
     /** Juxtaposition would be ambiguous if the factor starts with digits (2·3, 2·10², 2·−x). */
     private fun needsExplicitTimes(factor: MathString): Boolean {
