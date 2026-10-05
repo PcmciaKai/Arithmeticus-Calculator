@@ -6,6 +6,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -80,6 +81,21 @@ fun MathEditor(
             else -> 0f
         }
         if (delta != 0f) scrollState.dispatchRawDelta(delta)
+    }
+
+    // Keep the cursor in view while typing: after each edit (once laid out), scroll just
+    // enough to bring it inside the edges. Not while selecting; drags auto-scroll themselves.
+    LaunchedEffect(expression, cursorPath) {
+        if (selectionRange != null) return@LaunchedEffect
+        withFrameNanos { }
+        val x = geometry.caretX(cursorPath) ?: return@LaunchedEffect
+        val width = geometry.editorWidth
+        val delta = when {
+            x > width - autoScrollEdge -> x - (width - autoScrollEdge)
+            x < autoScrollEdge -> x - autoScrollEdge
+            else -> 0f
+        }
+        if (delta != 0f) scrollState.scrollBy(delta)
     }
 
     Box(
@@ -379,6 +395,20 @@ class CaretGeometry {
         }
         val index = caretXs.keys.minBy { abs(caretXs.getValue(it) - point.x) }
         return path + index.coerceIn(0, info.length)
+    }
+
+    /** The x position of the caret at [caretPath], in editor-local coordinates. */
+    fun caretX(caretPath: List<Int>): Float? {
+        val path = caretPath.dropLast(1)
+        val index = caretPath.lastOrNull() ?: return null
+        val info = strings[path] ?: return null
+        val map = nodes[path]
+        val x = when {
+            index < info.length -> map?.get(index)?.left
+            index > 0 -> map?.get(index - 1)?.right
+            else -> info.bounds.left
+        } ?: return null
+        return x - editorOrigin.x
     }
 
     /** The node under [localPoint] as (string path, node index), e.g. for a long press. */
