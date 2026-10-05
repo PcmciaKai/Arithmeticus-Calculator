@@ -7,6 +7,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -64,6 +65,14 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
         return
     }
 
+    // Bring every newly pushed entry into view, even when the history was scrolled up
+    // (e.g. after tapping an older entry to reuse it)
+    val historyListState = rememberLazyListState()
+    val newestHistoryId = uiState.history.firstOrNull()?.id
+    LaunchedEffect(newestHistoryId) {
+        if (newestHistoryId != null) historyListState.animateScrollToItem(0)
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
@@ -78,6 +87,7 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
                     .weight(1f)
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
+                state = historyListState,
                 reverseLayout = true,
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
