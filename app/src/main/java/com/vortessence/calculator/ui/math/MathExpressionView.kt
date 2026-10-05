@@ -474,6 +474,13 @@ private fun MathNodeView(
         is RadicalNode -> RadicalView(node, fontSize, slots)
         is ParenthesesNode -> ParenthesesView(node, fontSize, slots)
         is LogBaseNode -> LogBaseView(node, fontSize, slots)
+        // The absolute value (e.g. in ln|x|) is written with bars, not as a named function
+        is FunctionNode if node.name == "abs" -> slots.Slot(
+            child = 0,
+            string = node.argument,
+            fontSize = fontSize,
+            modifier = Modifier.absoluteValueBars(textColor)
+        )
         is FunctionNode -> {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val onAxis = Modifier.mathAxisOrCenter().alignBy(MathAxis)
@@ -484,16 +491,19 @@ private fun MathNodeView(
                     color = accentColor,
                     modifier = onAxis
                 )
+                // ln|x| rather than ln(|x|): the bars already enclose the argument
+                val isAbsoluteValue = (node.argument.nodes.singleOrNull() as? FunctionNode)?.name == "abs"
                 slots.Slot(
                     child = 0,
                     string = node.argument,
                     fontSize = (fontSize.value * 0.9f).sp,
-                    modifier = onAxis.stretchyParentheses(textColor)
+                    modifier = if (isAbsoluteValue) onAxis else onAxis.stretchyParentheses(textColor)
                 )
             }
         }
         is IntegralNode -> IntegralView(node, fontSize, slots)
         is DerivativeNode -> DerivativeView(node, fontSize, slots)
+        is AntiderivativeNode -> AntiderivativeView(node, fontSize, slots)
         is MatrixNode -> MatrixView(node, fontSize, slots)
     }
 }
@@ -759,6 +769,17 @@ private fun ParenthesesView(node: ParenthesesNode, fontSize: TextUnit, slots: Sl
     slots.Slot(child = 0, string = node.inner, fontSize = fontSize, modifier = Modifier.stretchyParentheses(slots.textColor))
 }
 
+/** Vertical bars around the content, as tall as it is: |x|. */
+private fun Modifier.absoluteValueBars(color: Color) = this
+    .drawBehind {
+        val strokeW = 1.6.dp.toPx()
+        val inset = 2.dp.toPx()
+        val x = 3.dp.toPx()
+        drawLine(color, Offset(x, inset), Offset(x, size.height - inset), strokeWidth = strokeW)
+        drawLine(color, Offset(size.width - x, inset), Offset(size.width - x, size.height - inset), strokeWidth = strokeW)
+    }
+    .padding(horizontal = 7.dp)
+
 /** Parentheses around the content, stretched to its full height (e.g. around a fraction or matrix). */
 private fun Modifier.stretchyParentheses(color: Color) = this
     .drawBehind {
@@ -806,6 +827,30 @@ private fun IntegralView(node: IntegralNode, fontSize: TextUnit, slots: SlotCont
         }
         Spacer(modifier = Modifier.width(2.dp))
         slots.Slot(child = 2, string = node.integrand, fontSize = fontSize)
+        Text(
+            text = " d${node.variable}",
+            fontSize = fontSize,
+            fontWeight = FontWeight.Normal,
+            color = slots.textColor
+        )
+    }
+}
+
+/** ∫ integrand dx, like [IntegralView] without bounds. */
+@Composable
+private fun AntiderivativeView(node: AntiderivativeNode, fontSize: TextUnit, slots: SlotContext) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(horizontal = 2.dp).centeredMathAxis()
+    ) {
+        Text(
+            text = "∫",
+            fontSize = (fontSize.value * 1.5f).sp,
+            color = slots.accentColor,
+            fontWeight = FontWeight.ExtraLight
+        )
+        Spacer(modifier = Modifier.width(2.dp))
+        slots.Slot(child = 0, string = node.integrand, fontSize = fontSize)
         Text(
             text = " d${node.variable}",
             fontSize = fontSize,

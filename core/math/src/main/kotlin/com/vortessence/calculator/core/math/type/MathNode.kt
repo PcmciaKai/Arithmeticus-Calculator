@@ -185,6 +185,18 @@ data class IntegralNode(
     override fun toString(): String = "int_{$lowerBound}^{$upperBound} ($integrand) d$variable"
 }
 
+/** The indefinite integral ∫ [integrand] dx (without bounds). */
+data class AntiderivativeNode(
+    val integrand: MathString = MathString(),
+    val variable: String = "x"
+) : MathNode() {
+    override val subStrings: List<MathString> get() = listOf(integrand)
+    override fun replaceSubString(index: Int, newString: MathString): MathNode =
+        if (index == 0) copy(integrand = newString) else this
+    override fun copy(): MathNode = AntiderivativeNode(integrand.copy(), variable)
+    override fun toString(): String = "int ($integrand) d$variable"
+}
+
 /**
  * The derivative d/dx of [body], or with a [point] its value there: d/dx(body)|ₓ₌ₚₒᵢₙₜ.
  */

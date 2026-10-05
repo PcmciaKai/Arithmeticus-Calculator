@@ -106,6 +106,8 @@ sealed class KeyAction {
     data object OpenGraph : KeyAction()
     data object OpenSettings : KeyAction()
     data object Integral : KeyAction()
+    /** Indefinite integral ∫ … dx (symbolic, without bounds). */
+    data object Antiderivative : KeyAction()
     /** Symbolic derivative d/dx. */
     data object Derivative : KeyAction()
     /** Value of the derivative at a point, d/dx(…)|ₓ₌ₐ. */
@@ -364,16 +366,21 @@ fun CalculatorKeypad(
                 // Row 3
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing)) {
                     // Page 0 (cols 0..3)
+                    // Long press: indefinite integral, derivative, derivative at a point. In the
+                    // popup the definite integral shows its bounds to tell it from the indefinite one.
+                    val derivative = alt("d/dx", KeyAction.Derivative)
                     KeyButton(
                         text = "∫dx",
                         buttonWidth = buttonWidth,
                         isAccent = true,
+                        popupLabel = scriptLabel("∫", sup = "b", sub = "a") + AnnotatedString("dx"),
                         alternates = listOf(
-                            alt("d/dx", KeyAction.Derivative),
+                            alt("∫dx", KeyAction.Antiderivative),
+                            derivative,
                             alt(scriptLabel("d/dx", sub = "x=a"), KeyAction.DerivativeAt)
                         ),
-                        // Both labels do not fit on the key; the popup shows the second
-                        hintCount = 1
+                        // More labels do not fit on the key, and "∫dx" would only repeat its label
+                        hints = listOf(derivative)
                     ) { onKeyAction(KeyAction.Integral) }
                     KeyButton(
                         text = "sin",
@@ -407,7 +414,7 @@ fun CalculatorKeypad(
                         isOp = true,
                         alternates = listOf(alt("÷", KeyAction.InlineDivide)),
                         popupIcon = FractionIcon,
-                        hintCount = 0
+                        hints = emptyList()
                     ) { onKeyAction(KeyAction.Operator("÷")) }
 
                     // Page 2 (cols 9..10)
@@ -523,8 +530,10 @@ private fun KeyButton(
     alternates: List<KeyAlternate> = emptyList(),
     /** Stands for the main function in the long-press popup (instead of [text]). */
     popupIcon: ImageVector? = null,
-    /** How many of the long-press functions are hinted on the key (the popup shows all). */
-    hintCount: Int = HINT_POSITIONS.size,
+    /** Stands for the main function in the long-press popup, instead of [text]. */
+    popupLabel: AnnotatedString? = null,
+    /** The long-press functions hinted on the key (the popup shows all of them). */
+    hints: List<KeyAlternate> = alternates,
     onClick: () -> Unit
 ) {
     val defaultBg = when {
@@ -568,7 +577,7 @@ private fun KeyButton(
         val currentOnClick by rememberUpdatedState(onClick)
         // The popup starts with the main function, preselected, so an accidental long press
         // does what a tap would have done
-        val popupEntries by rememberUpdatedState(listOf(KeyAlternate(AnnotatedString(text.orEmpty()), popupIcon, onClick)) + alternates)
+        val popupEntries by rememberUpdatedState(listOf(KeyAlternate(popupLabel ?: AnnotatedString(text.orEmpty()), popupIcon, onClick)) + alternates)
         Modifier
             .indication(interactionSource, LocalIndication.current)
             .pointerInput(cellPx) {
@@ -647,7 +656,7 @@ private fun KeyButton(
         // Second function bottom left, third bottom centre, a fourth would go bottom right.
         // The accent color would vanish on the (accent colored) Enter key.
         val hintColor = if (bgColor == MaterialTheme.colorScheme.primary) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onPrimaryContainer
-        alternates.take(minOf(hintCount, HINT_POSITIONS.size)).forEachIndexed { index, alternate ->
+        hints.take(HINT_POSITIONS.size).forEachIndexed { index, alternate ->
             Text(
                 text = alternate.label,
                 fontSize = 10.sp,
@@ -661,7 +670,7 @@ private fun KeyButton(
 
         popupSelection?.let { selected ->
             AlternatesPopup(
-                listOf(KeyAlternate(AnnotatedString(text.orEmpty()), popupIcon, onClick)) + alternates,
+                listOf(KeyAlternate(popupLabel ?: AnnotatedString(text.orEmpty()), popupIcon, onClick)) + alternates,
                 selected,
                 cellWidth = buttonWidth,
                 opensLeft = popupOpensLeft

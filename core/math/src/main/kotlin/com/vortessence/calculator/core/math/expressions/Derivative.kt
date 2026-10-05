@@ -96,6 +96,8 @@ internal object Differentiator {
             is Logarithm -> logarithm(e, v)
             is TrigonometricFunction -> trigonometric(e, v)
             is Integral -> integral(e, v)
+            // |u|' = u'·u/|u|
+            is AbsoluteValue -> Multiplications(listOf(derivative(e.operand, v) ?: return null, e.operand, Power(e, Value.MINUS_ONE)))
             else -> null
         }
     }

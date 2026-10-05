@@ -18,6 +18,7 @@ enum class MathIssue(val userMessage: String) {
     SYNTAX_ERROR("Incomplete or invalid expression"),
     UNKNOWN_FUNCTION("Unknown function"),
     CANT_DIFFERENTIATE("Cannot differentiate this expression"),
+    CANT_INTEGRATE("No closed form found for this integral"),
     TIMEOUT("Calculation timed out"),
     DIMENSION_MISMATCH("Matrix dimensions do not match"),
     MATRIX_NOT_SQUARE("Matrix must be square"),

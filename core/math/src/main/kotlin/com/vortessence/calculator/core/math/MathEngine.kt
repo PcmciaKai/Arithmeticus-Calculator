@@ -2,6 +2,8 @@ package com.vortessence.calculator.core.math
 
 import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.context.MathIssue
+import com.vortessence.calculator.core.math.expressions.Antiderivative
+import com.vortessence.calculator.core.math.expressions.Derivative
 import com.vortessence.calculator.core.math.expressions.EquationSystem
 import com.vortessence.calculator.core.math.expressions.Equals
 import com.vortessence.calculator.core.math.expressions.Expression
@@ -140,9 +142,14 @@ object MathEngine {
         val issues = ctx.issues
         // A definition shows what the variable now stands for: "a = 2x²"
         val shown = if (definition != null) Equals(Variable(definition.name), simplified) else simplified
+        val written = display.write(shown)
+        // An indefinite integral is only determined up to a constant
+        if (hasIntegrationConstant(parsed)) {
+            written.insert(written.length, TextNode(" + C"))
+        }
         return CalculationResult(
             input = input,
-            result = display.write(shown),
+            result = written,
             expression = simplified,
             numericValue = numVal,
             issues = issues,
@@ -151,6 +158,13 @@ object MathEngine {
             decimalPlaces = ctx.decimalPlaces,
             definedVariable = definition?.name
         )
+    }
+
+    /** Whether [e] contains an indefinite integral whose constant is not differentiated away. */
+    private fun hasIntegrationConstant(e: Expression): Boolean = when (e) {
+        is Antiderivative -> true
+        is Derivative -> e.point?.let { hasIntegrationConstant(it) } ?: false
+        else -> e.children.any { hasIntegrationConstant(it) }
     }
 
     /** "a := 2x²": the variable [name] gets the [value] on the right. */

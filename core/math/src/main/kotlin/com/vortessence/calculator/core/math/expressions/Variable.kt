@@ -40,6 +40,7 @@ fun Expression.substituteVariables(values: Map<Variable, Expression>): Expressio
             integrand.substituteVariables(values - variable),
             variable
         )
+        is Antiderivative -> Antiderivative(integrand.substituteVariables(values - variable), variable)
         is Derivative -> Derivative(body.substituteVariables(values - variable), variable, point?.substituteVariables(values))
         else -> {
             val oldChildren = children

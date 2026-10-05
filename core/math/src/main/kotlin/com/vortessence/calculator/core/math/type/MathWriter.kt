@@ -92,6 +92,8 @@ class MathWriter(
                     expr.variable.identifier
                 ))
             }
+            is AbsoluteValue -> result.append(FunctionNode("abs", writeExpr(expr.operand)))
+            is Antiderivative -> result.append(AntiderivativeNode(writeExpr(expr.integrand), expr.variable.identifier))
             is Derivative -> {
                 result.append(DerivativeNode(
                     writeExpr(expr.body),

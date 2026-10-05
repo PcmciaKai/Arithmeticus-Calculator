@@ -150,6 +150,7 @@ class MathParser {
                         "ln" -> Logarithm.ln(arg)
                         "log", "log10" -> Logarithm.log10(arg)
                         "sqrt" -> Power.squareRoot(arg)
+                        "abs" -> AbsoluteValue(arg)
                         "det" -> Determinant(arg)
                         else -> {
                             MathContext.current().stopWithError(MathIssue.UNKNOWN_FUNCTION)
@@ -168,6 +169,10 @@ class MathParser {
                     val upper = parseSlot(node.upperBound)
                     val integrand = parseSlot(node.integrand)
                     tokens.add(Token.ValueToken(Integral(lower, upper, integrand, Variable(node.variable))))
+                }
+                is AntiderivativeNode -> {
+                    val integrand = parseSlot(node.integrand)
+                    tokens.add(Token.ValueToken(Antiderivative(integrand, Variable(node.variable))))
                 }
                 is DerivativeNode -> {
                     val body = parseSlot(node.body)
