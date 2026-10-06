@@ -10,6 +10,7 @@ import com.vortessence.calculator.core.math.solvers.ImplicitPlotter
 import com.vortessence.calculator.core.math.solvers.NumericIntegrator
 import com.vortessence.calculator.core.math.solvers.NumericRootFinder
 import com.vortessence.calculator.core.math.solvers.PlotCurve
+import com.vortessence.calculator.core.math.solvers.Surface3D
 import com.vortessence.calculator.core.math.type.*
 import kotlin.math.PI
 import kotlin.math.roundToLong
@@ -312,9 +313,9 @@ class MathEngineTest {
         val circle = PlotCurve.fromExpression(Equals(y, Additions(Power(x, Value.TWO), Power(y, Value.TWO))))
         assertTrue(circle is ImplicitCurve)
         assertTrue(PlotCurve.fromExpression(Equals(y, Power(x, Value.TWO))) is Function1D)
-        // Other variables than x and y cannot be plotted
+        // Other variables than x and y cannot be plotted, except z = f(x, y) as a 3D surface
         assertNull(PlotCurve.fromExpression(Equals(y, Additions(x, Variable("z")))))
-        assertNull(PlotCurve.fromExpression(Equals(Additions(x, y), Variable("z"))))
+        assertTrue(PlotCurve.fromExpression(Equals(Additions(x, y), Variable("z"))) is Surface3D)
 
         val curve = circle as ImplicitCurve
         val segments = ImplicitPlotter.contour(curve, -2.0, 2.0, -2.0, 2.0, 80, 80)

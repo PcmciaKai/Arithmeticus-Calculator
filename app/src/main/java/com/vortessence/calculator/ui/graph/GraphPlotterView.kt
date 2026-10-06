@@ -55,6 +55,7 @@ import com.vortessence.calculator.core.math.PlotSegment
 import com.vortessence.calculator.core.math.solvers.Function1D
 import com.vortessence.calculator.core.math.solvers.ImplicitCurve
 import com.vortessence.calculator.core.math.solvers.PlotCurve
+import com.vortessence.calculator.core.math.solvers.Surface3D
 import com.vortessence.calculator.core.math.type.MathOp
 import com.vortessence.calculator.core.math.type.MathString
 import com.vortessence.calculator.core.math.type.OperatorNode
@@ -165,6 +166,12 @@ fun GraphPlotterView(
     onClose: (() -> Unit)? = null
 ) {
     if (onClose != null) BackHandler(onBack = onClose)
+
+    // A surface z = f(x, y) has its own 3D view without the 2D tools
+    if (curve is Surface3D) {
+        SurfaceGraph(curve, expression, modifier, onClose)
+        return
+    }
 
     // A function y = f(x) supports all tools; an implicit curve like x² + y² = 1 has no
     // integral and its cursor moves freely along the curve instead of left to right
@@ -455,9 +462,7 @@ fun GraphPlotterView(
     ) {
         GraphHeader(
             expression = expression,
-            logX = logX,
-            logY = logY,
-            onLogScaleChange = { xAxis, enabled -> setLogScale(xAxis, enabled) },
+            logScale = LogScale(logX, logY) { xAxis, enabled -> setLogScale(xAxis, enabled) },
             onRecenter = {
                 resetX()
                 resetY()
@@ -609,12 +614,38 @@ fun GraphPlotterView(
     }
 }
 
+/** The 3D view of a surface, with the same header as the 2D graph. */
+@Composable
+private fun SurfaceGraph(surface: Surface3D, expression: MathString, modifier: Modifier, onClose: (() -> Unit)?) {
+    val state = remember(surface) { SurfaceViewState() }
+    Column(
+        modifier = modifier
+            .background(MaterialTheme.colorScheme.background)
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+    ) {
+        GraphHeader(
+            expression = expression,
+            variable = "z",
+            logScale = null,
+            onRecenter = { state.reset() },
+            onClose = onClose
+        )
+        SurfacePlot(surface, state, Modifier.weight(1f).fillMaxWidth())
+    }
+}
+
+/** Whether the x and y axes are logarithmic, and how to change that. */
+private class LogScale(val x: Boolean, val y: Boolean, val onChange: (xAxis: Boolean, enabled: Boolean) -> Unit)
+
+/**
+ * The expression, shown as "[variable] = …" unless it is an equation, with the buttons; the
+ * log scale menu only if there is a [logScale].
+ */
 @Composable
 private fun GraphHeader(
     expression: MathString,
-    logX: Boolean,
-    logY: Boolean,
-    onLogScaleChange: (xAxis: Boolean, enabled: Boolean) -> Unit,
+    variable: String = "y",
+    logScale: LogScale?,
     onRecenter: () -> Unit,
     onClose: (() -> Unit)?
 ) {
@@ -634,16 +665,16 @@ private fun GraphHeader(
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             // A plain f(x) is shown as y = f(x), rendered like a typed-in y = so both look the same
-            val displayed = remember(expression) {
+            val displayed = remember(expression, variable) {
                 val isEquation = expression.nodes.any { it is OperatorNode && it.op == MathOp.EQUALS }
                 if (isEquation) expression
-                else MathString(listOf(VariableNode("y"), OperatorNode(MathOp.EQUALS)) + expression.nodes)
+                else MathString(listOf(VariableNode(variable), OperatorNode(MathOp.EQUALS)) + expression.nodes)
             }
             // Scrolls sideways when too long, instead of being squeezed next to the buttons
             Box(modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
                 MathExpressionView(mathString = displayed, fontSize = 18.sp)
             }
-            AxisScaleMenu(logX, logY, onLogScaleChange)
+            if (logScale != null) AxisScaleMenu(logScale.x, logScale.y, logScale.onChange)
             IconButton(onClick = onRecenter) {
                 Icon(Icons.Default.Refresh, contentDescription = "Recenter")
             }
