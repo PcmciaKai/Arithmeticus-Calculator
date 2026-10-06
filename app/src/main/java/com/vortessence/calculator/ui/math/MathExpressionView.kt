@@ -493,11 +493,14 @@ private fun MathNodeView(
                 )
                 // ln|x| rather than ln(|x|): the bars already enclose the argument
                 val isAbsoluteValue = (node.argument.nodes.singleOrNull() as? FunctionNode)?.name == "abs"
+                val argumentFontSize = (fontSize.value * 0.9f).sp
                 slots.Slot(
                     child = 0,
                     string = node.argument,
-                    fontSize = (fontSize.value * 0.9f).sp,
-                    modifier = if (isAbsoluteValue) onAxis else onAxis.stretchyParentheses(textColor)
+                    fontSize = argumentFontSize,
+                    modifier = if (isAbsoluteValue) onAxis else onAxis.stretchyParentheses(textColor, argumentFontSize, isFlat(node.argument)),
+                    // Room above and below for the parentheses, in proportion to the text
+                    verticalPadding = (argumentFontSize.value * 0.04f).dp
                 )
             }
         }
@@ -728,7 +731,7 @@ private fun LogBaseView(node: LogBaseNode, fontSize: TextUnit, slots: SlotContex
             child = 1,
             string = node.argument,
             fontSize = (fontSize.value * 0.9f).sp,
-            modifier = Modifier.stretchyParentheses(slots.textColor)
+            modifier = Modifier.stretchyParentheses(slots.textColor, (fontSize.value * 0.9f).sp, isFlat(node.argument))
         )
     }
 }
@@ -766,7 +769,13 @@ private fun ConversionArrow(fontSize: TextUnit, color: Color) {
 
 @Composable
 private fun ParenthesesView(node: ParenthesesNode, fontSize: TextUnit, slots: SlotContext) {
-    slots.Slot(child = 0, string = node.inner, fontSize = fontSize, modifier = Modifier.stretchyParentheses(slots.textColor))
+    slots.Slot(
+        child = 0,
+        string = node.inner,
+        fontSize = fontSize,
+        modifier = Modifier.stretchyParentheses(slots.textColor, fontSize, isFlat(node.inner)),
+        verticalPadding = (fontSize.value * 0.125f).dp
+    )
 }
 
 /** Vertical bars around the content, as tall as it is: |x|. */
@@ -780,12 +789,31 @@ private fun Modifier.absoluteValueBars(color: Color) = this
     }
     .padding(horizontal = 7.dp)
 
-/** Parentheses around the content, stretched to its full height (e.g. around a fraction or matrix). */
-private fun Modifier.stretchyParentheses(color: Color) = this
+/**
+ * Whether [string] is a single line of plain text (no fractions, powers, roots, ...), around
+ * which parentheses are only as tall as the letters.
+ */
+private fun isFlat(string: MathString): Boolean = string.nodes.all { node ->
+    when (node) {
+        is FractionNode, is ExponentNode, is SciExponentNode, is RadicalNode, is LogBaseNode,
+        is IntegralNode, is AntiderivativeNode, is DerivativeNode, is MatrixNode, is LineBreakNode -> false
+        else -> node.subStrings.all { isFlat(it) }
+    }
+}
+
+/**
+ * Parentheses around the content. Around [flat] content (a line of text) they are as tall as
+ * the letters, 1.2 em, however much spacing the font adds above and below a line; around taller
+ * content (a fraction, a power) they stretch to its full height. Width and stroke scale with
+ * [fontSize] (as at 32sp in the input), so they do not dwarf a small argument, e.g. in an exponent.
+ */
+private fun Modifier.stretchyParentheses(color: Color, fontSize: TextUnit, flat: Boolean) = this
     .drawBehind {
-        val w = 9.dp.toPx()
-        val inset = 1.dp.toPx()
-        val strokeW = 1.8.dp.toPx()
+        val em = fontSize.value / 32f
+        val w = (7f * em).dp.toPx()
+        val fontPx = fontSize.toPx()
+        val inset = if (flat) maxOf((size.height - 1.2f * fontPx) / 2f, 0f) else 0.1f * fontPx
+        val strokeW = maxOf(1f, 1.8f * em).dp.toPx()
         val top = inset + strokeW / 2f
         val bottom = size.height - inset - strokeW / 2f
         val h = bottom - top
@@ -802,7 +830,7 @@ private fun Modifier.stretchyParentheses(color: Color) = this
         drawPath(path = left, color = color, style = stroke)
         drawPath(path = right, color = color, style = stroke)
     }
-    .padding(horizontal = 11.dp)
+    .padding(horizontal = (8.5f * fontSize.value / 32f).dp)
 
 @Composable
 private fun IntegralView(node: IntegralNode, fontSize: TextUnit, slots: SlotContext) {
@@ -877,7 +905,7 @@ private fun DerivativeView(node: DerivativeNode, fontSize: TextUnit, slots: Slot
             HorizontalDivider(thickness = 1.5.dp, color = slots.accentColor)
             Text(text = "d${node.variable}", fontSize = labelFontSize, color = slots.accentColor, fontWeight = FontWeight.SemiBold)
         }
-        slots.Slot(child = 0, string = node.body, fontSize = fontSize, modifier = Modifier.stretchyParentheses(slots.textColor))
+        slots.Slot(child = 0, string = node.body, fontSize = fontSize, modifier = Modifier.stretchyParentheses(slots.textColor, fontSize, isFlat(node.body)))
         val point = node.point
         if (point != null) {
             Row(verticalAlignment = Alignment.Bottom) {

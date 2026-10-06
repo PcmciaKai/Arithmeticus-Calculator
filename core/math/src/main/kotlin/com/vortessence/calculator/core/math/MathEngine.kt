@@ -14,6 +14,7 @@ import com.vortessence.calculator.core.math.expressions.UnitConversion
 import com.vortessence.calculator.core.math.expressions.Dimension
 import com.vortessence.calculator.core.math.expressions.dimensionOf
 import com.vortessence.calculator.core.math.expressions.substituteVariables
+import com.vortessence.calculator.core.math.expressions.tidyForDisplay
 import com.vortessence.calculator.core.math.expressions.toPreferredUnits
 import com.vortessence.calculator.core.math.solvers.Function1D
 import com.vortessence.calculator.core.math.solvers.ImplicitCurve
@@ -140,8 +141,10 @@ object MathEngine {
         }
         val display = displayWriter(ctx)
         val issues = ctx.issues
+        // Symbolic results are shown in a compact form; numbers and quantities as they are
+        val compact = if (simplified.variables().isNotEmpty() && simplified.partWithUnit() == null) tidyForDisplay(simplified, ctx) else simplified
         // A definition shows what the variable now stands for: "a = 2x²"
-        val shown = if (definition != null) Equals(Variable(definition.name), simplified) else simplified
+        val shown = if (definition != null) Equals(Variable(definition.name), compact) else compact
         val written = display.write(shown)
         // An indefinite integral is only determined up to a constant
         if (hasIntegrationConstant(parsed)) {
@@ -153,7 +156,8 @@ object MathEngine {
             expression = simplified,
             numericValue = numVal,
             issues = issues,
-            answer = if (issues.isEmpty()) answerWriter.write(simplified) else null,
+            // Reused (Ans, tapping the result) in the form that is shown; the value is the same
+            answer = if (issues.isEmpty()) answerWriter.write(compact) else null,
             unit = simplified.partWithUnit()?.let { display.writeUnit(it) },
             decimalPlaces = ctx.decimalPlaces,
             definedVariable = definition?.name

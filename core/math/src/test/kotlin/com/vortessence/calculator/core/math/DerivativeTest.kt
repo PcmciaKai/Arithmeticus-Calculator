@@ -55,7 +55,7 @@ class DerivativeTest {
         assertResult("2(e)^(2x)", calc(d(ConstantNode("e"), pow(n("2"), x))))
         assertResult("(1)/(x)", calc(d(f("ln", x))))
         assertResult("(1)/(xln(10))", calc(d(f("log", x))))
-        assertResult("(x)^(x)ln(x) + (x)^(x)", calc(d(x, pow(x))))
+        assertResult("(x)^(x)(ln(x) + 1)", calc(d(x, pow(x))))
     }
 
     @Test

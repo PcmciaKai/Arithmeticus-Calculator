@@ -62,6 +62,10 @@ class Equals(
             }
         }
 
+        // Equal expressions written differently, e.g. a derivative and its simplified form or
+        // sin²x + cos²x = 1: true for every value, not a list of numeric "solutions"
+        if (sidesAgreeNumerically()) return setOf(variable)
+
         // Check if diff is a polynomial in variable
         // For linear: a * x + b = 0 => x = -b / a
         // For quadratic: a * x^2 + b * x + c = 0
@@ -74,6 +78,25 @@ class Equals(
         if (context.shouldStop) return emptySet()
 
         return solveNumerically(diff, variable, context)
+    }
+
+    /**
+     * Whether both sides have the same value at a set of irregular sample points (all variables
+     * set to them), i.e. the equation is an identity. Points where a side is undefined are
+     * skipped; agreement is relative to the values, so 10⁻²⁰·x = 0 is not an identity.
+     */
+    private fun sidesAgreeNumerically(): Boolean {
+        val vars = variables().toList()
+        var agreeing = 0
+        for (i in IDENTITY_SAMPLES.indices) {
+            val bindings = vars.withIndex().associate { (j, v) -> v to IDENTITY_SAMPLES[(i + 3 * j) % IDENTITY_SAMPLES.size] }
+            val l = left.evaluateNumerically(bindings)
+            val r = right.evaluateNumerically(bindings)
+            if (!l.isFinite() || !r.isFinite()) continue
+            if (abs(l - r) > IDENTITY_TOLERANCE * maxOf(abs(l), abs(r))) return false
+            agreeing++
+        }
+        return agreeing >= MIN_IDENTITY_SAMPLES
     }
 
     /**
@@ -218,5 +241,9 @@ class Equals(
 
         /** (half-width of the search interval, number of sampling steps) */
         private val NUMERIC_SEARCH_RANGES = listOf(10.0 to 2_000, 1_000.0 to 20_000)
+
+        private val IDENTITY_SAMPLES = listOf(0.37, 1.13, 2.71, -0.83, 0.52, -1.9, 3.3, 0.071, -2.6, 1.61)
+        private const val IDENTITY_TOLERANCE = 1e-9
+        private const val MIN_IDENTITY_SAMPLES = 6
     }
 }

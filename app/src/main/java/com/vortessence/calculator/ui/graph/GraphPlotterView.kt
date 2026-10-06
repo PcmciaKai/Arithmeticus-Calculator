@@ -4,6 +4,8 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateCentroid
@@ -637,11 +639,10 @@ private fun GraphHeader(
                 if (isEquation) expression
                 else MathString(listOf(VariableNode("y"), OperatorNode(MathOp.EQUALS)) + expression.nodes)
             }
-            MathExpressionView(
-                mathString = displayed,
-                fontSize = 18.sp,
-                modifier = Modifier.weight(1f)
-            )
+            // Scrolls sideways when too long, instead of being squeezed next to the buttons
+            Box(modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
+                MathExpressionView(mathString = displayed, fontSize = 18.sp)
+            }
             AxisScaleMenu(logX, logY, onLogScaleChange)
             IconButton(onClick = onRecenter) {
                 Icon(Icons.Default.Refresh, contentDescription = "Recenter")

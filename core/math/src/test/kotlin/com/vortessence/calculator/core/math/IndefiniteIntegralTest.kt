@@ -80,8 +80,8 @@ class IndefiniteIntegralTest {
 
     @Test
     fun integrationByParts() {
-        assertResult("x(e)^(x) − (e)^(x) + C", calc(i(x, e, pow(x))))
-        assertResult(" − (x)^(2)cos(x) + 2xsin(x) + 2cos(x) + C", calc(i(x, pow(n("2")), f("sin", x))))
+        assertResult("(e)^(x)(x − 1) + C", calc(i(x, e, pow(x))))
+        assertResult("cos(x)(2 − (x)^(2)) + 2xsin(x) + C", calc(i(x, pow(n("2")), f("sin", x))))
         assertResult("((x)^(2)ln(x))/(2) − ((x)^(2))/(4) + C", calc(i(x, f("ln", x))))
         assertResult("xatan(x) − (ln(abs(1 + (x)^(2))))/(2) + C", calc(i(f("atan", x))))
     }
