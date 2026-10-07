@@ -48,11 +48,14 @@ object ResultFormatter {
             ResultForm.DECIMAL -> MathWriter(result.decimalPlaces).writeNumber(result.numericValue)
             ResultForm.SCIENTIFIC -> MathWriter(result.decimalPlaces).writeNumber(result.numericValue, scientific = true)
             ResultForm.MIXED -> {
+                // The same node as typed with the mixed number key, so it reads back as one value
                 val (whole, numerator, denominator) = mixedParts(result)!!
-                MathString(listOf(
-                    NumberNode(whole),
-                    FractionNode(MathString(listOf(NumberNode(numerator))), MathString(listOf(NumberNode(denominator))))
-                ))
+                val mixed = MixedFractionNode(
+                    MathString(listOf(NumberNode(whole.removePrefix("-")))),
+                    MathString(listOf(NumberNode(numerator))),
+                    MathString(listOf(NumberNode(denominator)))
+                )
+                MathString(if (whole.startsWith("-")) listOf(OperatorNode(MathOp.MINUS), mixed) else listOf(mixed))
             }
         }
         result.unit?.let { formatted.insertAll(formatted.length, it.copy().nodes) }

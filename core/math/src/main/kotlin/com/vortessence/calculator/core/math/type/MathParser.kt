@@ -116,6 +116,7 @@ class MathParser {
                     val denExpr = parseSlot(node.denominator)
                     tokens.add(Token.ValueToken(Multiplications.of(numExpr, Power.of(denExpr, Value.MINUS_ONE))))
                 }
+                is MixedFractionNode -> tokens.add(Token.ValueToken(parseMixedFraction(node)))
                 is ExponentNode -> {
                     val baseExpr = if (node.base != null) {
                         parseSlot(node.base)
@@ -215,6 +216,27 @@ class MathParser {
             result.add(curr)
         }
         return result
+    }
+
+    /** The exact value of a mixed number; each part must be a whole number written in digits. */
+    private fun parseMixedFraction(node: MixedFractionNode): Expression {
+        fun part(string: MathString): BigInteger? {
+            if (string.nodes.any { it !is NumberNode }) return null
+            val text = string.nodes.joinToString("") { (it as NumberNode).text }
+            return text.takeIf { it.isNotEmpty() && it.all(Char::isDigit) }?.let(::BigInteger)
+        }
+        val whole = part(node.whole)
+        val numerator = part(node.numerator)
+        val denominator = part(node.denominator)
+        if (whole == null || numerator == null || denominator == null) {
+            syntaxError()
+            return Value.ZERO
+        }
+        if (denominator.signum() == 0) {
+            MathContext.current().stopWithError(MathIssue.DIVISION_BY_ZERO)
+            return Value.ZERO
+        }
+        return Value(Rational.of(BigInt(whole)) + Rational.of(BigInt(numerator), BigInt(denominator)))
     }
 
     /**

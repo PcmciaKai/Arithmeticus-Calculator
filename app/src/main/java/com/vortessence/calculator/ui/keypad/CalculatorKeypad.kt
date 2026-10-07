@@ -76,6 +76,8 @@ sealed class KeyAction {
     data object EE : KeyAction()
     data object Parentheses : KeyAction()
     data object Fraction : KeyAction()
+    /** A mixed number such as 3½ (whole part and fraction). */
+    data object MixedFraction : KeyAction()
     /** Division as an inline "÷" operator instead of a fraction. */
     data object InlineDivide : KeyAction()
     data object Power : KeyAction()
@@ -433,13 +435,16 @@ fun CalculatorKeypad(
                     KeyButton(text = "2", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("2")) }
                     KeyButton(text = "3", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("3")) }
                     KeyButton(text = "×", buttonWidth = buttonWidth, isOp = true) { onKeyAction(KeyAction.Operator("×")) }
-                    // Long press for an inline "÷"; not hinted on the key, the popup tells the
-                    // two apart by showing the main function as a fraction
+                    // Long press for a mixed number and an inline "÷"; not hinted on the key, the
+                    // popup tells them apart by showing the main function as a fraction
                     KeyButton(
                         text = "÷",
                         buttonWidth = buttonWidth,
                         isOp = true,
-                        alternates = listOf(alt("÷", KeyAction.InlineDivide)),
+                        alternates = listOf(
+                            KeyAlternate(AnnotatedString("mixed number"), MixedFractionIcon) { onKeyAction(KeyAction.MixedFraction) },
+                            alt("÷", KeyAction.InlineDivide)
+                        ),
                         popupIcon = FractionIcon,
                         hints = emptyList()
                     ) { onKeyAction(KeyAction.Operator("÷")) }
@@ -720,6 +725,24 @@ private val FractionIcon: ImageVector = ImageVector.Builder(
     }
     path(fill = SolidColor(Color.Black)) {
         moveTo(4f, 11.1f); lineTo(20f, 11.1f); lineTo(20f, 12.9f); lineTo(4f, 12.9f); close()
+    }
+}.build()
+
+/** A mixed number template: a box for the whole part next to a small fraction. */
+private val MixedFractionIcon: ImageVector = ImageVector.Builder(
+    name = "MixedFraction",
+    defaultWidth = 24.dp,
+    defaultHeight = 24.dp,
+    viewportWidth = 24f,
+    viewportHeight = 24f
+).apply {
+    path(stroke = SolidColor(Color.Black), strokeLineWidth = 1.8f) {
+        moveTo(1.5f, 7f); lineTo(9.5f, 7f); lineTo(9.5f, 17f); lineTo(1.5f, 17f); close()
+        moveTo(15f, 3f); lineTo(21f, 3f); lineTo(21f, 9f); lineTo(15f, 9f); close()
+        moveTo(15f, 15f); lineTo(21f, 15f); lineTo(21f, 21f); lineTo(15f, 21f); close()
+    }
+    path(fill = SolidColor(Color.Black)) {
+        moveTo(12.5f, 11.1f); lineTo(23.5f, 11.1f); lineTo(23.5f, 12.9f); lineTo(12.5f, 12.9f); close()
     }
 }.build()
 

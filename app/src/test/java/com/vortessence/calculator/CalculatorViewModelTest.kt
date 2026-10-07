@@ -4,6 +4,7 @@ import com.vortessence.calculator.core.math.context.MathIssue
 import com.vortessence.calculator.core.math.type.AnsNode
 import com.vortessence.calculator.core.math.type.BigOperatorNode
 import com.vortessence.calculator.core.math.type.LimitNode
+import com.vortessence.calculator.core.math.type.MixedFractionNode
 import com.vortessence.calculator.core.math.type.ExponentNode
 import com.vortessence.calculator.core.math.type.FunctionNode
 import com.vortessence.calculator.core.math.type.LogBaseNode
@@ -1079,5 +1080,38 @@ class CalculatorViewModelTest {
         assertEquals("7 mod 4 + 50%", vm.uiState.value.expression.toString())
         runBlocking { vm.awaitLiveResult() }
         assertEquals("(7)/(2)", vm.uiState.value.result!!.result.toString())
+    }
+
+    @Test
+    fun testMixedFractionTakesPrecedingDigitsAsWholePart() {
+        val vm = newViewModel()
+        vm.onKeyAction(KeyAction.Number("1"))
+        vm.onKeyAction(KeyAction.Number("2"))
+        vm.onKeyAction(KeyAction.MixedFraction)
+        assertTrue(vm.uiState.value.expression.nodeAt(0) is MixedFractionNode)
+        assertEquals(listOf(0, 1, 0), vm.uiState.value.cursorPath)
+        vm.onKeyAction(KeyAction.Number("1"))
+        vm.onKeyAction(KeyAction.MoveRight)
+        vm.onKeyAction(KeyAction.Number("4"))
+        assertEquals("12(1)/(4)", vm.uiState.value.expression.toString())
+        runBlocking { vm.awaitLiveResult() }
+        assertEquals("(49)/(4)", vm.uiState.value.result!!.result.toString())
+    }
+
+    @Test
+    fun testMixedFractionWithoutNumberStartsInWholePart() {
+        val vm = newViewModel()
+        vm.onKeyAction(KeyAction.MixedFraction)
+        assertEquals(listOf(0, 0, 0), vm.uiState.value.cursorPath)
+    }
+
+    @Test
+    fun testBackspaceInEmptyFractionPartLeavesWholeNumber() {
+        val vm = newViewModel()
+        vm.onKeyAction(KeyAction.Number("3"))
+        vm.onKeyAction(KeyAction.MixedFraction)
+        vm.onKeyAction(KeyAction.Backspace)
+        assertEquals("3", vm.uiState.value.expression.toString())
+        assertEquals(listOf(1), vm.uiState.value.cursorPath)
     }
 }

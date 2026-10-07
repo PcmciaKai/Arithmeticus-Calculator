@@ -221,6 +221,7 @@ class CalculatorViewModel @JvmOverloads constructor(
                 }
             }
             is KeyAction.InlineDivide -> insertNode(OperatorNode(MathOp.DIVIDE))
+            is KeyAction.MixedFraction -> insertMixedFraction()
             is KeyAction.Variable -> insertNode(VariableNode(action.name))
             is KeyAction.Constant -> insertNode(ConstantNode(action.symbol))
             is KeyAction.Function -> insertNode(FunctionNode(action.name, MathString()))
@@ -668,6 +669,38 @@ class CalculatorViewModel @JvmOverloads constructor(
         _uiState.update { it.copy(expression = root, cursorPath = newPath, selectionRange = null) }
     }
 
+    /**
+     * Inserts a mixed number. Digits right before the cursor (or a selection) become its whole
+     * part and the cursor goes to the numerator; otherwise it starts in the whole part.
+     */
+    private fun insertMixedFraction() {
+        val root = _uiState.value.expression.copy()
+        val path = _uiState.value.cursorPath
+        val target = getTargetString(root, path)
+        val range = _uiState.value.selectionRange
+        val containerPath = path.dropLast(1)
+
+        val whole = MathString()
+        val insertIdx: Int
+        if (range != null && !range.isEmpty()) {
+            val start = range.first.coerceIn(0, target.length)
+            val end = (range.last + 1).coerceIn(start, target.length)
+            for (i in (end - 1) downTo start) whole.insert(0, target.removeAt(i)!!)
+            insertIdx = start
+        } else {
+            var pos = path.last().coerceIn(0, target.length)
+            while (pos > 0 && target.nodeAt(pos - 1) is NumberNode) {
+                whole.insert(0, target.removeAt(pos - 1)!!)
+                pos--
+            }
+            insertIdx = pos
+        }
+
+        target.insert(insertIdx, MixedFractionNode(whole, MathString(), MathString()))
+        val slot = if (whole.isEmpty) 0 else 1
+        _uiState.update { it.copy(expression = root, cursorPath = containerPath + listOf(insertIdx, slot, 0), selectionRange = null) }
+    }
+
     private fun isNumberPart(node: MathNode): Boolean = node is NumberNode || node is SciExponentNode
 
     /**
@@ -896,6 +929,17 @@ class CalculatorViewModel @JvmOverloads constructor(
                         if (target.isEmpty) {
                             parentString.removeAt(containerNodeIdx)
                             val newPath = parentPath + containerNodeIdx
+                            _uiState.update { it.copy(expression = root, cursorPath = newPath, selectionRange = null) }
+                            return
+                        }
+                    }
+                    is MixedFractionNode -> {
+                        // Fraction part empty: back to the plain whole number
+                        if (target.isEmpty && containerNode.numerator.isEmpty && containerNode.denominator.isEmpty) {
+                            parentString.removeAt(containerNodeIdx)
+                            val wholeNodes = containerNode.whole.nodes.map { it.copy() }
+                            parentString.insertAll(containerNodeIdx, wholeNodes)
+                            val newPath = parentPath + (containerNodeIdx + wholeNodes.size)
                             _uiState.update { it.copy(expression = root, cursorPath = newPath, selectionRange = null) }
                             return
                         }

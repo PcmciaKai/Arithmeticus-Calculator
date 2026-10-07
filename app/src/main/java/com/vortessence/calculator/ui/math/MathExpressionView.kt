@@ -458,6 +458,10 @@ private fun MathNodeView(
             )
         }
         is FractionNode -> FractionView(node, fontSize, slots)
+        is MixedFractionNode -> Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.centeredMathAxis()) {
+            slots.Slot(child = 0, string = node.whole, fontSize = fontSize)
+            FractionLayout(node.numerator, 1, node.denominator, 2, fontSize, slots)
+        }
         is ExponentNode -> ExponentView(node, fontSize, slots)
         is SciExponentNode -> {
             // Part of the number before it: no spacing, same color as digits
@@ -515,20 +519,32 @@ private fun MathNodeView(
 
 /** Numerator over denominator; the math axis runs through the middle of the bar. */
 @Composable
-private fun FractionView(node: FractionNode, fontSize: TextUnit, slots: SlotContext) {
+private fun FractionView(node: FractionNode, fontSize: TextUnit, slots: SlotContext) =
+    FractionLayout(node.numerator, 0, node.denominator, 1, fontSize, slots)
+
+/** [numerator] (slot [numeratorChild]) over [denominator] (slot [denominatorChild]). */
+@Composable
+private fun FractionLayout(
+    numerator: MathString,
+    numeratorChild: Int,
+    denominator: MathString,
+    denominatorChild: Int,
+    fontSize: TextUnit,
+    slots: SlotContext
+) {
     val childFontSize = (fontSize.value * 0.8f).sp
     Layout(
         content = {
             slots.Slot(
-                child = 0,
-                string = node.numerator,
+                child = numeratorChild,
+                string = numerator,
                 fontSize = childFontSize,
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
             )
             HorizontalDivider(thickness = 1.8.dp, color = slots.textColor)
             slots.Slot(
-                child = 1,
-                string = node.denominator,
+                child = denominatorChild,
+                string = denominator,
                 fontSize = childFontSize,
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
             )
@@ -797,7 +813,7 @@ private fun Modifier.absoluteValueBars(color: Color) = this
  */
 private fun isFlat(string: MathString): Boolean = string.nodes.all { node ->
     when (node) {
-        is FractionNode, is ExponentNode, is SciExponentNode, is RadicalNode, is LogBaseNode,
+        is FractionNode, is MixedFractionNode, is ExponentNode, is SciExponentNode, is RadicalNode, is LogBaseNode,
         is IntegralNode, is AntiderivativeNode, is DerivativeNode, is MatrixNode, is LineBreakNode,
         is BigOperatorNode, is LimitNode -> false
         else -> node.subStrings.all { isFlat(it) }

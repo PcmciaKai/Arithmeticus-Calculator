@@ -73,6 +73,29 @@ data class FractionNode(
     override fun toString(): String = "($numerator)/($denominator)"
 }
 
+/**
+ * A mixed number such as 3½: [whole] plus [numerator]/[denominator], all whole numbers. Unlike a
+ * number typed before a fraction (3·½, a product) it is a single value; a minus in front
+ * negates all of it, −3½ = −7/2.
+ */
+data class MixedFractionNode(
+    val whole: MathString = MathString(),
+    val numerator: MathString = MathString(),
+    val denominator: MathString = MathString()
+) : MathNode() {
+    override val subStrings: List<MathString> get() = listOf(whole, numerator, denominator)
+    override fun replaceSubString(index: Int, newString: MathString): MathNode {
+        return when (index) {
+            0 -> copy(whole = newString)
+            1 -> copy(numerator = newString)
+            2 -> copy(denominator = newString)
+            else -> this
+        }
+    }
+    override fun copy(): MathNode = MixedFractionNode(whole.copy(), numerator.copy(), denominator.copy())
+    override fun toString(): String = "$whole($numerator)/($denominator)"
+}
+
 data class ExponentNode(
     val base: MathString? = null,
     val exponent: MathString = MathString()

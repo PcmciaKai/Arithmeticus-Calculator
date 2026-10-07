@@ -219,4 +219,29 @@ class NewFunctionsTest {
         assertEquals(listOf(MathIssue.UNDEFINED), calc(n("2.5"), op(MathOp.FACTORIAL)).issues)
         assertResult("6", calc(paren(n("1"), plus, n("2")), op(MathOp.FACTORIAL)))
     }
+
+    private fun mixed(whole: String, num: String, den: String) = MixedFractionNode(ms(n(whole)), ms(n(num)), ms(n(den)))
+
+    @Test
+    fun mixedNumbers() {
+        assertResult("(7)/(2)", calc(mixed("3", "1", "2")))
+        // A minus negates the whole mixed number
+        assertResult(" − (7)/(2)", calc(minus, mixed("3", "1", "2")))
+        assertResult("(5)/(4)", calc(mixed("1", "1", "2"), minus, frac(ms(n("1")), ms(n("4")))))
+        // Unlike a number before a fraction, which is a product
+        assertResult("(3)/(2)", calc(n("3"), frac(ms(n("1")), ms(n("2")))))
+        assertEquals(listOf(MathIssue.SYNTAX_ERROR), calc(mixed("2.5", "1", "2")).issues)
+        assertEquals(listOf(MathIssue.SYNTAX_ERROR), calc(MixedFractionNode(ms(n("2")), ms(x), ms(n("2")))).issues)
+        assertEquals(listOf(MathIssue.DIVISION_BY_ZERO), calc(mixed("2", "1", "0")).issues)
+    }
+
+    @Test
+    fun mixedResultFormReadsBackAsTheSameValue() {
+        for (input in listOf(ms(frac(ms(n("7")), ms(n("2")))), ms(minus, frac(ms(n("7")), ms(n("2")))))) {
+            val res = calc(*input.nodes.toTypedArray())
+            val shown = ResultFormatter.format(res, ResultForm.MIXED)
+            assertTrue(shown.nodes.any { it is MixedFractionNode })
+            assertEquals(res.result.toString(), calc(*shown.nodes.toTypedArray()).result.toString())
+        }
+    }
 }
