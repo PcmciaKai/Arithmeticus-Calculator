@@ -207,7 +207,8 @@ class Equals(
         val fourAC = Multiplications.of(Value(4L), a, c).canonicalize(context)
         val discriminant = Additions(bSq, fourAC.negate()).canonicalize(context)
         val discriminantValue = if (discriminant.variables().isEmpty()) discriminant.evaluateNumerically() else Double.NaN
-        if (discriminantValue < 0.0) {
+        // With complex numbers the roots are a ± b·i
+        if (discriminantValue < 0.0 && !context.complexNumbers) {
             context.stopWithError(MathIssue.NO_REAL_SOLUTION)
             return emptyList()
         }

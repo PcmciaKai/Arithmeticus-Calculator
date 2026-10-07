@@ -22,11 +22,13 @@ fun SettingsDialog(
     unitSystem: UnitSystem,
     decimalPlaces: Int?,
     digitGrouping: Boolean,
+    complexNumbers: Boolean,
     themeMode: ThemeMode,
     onToggleAngleUnit: () -> Unit,
     onUnitSystemChange: (UnitSystem) -> Unit,
     onDecimalPlacesChange: (Int?) -> Unit,
     onDigitGroupingChange: (Boolean) -> Unit,
+    onComplexNumbersChange: (Boolean) -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -67,6 +69,26 @@ fun SettingsDialog(
                         onClick = onToggleAngleUnit,
                         label = { Text(if (angleUnit == AngleUnit.RADIANS) "RAD" else "DEG") }
                     )
+                }
+
+                HorizontalDivider()
+
+                // Complex numbers
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Complex numbers", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                        Text(
+                            if (complexNumbers) "Allow i and complex results, e.g. √−4 = 2i"
+                            else "Real numbers only, √−4 is an error",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(checked = complexNumbers, onCheckedChange = onComplexNumbersChange)
                 }
 
                 HorizontalDivider()

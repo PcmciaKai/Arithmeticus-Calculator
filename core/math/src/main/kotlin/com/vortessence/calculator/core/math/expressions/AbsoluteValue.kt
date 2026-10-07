@@ -21,8 +21,14 @@ class AbsoluteValue(val operand: Expression) : Expression() {
                 context.stopWithError(MathIssue.MATRIX_UNSUPPORTED)
                 this
             }
-            else -> AbsoluteValue(cOperand)
+            // The modulus of a complex number: |a + bi| = √(a² + b²)
+            else -> if (cOperand.containsImaginaryUnit()) modulus(cOperand, context) else AbsoluteValue(cOperand)
         }
+    }
+
+    private fun modulus(z: Expression, context: MathContext): Expression {
+        val (re, im) = complexParts(z) ?: return numericComplex(z)?.let { Value(it.abs) } ?: AbsoluteValue(z)
+        return Power(Additions(listOf(Power(re, Value.TWO), Power(im, Value.TWO))), Value.HALF).canonicalize(context)
     }
 
     override fun evaluateNumerically(bindings: Map<Variable, Double>): Double = abs(operand.evaluateNumerically(bindings))

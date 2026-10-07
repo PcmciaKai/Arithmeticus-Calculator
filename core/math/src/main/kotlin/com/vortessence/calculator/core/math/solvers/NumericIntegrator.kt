@@ -12,6 +12,7 @@ object NumericIntegrator {
     private const val PIECES = 64
     private const val MAX_DEPTH = 35
     private const val MAX_EVALUATIONS = 200_000
+    private const val TAIL_START = 1e-8
 
     private class Diverged : RuntimeException()
 
@@ -27,6 +28,39 @@ object NumericIntegrator {
         context: MathContext? = null,
         tolerance: Double = 1e-10
     ): Double = integrate(function::evaluateAt, a, b, context, tolerance)
+
+    /**
+     * Like [integrate], but [a] and [b] may also be ±∞ (an improper integral such as
+     * ∫₀^∞ e^−x dx = 1). The infinite part is mapped onto a finite interval by x = 1/t.
+     */
+    fun integrateImproper(
+        function: (Double) -> Double,
+        a: Double,
+        b: Double,
+        context: MathContext? = null,
+        tolerance: Double = 1e-10
+    ): Double {
+        if (a.isNaN() || b.isNaN()) return Double.NaN
+        if (a == b) return 0.0
+        if (b < a) return -integrateImproper(function, b, a, context, tolerance)
+        return when {
+            a.isFinite() && b.isFinite() -> integrate(function, a, b, context, tolerance)
+            a.isInfinite() && b.isInfinite() ->
+                integrateImproper(function, a, 0.0, context, tolerance) + integrateImproper(function, 0.0, b, context, tolerance)
+            // ∫_−∞^b f(x) dx = ∫_−b^∞ f(−x) dx
+            a.isInfinite() -> integrateImproper({ function(-it) }, -b, Double.POSITIVE_INFINITY, context, tolerance)
+            else -> {
+                // ∫_a^∞ = ∫_a^c f(x) dx + ∫_0^(1/c) f(1/t)/t² dt
+                val c = maxOf(a, 0.0) + 1.0
+                val tail: (Double) -> Double = { t ->
+                    // The value at t = 0 (x = ∞) is the limit, approached closely enough
+                    val s = if (t == 0.0) TAIL_START / c else t
+                    function(1.0 / s) / (s * s)
+                }
+                integrate(function, a, c, context, tolerance) + integrate(tail, 0.0, 1.0 / c, context, tolerance)
+            }
+        }
+    }
 
     /** Like the [Function1D] variant, for any function of one variable. */
     fun integrate(

@@ -7,6 +7,10 @@ import com.vortessence.calculator.core.math.expressions.Derivative
 import com.vortessence.calculator.core.math.expressions.EquationSystem
 import com.vortessence.calculator.core.math.expressions.Equals
 import com.vortessence.calculator.core.math.expressions.Expression
+import com.vortessence.calculator.core.math.expressions.Limit
+import com.vortessence.calculator.core.math.expressions.Series
+import com.vortessence.calculator.core.math.expressions.containsImaginaryUnit
+import com.vortessence.calculator.core.math.expressions.numericComplex
 import com.vortessence.calculator.core.math.expressions.MatrixExpression
 import com.vortessence.calculator.core.math.expressions.Value
 import com.vortessence.calculator.core.math.expressions.Variable
@@ -55,7 +59,9 @@ data class CalculationResult(
     /** The decimal places setting [result] was written with (null = automatic). */
     val decimalPlaces: Int? = null,
     /** For a definition such as "a := 2x²" the defined variable ("a"); its value is [answer]. */
-    val definedVariable: String? = null
+    val definedVariable: String? = null,
+    /** The imaginary part of a complex result; [numericValue] is then its real part. */
+    val numericImaginary: Double = 0.0
 )
 
 data class PlotPoint(val x: Double, val y: Double)
@@ -134,8 +140,13 @@ object MathEngine {
         val simplified = if (parsed is UnitConversion) canonical else canonical.toPreferredUnits(ctx)
         if (ctx.shouldStop) return failure(input, ctx, expression = canonical)
 
-        val numVal = simplified.evaluateNumerically()
-        if (simplified is Value && !numVal.isFinite()) {
+        val complex = if (simplified.containsImaginaryUnit()) numericComplex(simplified) else null
+        val numVal = complex?.re ?: simplified.evaluateNumerically()
+        // ∞ is a result only where it is meant, e.g. for a limit or a divergent sum
+        val isMeantToBeInfinite = numVal.isInfinite() && parsed.containsExpressionMatching {
+            it is Limit || it is Series || (it is Value && it.real.isInfinite)
+        }
+        if (simplified is Value && !numVal.isFinite() && !isMeantToBeInfinite) {
             val issue = if (numVal.isNaN()) MathIssue.UNDEFINED else MathIssue.VALUES_TOO_LARGE
             return failure(input, ctx, issue, simplified)
         }
@@ -160,7 +171,8 @@ object MathEngine {
             answer = if (issues.isEmpty()) answerWriter.write(compact) else null,
             unit = simplified.partWithUnit()?.let { display.writeUnit(it) },
             decimalPlaces = ctx.decimalPlaces,
-            definedVariable = definition?.name
+            definedVariable = definition?.name,
+            numericImaginary = complex?.im ?: 0.0
         )
     }
 

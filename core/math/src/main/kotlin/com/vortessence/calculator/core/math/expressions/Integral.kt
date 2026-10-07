@@ -65,10 +65,13 @@ class Integral(
     private fun exactValue(a: Expression, b: Expression, f: Expression, numeric: Double, context: MathContext): Expression? {
         val antiderivative = Integrator(context).antiderivative(f, variable) ?: return null
         val scratch = context.copy()
-        val difference = Additions(listOf(
-            antiderivative.substituteVariables(mapOf(variable to b)),
-            Multiplications(listOf(Value.MINUS_ONE, antiderivative.substituteVariables(mapOf(variable to a))))
-        )).canonicalize(scratch)
+        // At an infinite bound F(±∞) is a limit
+        fun at(bound: Expression) = if ((bound as? Value)?.real?.isInfinite == true) {
+            Limit(antiderivative, variable, bound)
+        } else {
+            antiderivative.substituteVariables(mapOf(variable to bound))
+        }
+        val difference = Additions(listOf(at(b), Multiplications(listOf(Value.MINUS_ONE, at(a))))).canonicalize(scratch)
         if (scratch.shouldStop || difference.variables().isNotEmpty()) return null
         val value = difference.evaluateNumerically()
         if (!value.isFinite() || abs(value - numeric) > EXACT_AGREEMENT * max(1.0, abs(numeric))) return null
@@ -78,7 +81,7 @@ class Integral(
     override fun evaluateNumerically(bindings: Map<Variable, Double>): Double {
         val a = lowerBound.evaluateNumerically(bindings)
         val b = upperBound.evaluateNumerically(bindings)
-        if (a.isNaN() || b.isNaN() || a.isInfinite() || b.isInfinite()) return Double.NaN
+        if (a.isNaN() || b.isNaN()) return Double.NaN
 
         // The integrand sees the outer variables too, with the integration variable bound on top
         val inner = HashMap(bindings)
@@ -87,7 +90,7 @@ class Integral(
             return integrand.evaluateNumerically(inner)
         }
         // Adaptive, so it also notices a pole between the bounds (the integral diverges: NaN)
-        return NumericIntegrator.integrate(::integrandAt, a, b, MathContext.current())
+        return NumericIntegrator.integrateImproper(::integrandAt, a, b, MathContext.current())
     }
 
     override fun equals(other: Any?): Boolean {

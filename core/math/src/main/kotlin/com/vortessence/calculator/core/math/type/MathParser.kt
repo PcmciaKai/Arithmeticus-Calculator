@@ -8,7 +8,6 @@ import com.vortessence.calculator.core.math.numbers.Rational
 import com.vortessence.calculator.core.math.numbers.Real
 import java.math.BigDecimal
 import java.math.BigInteger
-import kotlin.math.floor
 
 /**
  * Converts a [MathString] into an [Expression]. Problems such as empty slots, dangling
@@ -94,6 +93,8 @@ class MathParser {
                 }
                 is OperatorNode -> tokens.add(Token.OpToken(node.op))
                 is VariableNode -> tokens.add(Token.ValueToken(Variable(node.name)))
+                is ConstantNode if node.name == IMAGINARY_UNIT -> tokens.add(Token.ValueToken(ImaginaryUnit))
+                is ConstantNode if node.name == INFINITY -> tokens.add(Token.ValueToken(Value(Double.POSITIVE_INFINITY)))
                 is ConstantNode -> {
                     val constant = Constant.findByName(node.name) ?: run {
                         syntaxError()
@@ -179,6 +180,16 @@ class MathParser {
                     val point = node.point?.let { parseSlot(it) }
                     tokens.add(Token.ValueToken(Derivative(body, Variable(node.variable), point)))
                 }
+                is BigOperatorNode -> {
+                    val (index, start) = parseBinding(node.lower, MathOp.EQUALS)
+                    val end = parseSlot(node.upper)
+                    val body = parseSlot(node.body)
+                    tokens.add(Token.ValueToken(Series(node.operator == BigOperator.PRODUCT, index, start, end, body)))
+                }
+                is LimitNode -> {
+                    val (variable, point) = parseBinding(node.approach, MathOp.CONVERT)
+                    tokens.add(Token.ValueToken(Limit(parseSlot(node.body), variable, point)))
+                }
                 is MatrixNode -> {
                     val elements = node.elements.map { parseSlot(it) }
                     tokens.add(Token.ValueToken(MatrixExpression(node.rows, node.cols, elements)))
@@ -197,13 +208,26 @@ class MathParser {
                 val prev = tokens[idx - 1]
                 if (prev is Token.ValueToken && curr is Token.ValueToken) {
                     result.add(Token.OpToken(MathOp.MULTIPLY))
-                } else if (prev is Token.OpToken && prev.op == MathOp.FACTORIAL && curr is Token.ValueToken) {
+                } else if (prev is Token.OpToken && prev.op.isPostfix && curr is Token.ValueToken) {
                     result.add(Token.OpToken(MathOp.MULTIPLY))
                 }
             }
             result.add(curr)
         }
         return result
+    }
+
+    /**
+     * A variable bound to a value, "n=1" below a sum or "x→0" below a limit: the variable,
+     * then [op], then the value.
+     */
+    private fun parseBinding(string: MathString, op: MathOp): Pair<Variable, Expression> {
+        val name = (string.nodes.getOrNull(0) as? VariableNode)?.name
+        if (name == null || (string.nodes.getOrNull(1) as? OperatorNode)?.op != op) {
+            syntaxError()
+            return Variable("x") to Value.ZERO
+        }
+        return Variable(name) to parseSlot(MathString(string.nodes.drop(2)))
     }
 
     /** A unit, or a unit raised to a power (m², typed as m with the power key). */
@@ -265,8 +289,8 @@ class MathParser {
             while (pos < tokens.size) {
                 val token = tokens[pos] as? Token.OpToken ?: break
                 val op = token.op
-                if (op == MathOp.FACTORIAL) {
-                    // A factorial that did not directly follow a value (e.g. "2 + !")
+                if (op.isPostfix) {
+                    // A factorial or percent that did not directly follow a value (e.g. "2 + !")
                     syntaxError()
                     pos++
                     continue
@@ -285,7 +309,8 @@ class MathParser {
                         if (left is Equals || right is Equals) syntaxError()
                         Equals(left, right)
                     }
-                    MathOp.FACTORIAL -> left
+                    MathOp.FACTORIAL, MathOp.PERCENT -> left
+                    MathOp.MODULO -> Modulo(left, right)
                     // Definitions are split off by MathEngine; anywhere else ":=" is invalid
                     MathOp.DEFINE -> {
                         syntaxError()
@@ -328,7 +353,10 @@ class MathParser {
                 val nextToken = tokens[pos]
                 if (nextToken is Token.OpToken && nextToken.op == MathOp.FACTORIAL) {
                     pos++
-                    expr = computeFactorial(expr)
+                    expr = Factorial(expr)
+                } else if (nextToken is Token.OpToken && nextToken.op == MathOp.PERCENT) {
+                    pos++
+                    expr = Multiplications.of(expr, Value(1L, 100L))
                 } else {
                     break
                 }
@@ -336,39 +364,11 @@ class MathParser {
 
             return expr
         }
-
-        private fun computeFactorial(expr: Expression): Expression {
-            val context = MathContext.current()
-            val canonical = expr.canonicalize(context)
-            if (context.shouldStop) return expr
-            val n: Long? = (canonical as? Value)?.let { value ->
-                val r = value.rational
-                if (r != null) {
-                    if (r.isFractional || r.isNegative) null
-                    else if (r.numerator > BigInt(MAX_FACTORIAL)) MAX_FACTORIAL + 1
-                    else r.numerator.toLong()
-                } else {
-                    val d = value.real.value
-                    if (d >= 0.0 && d == floor(d)) minOf(d, (MAX_FACTORIAL + 1).toDouble()).toLong() else null
-                }
-            }
-            return when {
-                n == null -> {
-                    // Negative, fractional or symbolic arguments are not supported
-                    context.stopWithError(MathIssue.UNDEFINED)
-                    expr
-                }
-                n > MAX_FACTORIAL -> {
-                    context.stopWithError(MathIssue.VALUES_TOO_LARGE)
-                    expr
-                }
-                else -> Value(BigInt.factorial(n))
-            }
-        }
     }
 
     private companion object {
-        const val MAX_FACTORIAL = 3000L
+        const val IMAGINARY_UNIT = "i"
+        const val INFINITY = "∞"
         const val MAX_EXACT_DECIMAL_SCALE = 10_000
 
         fun syntaxError() {

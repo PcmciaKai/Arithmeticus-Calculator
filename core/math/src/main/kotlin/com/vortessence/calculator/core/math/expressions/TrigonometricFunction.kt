@@ -64,6 +64,7 @@ class TrigonometricFunction(
         if (context.shouldStop) return this
 
         val isConstant = op.variables().isEmpty()
+        if (isConstant && op.containsImaginaryUnit()) return complexValue(op, context)
         if (isConstant) {
             val v = op.evaluateNumerically()
             if (type.isInverse && type != TrigType.ATAN && abs(v) > 1.0) {
@@ -170,6 +171,25 @@ class TrigonometricFunction(
         } else {
             Multiplications.of(Value(k, 12L), Constant.PI).canonicalize(context)
         }
+    }
+
+    /** sin, cos or tan of a complex number (in radians), in floating point. */
+    private fun complexValue(op: Expression, context: MathContext): Expression {
+        val z = numericComplex(op)
+        if (z == null || type.isInverse) {
+            context.stopWithError(MathIssue.UNDEFINED)
+            return this
+        }
+        val result = when (type) {
+            TrigType.SIN -> z.sin()
+            TrigType.COS -> z.cos()
+            else -> z.sin() / z.cos()
+        }
+        if (!result.isFinite) {
+            context.stopWithError(MathIssue.VALUES_TOO_LARGE)
+            return this
+        }
+        return result.toExpression(context)
     }
 
     /** Evaluates this function for a numeric operand, honoring [unit] (see [angleUnit]). */

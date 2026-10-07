@@ -77,8 +77,22 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
         if (newestHistoryId != null) historyListState.animateScrollToItem(0)
     }
 
+    // Pressing i turned complex numbers on: say so, and where to turn them off again
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(uiState.showComplexNotice) {
+        if (uiState.showComplexNotice) {
+            // Cleared afterwards: clearing it first would restart this effect and cancel the message
+            snackbarHostState.showSnackbar(
+                message = "Complex numbers are now on. You can switch them off in the settings.",
+                withDismissAction = true
+            )
+            viewModel.dismissComplexNotice()
+        }
+    }
+
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -183,11 +197,13 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
             unitSystem = uiState.unitSystem,
             decimalPlaces = uiState.decimalPlaces,
             digitGrouping = uiState.digitGrouping,
+            complexNumbers = uiState.complexNumbers,
             themeMode = uiState.themeMode,
             onToggleAngleUnit = { viewModel.toggleAngleUnit() },
             onUnitSystemChange = { viewModel.setUnitSystem(it) },
             onDecimalPlacesChange = { viewModel.setDecimalPlaces(it) },
             onDigitGroupingChange = { viewModel.setDigitGrouping(it) },
+            onComplexNumbersChange = { viewModel.setComplexNumbers(it) },
             onThemeModeChange = { viewModel.setThemeMode(it) },
             onDismiss = { viewModel.dismissSettingsDialog() }
         )

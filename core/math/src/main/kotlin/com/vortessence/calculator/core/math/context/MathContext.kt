@@ -16,7 +16,9 @@ class MathContext(
     /** The value "Ans" stands for, or null if there is no previous result. */
     var ans: MathString? = null,
     /** Values of the variables defined with ":=", by name. */
-    var variables: Map<String, MathString> = emptyMap()
+    var variables: Map<String, MathString> = emptyMap(),
+    /** Whether i and complex results (√−1 = i, ln(−1) = iπ) are allowed. */
+    var complexNumbers: Boolean = false
 ) {
     private val _issues = mutableListOf<MathIssue>()
     val issues: List<MathIssue> get() = _issues
@@ -45,7 +47,7 @@ class MathContext(
         get() = System.currentTimeMillis() > deadlineMillis
 
     fun copy(): MathContext {
-        val copy = MathContext(mode, angleUnit, maxPrecision, unitSystem, decimalPlaces, ans, variables)
+        val copy = MathContext(mode, angleUnit, maxPrecision, unitSystem, decimalPlaces, ans, variables, complexNumbers)
         copy._issues.addAll(_issues)
         copy.isCancelled.set(isCancelled.get())
         copy.deadlineMillis = deadlineMillis

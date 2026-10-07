@@ -114,6 +114,11 @@ class Multiplications(val operands: List<Expression>) : Expression() {
             used[i] = true
         }
 
+        // Merging can leave numbers (i·i = −1, √2·√2 = 2) or products (i³ = −i): combine them again
+        if (mergedTerms.any { it is Value || it is Multiplications }) {
+            return Multiplications(listOf(valueProduct) + mergedTerms).canonicalize(context)
+        }
+
         // Add back coefficient if not 1
         val finalTerms = mutableListOf<Expression>()
         if (valueProduct != Value.ONE || mergedTerms.isEmpty()) {
@@ -124,11 +129,12 @@ class Multiplications(val operands: List<Expression>) : Expression() {
         if (finalTerms.isEmpty()) return Value.ONE
         if (finalTerms.size == 1) return finalTerms[0]
 
-        // Check if we should distribute over additions: a * (b + c)
+        // Check if we should distribute over additions: a * (b + c). Complex numbers are always
+        // multiplied out, so they take the form a + b·i: 2i·(1 + i) = −2 + 2i
         val additionTerm = finalTerms.firstOrNull { it is Additions } as? Additions
-        if (additionTerm != null && finalTerms.size == 2) {
-            val other = finalTerms.first { it != additionTerm }
-            val distributed = additionTerm.operands.map { of(other, it).canonicalize(context) }
+        if (additionTerm != null && (finalTerms.size == 2 || finalTerms.any { it.containsImaginaryUnit() })) {
+            val others = finalTerms.toMutableList().apply { remove(additionTerm) }
+            val distributed = additionTerm.operands.map { of(*(others + it).toTypedArray()).canonicalize(context) }
             return Additions(distributed).canonicalize(context)
         }
 

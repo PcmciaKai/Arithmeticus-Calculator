@@ -43,6 +43,7 @@ class MathWriter(
         when (expr) {
             is Value -> writeValue(expr, result)
             is Constant -> result.append(ConstantNode(expr.name))
+            is ImaginaryUnit -> result.append(ConstantNode("i"))
             is Variable -> result.append(VariableNode(expr.identifier))
             is UnitExpression -> result.append(UnitNode(expr.symbol))
             is Power -> {
@@ -101,6 +102,27 @@ class MathWriter(
                     expr.variable.identifier
                 ))
             }
+            is Series -> {
+                result.append(BigOperatorNode(
+                    if (expr.isProduct) BigOperator.PRODUCT else BigOperator.SUM,
+                    binding(expr.index, MathOp.EQUALS, expr.lower),
+                    writeExpr(expr.upper),
+                    writeExpr(expr.body)
+                ))
+            }
+            is Limit -> result.append(LimitNode(binding(expr.variable, MathOp.CONVERT, expr.point), writeExpr(expr.body)))
+            is Factorial -> {
+                val operand = writeExpr(expr.operand)
+                val isSimple = expr.operand is Variable || (expr.operand is Value && !expr.operand.isNegative && expr.operand.rational?.isFractional == false)
+                result.appendAll(if (isSimple) operand else MathString(listOf(ParenthesesNode(operand))))
+                result.append(OperatorNode(MathOp.FACTORIAL))
+            }
+            is Modulo -> {
+                // mod binds like ×, so sums (and, on the right, products) need parentheses
+                result.appendAll(parenthesizedIf(expr.dividend) { it is Additions || it is Equals })
+                result.append(OperatorNode(MathOp.MODULO))
+                result.appendAll(parenthesizedIf(expr.divisor) { it is Additions || it is Multiplications || it is Modulo || it is Equals })
+            }
             is MatrixExpression -> {
                 result.append(MatrixNode(
                     expr.rows,
@@ -111,6 +133,18 @@ class MathWriter(
             else -> result.append(TextNode(expr.toString()))
         }
         return result
+    }
+
+    /** "n=1" below a sum, "x→0" below a limit. */
+    private fun binding(variable: Variable, op: MathOp, value: Expression): MathString {
+        val result = MathString(listOf(VariableNode(variable.identifier), OperatorNode(op)))
+        result.appendAll(writeExpr(value))
+        return result
+    }
+
+    private fun parenthesizedIf(expr: Expression, condition: (Expression) -> Boolean): MathString {
+        val nodes = writeExpr(expr)
+        return if (condition(expr)) MathString(listOf(ParenthesesNode(nodes))) else nodes
     }
 
     private fun writeValue(value: Value, result: MathString) {
@@ -142,7 +176,7 @@ class MathWriter(
             d.isNaN() -> return result.append(TextNode("undefined"))
             d.isInfinite() -> {
                 if (d < 0) result.append(OperatorNode(MathOp.MINUS))
-                return result.append(TextNode("∞"))
+                return result.append(ConstantNode("∞"))
             }
         }
         if (d < 0) result.append(OperatorNode(MathOp.MINUS))
@@ -221,7 +255,7 @@ class MathWriter(
     }
 
     private fun needsParenthesesAsBase(base: Expression): Boolean = when (base) {
-        is Additions, is Multiplications, is Power, is Equals -> true
+        is Additions, is Multiplications, is Power, is Equals, is Modulo -> true
         is Value -> base.isNegative || base.rational?.isFractional == true || base.rational == null
         else -> false
     }
@@ -294,7 +328,7 @@ class MathWriter(
         val ordered = factors.sortedWith(compareBy({ factorRank(it) }, { variableName(it) }))
         for ((idx, op) in ordered.withIndex()) {
             var nodes = writeExpr(op)
-            if (op is Additions || op is Equals) {
+            if (op is Additions || op is Equals || op is Modulo) {
                 nodes = MathString(listOf(ParenthesesNode(nodes)))
             }
             if (idx > 0 && needsExplicitTimes(nodes)) {
@@ -304,13 +338,14 @@ class MathWriter(
         }
     }
 
-    /** Numbers, then constants (π), variables and their powers, functions, and sums last. */
+    /** Numbers, then constants (π), i, variables and their powers, functions, and sums last: 2πix. */
     private fun factorRank(factor: Expression): Int = when {
         factor is Value -> 0
         factor is Constant -> 1
-        variableName(factor) != null -> 2
-        factor is Additions || (factor is Power && factor.base is Additions) -> 4
-        else -> 3
+        factor === ImaginaryUnit -> 2
+        variableName(factor) != null -> 3
+        factor is Additions || (factor is Power && factor.base is Additions) -> 5
+        else -> 4
     }
 
     /** The variable of a factor x or xⁿ, which orders such factors alphabetically. */
@@ -327,7 +362,9 @@ class MathWriter(
     }
 
     private fun writeAdditions(add: Additions, result: MathString) {
-        for ((idx, op) in add.operands.withIndex()) {
+        // Complex numbers in the usual form a + bi: real terms first
+        val operands = add.operands.sortedBy { it.containsImaginaryUnit() }
+        for ((idx, op) in operands.withIndex()) {
             val term: Expression
             if (idx > 0) {
                 if (op.isNegative) {

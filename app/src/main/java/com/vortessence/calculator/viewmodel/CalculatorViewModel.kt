@@ -63,7 +63,11 @@ data class CalculatorUiState(
     val showMatrixDialog: Boolean = false,
     /** Size of the most recently inserted matrix, preselected in the matrix dialog. */
     val matrixRows: Int = 2,
-    val matrixCols: Int = 2
+    val matrixCols: Int = 2,
+    /** Whether i and complex results are allowed (√−4 = 2i instead of an error). */
+    val complexNumbers: Boolean = false,
+    /** Set when the i key turned complex numbers on, until the message about it was shown. */
+    val showComplexNotice: Boolean = false
 )
 
 /**
@@ -134,7 +138,8 @@ class CalculatorViewModel @JvmOverloads constructor(
         val unitSystem: UnitSystem,
         val decimalPlaces: Int?,
         val ans: MathString?,
-        val variables: Map<String, MathString>
+        val variables: Map<String, MathString>,
+        val complexNumbers: Boolean
     ) {
         // Always exact; decimal display is a matter of the result form
         fun toMathContext() = MathContext(
@@ -143,12 +148,13 @@ class CalculatorViewModel @JvmOverloads constructor(
             unitSystem = unitSystem,
             decimalPlaces = decimalPlaces,
             ans = ans,
-            variables = variables
+            variables = variables,
+            complexNumbers = complexNumbers
         )
     }
 
     private fun CalculatorUiState.mathContext() =
-        Settings(angleUnit, unitSystem, decimalPlaces, ans(), variables())
+        Settings(angleUnit, unitSystem, decimalPlaces, ans(), variables(), complexNumbers)
 
     /** Ans is the most recently committed result, not the live result of this line. */
     private fun CalculatorUiState.ans(): MathString? =
@@ -177,6 +183,7 @@ class CalculatorViewModel @JvmOverloads constructor(
         val matrixCols = prefs?.getInt("matrix_cols", 2) ?: 2
         val savedTheme = prefs?.getString("theme_mode", null)
         val themeMode = ThemeMode.entries.firstOrNull { it.name == savedTheme } ?: ThemeMode.SYSTEM
+        val complexNumbers = prefs?.getBoolean("complex_numbers", false) ?: false
         _uiState.update {
             it.copy(
                 resultForm = form,
@@ -186,7 +193,8 @@ class CalculatorViewModel @JvmOverloads constructor(
                 digitGrouping = grouping,
                 themeMode = themeMode,
                 matrixRows = matrixRows,
-                matrixCols = matrixCols
+                matrixCols = matrixCols,
+                complexNumbers = complexNumbers
             )
         }
     }
@@ -205,6 +213,8 @@ class CalculatorViewModel @JvmOverloads constructor(
                         "=" -> MathOp.EQUALS
                         ":=" -> MathOp.DEFINE
                         "!" -> MathOp.FACTORIAL
+                        "%" -> MathOp.PERCENT
+                        "mod" -> MathOp.MODULO
                         else -> MathOp.PLUS
                     }
                     insertNode(OperatorNode(op))
@@ -247,6 +257,10 @@ class CalculatorViewModel @JvmOverloads constructor(
             is KeyAction.DerivativeAt -> insertNode(DerivativeNode(point = MathString()))
             is KeyAction.Matrix -> _uiState.update { it.copy(showMatrixDialog = true) }
             is KeyAction.Transpose -> insertPower(MathString(listOf(VariableNode("T"))))
+            is KeyAction.Sum -> insertBigOperator(BigOperator.SUM)
+            is KeyAction.Product -> insertBigOperator(BigOperator.PRODUCT)
+            is KeyAction.Limit -> insertWithBinding(LimitNode(MathString(listOf(VariableNode("x"), OperatorNode(MathOp.CONVERT)))))
+            is KeyAction.ImaginaryUnit -> insertImaginaryUnit()
         }
     }
 
@@ -316,6 +330,43 @@ class CalculatorViewModel @JvmOverloads constructor(
     fun setThemeMode(mode: ThemeMode) {
         prefs?.edit { putString("theme_mode", mode.name) }
         _uiState.update { it.copy(themeMode = mode) }
+    }
+
+    fun setComplexNumbers(enabled: Boolean) {
+        prefs?.edit { putBoolean("complex_numbers", enabled) }
+        _uiState.update { it.copy(complexNumbers = enabled) }
+    }
+
+    fun dismissComplexNotice() {
+        _uiState.update { it.copy(showComplexNotice = false) }
+    }
+
+    /** Inserts i; if complex numbers are off, it turns them on and says so. */
+    private fun insertImaginaryUnit() {
+        if (!_uiState.value.complexNumbers) {
+            setComplexNumbers(true)
+            _uiState.update { it.copy(showComplexNotice = true) }
+        }
+        insertNode(ConstantNode("i"))
+    }
+
+    /** Σ or ∏ with the index n; the cursor goes after "n=", to the start value. */
+    private fun insertBigOperator(operator: BigOperator) =
+        insertWithBinding(BigOperatorNode(operator, MathString(listOf(VariableNode("n"), OperatorNode(MathOp.EQUALS)))))
+
+    /**
+     * Inserts a node whose first slot is already filled with a variable and an operator ("n=",
+     * "x→"), with the cursor after them. A selection becomes the summand / the limit's body.
+     */
+    private fun insertWithBinding(node: MathNode) {
+        val wrapsSelection = _uiState.value.selectionRange?.isEmpty() == false
+        insertNode(node)
+        val path = _uiState.value.cursorPath
+        // insertNode put the cursor into the first empty slot, or after the node if a wrapped
+        // selection filled the last one; it belongs into the binding slot
+        val hasEmptySlot = node.subStrings.withIndex().any { (index, slot) -> slot.isEmpty && !(wrapsSelection && index == mainSlotIndex(node)) }
+        val nodePath = if (hasEmptySlot) path.dropLast(2) else path.dropLast(1) + (path.last() - 1)
+        _uiState.update { it.copy(cursorPath = nodePath + listOf(0, node.subStrings[0].length)) }
     }
 
     fun setUnitSystem(system: UnitSystem) {
@@ -516,6 +567,8 @@ class CalculatorViewModel @JvmOverloads constructor(
         is RadicalNode -> if (node.degree != null) 1 else 0
         is IntegralNode -> 2
         is DerivativeNode, is AntiderivativeNode -> 0
+        is BigOperatorNode -> 2
+        is LimitNode -> 1
         else -> null
     }
 
@@ -841,6 +894,16 @@ class CalculatorViewModel @JvmOverloads constructor(
                     }
                     is FunctionNode -> {
                         if (target.isEmpty) {
+                            parentString.removeAt(containerNodeIdx)
+                            val newPath = parentPath + containerNodeIdx
+                            _uiState.update { it.copy(expression = root, cursorPath = newPath, selectionRange = null) }
+                            return
+                        }
+                    }
+                    is BigOperatorNode, is LimitNode -> {
+                        // Untouched apart from the prefilled "n=" / "x→": remove it as a whole
+                        val slots = containerNode.subStrings
+                        if (slots[0].length <= 2 && slots.drop(1).all { it.isEmpty }) {
                             parentString.removeAt(containerNodeIdx)
                             val newPath = parentPath + containerNodeIdx
                             _uiState.update { it.copy(expression = root, cursorPath = newPath, selectionRange = null) }

@@ -32,6 +32,11 @@ class Logarithm(
             return this
         }
 
+        if (context.complexNumbers) {
+            val complex = complexLogarithm(cBase, cOperand, context)
+            if (complex != null || context.shouldStop) return complex ?: this
+        }
+
         if (cOperand == Value.ONE) return Value.ZERO
         if (cBase == cOperand) return Value.ONE
 
@@ -54,6 +59,42 @@ class Logarithm(
         }
 
         return Logarithm(cBase, cOperand)
+    }
+
+    /**
+     * The principal logarithm of a negative or complex operand, log_b(z) = (ln|z| + i·arg z)/ln b,
+     * e.g. ln(−1) = iπ. Exact for negative and imaginary operands, otherwise in floating point.
+     * Null if the operand is not a constant negative or complex number.
+     */
+    private fun complexLogarithm(base: Expression, operand: Expression, context: MathContext): Expression? {
+        if (base.variables().isNotEmpty() || operand.variables().isNotEmpty() || base.containsImaginaryUnit()) return null
+        val b = base.evaluateNumerically()
+        if (b <= 0.0 || b == 1.0) return null
+        val (re, im) = complexParts(operand) ?: run {
+            val z = numericComplex(operand) ?: return null
+            return (z.ln() / ComplexDouble(ln(b), 0.0)).toExpression(context)
+        }
+        val modulus: Expression
+        val argument: Expression
+        when {
+            im.isZero -> {
+                if (re.evaluateNumerically() >= 0.0) return null
+                modulus = re.negate()
+                argument = Constant.PI
+            }
+            re.isZero -> {
+                // ±b·i: arg = ±π/2
+                val positive = im.evaluateNumerically() > 0.0
+                modulus = if (positive) im else im.negate()
+                argument = Multiplications.of(Value(if (positive) 1L else -1L, 2L), Constant.PI)
+            }
+            else -> {
+                val z = numericComplex(operand) ?: return null
+                return (z.ln() / ComplexDouble(ln(b), 0.0)).toExpression(context)
+            }
+        }
+        val imaginaryPart = Multiplications.of(argument, Power(ln(base), Value.MINUS_ONE))
+        return complexOf(Logarithm(base, modulus), imaginaryPart, context)
     }
 
     /**

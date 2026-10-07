@@ -184,7 +184,7 @@ private class ExpressionRow(
 
                 val isNodeFocused = cursorPath.size > 1 && cursorPath[0] == index
                 val isUnaryMinus = node is OperatorNode && node.op == MathOp.MINUS &&
-                    (index == start || mathString.nodes[index - 1] is OperatorNode)
+                    (index == start || (mathString.nodes[index - 1] as? OperatorNode)?.op?.isPostfix == false)
 
                 Box(
                     modifier = Modifier
@@ -404,10 +404,10 @@ private fun MathNodeView(
                 ConversionArrow(fontSize, accentColor)
             } else {
                 Text(
-                    text = if (node.op == MathOp.FACTORIAL || isUnaryMinus) node.op.symbol else " ${node.op.symbol} ",
+                    text = if (node.op.isPostfix || isUnaryMinus) node.op.symbol else " ${node.op.symbol} ",
                     fontSize = fontSize,
-                    fontWeight = if (node.op == MathOp.FACTORIAL) FontWeight.Normal else FontWeight.Light,
-                    color = if (node.op == MathOp.FACTORIAL) textColor else accentColor
+                    fontWeight = if (node.op.isPostfix) FontWeight.Normal else FontWeight.Light,
+                    color = if (node.op.isPostfix) textColor else accentColor
                 )
             }
         }
@@ -507,6 +507,8 @@ private fun MathNodeView(
         is IntegralNode -> IntegralView(node, fontSize, slots)
         is DerivativeNode -> DerivativeView(node, fontSize, slots)
         is AntiderivativeNode -> AntiderivativeView(node, fontSize, slots)
+        is BigOperatorNode -> BigOperatorView(node, fontSize, slots)
+        is LimitNode -> LimitView(node, fontSize, slots)
         is MatrixNode -> MatrixView(node, fontSize, slots)
     }
 }
@@ -796,7 +798,8 @@ private fun Modifier.absoluteValueBars(color: Color) = this
 private fun isFlat(string: MathString): Boolean = string.nodes.all { node ->
     when (node) {
         is FractionNode, is ExponentNode, is SciExponentNode, is RadicalNode, is LogBaseNode,
-        is IntegralNode, is AntiderivativeNode, is DerivativeNode, is MatrixNode, is LineBreakNode -> false
+        is IntegralNode, is AntiderivativeNode, is DerivativeNode, is MatrixNode, is LineBreakNode,
+        is BigOperatorNode, is LimitNode -> false
         else -> node.subStrings.all { isFlat(it) }
     }
 }
@@ -860,6 +863,55 @@ private fun IntegralView(node: IntegralNode, fontSize: TextUnit, slots: SlotCont
             fontSize = fontSize,
             fontWeight = FontWeight.Normal,
             color = slots.textColor
+        )
+    }
+}
+
+/** Σ or ∏ with "n=1" below and the upper bound above, followed by the summand. */
+@Composable
+private fun BigOperatorView(node: BigOperatorNode, fontSize: TextUnit, slots: SlotContext) {
+    val boundFontSize = (fontSize.value * 0.55f).sp
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(horizontal = 2.dp).centeredMathAxis()
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            slots.Slot(child = 1, string = node.upper, fontSize = boundFontSize)
+            Text(
+                text = node.operator.symbol,
+                fontSize = (fontSize.value * 1.3f).sp,
+                color = slots.accentColor,
+                fontWeight = FontWeight.Light,
+                modifier = Modifier.offset(y = (-2).dp)
+            )
+            slots.Slot(child = 0, string = node.lower, fontSize = boundFontSize)
+        }
+        Spacer(modifier = Modifier.width(2.dp))
+        slots.Slot(child = 2, string = node.body, fontSize = fontSize)
+    }
+}
+
+/** "lim" with "x→a" below it, then the expression in parentheses. */
+@Composable
+private fun LimitView(node: LimitNode, fontSize: TextUnit, slots: SlotContext) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(horizontal = 2.dp).centeredMathAxis()
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = "lim",
+                fontSize = (fontSize.value * 0.9f).sp,
+                fontWeight = FontWeight.SemiBold,
+                color = slots.accentColor
+            )
+            slots.Slot(child = 0, string = node.approach, fontSize = (fontSize.value * 0.55f).sp)
+        }
+        slots.Slot(
+            child = 1,
+            string = node.body,
+            fontSize = fontSize,
+            modifier = Modifier.stretchyParentheses(slots.textColor, fontSize, isFlat(node.body))
         )
     }
 }

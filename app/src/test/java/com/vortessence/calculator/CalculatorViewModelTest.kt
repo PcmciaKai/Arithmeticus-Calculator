@@ -2,6 +2,8 @@ import android.app.Application
 import com.vortessence.calculator.ui.theme.ThemeMode
 import com.vortessence.calculator.core.math.context.MathIssue
 import com.vortessence.calculator.core.math.type.AnsNode
+import com.vortessence.calculator.core.math.type.BigOperatorNode
+import com.vortessence.calculator.core.math.type.LimitNode
 import com.vortessence.calculator.core.math.type.ExponentNode
 import com.vortessence.calculator.core.math.type.FunctionNode
 import com.vortessence.calculator.core.math.type.LogBaseNode
@@ -1001,5 +1003,81 @@ class CalculatorViewModelTest {
         vm.onKeyAction(KeyAction.Backspace)
         assertEquals(1, vm.uiState.value.expression.length)
         assertEquals(listOf(1), vm.uiState.value.cursorPath)
+    }
+
+    @Test
+    fun testSumKeyPutsCursorAfterIndex() {
+        val vm = newViewModel()
+        vm.onKeyAction(KeyAction.Sum)
+        // Σ with "n=" prefilled; the cursor is after it, ready for the start value
+        assertTrue(vm.uiState.value.expression.nodeAt(0) is BigOperatorNode)
+        assertEquals(listOf(0, 0, 2), vm.uiState.value.cursorPath)
+        vm.onKeyAction(KeyAction.Number("1"))
+        vm.onKeyAction(KeyAction.MoveRight)
+        vm.onKeyAction(KeyAction.Number("4"))
+        vm.onKeyAction(KeyAction.MoveRight)
+        vm.onKeyAction(KeyAction.Variable("n"))
+        assertEquals("Σ_{n = 1}^{4} (n)", vm.uiState.value.expression.toString())
+        runBlocking { vm.awaitLiveResult() }
+        assertEquals("10", vm.uiState.value.result!!.result.toString())
+    }
+
+    @Test
+    fun testLimitWrapsSelection() {
+        val vm = newViewModel()
+        vm.onKeyAction(KeyAction.Variable("x"))
+        vm.onKeyAction(KeyAction.Square)
+        vm.selectTokenAt(listOf(), 0)
+        vm.onKeyAction(KeyAction.Limit)
+        val node = vm.uiState.value.expression.nodeAt(0) as LimitNode
+        assertTrue(node.body.nodes.single() is ExponentNode)
+        // The cursor is in "x→", although the wrapped selection already filled the last slot
+        assertEquals(listOf(0, 0, 2), vm.uiState.value.cursorPath)
+    }
+
+    @Test
+    fun testBackspaceRemovesUntouchedSum() {
+        val vm = newViewModel()
+        vm.onKeyAction(KeyAction.Number("2"))
+        vm.onKeyAction(KeyAction.Product)
+        // In the empty upper bound: only the prefilled "n=" is left, so the whole ∏ goes
+        vm.onKeyAction(KeyAction.MoveRight)
+        vm.onKeyAction(KeyAction.Backspace)
+        assertEquals("2", vm.uiState.value.expression.toString())
+        assertEquals(listOf(1), vm.uiState.value.cursorPath)
+    }
+
+    @Test
+    fun testImaginaryUnitKeyTurnsOnComplexNumbers() {
+        val vm = newViewModel()
+        assertFalse(vm.uiState.value.complexNumbers)
+        vm.onKeyAction(KeyAction.ImaginaryUnit)
+        assertTrue(vm.uiState.value.complexNumbers)
+        assertTrue(vm.uiState.value.showComplexNotice)
+        vm.dismissComplexNotice()
+        vm.onKeyAction(KeyAction.Square)
+        runBlocking { vm.awaitLiveResult() }
+        assertEquals(" − 1", vm.uiState.value.result!!.result.toString())
+
+        // Off again: i is an error, and pressing it again says it turns them back on
+        vm.setComplexNumbers(false)
+        runBlocking { vm.awaitLiveResultText("") }
+        assertEquals(listOf(MathIssue.COMPLEX_RESULT), vm.uiState.value.result!!.issues)
+        vm.onKeyAction(KeyAction.ImaginaryUnit)
+        assertTrue(vm.uiState.value.showComplexNotice)
+    }
+
+    @Test
+    fun testPercentAndModKeys() {
+        val vm = newViewModel()
+        vm.onKeyAction(KeyAction.Number("7"))
+        vm.onKeyAction(KeyAction.Operator("mod"))
+        vm.onKeyAction(KeyAction.Number("4"))
+        vm.onKeyAction(KeyAction.Operator("+"))
+        vm.onKeyAction(KeyAction.Number("50"))
+        vm.onKeyAction(KeyAction.Operator("%"))
+        assertEquals("7 mod 4 + 50%", vm.uiState.value.expression.toString())
+        runBlocking { vm.awaitLiveResult() }
+        assertEquals("(7)/(2)", vm.uiState.value.result!!.result.toString())
     }
 }

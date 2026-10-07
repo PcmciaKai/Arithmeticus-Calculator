@@ -14,7 +14,7 @@ enum class MathIssue(val userMessage: String) {
     NO_REAL_SOLUTION("No real solution"),
     CANT_SOLVE_GENERIC("Cannot solve this equation"),
     INVALID_UNIT("Incompatible or invalid units"),
-    COMPLEX_RESULT("Complex result not supported in real mode"),
+    COMPLEX_RESULT("Complex numbers are switched off in the settings"),
     SYNTAX_ERROR("Incomplete or invalid expression"),
     UNKNOWN_FUNCTION("Unknown function"),
     CANT_DIFFERENTIATE("Cannot differentiate this expression"),
@@ -24,5 +24,7 @@ enum class MathIssue(val userMessage: String) {
     MATRIX_NOT_SQUARE("Matrix must be square"),
     SINGULAR_MATRIX("Matrix is not invertible"),
     MATRIX_UNSUPPORTED("Not defined for matrices"),
-    NO_ANS("No previous result for Ans")
+    NO_ANS("No previous result for Ans"),
+    DIVERGES("Does not converge"),
+    INVALID_BOUNDS("Bounds must be whole numbers")
 }

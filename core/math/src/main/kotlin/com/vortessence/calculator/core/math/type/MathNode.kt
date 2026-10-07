@@ -14,6 +14,10 @@ enum class MathOp(val symbol: String, val precedence: Int) {
     DIVIDE("÷", 2),
     EQUALS("=", 0),
     FACTORIAL("!", 3),
+    /** Postfix percent: 5% = 5/100. */
+    PERCENT("%", 3),
+    /** Remainder of a division, with the sign of the divisor: 7 mod 3 = 1, −7 mod 3 = 2. */
+    MODULO("mod", 2),
     /** Unit conversion, e.g. "5 km → mi". Binds weakest of all operators. */
     CONVERT("→", -1),
     /** Definition of a variable, "a := 2x²". Only valid right after the variable at the start of a line. */
@@ -27,8 +31,11 @@ data class NumberNode(val text: String) : MathNode() {
 
 data class OperatorNode(val op: MathOp) : MathNode() {
     override fun copy(): MathNode = OperatorNode(op)
-    override fun toString(): String = if (op == MathOp.FACTORIAL) "!" else " ${op.symbol} "
+    override fun toString(): String = if (op.isPostfix) op.symbol else " ${op.symbol} "
 }
+
+/** Factorial and percent follow their operand: 5!, 20%. */
+val MathOp.isPostfix: Boolean get() = this == MathOp.FACTORIAL || this == MathOp.PERCENT
 
 data class VariableNode(val name: String) : MathNode() {
     override fun copy(): MathNode = VariableNode(name)
@@ -215,6 +222,51 @@ data class DerivativeNode(
     }
     override fun copy(): MathNode = DerivativeNode(body.copy(), point?.copy(), variable)
     override fun toString(): String = "d/d$variable($body)" + if (point != null) "|$variable=($point)" else ""
+}
+
+enum class BigOperator(val symbol: String) {
+    SUM("Σ"),
+    PRODUCT("∏")
+}
+
+/**
+ * Σ or ∏ of [body] for an index running from the [lower] bound to the [upper] bound. The lower
+ * slot holds the index with its start value, "n=1", so the index can be renamed.
+ */
+data class BigOperatorNode(
+    val operator: BigOperator,
+    val lower: MathString = MathString(),
+    val upper: MathString = MathString(),
+    val body: MathString = MathString()
+) : MathNode() {
+    override val subStrings: List<MathString> get() = listOf(lower, upper, body)
+    override fun replaceSubString(index: Int, newString: MathString): MathNode {
+        return when (index) {
+            0 -> copy(lower = newString)
+            1 -> copy(upper = newString)
+            2 -> copy(body = newString)
+            else -> this
+        }
+    }
+    override fun copy(): MathNode = BigOperatorNode(operator, lower.copy(), upper.copy(), body.copy())
+    override fun toString(): String = "${operator.symbol}_{$lower}^{$upper} ($body)"
+}
+
+/** lim of [body] as a variable approaches a value; [approach] holds both, "x→0". */
+data class LimitNode(
+    val approach: MathString = MathString(),
+    val body: MathString = MathString()
+) : MathNode() {
+    override val subStrings: List<MathString> get() = listOf(approach, body)
+    override fun replaceSubString(index: Int, newString: MathString): MathNode {
+        return when (index) {
+            0 -> copy(approach = newString)
+            1 -> copy(body = newString)
+            else -> this
+        }
+    }
+    override fun copy(): MathNode = LimitNode(approach.copy(), body.copy())
+    override fun toString(): String = "lim_{$approach} ($body)"
 }
 
 data class MatrixNode(

@@ -1,5 +1,6 @@
 package com.vortessence.calculator.core.math.expressions
 
+import com.vortessence.calculator.core.math.context.AngleUnit
 import com.vortessence.calculator.core.math.context.CalculationMode
 import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.context.MathIssue
@@ -46,6 +47,11 @@ class Power(
         if (cBase.isZero && cExp.isNegative) {
             context.stopWithError(MathIssue.DIVISION_BY_ZERO)
             return this
+        }
+
+        if (context.complexNumbers) {
+            val complex = complexPower(cBase, cExp, context)
+            if (complex != null || context.shouldStop) return complex ?: this
         }
 
         if (cBase is Value && cExp is Value) {
@@ -159,6 +165,111 @@ class Power(
         return rootResult(outsideRational, Rational.of(insideNum, insideDen), rootDegree)
     }
 
+    /**
+     * Powers with a complex result: of i (i² = −1), of complex numbers ((1 + i)² = 2i), with a
+     * complex exponent (e^(iπ) = −1) and even roots of negative numbers (√−4 = 2i). Null if
+     * the power is real or stays as it is.
+     */
+    private fun complexPower(base: Expression, exp: Expression, context: MathContext): Expression? {
+        val baseIsComplex = base.containsImaginaryUnit()
+        val expIsComplex = exp.containsImaginaryUnit()
+        if (!baseIsComplex && !expIsComplex) {
+            if (base !is Value || !base.isNegative || exp !is Value) return null
+            // (−a)^w = a^w·e^(iπw); odd roots stay real, (−8)^(1/3) = −2
+            val r = exp.rational ?: exactExponent(context)
+            val isRealPower = if (r != null) !r.isFractional || r.denominator.isOdd else exp.real.value % 1.0 == 0.0
+            if (isRealPower) return null
+            return Multiplications.of(Power(base.negate(), exp), unitCircle(Multiplications.of(exp, Constant.PI))).canonicalize(context)
+        }
+        if (exp.variables().isNotEmpty()) return null
+
+        if (!expIsComplex) {
+            val n = integerValue(exp)
+            if (base === ImaginaryUnit && n != null) {
+                return when (n.mod(4L)) {
+                    0L -> Value.ONE
+                    1L -> ImaginaryUnit
+                    2L -> Value.MINUS_ONE
+                    else -> Multiplications(listOf(Value.MINUS_ONE, ImaginaryUnit))
+                }
+            }
+            val parts = complexParts(base)
+            if (n != null && parts != null && abs(n) <= MAX_EXACT_COMPLEX_POWER) {
+                return exactComplexPower(parts, n, context)
+            }
+        } else if (base.variables().isEmpty() && !baseIsComplex) {
+            val (re, im) = complexParts(exp) ?: return numericComplexPower(base, exp, context)
+            // e^(a + bi) = e^a·(cos b + i·sin b)
+            // (In numeric mode e is already a number)
+            if (base == Constant.E || (base is Value && base.real.value == kotlin.math.E)) return Multiplications.of(Power(base, re), unitCircle(im)).canonicalize(context)
+            // a^w = e^(w·ln a) for a > 0
+            if (base.evaluateNumerically() > 0.0) {
+                return Power(Constant.E, Multiplications.of(exp, Logarithm.ln(base))).canonicalize(context)
+            }
+        }
+        return numericComplexPower(base, exp, context)
+    }
+
+    /** cos(angle) + i·sin(angle), with the angle in radians whatever the angle unit. */
+    private fun unitCircle(angle: Expression): Expression = Additions(listOf(
+        TrigonometricFunction(TrigType.COS, angle, AngleUnit.RADIANS),
+        Multiplications(listOf(ImaginaryUnit, TrigonometricFunction(TrigType.SIN, angle, AngleUnit.RADIANS)))
+    ))
+
+    /** (re + im·i)^n by repeated squaring, exactly; n < 0 via 1/z = (re − im·i)/(re² + im²). */
+    private fun exactComplexPower(parts: Pair<Expression, Expression>, n: Long, context: MathContext): Expression {
+        fun times(x: Pair<Expression, Expression>, y: Pair<Expression, Expression>): Pair<Expression, Expression> {
+            val re = Additions(listOf(Multiplications.of(x.first, y.first), Multiplications.of(Value.MINUS_ONE, x.second, y.second)))
+            val im = Additions(listOf(Multiplications.of(x.first, y.second), Multiplications.of(x.second, y.first)))
+            return re.canonicalize(context) to im.canonicalize(context)
+        }
+        var z = parts
+        if (n < 0) {
+            val norm = Additions(listOf(Power(z.first, Value.TWO), Power(z.second, Value.TWO))).canonicalize(context)
+            if (norm.isZero) {
+                context.stopWithError(MathIssue.DIVISION_BY_ZERO)
+                return this
+            }
+            val inverseNorm = Power(norm, Value.MINUS_ONE)
+            z = Multiplications.of(z.first, inverseNorm).canonicalize(context) to
+                Multiplications.of(Value.MINUS_ONE, z.second, inverseNorm).canonicalize(context)
+        }
+        var result: Pair<Expression, Expression> = Value.ONE to Value.ZERO
+        var remaining = abs(n)
+        while (remaining > 0 && !context.shouldStop) {
+            if (remaining and 1L == 1L) result = times(result, z)
+            remaining = remaining shr 1
+            if (remaining > 0) z = times(z, z)
+        }
+        if (context.shouldStop) return this
+        return complexOf(result.first, result.second, context)
+    }
+
+    /** z^w = e^(w·ln z) in floating point, for complex powers without an exact form. */
+    private fun numericComplexPower(base: Expression, exp: Expression, context: MathContext): Expression? {
+        val z = numericComplex(base) ?: return null
+        val w = numericComplex(exp) ?: return null
+        if (z.re == 0.0 && z.im == 0.0 && w.re <= 0.0) {
+            context.stopWithError(MathIssue.DIVISION_BY_ZERO)
+            return this
+        }
+        val result = z.pow(w)
+        if (!result.isFinite) {
+            context.stopWithError(MathIssue.VALUES_TOO_LARGE)
+            return this
+        }
+        return result.toExpression(context)
+    }
+
+    /** The whole number [e] stands for, or null. */
+    private fun integerValue(e: Expression): Long? {
+        val value = e as? Value ?: return null
+        val r = value.rational
+        if (r != null) return if (r.isFractional || !fitsInLong(r.numerator)) null else r.numerator.toLong()
+        val d = value.real.value
+        return if (d % 1.0 == 0.0 && abs(d) < 1e15) d.toLong() else null
+    }
+
     private fun rootResult(outside: Rational, inside: Rational, rootDegree: Long): Expression {
         if (inside == Rational.ONE) return Value(outside)
         val rootExpr = Power(Value(inside), Value(Rational.of(1L, rootDegree)))
@@ -192,6 +303,7 @@ class Power(
         private const val MAX_RESULT_BITS = 200_000.0
         private const val MAX_RATIONALIZED_ROOT_DEGREE = 12L
         private const val MAX_APPROXIMATED_ROOT_DENOMINATOR = 99L
+        private const val MAX_EXACT_COMPLEX_POWER = 1024L
 
         fun of(base: Expression, exponent: Expression): Expression = Power(base, exponent)
         fun squareRoot(base: Expression): Expression = Power(base, Value.HALF)

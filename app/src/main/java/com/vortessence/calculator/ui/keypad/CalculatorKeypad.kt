@@ -116,6 +116,14 @@ sealed class KeyAction {
     data object Matrix : KeyAction()
     /** Transpose (superscript T) of the matrix before the cursor. */
     data object Transpose : KeyAction()
+    /** Σ with the index n running from a lower to an upper bound. */
+    data object Sum : KeyAction()
+    /** ∏, like [Sum]. */
+    data object Product : KeyAction()
+    /** lim x→a. */
+    data object Limit : KeyAction()
+    /** The imaginary unit i (turns complex numbers on if they are off). */
+    data object ImaginaryUnit : KeyAction()
 }
 
 /**
@@ -132,6 +140,11 @@ private fun scriptLabel(base: String, sup: String = "", sub: String = ""): Annot
     append(base)
     if (sup.isNotEmpty()) withStyle(SpanStyle(fontSize = 0.65.em, baselineShift = BaselineShift(0.6f))) { append(sup) }
     if (sub.isNotEmpty()) withStyle(SpanStyle(fontSize = 0.65.em, baselineShift = BaselineShift(-0.2f))) { append(sub) }
+}
+
+/** Roboto's ∞ is drawn much smaller than its letters, so the label enlarges it to match. */
+private val InfinityLabel: AnnotatedString = buildAnnotatedString {
+    withStyle(SpanStyle(fontSize = 1.6.em)) { append("∞") }
 }
 
 // Column counts of the three pages; five columns are visible at once, so the
@@ -276,8 +289,12 @@ fun CalculatorKeypad(
                 // Row 1
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing)) {
                     // Page 0 (cols 0..3)
-                    KeyButton(text = "!", buttonWidth = buttonWidth, isAccent = true) { onKeyAction(KeyAction.Operator("!")) }
-                    KeyButton(text = "π", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Constant("π")) }
+                    KeyButton(
+                        text = "!",
+                        buttonWidth = buttonWidth,
+                        isAccent = true,
+                        alternates = listOf(alt("%", KeyAction.Operator("%")), alt("mod", KeyAction.Operator("mod")))
+                    ) { onKeyAction(KeyAction.Operator("!")) }
                     KeyButton(
                         text = "x²",
                         buttonWidth = buttonWidth,
@@ -290,6 +307,12 @@ fun CalculatorKeypad(
                         isAccent = true,
                         alternates = listOf(alt("ⁿ√x", KeyAction.NthRoot))
                     ) { onKeyAction(KeyAction.Sqrt) }
+                    KeyButton(
+                        text = "log",
+                        buttonWidth = buttonWidth,
+                        isAccent = true,
+                        alternates = listOf(alt("ln", KeyAction.Function("ln")), alt(scriptLabel("log", sub = "n"), KeyAction.LogBase))
+                    ) { onKeyAction(KeyAction.Function("log")) }
 
                     // Page 1 (cols 4..8)
                     KeyButton(text = "7", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("7")) }
@@ -320,14 +343,24 @@ fun CalculatorKeypad(
                         isAccent = true,
                         alternates = listOf(alt(scriptLabel("[M]", sup = "T"), KeyAction.Transpose), alt("det", KeyAction.Function("det")))
                     ) { onKeyAction(KeyAction.Matrix) }
-                    KeyButton(text = "e", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Constant("e")) }
-                    KeyButton(text = "ln", buttonWidth = buttonWidth, isAccent = true) { onKeyAction(KeyAction.Function("ln")) }
                     KeyButton(
-                        text = "log",
+                        text = "sin",
                         buttonWidth = buttonWidth,
                         isAccent = true,
-                        alternates = listOf(alt(scriptLabel("log", sub = "n"), KeyAction.LogBase))
-                    ) { onKeyAction(KeyAction.Function("log")) }
+                        alternates = listOf(alt("asin", KeyAction.Function("asin")))
+                    ) { onKeyAction(KeyAction.Function("sin")) }
+                    KeyButton(
+                        text = "cos",
+                        buttonWidth = buttonWidth,
+                        isAccent = true,
+                        alternates = listOf(alt("acos", KeyAction.Function("acos")))
+                    ) { onKeyAction(KeyAction.Function("cos")) }
+                    KeyButton(
+                        text = "tan",
+                        buttonWidth = buttonWidth,
+                        isAccent = true,
+                        alternates = listOf(alt("atan", KeyAction.Function("atan")))
+                    ) { onKeyAction(KeyAction.Function("tan")) }
 
                     // Page 1 (cols 4..8)
                     KeyButton(text = "4", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("4")) }
@@ -383,23 +416,17 @@ fun CalculatorKeypad(
                         hints = listOf(derivative)
                     ) { onKeyAction(KeyAction.Integral) }
                     KeyButton(
-                        text = "sin",
+                        text = "Σ",
                         buttonWidth = buttonWidth,
                         isAccent = true,
-                        alternates = listOf(alt("asin", KeyAction.Function("asin")))
-                    ) { onKeyAction(KeyAction.Function("sin")) }
+                        alternates = listOf(alt("∏", KeyAction.Product), alt("lim", KeyAction.Limit))
+                    ) { onKeyAction(KeyAction.Sum) }
+                    KeyButton(text = "i", buttonWidth = buttonWidth, isAccent = true) { onKeyAction(KeyAction.ImaginaryUnit) }
                     KeyButton(
-                        text = "cos",
+                        text = "π",
                         buttonWidth = buttonWidth,
-                        isAccent = true,
-                        alternates = listOf(alt("acos", KeyAction.Function("acos")))
-                    ) { onKeyAction(KeyAction.Function("cos")) }
-                    KeyButton(
-                        text = "tan",
-                        buttonWidth = buttonWidth,
-                        isAccent = true,
-                        alternates = listOf(alt("atan", KeyAction.Function("atan")))
-                    ) { onKeyAction(KeyAction.Function("tan")) }
+                        alternates = listOf(alt("e", KeyAction.Constant("e")), alt(InfinityLabel, KeyAction.Constant("∞")))
+                    ) { onKeyAction(KeyAction.Constant("π")) }
 
                     // Page 1 (cols 4..8)
                     KeyButton(text = "1", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("1")) }
