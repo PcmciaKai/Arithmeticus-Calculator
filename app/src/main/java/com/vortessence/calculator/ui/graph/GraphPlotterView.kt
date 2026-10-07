@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
@@ -49,6 +50,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vortessence.calculator.core.math.MathEngine
+import com.vortessence.calculator.core.math.context.AngleUnit
 import com.vortessence.calculator.core.math.PlotData
 import com.vortessence.calculator.core.math.PlotPoint
 import com.vortessence.calculator.core.math.PlotSegment
@@ -66,7 +68,9 @@ import com.vortessence.calculator.ui.theme.AccentGreen
 import com.vortessence.calculator.ui.theme.AccentPurple
 import com.vortessence.calculator.ui.theme.AccentRed
 import com.vortessence.calculator.ui.theme.OrangePrimary
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import java.math.BigDecimal
 import java.util.Locale
 import kotlin.math.*
@@ -79,6 +83,9 @@ private const val MAX_SCALE = 400f
 private const val DEFAULT_LOG_DECADES = 5f
 private const val MIN_LOG_SCALE = 30f
 private const val MAX_LOG_SCALE = 20000f
+
+// A polar curve r = f(θ) is sampled once over a full turn, finely enough to stay smooth when zoomed in
+private const val POLAR_SAMPLES = 2880
 
 private enum class GraphTool(val label: String, val icon: ImageVector) {
     TRACE("Trace", Icons.Default.Timeline),
@@ -186,6 +193,9 @@ fun GraphPlotterView(
     // Deliberately not saved: a forgotten log axis would be confusing on the next graph
     var logX by remember { mutableStateOf(false) }
     var logY by remember { mutableStateOf(false) }
+    // Draws a function as r = f(θ) on a polar grid; implicit curves stay Cartesian
+    var polarSelected by remember { mutableStateOf(false) }
+    val polar = polarSelected && function != null
 
     var tool by remember { mutableStateOf<GraphTool?>(null) }
     // Back leaves the active tool before it closes the graph
@@ -202,6 +212,8 @@ fun GraphPlotterView(
     var area by remember(function) { mutableStateOf<Double?>(null) }
     // Implicit curves are drawn from line segments computed in the background
     var segments by remember(curve) { mutableStateOf(emptyList<PlotSegment>()) }
+    // Polar curves: Cartesian points of one full turn, independent of the viewport; NaN marks gaps
+    var polarPoints by remember(function) { mutableStateOf(emptyList<PlotPoint>()) }
 
     fun viewport() = Viewport(canvasSize.width / 2f + offsetX, canvasSize.height / 2f + offsetY, scaleX, scaleY, logX, logY)
 
@@ -269,6 +281,11 @@ fun GraphPlotterView(
             keyPoints.firstOrNull { (vp.toScreen(PlotPoint(it.x, it.y)) - vp.toScreen(p)).getDistance() <= snapRadiusPx }
                 ?.let { cursorPoint = PlotPoint(it.x, it.y) }
         }
+    }
+
+    LaunchedEffect(function, polar) {
+        if (function == null || !polar || polarPoints.isNotEmpty()) return@LaunchedEffect
+        polarPoints = withContext(Dispatchers.Default) { samplePolarCurve(function) }
     }
 
     LaunchedEffect(function, tool == GraphTool.INTEGRAL, lowerBound, upperBound) {
@@ -437,6 +454,18 @@ fun GraphPlotterView(
         tool?.let { placeHandlesInView(it) }
     }
 
+    // Polar mode needs equal scales for round circles and has no log axes or tools
+    fun setPolar(enabled: Boolean) {
+        polarSelected = enabled
+        if (enabled) {
+            logX = false
+            logY = false
+            tool = null
+        }
+        resetX()
+        resetY()
+    }
+
     val textMeasurer = rememberTextMeasurer()
     val isDark = MaterialTheme.colorScheme.background.red < 0.5f
 
@@ -461,8 +490,19 @@ fun GraphPlotterView(
             .windowInsetsPadding(WindowInsets.safeDrawing)
     ) {
         GraphHeader(
-            expression = expression,
-            logScale = LogScale(logX, logY) { xAxis, enabled -> setLogScale(xAxis, enabled) },
+            // Shown as r = f(θ), the way the curve is read in polar mode
+            expression = if (polar) remember(expression, function) {
+                expression.renameVariables(mapOf(function!!.variable.identifier to "\u03B8", "y" to "r"))
+            } else expression,
+            variable = if (polar) "r" else "y",
+            axisOptions = AxisOptions(
+                logX = logX,
+                logY = logY,
+                polar = polar,
+                polarAvailable = function != null,
+                onLogChange = { xAxis, enabled -> setLogScale(xAxis, enabled) },
+                onPolarChange = { setPolar(it) }
+            ),
             onRecenter = {
                 resetX()
                 resetY()
@@ -522,9 +562,14 @@ fun GraphPlotterView(
                 val width = size.width
                 val height = size.height
 
-                drawGrid(vp, gridColor, axisColor, labelColor, textMeasurer)
+                if (polar) {
+                    drawPolarGrid(vp, function!!.angleUnit, gridColor, axisColor, labelColor, backgroundColor, textMeasurer)
+                    drawPolarCurve(polarPoints, vp, curveColor)
+                } else {
+                    drawGrid(vp, gridColor, axisColor, labelColor, textMeasurer)
+                }
 
-                if (function != null) {
+                if (function != null && !polar) {
                     if (tool == GraphTool.INTEGRAL) {
                         drawIntegralArea(function, vp, lowerBound, upperBound, curveColor, AccentRed)
                     }
@@ -604,8 +649,8 @@ fun GraphPlotterView(
                 GraphToolButton(
                     tool = entry,
                     selected = tool == entry,
-                    // The area under a curve is only defined for functions
-                    enabled = if (entry == GraphTool.INTEGRAL) function != null else curve != null,
+                    // The area under a curve is only defined for functions; polar mode has no tools
+                    enabled = !polar && if (entry == GraphTool.INTEGRAL) function != null else curve != null,
                     onClick = { selectTool(entry) },
                     modifier = Modifier.weight(1f)
                 )
@@ -626,7 +671,7 @@ private fun SurfaceGraph(surface: Surface3D, expression: MathString, modifier: M
         GraphHeader(
             expression = expression,
             variable = "z",
-            logScale = null,
+            axisOptions = null,
             onRecenter = { state.reset() },
             onClose = onClose
         )
@@ -634,18 +679,33 @@ private fun SurfaceGraph(surface: Surface3D, expression: MathString, modifier: M
     }
 }
 
-/** Whether the x and y axes are logarithmic, and how to change that. */
-private class LogScale(val x: Boolean, val y: Boolean, val onChange: (xAxis: Boolean, enabled: Boolean) -> Unit)
+/** Whether the axes are logarithmic or polar, and how to change that. */
+private class AxisOptions(
+    val logX: Boolean,
+    val logY: Boolean,
+    val polar: Boolean,
+    val polarAvailable: Boolean,
+    val onLogChange: (xAxis: Boolean, enabled: Boolean) -> Unit,
+    val onPolarChange: (enabled: Boolean) -> Unit
+)
+
+/** A copy with the variables named in [names] renamed, inside fractions, roots etc. too. */
+private fun MathString.renameVariables(names: Map<String, String>): MathString = MathString(
+    nodes.map { node ->
+        if (node is VariableNode) names[node.name]?.let(::VariableNode) ?: node
+        else node.subStrings.foldIndexed(node) { i, renamed, sub -> renamed.replaceSubString(i, sub.renameVariables(names)) }
+    }
+)
 
 /**
  * The expression, shown as "[variable] = …" unless it is an equation, with the buttons; the
- * log scale menu only if there is a [logScale].
+ * axis menu only if there are [axisOptions].
  */
 @Composable
 private fun GraphHeader(
     expression: MathString,
     variable: String = "y",
-    logScale: LogScale?,
+    axisOptions: AxisOptions?,
     onRecenter: () -> Unit,
     onClose: (() -> Unit)?
 ) {
@@ -674,7 +734,7 @@ private fun GraphHeader(
             Box(modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
                 MathExpressionView(mathString = displayed, fontSize = 18.sp)
             }
-            if (logScale != null) AxisScaleMenu(logScale.x, logScale.y, logScale.onChange)
+            if (axisOptions != null) AxisMenu(axisOptions)
             IconButton(onClick = onRecenter) {
                 Icon(Icons.Default.Refresh, contentDescription = "Recenter")
             }
@@ -694,27 +754,38 @@ private fun GraphHeader(
     }
 }
 
-/** Switches between linear and logarithmic axes; highlighted while a log axis is active. */
+/**
+ * Switches between linear, logarithmic and polar axes; highlighted while any of them is not
+ * linear. Log axes are unavailable in polar mode, and polar mode for implicit curves.
+ */
 @Composable
-private fun AxisScaleMenu(logX: Boolean, logY: Boolean, onChange: (xAxis: Boolean, enabled: Boolean) -> Unit) {
+private fun AxisMenu(options: AxisOptions) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { expanded = true }) {
             Icon(
                 Icons.Default.Straighten,
-                contentDescription = "Axis scales",
-                tint = if (logX || logY) OrangePrimary else LocalContentColor.current
+                contentDescription = "Axes",
+                tint = if (options.logX || options.logY || options.polar) OrangePrimary else LocalContentColor.current
             )
         }
         // Stays open after a change, so both axes can be switched in one go
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            for ((xAxis, enabled) in listOf(true to logX, false to logY)) {
+            for ((xAxis, enabled) in listOf(true to options.logX, false to options.logY)) {
                 DropdownMenuItem(
                     text = { Text(if (xAxis) "Logarithmic x-axis" else "Logarithmic y-axis") },
-                    onClick = { onChange(xAxis, !enabled) },
-                    trailingIcon = { Switch(checked = enabled, onCheckedChange = null) }
+                    onClick = { options.onLogChange(xAxis, !enabled) },
+                    enabled = !options.polar,
+                    trailingIcon = { Switch(checked = enabled, onCheckedChange = null, enabled = !options.polar) }
                 )
             }
+            HorizontalDivider()
+            DropdownMenuItem(
+                text = { Text("Polar coordinates") },
+                onClick = { options.onPolarChange(!options.polar) },
+                enabled = options.polarAvailable,
+                trailingIcon = { Switch(checked = options.polar, onCheckedChange = null, enabled = options.polarAvailable) }
+            )
         }
     }
 }
@@ -1061,6 +1132,155 @@ private fun DrawScope.drawCurve(evaluate: (Double) -> Double, vp: Viewport, colo
         px += stepPx
     }
     drawPath(path = path, color = color, style = Stroke(width = strokeWidth))
+}
+
+/**
+ * Reads [function] as r = f(θ) and samples one full turn, θ = 0 to 2π (0° to 360° if the
+ * function works in degrees). Negative r points the opposite way, as usual for polar curves.
+ */
+private fun samplePolarCurve(function: Function1D): List<PlotPoint> {
+    val fullTurn = if (function.angleUnit == AngleUnit.DEGREES) 360.0 else 2 * PI
+    return (0..POLAR_SAMPLES).map { i ->
+        val r = function.evaluateAt(fullTurn * i / POLAR_SAMPLES)
+        val angle = 2 * PI * i / POLAR_SAMPLES
+        if (r.isFinite()) PlotPoint(r * cos(angle), r * sin(angle)) else PlotPoint(Double.NaN, Double.NaN)
+    }
+}
+
+/**
+ * Draws the sampled polar curve. Like [drawCurve] the path is interrupted at gaps and at poles
+ * such as those of r = 1/cos(θ), where consecutive points jump across the canvas.
+ */
+private fun DrawScope.drawPolarCurve(points: List<PlotPoint>, vp: Viewport, color: Color) {
+    val limit = max(size.width, size.height) * 3f
+    val maxJump = max(size.width, size.height)
+    val path = Path()
+    var previous: Offset? = null
+    for (point in points) {
+        val p = vp.toScreen(point)
+        val isDrawable = p.x.isFinite() && p.y.isFinite() && abs(p.x - size.width / 2f) <= limit && abs(p.y - size.height / 2f) <= limit
+        val prev = previous
+        when {
+            !isDrawable -> previous = null
+            prev == null || (p - prev).getDistance() > maxJump -> {
+                path.moveTo(p.x, p.y)
+                previous = p
+            }
+            else -> {
+                path.lineTo(p.x, p.y)
+                previous = p
+            }
+        }
+    }
+    drawPath(path = path, color = color, style = Stroke(width = 3.5f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+}
+
+/** π/6, 2π/3 or 150° for the [k]-th twelfth of a turn. */
+private fun formatPolarAngle(k: Int, angleUnit: AngleUnit): String {
+    if (angleUnit == AngleUnit.DEGREES) return "${k * 30}\u00B0"
+    if (k == 0) return "0"
+    val divisor = gcd(k, 6)
+    val numerator = k / divisor
+    val denominator = 6 / divisor
+    val top = if (numerator == 1) "\u03C0" else "${numerator}\u03C0"
+    return if (denominator == 1) top else "$top/$denominator"
+}
+
+private tailrec fun gcd(a: Int, b: Int): Int = if (b == 0) a else gcd(b, a % b)
+
+/**
+ * Concentric circles at nice radii and rays every 30° around the origin, the four axis rays
+ * emphasised. Radii are labelled on their circles, angles where their ray leaves the canvas.
+ */
+private fun DrawScope.drawPolarGrid(
+    vp: Viewport,
+    angleUnit: AngleUnit,
+    gridColor: Color,
+    axisColor: Color,
+    labelColor: Color,
+    backgroundColor: Color,
+    textMeasurer: TextMeasurer
+) {
+    val width = size.width
+    val height = size.height
+    val origin = Offset(vp.originX, vp.originY)
+    // Radius labels sit on their circle, which would otherwise run through the text
+    val labelBackground = backgroundColor.copy(alpha = 0.8f)
+    val labelStyle = TextStyle(fontSize = 10.sp, color = labelColor)
+
+    // Radii (in pixels) of the canvas parts nearest to and farthest from the origin
+    val nearestPx = hypot(max(0f, max(-origin.x, origin.x - width)), max(0f, max(-origin.y, origin.y - height)))
+    val farthestPx = listOf(Offset.Zero, Offset(width, 0f), Offset(0f, height), Offset(width, height))
+        .maxOf { (it - origin).getDistance() }
+
+    val step = calculateGridStep(vp.scaleX, MIN_TICK_SPACING_PX)
+    val radii = (max(1L, ceil(nearestPx / vp.scaleX / step).toLong())..floor(farthestPx / vp.scaleX / step).toLong())
+        .map { it * step }
+    for (r in radii) {
+        drawCircle(gridColor, radius = (r * vp.scaleX).toFloat(), center = origin, style = Stroke(width = 1f))
+    }
+
+    val directions = (0 until 12).map { k ->
+        val angle = k * PI / 6
+        Offset(cos(angle).toFloat(), -sin(angle).toFloat())
+    }
+    directions.forEachIndexed { k, direction ->
+        val isAxis = k % 3 == 0
+        drawLine(
+            if (isAxis) axisColor else gridColor,
+            origin,
+            origin + direction * farthestPx,
+            strokeWidth = if (isAxis) 2f else 1f
+        )
+    }
+
+    // Labels that would overlap one already drawn or be cut off at the edge are skipped
+    val labelRects = mutableListOf<Rect>()
+    fun drawLabel(text: String, background: Color = Color.Unspecified, topLeft: (Size) -> Offset) {
+        val layout = textMeasurer.measure(AnnotatedString(text), labelStyle.copy(background = background))
+        val labelSize = Size(layout.size.width.toFloat(), layout.size.height.toFloat())
+        val bounds = Rect(topLeft(labelSize), labelSize)
+        if (bounds.left < 0f || bounds.top < 0f || bounds.right > width || bounds.bottom > height) return
+        val rect = bounds.inflate(3f)
+        if (labelRects.any { it.overlaps(rect) }) return
+        labelRects.add(rect)
+        drawText(layout, topLeft = bounds.topLeft)
+    }
+
+    directions.forEachIndexed { k, direction ->
+        // Where the ray leaves the canvas (slab method); it may also miss the canvas entirely
+        fun slab(o: Float, d: Float, extent: Float): Pair<Float, Float> = when {
+            d > 1e-6f -> -o / d to (extent - o) / d
+            d < -1e-6f -> (extent - o) / d to -o / d
+            o in 0f..extent -> Float.NEGATIVE_INFINITY to Float.POSITIVE_INFINITY
+            else -> Float.POSITIVE_INFINITY to Float.NEGATIVE_INFINITY
+        }
+        val (enterX, exitX) = slab(origin.x, direction.x, width)
+        val (enterY, exitY) = slab(origin.y, direction.y, height)
+        val enter = max(0f, max(enterX, enterY))
+        val exit = min(exitX, exitY)
+        if (exit <= enter) return@forEachIndexed
+        drawLabel(formatPolarAngle(k, angleUnit)) {
+            // Pulled in from the edge far enough for the whole label to fit
+            val inset = max(it.width, it.height) / 2f + 6f
+            if (exit - inset <= enter) return@drawLabel Offset(-width, -height)
+            val center = origin + direction * (exit - inset)
+            Offset(center.x - it.width / 2f, center.y - it.height / 2f)
+        }
+    }
+    // Radii go on their circles along a ray between two grid rays, so they are not mistaken
+    // for x-values: at 15° while the origin is in view, otherwise on the ray towards the
+    // canvas centre (snapped likewise), so they stay visible
+    val originInView = origin.x in 0f..width && origin.y in 0f..height
+    val labelAngle = if (originInView) PI / 12 else {
+        val towardsCenter = atan2((origin.y - height / 2f).toDouble(), (width / 2f - origin.x).toDouble())
+        PI / 12 + round((towardsCenter - PI / 12) / (PI / 6)) * PI / 6
+    }
+    val labelDirection = Offset(cos(labelAngle).toFloat(), -sin(labelAngle).toFloat())
+    for (r in radii) {
+        val center = origin + labelDirection * (r * vp.scaleX).toFloat()
+        drawLabel(formatGridLabel(r, step), labelBackground) { Offset(center.x - it.width / 2f, center.y - it.height / 2f) }
+    }
 }
 
 /** A grid line at axis position [u] (log10 of the value on a log axis), optionally labelled. */
