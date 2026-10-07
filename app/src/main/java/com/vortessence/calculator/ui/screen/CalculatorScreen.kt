@@ -1,8 +1,11 @@
 package com.vortessence.calculator.ui.screen
 
 import android.app.Application
+import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -18,6 +21,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.text.font.FontWeight
@@ -27,6 +33,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.vortessence.calculator.core.math.CalculationResult
 import com.vortessence.calculator.core.math.context.MathIssue
+import com.vortessence.calculator.core.math.type.MathString
 import com.vortessence.calculator.core.math.type.ResultForm
 import com.vortessence.calculator.core.math.type.ResultFormatter
 import com.vortessence.calculator.ui.dialogs.ConstantsDialog
@@ -36,13 +43,16 @@ import com.vortessence.calculator.ui.graph.GraphPlotterView
 import com.vortessence.calculator.ui.keypad.CalculatorKeypad
 import com.vortessence.calculator.ui.math.LocalDigitGrouping
 import com.vortessence.calculator.ui.math.MathEditor
+import com.vortessence.calculator.ui.math.MathEditorActions
 import com.vortessence.calculator.ui.math.MathExpressionView
+import com.vortessence.calculator.ui.math.rememberMathClipboard
 import androidx.compose.ui.tooling.preview.Preview
 import com.vortessence.calculator.ui.dialogs.SettingsDialog
 import com.vortessence.calculator.ui.theme.AccentRed
 import com.vortessence.calculator.ui.theme.CalculatorTheme
 import com.vortessence.calculator.viewmodel.CalculatorUiState
 import com.vortessence.calculator.viewmodel.CalculatorViewModel
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 @Composable
@@ -90,6 +100,41 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
         }
     }
 
+    val clipboard = rememberMathClipboard()
+    val haptics = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
+    fun showMessage(message: String) {
+        scope.launch { snackbarHostState.showSnackbar(message, withDismissAction = true) }
+    }
+    fun copy(math: MathString) {
+        clipboard.copy(math)
+        // Android 13 and later confirm copies themselves
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) showMessage("Copied")
+    }
+    // Long press on a history entry or the live result copies it
+    fun copyWithFeedback(math: MathString) {
+        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+        copy(math)
+    }
+    val editorActions = MathEditorActions(
+        onCopy = {
+            viewModel.selectedMath()?.let(::copy)
+            // Like text fields: copying ends the selection, the cursor stays at its end
+            viewModel.setCursorPath(uiState.cursorPath)
+        },
+        onCut = { viewModel.cutSelection()?.let(::copy) },
+        onPaste = {
+            val content = clipboard.paste()
+            when {
+                content == null -> Unit
+                content.math == null -> showMessage("Can't paste \"${content.text.ellipsized(24)}\" as math")
+                !viewModel.paste(content.math) -> showMessage("Several lines can't be pasted into a fraction, root, …")
+            }
+        },
+        onSelectAll = { viewModel.selectAll() },
+        canPaste = { clipboard.hasText() }
+    )
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -118,7 +163,8 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
                             item = entry.calculation,
                             form = entry.form,
                             onInputClick = { viewModel.selectHistoryItem(entry.calculation) },
-                            onResultClick = { viewModel.useResultAsInput(entry.calculation) }
+                            onResultClick = { viewModel.useResultAsInput(entry.calculation) },
+                            onCopy = ::copyWithFeedback
                         )
                     }
                 }
@@ -141,14 +187,16 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
                         onPlaceCursor = { caret -> viewModel.setCursorPath(caret) },
                         onSelectToken = { path, index -> viewModel.selectTokenAt(path, index) },
                         onBeginHandleDrag = { isStart -> viewModel.beginHandleDrag(isStart) },
-                        onExtendSelection = { caret -> viewModel.extendSelection(caret) }
+                        onExtendSelection = { caret -> viewModel.extendSelection(caret) },
+                        actions = editorActions
                     )
 
                     LiveResultView(
                         result = uiState.result,
                         showError = uiState.showResultError,
                         form = uiState.resultForm,
-                        onFormChange = { viewModel.setResultForm(it) }
+                        onFormChange = { viewModel.setResultForm(it) },
+                        onCopy = ::copyWithFeedback
                     )
                 }
             }
@@ -224,6 +272,7 @@ private fun LiveResultView(
     showError: Boolean,
     form: ResultForm,
     onFormChange: (ResultForm) -> Unit,
+    onCopy: (MathString) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -261,8 +310,11 @@ private fun LiveResultView(
                 }
             }
             Spacer(modifier = Modifier.weight(1f))
+            val shownResult = ResultFormatter.format(result, shownForm)
             Row(
-                modifier = Modifier.horizontalScroll(rememberScrollState(), reverseScrolling = true),
+                modifier = Modifier
+                    .horizontalScroll(rememberScrollState(), reverseScrolling = true)
+                    .pointerInput(shownResult) { detectTapGestures(onLongPress = { onCopy(shownResult) }) },
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
@@ -272,7 +324,7 @@ private fun LiveResultView(
                     color = MaterialTheme.colorScheme.primary
                 )
                 MathExpressionView(
-                    mathString = ResultFormatter.format(result, shownForm),
+                    mathString = shownResult,
                     fontSize = 24.sp,
                     textColor = MaterialTheme.colorScheme.onBackground
                 )
@@ -360,8 +412,11 @@ private fun HistoryItemCard(
     item: CalculationResult,
     form: ResultForm,
     onInputClick: () -> Unit,
-    onResultClick: () -> Unit
+    onResultClick: () -> Unit,
+    onCopy: (MathString) -> Unit
 ) {
+    // Shown as chosen when committed; tapping it still reuses the exact value
+    val shownResult = ResultFormatter.format(item, form)
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -376,7 +431,7 @@ private fun HistoryItemCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable(onClick = onInputClick)
+                    .combinedClickable(onLongClick = { onCopy(item.input) }, onClick = onInputClick)
             ) {
                 ShrinkToFitWidth {
                     MathExpressionView(
@@ -391,7 +446,7 @@ private fun HistoryItemCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable(onClick = onResultClick),
+                    .combinedClickable(onLongClick = { onCopy(shownResult) }, onClick = onResultClick),
                 contentAlignment = Alignment.CenterEnd
             ) {
                 ShrinkToFitWidth {
@@ -406,8 +461,7 @@ private fun HistoryItemCard(
                             color = MaterialTheme.colorScheme.primary
                         )
                         MathExpressionView(
-                            // Shown as chosen when committed; tapping it still reuses the exact value
-                            mathString = ResultFormatter.format(item, form),
+                            mathString = shownResult,
                             fontSize = 22.sp,
                             textColor = MaterialTheme.colorScheme.onBackground
                         )
@@ -417,6 +471,10 @@ private fun HistoryItemCard(
         }
     }
 }
+
+/** [this], cut to [maxLength] characters with "…" if longer. */
+private fun String.ellipsized(maxLength: Int): String =
+    if (length <= maxLength) this else take(maxLength - 1).trimEnd() + "…"
 
 /**
  * Lays out [content] at its natural width and scales it down uniformly when that is wider

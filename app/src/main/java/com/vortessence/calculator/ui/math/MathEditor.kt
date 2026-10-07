@@ -27,6 +27,7 @@ import androidx.compose.ui.layout.findRootCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalTextToolbar
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
@@ -39,7 +40,10 @@ import kotlin.math.roundToInt
  * Editable math input with Android-like touch interaction:
  * - tap places the cursor at the nearest position,
  * - long press selects the token under the finger; keep dragging to extend the selection,
- * - while something is selected, two handles below its ends can be dragged to adjust it.
+ * - while something is selected, two handles below its ends can be dragged to adjust it,
+ * - with [actions], Android's floating Cut/Copy/Paste/Select all menu appears over a selection
+ *   once the finger is lifted, and with Paste over the caret after a long press on empty space
+ *   or a tap on the caret.
  *
  * All hit testing uses the node positions reported by [MathExpressionView] to [CaretGeometry].
  * Positions are caret paths (see CaretPaths), selections are applied by the caller.
@@ -54,6 +58,7 @@ fun MathEditor(
     onBeginHandleDrag: (isStartHandle: Boolean) -> Unit,
     onExtendSelection: (focusCaret: List<Int>) -> Unit,
     modifier: Modifier = Modifier,
+    actions: MathEditorActions? = null,
     fontSize: TextUnit = 32.sp,
     accentColor: Color = MaterialTheme.colorScheme.primary
 ) {
@@ -67,6 +72,35 @@ fun MathEditor(
     val currentOnSelectToken by rememberUpdatedState(onSelectToken)
     val currentOnExtendSelection by rememberUpdatedState(onExtendSelection)
     val currentOnBeginHandleDrag by rememberUpdatedState(onBeginHandleDrag)
+    val currentCursorPath by rememberUpdatedState(cursorPath)
+    val currentSelectionRange by rememberUpdatedState(selectionRange)
+    val currentExpression by rememberUpdatedState(expression)
+
+    // The floating text menu belongs to the state of the input it was opened for and goes away
+    // as soon as anything changes (typing, moving the cursor, ...) or the input is touched.
+    var menu by remember { mutableStateOf<MenuState?>(null) }
+    var isMenuRequested by remember { mutableStateOf(false) }
+    fun requestMenu() {
+        isMenuRequested = true
+    }
+    fun dismissMenu() {
+        isMenuRequested = false
+        menu = null
+    }
+    LaunchedEffect(isMenuRequested) {
+        if (!isMenuRequested) return@LaunchedEffect
+        // Opened for the state after the last selection change has arrived from the caller
+        withFrameNanos { }
+        menu = MenuState(currentExpression, currentCursorPath, currentSelectionRange)
+        isMenuRequested = false
+    }
+    val shownMenu = menu?.takeIf {
+        it.expression === expression && it.cursorPath == cursorPath && it.selectionRange == selectionRange
+    }
+    val isMenuShown by rememberUpdatedState(shownMenu != null)
+    if (actions != null) {
+        TextMenu(shownMenu, actions, geometry, onDismiss = ::dismissMenu, onReopen = ::requestMenu)
+    }
 
     // Where the selection's ends are; the handles sit below them
     val selectionStringPath = cursorPath.dropLast(1)
@@ -108,18 +142,33 @@ fun MathEditor(
                     val down = awaitFirstDown(requireUnconsumed = true)
                     // Touches on a selection handle belong to the handle
                     if (handleHitAreas.values.any { it.contains(down.position) }) return@awaitEachGesture
+                    val hadMenu = isMenuShown
+                    dismissMenu()
 
                     val longPress = awaitLongPressOrCancellation(down.id)
                     if (longPress == null) {
                         // A tap, unless the gesture was a scroll (consumed by horizontalScroll)
                         val up = currentEvent.changes.firstOrNull { it.id == down.id }
                         if (up != null && !up.pressed && !up.isConsumed) {
-                            geometry.hitTestCaret(down.position)?.let { currentOnPlaceCursor(it) }
+                            val caret = geometry.hitTestCaret(down.position) ?: return@awaitEachGesture
+                            // Tapping the caret itself toggles the Paste menu, like in a text field
+                            if (caret == currentCursorPath && currentSelectionRange == null) {
+                                if (!hadMenu) requestMenu()
+                            } else {
+                                currentOnPlaceCursor(caret)
+                            }
                         }
                         return@awaitEachGesture
                     }
 
-                    val (stringPath, nodeIndex) = geometry.hitTestNode(longPress.position) ?: return@awaitEachGesture
+                    val hit = geometry.hitTestNode(longPress.position)
+                    if (hit == null) {
+                        // Nothing to select (e.g. an empty input): offer to paste at the caret
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        requestMenu()
+                        return@awaitEachGesture
+                    }
+                    val (stringPath, nodeIndex) = hit
                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     currentOnSelectToken(stringPath, nodeIndex)
 
@@ -140,6 +189,7 @@ fun MathEditor(
                             haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         }
                     }
+                    requestMenu()
                 }
             },
         contentAlignment = Alignment.CenterStart
@@ -172,6 +222,7 @@ fun MathEditor(
                         if (area == null) handleHitAreas.remove(isStart) else handleHitAreas[isStart] = area
                     },
                     onDragStart = {
+                        dismissMenu()
                         currentOnBeginHandleDrag(isStart)
                         // Hit test at the middle of the text, not at the finger below it
                         geometry.handleGrabPoint(selectionStringPath, nodeIndex, isStart)
@@ -184,12 +235,73 @@ fun MathEditor(
                             haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         }
                     },
+                    onDragEnd = ::requestMenu,
                     scrollState = scrollState
                 )
             }
         }
         if (selectionRange == null) {
             SideEffect { handleHitAreas.clear() }
+        }
+    }
+}
+
+/** What the floating text menu of a [MathEditor] does; the editor decides when to offer what. */
+class MathEditorActions(
+    val onCopy: () -> Unit,
+    val onCut: () -> Unit,
+    val onPaste: () -> Unit,
+    val onSelectAll: () -> Unit,
+    /** Whether there is something to paste; asked whenever the menu opens. */
+    val canPaste: () -> Boolean
+)
+
+/** The state of the input a text menu was opened for. */
+private class MenuState(val expression: MathString, val cursorPath: List<Int>, val selectionRange: IntRange?)
+
+/**
+ * Shows Android's floating text menu (the one of text fields) for [menu], or nothing while it
+ * is null. It follows the selection or caret while the input scrolls.
+ */
+@Composable
+private fun TextMenu(
+    menu: MenuState?,
+    actions: MathEditorActions,
+    geometry: CaretGeometry,
+    onDismiss: () -> Unit,
+    onReopen: () -> Unit
+) {
+    val textToolbar = LocalTextToolbar.current
+    val currentActions by rememberUpdatedState(actions)
+    LaunchedEffect(menu) {
+        if (menu == null) return@LaunchedEffect
+        val selection = menu.selectionRange?.takeIf { !it.isEmpty() }
+        val isAllSelected = menu.cursorPath.size == 1 && selection == 0 until menu.expression.length
+        val canPaste = currentActions.canPaste()
+        // Every item closes the menu first; Select all opens it again for the new selection
+        fun item(available: Boolean, action: MathEditorActions.() -> Unit): (() -> Unit)? =
+            if (available) ({ onDismiss(); currentActions.action() }) else null
+        val onCopy = item(selection != null) { onCopy() }
+        val onCut = item(selection != null) { onCut() }
+        val onPaste = item(canPaste) { onPaste() }
+        val onSelectAll = item(menu.expression.isNotEmpty && !isAllSelected) { onSelectAll(); onReopen() }
+        if (listOf(onCopy, onCut, onPaste, onSelectAll).all { it == null }) return@LaunchedEffect
+        try {
+            snapshotFlow { geometry.menuAnchor(menu.cursorPath, selection) }.collect { anchor ->
+                if (anchor == null) {
+                    textToolbar.hide()
+                } else {
+                    textToolbar.showMenu(
+                        rect = anchor,
+                        onCopyRequested = onCopy,
+                        onPasteRequested = onPaste,
+                        onCutRequested = onCut,
+                        onSelectAllRequested = onSelectAll
+                    )
+                }
+            }
+        } finally {
+            textToolbar.hide()
         }
     }
 }
@@ -209,6 +321,7 @@ private fun SelectionHandle(
     onHitAreaChanged: (Rect?) -> Unit,
     onDragStart: () -> Offset?,
     onDrag: (point: Offset, isNewCaret: (List<Int>) -> Boolean) -> Unit,
+    onDragEnd: () -> Unit,
     scrollState: ScrollState
 ) {
     val density = LocalDensity.current
@@ -251,7 +364,9 @@ private fun SelectionHandle(
                         onDrag(virtualPoint) { caret ->
                             (caret != lastCaret).also { lastCaret = caret }
                         }
-                    }
+                    },
+                    onDragEnd = onDragEnd,
+                    onDragCancel = onDragEnd
                 )
             },
         contentAlignment = if (isStart) Alignment.TopEnd else Alignment.TopStart
@@ -283,6 +398,8 @@ class CaretGeometry {
     private val lines = HashMap<List<Int>, HashMap<Int, LineInfo>>()
     private val lineCounts = HashMap<List<Int>, Int>()
     private var editorOrigin = Offset.Zero
+    /** The visible part of the editor (it scrolls its content), in root coordinates. */
+    private var editorBounds = Rect.Zero
 
     /** Changes whenever a position changes, so handles are re-placed. */
     private var version by mutableIntStateOf(0)
@@ -292,9 +409,11 @@ class CaretGeometry {
 
     internal fun setEditor(coordinates: LayoutCoordinates) {
         val origin = coordinates.localToRoot(Offset.Zero)
+        val bounds = boundsInRoot(coordinates)
         editorWidth = coordinates.size.width.toFloat()
-        if (origin != editorOrigin) {
+        if (origin != editorOrigin || bounds != editorBounds) {
             editorOrigin = origin
+            editorBounds = bounds
             version++
         }
     }
@@ -433,6 +552,36 @@ class CaretGeometry {
         val rect = nodes[stringPath]?.get(nodeIndex) ?: return null
         val x = if (isStart) rect.left else rect.right
         return Offset(x, rect.bottom) - editorOrigin
+    }
+
+    /**
+     * What the floating text menu points at, in root coordinates: the selected nodes, or the
+     * caret if [selectionRange] is null. Clipped to the visible part of the editor; null if
+     * it is scrolled out of view.
+     */
+    fun menuAnchor(cursorPath: List<Int>, selectionRange: IntRange?): Rect? {
+        version // follow layout and scrolling
+        val path = cursorPath.dropLast(1)
+        val map = nodes[path]
+        val area = if (selectionRange != null) {
+            val selected = selectionRange.mapNotNull { map?.get(it) }.reduceOrNull { a, b ->
+                Rect(minOf(a.left, b.left), minOf(a.top, b.top), maxOf(a.right, b.right), maxOf(a.bottom, b.bottom))
+            } ?: return null
+            // Without line breaks, as tall as the whole string, so the menu does not cover
+            // taller neighbours (a "2" next to a fraction)
+            val string = strings[path]?.bounds
+            if (string == null || lineCounts.containsKey(path)) selected
+            else Rect(selected.left, minOf(selected.top, string.top), selected.right, maxOf(selected.bottom, string.bottom))
+        } else {
+            val x = (caretX(cursorPath) ?: return null) + editorOrigin.x
+            val index = cursorPath.last()
+            // As tall as the node next to the caret (its line, in a string with line breaks)
+            val height = map?.get(index) ?: map?.get(index - 1) ?: strings[path]?.bounds ?: return null
+            Rect(x, height.top, x, height.bottom)
+        }
+        val left = maxOf(area.left, editorBounds.left)
+        val right = minOf(area.right, editorBounds.right)
+        return if (left > right) null else Rect(left, area.top, right, area.bottom)
     }
 
     /** The point used for hit testing when a handle drag starts: the middle of that edge. */

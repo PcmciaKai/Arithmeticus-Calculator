@@ -311,6 +311,51 @@ class CalculatorViewModel @JvmOverloads constructor(
         }
     }
 
+    /** Selects the whole input. */
+    fun selectAll() {
+        val expression = _uiState.value.expression
+        if (expression.isEmpty) return
+        _uiState.update { it.copy(cursorPath = listOf(expression.length), selectionRange = 0 until expression.length) }
+    }
+
+    /** A copy of the selected nodes, or null if nothing is selected. */
+    fun selectedMath(): MathString? {
+        val state = _uiState.value
+        val range = state.selectionRange?.takeIf { !it.isEmpty() } ?: return null
+        val target = getTargetString(state.expression, state.cursorPath)
+        return MathString(range.filter { it in target.nodes.indices }.map { target.nodeAt(it) })
+    }
+
+    /** Removes the selection and returns it, or null if nothing is selected. */
+    fun cutSelection(): MathString? = selectedMath()?.also { deleteAtCursor() }
+
+    /**
+     * Inserts [math] at the cursor, replacing the selection, as if it had been typed there.
+     * Returns false (and changes nothing) if it does not fit: line breaks only exist at the top
+     * level, not inside a fraction, root, ...
+     */
+    fun paste(math: MathString): Boolean {
+        val state = _uiState.value
+        val path = state.cursorPath
+        if (math.isEmpty || (path.size > 1 && math.nodes.any { it is LineBreakNode })) return false
+        val pasted = MathText.splitNumbers(math)
+        val root = state.expression.copy()
+        val target = getTargetString(root, path)
+        var pos = path.last().coerceIn(0, target.length)
+        val range = state.selectionRange
+        if (range != null && !range.isEmpty()) {
+            val start = range.first.coerceIn(0, target.length)
+            val end = (range.last + 1).coerceIn(start, target.length)
+            for (i in (end - 1) downTo start) target.removeAt(i)
+            pos = start
+        }
+        target.insertAll(pos, pasted.nodes)
+        _uiState.update {
+            it.copy(expression = root, cursorPath = path.dropLast(1) + (pos + pasted.length), selectionRange = null)
+        }
+        return true
+    }
+
     /** Selects how results are shown; also applies to calculations committed afterwards. */
     fun setResultForm(form: ResultForm) {
         prefs?.edit { putString("result_form", form.name) }

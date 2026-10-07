@@ -16,6 +16,8 @@ import com.vortessence.calculator.core.math.type.FractionNode
 import com.vortessence.calculator.core.math.type.LineBreakNode
 import com.vortessence.calculator.core.math.type.OperatorNode
 import com.vortessence.calculator.core.math.type.ParenthesesNode
+import com.vortessence.calculator.core.math.type.MathString
+import com.vortessence.calculator.core.math.type.NumberNode
 import com.vortessence.calculator.ui.keypad.KeyAction
 import com.vortessence.calculator.viewmodel.CalculatorViewModel
 import androidx.lifecycle.viewModelScope
@@ -1113,5 +1115,72 @@ class CalculatorViewModelTest {
         vm.onKeyAction(KeyAction.Backspace)
         assertEquals("3", vm.uiState.value.expression.toString())
         assertEquals(listOf(1), vm.uiState.value.cursorPath)
+    }
+
+    private fun typeKeys(vm: CalculatorViewModel, vararg actions: KeyAction) = actions.forEach { vm.onKeyAction(it) }
+
+    @Test
+    fun copyAndPasteKeepsStructureAndReplacesSelection() {
+        val vm = newViewModel()
+        // 1/2 + 3
+        typeKeys(vm, KeyAction.Number("1"), KeyAction.Operator("÷"), KeyAction.Number("2"), KeyAction.MoveRight,
+            KeyAction.Operator("+"), KeyAction.Number("3"))
+        vm.setSelection(emptyList(), 0..0)
+        val copied = vm.selectedMath()!!
+        assertTrue(copied.nodeAt(0) is FractionNode)
+
+        // Pasting over the "3" replaces it; the cursor ends up after the pasted fraction
+        vm.setSelection(emptyList(), 2..2)
+        assertTrue(vm.paste(copied))
+        val state = vm.uiState.value
+        assertEquals("(1)/(2) + (1)/(2)", state.expression.toString())
+        assertEquals(listOf(3), state.cursorPath)
+        assertNull(state.selectionRange)
+        // The pasted fraction is a copy: editing one does not change the other
+        assertNotSame(state.expression.nodeAt(0), state.expression.nodeAt(2))
+    }
+
+    @Test
+    fun pastedNumbersCanBeEditedDigitByDigit() {
+        val vm = newViewModel()
+        assertTrue(vm.paste(MathString(listOf(NumberNode("125")))))
+        assertEquals(3, vm.uiState.value.expression.length)
+        assertEquals(listOf(3), vm.uiState.value.cursorPath)
+    }
+
+    @Test
+    fun pasteIntoASlot() {
+        val vm = newViewModel()
+        typeKeys(vm, KeyAction.Sqrt)
+        assertTrue(vm.paste(MathString(listOf(NumberNode("2"), VariableNode("x")))))
+        assertEquals("sqrt(2x)", vm.uiState.value.expression.toString())
+        assertEquals(listOf(0, 0, 2), vm.uiState.value.cursorPath)
+
+        // Several lines only fit at the top level
+        assertFalse(vm.paste(MathString(listOf(NumberNode("1"), LineBreakNode, NumberNode("2")))))
+        assertEquals("sqrt(2x)", vm.uiState.value.expression.toString())
+    }
+
+    @Test
+    fun cutRemovesTheSelection() {
+        val vm = newViewModel()
+        typeKeys(vm, KeyAction.Number("1"), KeyAction.Operator("+"), KeyAction.Number("2"))
+        vm.setSelection(emptyList(), 1..2)
+        assertEquals(" + 2", vm.cutSelection().toString())
+        assertEquals("1", vm.uiState.value.expression.toString())
+        assertEquals(listOf(1), vm.uiState.value.cursorPath)
+        assertNull(vm.cutSelection())
+    }
+
+    @Test
+    fun selectAllSelectsTheWholeInputFromAnywhere() {
+        val vm = newViewModel()
+        vm.selectAll()
+        assertNull(vm.uiState.value.selectionRange)
+
+        typeKeys(vm, KeyAction.Number("2"), KeyAction.Operator("+"), KeyAction.Number("1"), KeyAction.Operator("÷"))
+        vm.selectAll()
+        assertEquals(0..2, vm.uiState.value.selectionRange)
+        assertEquals(listOf(3), vm.uiState.value.cursorPath)
     }
 }
