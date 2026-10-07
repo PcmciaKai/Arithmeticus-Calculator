@@ -37,6 +37,7 @@ import com.vortessence.calculator.core.math.type.MathString
 import com.vortessence.calculator.core.math.type.ResultForm
 import com.vortessence.calculator.core.math.type.ResultFormatter
 import com.vortessence.calculator.ui.dialogs.ConstantsDialog
+import com.vortessence.calculator.ui.dialogs.FormulasDialog
 import com.vortessence.calculator.ui.dialogs.MatrixDialog
 import com.vortessence.calculator.ui.dialogs.UnitsDialog
 import com.vortessence.calculator.ui.graph.GraphPlotterView
@@ -225,6 +226,13 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
         ConstantsDialog(
             onDismiss = { viewModel.dismissConstantsDialog() },
             onConstantSelected = { symbol -> viewModel.insertConstant(symbol) }
+        )
+    }
+
+    if (uiState.showFormulasDialog) {
+        FormulasDialog(
+            onDismiss = { viewModel.dismissFormulasDialog() },
+            onFormulaSelected = { template -> viewModel.insertFormula(template) }
         )
     }
 

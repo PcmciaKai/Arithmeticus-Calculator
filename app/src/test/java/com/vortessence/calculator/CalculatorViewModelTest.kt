@@ -18,6 +18,8 @@ import com.vortessence.calculator.core.math.type.OperatorNode
 import com.vortessence.calculator.core.math.type.ParenthesesNode
 import com.vortessence.calculator.core.math.type.MathString
 import com.vortessence.calculator.core.math.type.NumberNode
+import com.vortessence.calculator.core.math.type.SeparatorNode
+import com.vortessence.calculator.core.math.type.MathOp
 import com.vortessence.calculator.ui.keypad.KeyAction
 import com.vortessence.calculator.viewmodel.CalculatorViewModel
 import androidx.lifecycle.viewModelScope
@@ -1182,5 +1184,35 @@ class CalculatorViewModelTest {
         vm.selectAll()
         assertEquals(0..2, vm.uiState.value.selectionRange)
         assertEquals(listOf(3), vm.uiState.value.cursorPath)
+    }
+
+    @Test
+    fun formulaGoesToItsFirstBlank() = runBlocking {
+        val vm = newViewModel()
+        typeKeys(vm, KeyAction.Number("2"), KeyAction.Operator("+"))
+        // nCr(, ): the cursor starts before the comma, inside the function
+        vm.insertFormula(MathString(listOf(FunctionNode("nCr", MathString(listOf(SeparatorNode))))))
+        assertEquals(listOf(2, 0, 0), vm.uiState.value.cursorPath)
+        typeKeys(vm, KeyAction.Number("5"), KeyAction.MoveRight, KeyAction.Number("2"))
+        assertEquals("2 + nCr(5, 2)", vm.uiState.value.expression.toString())
+        vm.awaitLiveResult()
+        assertEquals(12.0, vm.uiState.value.result!!.numericValue, 0.0)
+
+        // √(□² + □²): into the first empty base
+        val vm2 = newViewModel()
+        val square = ExponentNode(MathString(), MathString(listOf(NumberNode("2"))))
+        vm2.insertFormula(MathString(listOf(RadicalNode(radicand = MathString(listOf(square, OperatorNode(MathOp.PLUS), square))))))
+        assertEquals(listOf(0, 0, 0, 0, 0), vm2.uiState.value.cursorPath)
+    }
+
+    @Test
+    fun listFormulaWrapsTheSelectedValues() = runBlocking {
+        val vm = newViewModel()
+        typeKeys(vm, KeyAction.Number("2"), KeyAction.Separator, KeyAction.Number("4"), KeyAction.Separator, KeyAction.Number("9"))
+        vm.selectAll()
+        vm.insertFormula(MathString(listOf(FunctionNode("mean"))))
+        assertEquals("mean(2, 4, 9)", vm.uiState.value.expression.toString())
+        vm.awaitLiveResult()
+        assertEquals(5.0, vm.uiState.value.result!!.numericValue, 0.0)
     }
 }

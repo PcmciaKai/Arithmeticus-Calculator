@@ -75,6 +75,7 @@ object MathText {
         is UnitNode -> if (isValue(previous)) " ${node.symbol}" else node.symbol
         is TextNode -> node.text
         is LineBreakNode -> "\n"
+        is SeparatorNode -> ", "
         is FractionNode -> {
             val fraction = "${group(node.numerator)}/${group(node.denominator)}"
             // Inside a product or under a power, "1/2x" or "1/2^2" would read differently
@@ -143,7 +144,7 @@ object MathText {
     }
 
     /** Whether [node] is (the end of) an operand, so a node right after it would multiply it. */
-    private fun isValue(node: MathNode?): Boolean = node != null && node !is OperatorNode && node !is LineBreakNode && node !is TextNode
+    private fun isValue(node: MathNode?): Boolean = node != null && node !is OperatorNode && node !is LineBreakNode && node !is TextNode && node !is SeparatorNode
 
     private val MathNode?.isPostfix: Boolean get() = this is OperatorNode && op.isPostfix
 

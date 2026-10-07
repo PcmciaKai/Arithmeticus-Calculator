@@ -449,6 +449,14 @@ private fun MathNodeView(
         }
         // Line breaks are laid out by MathExpressionView, see ExpressionRow.LineBreakMarker
         is LineBreakNode -> {}
+        is SeparatorNode -> {
+            Text(
+                text = ", ",
+                fontSize = fontSize,
+                fontWeight = FontWeight.Normal,
+                color = textColor
+            )
+        }
         is TextNode -> {
             Text(
                 text = node.text,

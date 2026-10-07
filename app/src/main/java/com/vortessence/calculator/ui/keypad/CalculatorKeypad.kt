@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowRightAlt
 import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.automirrored.filled.KeyboardReturn
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.AutoGraph
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Settings
@@ -105,6 +106,10 @@ sealed class KeyAction {
     data object MoveRight : KeyAction()
     data object OpenUnits : KeyAction()
     data object OpenConstants : KeyAction()
+    /** Opens the formula picker (statistics, combinatorics, rounding, ...). */
+    data object OpenFormulas : KeyAction()
+    /** The comma between the values of a function with several arguments, e.g. mean(2, 4, 9). */
+    data object Separator : KeyAction()
     data object OpenGraph : KeyAction()
     data object OpenSettings : KeyAction()
     data object Integral : KeyAction()
@@ -372,6 +377,7 @@ fun CalculatorKeypad(
                     KeyButton(text = "−", buttonWidth = buttonWidth, isOp = true) { onKeyAction(KeyAction.Operator("−")) }
 
                     // Page 2 (cols 9..10)
+                    // Long press: convert to a unit ("5 km → mi"); the popup shows the arrow
                     KeyButton(
                         buttonWidth = buttonWidth,
                         content = {
@@ -380,22 +386,22 @@ fun CalculatorKeypad(
                                 Spacer(Modifier.height(2.dp))
                                 Text("Units", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                             }
-                        }
+                        },
+                        popupIcon = Icons.Default.Straighten,
+                        alternates = listOf(
+                            KeyAlternate(AnnotatedString("→"), Icons.AutoMirrored.Filled.ArrowRightAlt) { onKeyAction(KeyAction.Convert) }
+                        )
                     ) { onKeyAction(KeyAction.OpenUnits) }
                     KeyButton(
                         buttonWidth = buttonWidth,
-                        isAccent = true,
                         content = {
                             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                                // The arrow glyph is thin, so it is drawn larger within the same slot as the other pictograms
-                                Box(Modifier.size(18.dp), contentAlignment = Alignment.Center) {
-                                    Icon(Icons.AutoMirrored.Filled.ArrowRightAlt, contentDescription = "Convert to unit", tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.requiredSize(30.dp))
-                                }
+                                Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = "Formulas", tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.height(2.dp))
-                                Text("Unit", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                                Text("Formulas", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                             }
                         }
-                    ) { onKeyAction(KeyAction.Convert) }
+                    ) { onKeyAction(KeyAction.OpenFormulas) }
                 }
 
                 // Row 3
@@ -499,7 +505,11 @@ fun CalculatorKeypad(
 
                     // Page 1 (cols 4..8)
                     KeyButton(text = "0", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("0")) }
-                    KeyButton(text = ".", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number(".")) }
+                    KeyButton(
+                        text = ".",
+                        buttonWidth = buttonWidth,
+                        alternates = listOf(alt(",", KeyAction.Separator))
+                    ) { onKeyAction(KeyAction.Number(".")) }
                     KeyButton(
                         buttonWidth = buttonWidth,
                         isAccent = true,

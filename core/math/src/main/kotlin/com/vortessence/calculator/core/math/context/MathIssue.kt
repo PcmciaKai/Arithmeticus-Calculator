@@ -26,5 +26,7 @@ enum class MathIssue(val userMessage: String) {
     MATRIX_UNSUPPORTED("Not defined for matrices"),
     NO_ANS("No previous result for Ans"),
     DIVERGES("Does not converge"),
-    INVALID_BOUNDS("Bounds must be whole numbers")
+    INVALID_BOUNDS("Bounds must be whole numbers"),
+    ARGUMENT_COUNT("Wrong number of values for this function"),
+    WHOLE_NUMBERS_ONLY("Only defined for whole numbers")
 }

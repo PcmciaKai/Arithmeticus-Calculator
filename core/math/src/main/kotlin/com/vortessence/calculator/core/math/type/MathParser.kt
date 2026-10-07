@@ -140,6 +140,10 @@ class MathParser {
                     tokens.add(Token.ValueToken(radExpr))
                 }
                 is ParenthesesNode -> tokens.add(Token.ValueToken(parseSlot(node.inner)))
+                is FunctionNode if NamedFunctionKind.byName(node.name) != null -> {
+                    val arguments = splitArguments(node.argument).map { parseSlot(it) }
+                    tokens.add(Token.ValueToken(NamedFunction(NamedFunctionKind.byName(node.name)!!, arguments)))
+                }
                 is FunctionNode -> {
                     val arg = parseSlot(node.argument)
                     val fnExpr = when (node.name.lowercase()) {
@@ -196,7 +200,8 @@ class MathParser {
                     tokens.add(Token.ValueToken(MatrixExpression(node.rows, node.cols, elements)))
                 }
                 // A line break inside a slot, e.g. a fraction wrapped around two lines
-                is TextNode, is LineBreakNode -> syntaxError()
+                // A comma outside of a function with several arguments
+                is TextNode, is LineBreakNode, is SeparatorNode -> syntaxError()
             }
             i++
         }
@@ -216,6 +221,15 @@ class MathParser {
             result.add(curr)
         }
         return result
+    }
+
+    /** The arguments of a function: [argument] split at its commas. */
+    private fun splitArguments(argument: MathString): List<MathString> {
+        val arguments = mutableListOf(MathString())
+        for (node in argument.nodes) {
+            if (node is SeparatorNode) arguments.add(MathString()) else arguments.last().insert(arguments.last().length, node)
+        }
+        return arguments
     }
 
     /** The exact value of a mixed number; each part must be a whole number written in digits. */

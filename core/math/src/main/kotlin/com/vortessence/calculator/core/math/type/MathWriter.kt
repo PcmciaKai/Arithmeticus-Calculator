@@ -94,6 +94,14 @@ class MathWriter(
                 ))
             }
             is AbsoluteValue -> result.append(FunctionNode("abs", writeExpr(expr.operand)))
+            is NamedFunction -> {
+                val arguments = MathString()
+                expr.arguments.forEachIndexed { i, argument ->
+                    if (i > 0) arguments.append(SeparatorNode)
+                    arguments.appendAll(writeExpr(argument))
+                }
+                result.append(FunctionNode(expr.kind.functionName, arguments))
+            }
             is Antiderivative -> result.append(AntiderivativeNode(writeExpr(expr.integrand), expr.variable.identifier))
             is Derivative -> {
                 result.append(DerivativeNode(

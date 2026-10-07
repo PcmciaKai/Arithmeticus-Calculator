@@ -59,6 +59,7 @@ data class CalculatorUiState(
     /** Family of [unitCategory] the unit picker scrolls to when it opens, e.g. for a conversion. */
     val unitFamilyToShow: Int? = null,
     val showConstantsDialog: Boolean = false,
+    val showFormulasDialog: Boolean = false,
     val showSettingsDialog: Boolean = false,
     val showMatrixDialog: Boolean = false,
     /** Size of the most recently inserted matrix, preselected in the matrix dialog. */
@@ -250,6 +251,8 @@ class CalculatorViewModel @JvmOverloads constructor(
             is KeyAction.MoveRight -> moveCursorRight()
             is KeyAction.OpenUnits -> _uiState.update { it.copy(showUnitsDialog = true) }
             is KeyAction.OpenConstants -> _uiState.update { it.copy(showConstantsDialog = true) }
+            is KeyAction.OpenFormulas -> _uiState.update { it.copy(showFormulasDialog = true) }
+            is KeyAction.Separator -> insertNode(SeparatorNode)
             is KeyAction.OpenGraph -> toggleGraph()
             is KeyAction.OpenSettings -> _uiState.update { it.copy(showSettingsDialog = true) }
             is KeyAction.Integral -> insertNode(IntegralNode())
@@ -503,6 +506,43 @@ class CalculatorViewModel @JvmOverloads constructor(
     fun insertUnit(symbol: String) {
         insertNode(UnitNode(symbol))
         dismissUnitsDialog()
+    }
+
+    fun dismissFormulasDialog() {
+        _uiState.update { it.copy(showFormulasDialog = false) }
+    }
+
+    /**
+     * Inserts a formula from the picker like a paste (replacing the selection), with the
+     * cursor in its first empty slot or before its first comma, ready for the first value.
+     */
+    fun insertFormula(template: MathString) {
+        dismissFormulasDialog()
+        val state = _uiState.value
+        // A function of a list wraps the selection like the function keys: selecting the
+        // typed values "2, 4, 9" and picking the mean gives mean(2, 4, 9)
+        val function = template.nodes.singleOrNull() as? FunctionNode
+        if (function != null && function.argument.isEmpty && state.selectionRange?.isEmpty() == false) {
+            insertNode(function)
+            return
+        }
+        val stringPath = state.cursorPath.dropLast(1)
+        val start = state.selectionRange?.takeIf { !it.isEmpty() }?.first ?: state.cursorPath.last()
+        if (!paste(template)) return
+        val target = getTargetString(_uiState.value.expression, stringPath)
+        val blank = (start until start + template.length).firstNotNullOfOrNull { i ->
+            target.nodes.getOrNull(i)?.let { node -> firstBlankIn(node)?.let { listOf(i) + it } }
+        } ?: return
+        _uiState.update { it.copy(cursorPath = stringPath + blank) }
+    }
+
+    /** The caret path (relative to [node]) of its first empty slot or slot starting with a comma. */
+    private fun firstBlankIn(node: MathNode): List<Int>? {
+        node.subStrings.forEachIndexed { child, string ->
+            if (string.isEmpty || string.nodes.first() is SeparatorNode) return listOf(child, 0)
+            string.nodes.forEachIndexed { i, inner -> firstBlankIn(inner)?.let { return listOf(child, i) + it } }
+        }
+        return null
     }
 
     fun insertConstant(symbol: String) {

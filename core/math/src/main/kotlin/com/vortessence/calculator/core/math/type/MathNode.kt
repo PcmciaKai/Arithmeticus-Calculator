@@ -169,6 +169,15 @@ data object LineBreakNode : MathNode() {
     override fun toString(): String = "\n"
 }
 
+/**
+ * The comma between the arguments of a function that takes several, e.g. mean(2, 4, 9) or
+ * nCr(5, 2). Anywhere else the parser rejects it.
+ */
+data object SeparatorNode : MathNode() {
+    override fun copy(): MathNode = this
+    override fun toString(): String = ", "
+}
+
 /** Logarithm to an arbitrary base: log_base(argument). */
 data class LogBaseNode(
     val base: MathString = MathString(),
