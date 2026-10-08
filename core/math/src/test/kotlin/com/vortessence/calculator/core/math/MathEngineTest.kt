@@ -102,6 +102,23 @@ class MathEngineTest {
     }
 
     @Test
+    fun testWavelengthWavenumberConversion() {
+        val perCm = Power(UnitRegistry.CM, Value.MINUS_ONE)
+        val nm = UnitRegistry.findBySymbol("nm")!!
+
+        // 500 nm → cm⁻¹ = 20000 cm⁻¹
+        val wavenumber = UnitConversion(Multiplications.of(Value(500L), nm), perCm).canonicalize()
+        assertTrue(wavenumber is Multiplications)
+        assertEquals(20000.0, (wavenumber as Multiplications).operands[0].evaluateNumerically(), 1e-9)
+
+        // 20000 cm⁻¹ → nm = 500 nm
+        val wavelength = UnitConversion(Multiplications.of(Value(20000L), perCm), nm).canonicalize()
+        assertTrue(wavelength is Multiplications)
+        assertEquals(500.0, (wavelength as Multiplications).operands[0].evaluateNumerically(), 1e-9)
+        assertEquals(nm, wavelength.operands[1])
+    }
+
+    @Test
     fun testLinearEquationSolving() {
         // 2x - 6 = 0 => x = 3
         val x = Variable("x")

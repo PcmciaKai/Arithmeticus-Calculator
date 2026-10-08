@@ -280,6 +280,17 @@ class UnitConversion(val value: Expression, val target: Expression) : Expression
         if (!cValue.containsUnit() && dimensionOf(cTarget) == Dimension.ANGLE) {
             cValue = Multiplications.of(cValue, UnitRegistry.RAD).canonicalize(context)
         }
+        // Spectroscopy: wavelength and wavenumber are reciprocal (500 nm → cm⁻¹ = 20000 cm⁻¹,
+        // 20000 cm⁻¹ → nm = 500 nm), so a length converts to a 1/length and vice versa.
+        val valueDimension = dimensionOf(cValue)
+        val targetDimension = dimensionOf(cTarget)
+        if (valueDimension != null && targetDimension != null && !valueDimension.isNone &&
+            valueDimension == targetDimension * -1 &&
+            (valueDimension == Dimension.LENGTH || targetDimension == Dimension.LENGTH)
+        ) {
+            cValue = cValue.invert().canonicalize(context)
+            if (context.shouldStop) return this
+        }
         return cValue.convertToUnit(cTarget, includeUnitInResult = true, context = context) ?: this
     }
 
