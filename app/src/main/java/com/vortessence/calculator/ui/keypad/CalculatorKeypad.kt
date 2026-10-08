@@ -37,6 +37,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.input.pointer.pointerInput
@@ -151,10 +153,6 @@ private fun scriptLabel(base: String, sup: String = "", sub: String = ""): Annot
     if (sub.isNotEmpty()) withStyle(SpanStyle(fontSize = 0.65.em, baselineShift = BaselineShift(-0.2f))) { append(sub) }
 }
 
-/** Roboto's ∞ is drawn much smaller than its letters, so the label enlarges it to match. */
-private val InfinityLabel: AnnotatedString = buildAnnotatedString {
-    withStyle(SpanStyle(fontSize = 1.6.em)) { append("∞") }
-}
 
 // Column counts of the three pages; five columns are visible at once, so the
 // narrower side pages also show the adjacent columns of the main page.
@@ -445,7 +443,7 @@ fun CalculatorKeypad(
                     KeyButton(
                         text = "π",
                         buttonWidth = buttonWidth,
-                        alternates = listOf(alt("e", KeyAction.Constant("e")), alt(InfinityLabel, KeyAction.Constant("∞")))
+                        alternates = listOf(alt("e", KeyAction.Constant("e")), KeyAlternate(AnnotatedString("infinity"), InfinityIcon) { onKeyAction(KeyAction.Constant("∞")) })
                     ) { onKeyAction(KeyAction.Constant("π")) }
 
                     // Page 1 (cols 4..8)
@@ -711,15 +709,27 @@ private fun KeyButton(
         // The accent color would vanish on the (accent colored) Enter key.
         val hintColor = if (bgColor == MaterialTheme.colorScheme.primary) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onPrimaryContainer
         hints.take(HINT_POSITIONS.size).forEachIndexed { index, alternate ->
-            Text(
-                text = alternate.label,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Medium,
-                color = hintColor,
-                modifier = Modifier
-                    .align(HINT_POSITIONS[index])
-                    .padding(start = 8.dp, end = 8.dp, bottom = 4.dp)
-            )
+            val hintModifier = Modifier
+                .align(HINT_POSITIONS[index])
+                .padding(start = 8.dp, end = 8.dp, bottom = 4.dp)
+            if (alternate.icon != null) {
+                // Lifted so its centre is level with the middle of the lowercase letters of the
+                // text hints beside it (a text box has its descender space below the letters)
+                Icon(
+                    alternate.icon,
+                    contentDescription = alternate.label.text,
+                    tint = hintColor,
+                    modifier = hintModifier.padding(bottom = 8.dp).size(width = 12.dp, height = 7.dp)
+                )
+            } else {
+                Text(
+                    text = alternate.label,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = hintColor,
+                    modifier = hintModifier
+                )
+            }
         }
 
         popupSelection?.let { selected ->
@@ -732,6 +742,36 @@ private fun KeyButton(
         }
     }
 }
+
+/**
+ * The infinity symbol, drawn as a path: font glyphs of ∞ differ in size from device to device
+ * (it can be tiny in one system font and huge in a fallback font), a path does not.
+ */
+private val InfinityIcon: ImageVector = ImageVector.Builder(
+    name = "Infinity",
+    defaultWidth = 24.dp,
+    defaultHeight = 14.dp,
+    viewportWidth = 24f,
+    viewportHeight = 14f
+).apply {
+    path(
+        stroke = SolidColor(Color.Black),
+        strokeLineWidth = 2.2f,
+        strokeLineCap = StrokeCap.Round,
+        strokeLineJoin = StrokeJoin.Round
+    ) {
+        moveTo(12f, 7f)
+        curveTo(13.8f, 4.6f, 15.4f, 3f, 17.5f, 3f)
+        curveTo(19.8f, 3f, 21.5f, 4.8f, 21.5f, 7f)
+        curveTo(21.5f, 9.2f, 19.8f, 11f, 17.5f, 11f)
+        curveTo(15.4f, 11f, 13.8f, 9.4f, 12f, 7f)
+        curveTo(10.2f, 4.6f, 8.6f, 3f, 6.5f, 3f)
+        curveTo(4.2f, 3f, 2.5f, 4.8f, 2.5f, 7f)
+        curveTo(2.5f, 9.2f, 4.2f, 11f, 6.5f, 11f)
+        curveTo(8.6f, 11f, 10.2f, 9.4f, 12f, 7f)
+        close()
+    }
+}.build()
 
 /** A fraction template (box over box), for the popup of the division key. */
 private val FractionIcon: ImageVector = ImageVector.Builder(
