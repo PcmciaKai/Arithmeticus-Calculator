@@ -275,4 +275,34 @@ class NewFunctionsTest {
         // Typed decimals are still exact
         assertResult("(1)/(4)", calc(n("0.25")))
     }
+
+    @Test
+    fun complexQuotientIsWrittenCompactly() {
+        val a = VariableNode("a")
+        val fv = VariableNode("f")
+        val aDef = calc(a, op(MathOp.DEFINE), minus, n("4"), plus, n("4"), op(MathOp.MULTIPLY), sqrt(n("3"), i))
+        val fDef = calc(fv, op(MathOp.DEFINE), n("2"), op(MathOp.MULTIPLY), e, pow(i, frac(ms(pi), ms(n("6")))))
+        assertResult("f = sqrt(3) + i", fDef)
+        val quotient = runBlocking {
+            MathEngine.calculate(ms(frac(ms(a), ms(fv))), MathContext(
+                complexNumbers = true,
+                variables = mapOf("a" to aDef.answer!!, "f" to fDef.answer!!)
+            ))
+        }
+        // √6·√3 = 3√2
+        assertFalse(quotient.result.toString().contains("sqrt(6)sqrt(3)"))
+        val expectedRe = -Math.sqrt(3.0) + 3 * Math.sqrt(2.0) / 2 + Math.sqrt(6.0) / 2
+        val expectedIm = 1 - Math.sqrt(6.0) / 2 + 3 * Math.sqrt(2.0) / 2
+        assertEquals(expectedRe, quotient.numericValue, 1e-12)
+        assertEquals(expectedIm, quotient.numericImaginary, 1e-12)
+        // The written form reads back as the same value
+        val reread = runBlocking { MathEngine.calculate(quotient.result, MathContext(complexNumbers = true)) }
+        assertEquals(expectedIm, reread.numericImaginary, 1e-12)
+    }
+
+    @Test
+    fun rootsOfDifferentNumbersAreCombined() {
+        assertResult("3sqrt(2)", calc(sqrt(n("6")), sqrt(n("3"))))
+        assertResult("sqrt(6)", calc(sqrt(n("2")), sqrt(n("3"))))
+    }
 }

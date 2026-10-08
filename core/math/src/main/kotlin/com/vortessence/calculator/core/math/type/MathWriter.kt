@@ -370,6 +370,7 @@ class MathWriter(
     }
 
     private fun writeAdditions(add: Additions, result: MathString) {
+        if (writeComplexWithGroupedImaginaryPart(add, result)) return
         // Complex numbers in the usual form a + bi: real terms first
         val operands = add.operands.sortedBy { it.containsImaginaryUnit() }
         for ((idx, op) in operands.withIndex()) {
@@ -392,6 +393,22 @@ class MathWriter(
                 result.appendAll(nodes)
             }
         }
+    }
+
+    /**
+     * A complex number whose imaginary part has several terms, written a + (b + c)i rather
+     * than a + bi + ci, so it is clear what the imaginary part is. False for any other sum.
+     */
+    private fun writeComplexWithGroupedImaginaryPart(add: Additions, result: MathString): Boolean {
+        val (re, im) = complexParts(add) ?: return false
+        if (im !is Additions) return false
+        if (!re.isZero) {
+            result.appendAll(writeExpr(re))
+            result.append(OperatorNode(MathOp.PLUS))
+        }
+        result.append(ParenthesesNode(writeExpr(im)))
+        result.append(ConstantNode("i"))
+        return true
     }
 
     /**

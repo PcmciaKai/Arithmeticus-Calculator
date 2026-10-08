@@ -1,6 +1,8 @@
 package com.vortessence.calculator.core.math.expressions
 
 import com.vortessence.calculator.core.math.context.MathContext
+import com.vortessence.calculator.core.math.numbers.BigInt
+import com.vortessence.calculator.core.math.numbers.Rational
 
 class Multiplications(val operands: List<Expression>) : Expression() {
 
@@ -114,7 +116,10 @@ class Multiplications(val operands: List<Expression>) : Expression() {
             used[i] = true
         }
 
-        // Merging can leave numbers (i·i = −1, √2·√2 = 2) or products (i³ = −i): combine them again
+        mergeRootsOfNumbers(mergedTerms, context)
+
+        // Merging can leave numbers (i·i = −1, √2·√2 = 2) or products (i³ = −i, √6·√3 = 3√2):
+        // combine them again
         if (mergedTerms.any { it is Value || it is Multiplications }) {
             return Multiplications(listOf(valueProduct) + mergedTerms).canonicalize(context)
         }
@@ -139,6 +144,31 @@ class Multiplications(val operands: List<Expression>) : Expression() {
         }
 
         return Multiplications(finalTerms)
+    }
+
+    /**
+     * Combines roots of positive numbers with the same degree into one: √6·√3 = √18, which
+     * then simplifies to 3√2. Only numbers: √x·√y is not √(xy) for negative x and y.
+     */
+    private fun mergeRootsOfNumbers(terms: MutableList<Expression>, context: MathContext) {
+        fun rootDegree(e: Expression): BigInt? {
+            val base = ((e as? Power)?.base as? Value)?.rational ?: return null
+            val exponent = (e.exponent as? Value)?.rational ?: return null
+            if (base.isNegative || base.isZero || exponent.numerator != BigInt.ONE || exponent.denominator == BigInt.ONE) return null
+            return exponent.denominator
+        }
+        val byDegree = terms.indices.filter { rootDegree(terms[it]) != null }.groupBy { rootDegree(terms[it])!! }
+        val replaced = mutableMapOf<Int, Expression?>()
+        for ((degree, indices) in byDegree) {
+            if (indices.size < 2) continue
+            val radicand = indices.fold(Rational.ONE) { product, i -> product * ((terms[i] as Power).base as Value).rational!! }
+            replaced[indices[0]] = Power(Value(radicand), Value(Rational.of(BigInt.ONE, degree))).canonicalize(context)
+            indices.drop(1).forEach { replaced[it] = null }
+        }
+        if (replaced.isEmpty()) return
+        val result = terms.indices.mapNotNull { i -> if (i in replaced) replaced[i] else terms[i] }
+        terms.clear()
+        terms.addAll(result)
     }
 
     /**
