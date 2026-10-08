@@ -197,6 +197,16 @@ class Power(
             if (n != null && parts != null && abs(n) <= MAX_EXACT_COMPLEX_POWER) {
                 return exactComplexPower(parts, n, context)
             }
+            // Half powers via the exact square root: z^(p/2) = (√z)^p
+            val r = (exp as? Value)?.rational
+            if (parts != null && r != null && r.denominator == BigInt.TWO && fitsInLong(r.numerator) &&
+                abs(r.numerator.toLong()) <= MAX_EXACT_COMPLEX_POWER
+            ) {
+                val root = exactComplexSquareRoot(parts, context) ?: return numericComplexPower(base, exp, context)
+                if (context.shouldStop) return this
+                return if (r.numerator == BigInt.ONE) complexOf(root.first, root.second, context)
+                else exactComplexPower(root, r.numerator.toLong(), context)
+            }
         } else if (base.variables().isEmpty() && !baseIsComplex) {
             val (re, im) = complexParts(exp) ?: return numericComplexPower(base, exp, context)
             // e^(a + bi) = e^a·(cos b + i·sin b)
@@ -208,6 +218,27 @@ class Power(
             }
         }
         return numericComplexPower(base, exp, context)
+    }
+
+    /**
+     * The principal square root of re + im·i (im ≠ 0), exactly:
+     * √z = √((|z| + re)/2) ± i·√((|z| − re)/2), with the sign of im; e.g. √(3i) = (√6/2)(1 + i).
+     * Null if the sign of im is not known (it contains variables).
+     */
+    private fun exactComplexSquareRoot(parts: Pair<Expression, Expression>, context: MathContext): Pair<Expression, Expression>? {
+        val (re, im) = parts
+        if (re.variables().isNotEmpty() || im.variables().isNotEmpty()) return null
+        val imSign = im.evaluateNumerically()
+        if (imSign.isNaN() || imSign == 0.0) return null
+        val modulus = Power(Additions(listOf(Power(re, Value.TWO), Power(im, Value.TWO))), Value.HALF)
+        fun halfRoot(sign: Value) = Power(
+            Multiplications.of(Value.HALF, Additions(listOf(modulus, Multiplications.of(sign, re)))),
+            Value.HALF
+        ).canonicalize(context)
+        val realPart = halfRoot(Value.ONE)
+        val imaginaryPart = halfRoot(Value.MINUS_ONE)
+        if (context.shouldStop) return null
+        return realPart to (if (imSign < 0.0) Multiplications.of(Value.MINUS_ONE, imaginaryPart).canonicalize(context) else imaginaryPart)
     }
 
     /** cos(angle) + i·sin(angle), with the angle in radians whatever the angle unit. */

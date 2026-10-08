@@ -244,4 +244,35 @@ class NewFunctionsTest {
             assertEquals(res.result.toString(), calc(*shown.nodes.toTypedArray()).result.toString())
         }
     }
+
+    @Test
+    fun exactSquareRootsOfComplexNumbers() {
+        assertResult("(sqrt(6))/(2) + (isqrt(6))/(2)", calc(sqrt(n("3"), i)))
+        assertResult("1 − i", calc(sqrt(minus, n("2"), i)))
+        assertResult("2 + i", calc(sqrt(n("3"), plus, n("4"), i)))
+        // z^(3/2) = (√z)³
+        assertResult(" − 2 + 2i", calc(paren(n("2"), i), pow(frac(ms(n("3")), ms(n("2"))))))
+    }
+
+    @Test
+    fun definitionWithComplexRootIsExactBothWays() {
+        val a = VariableNode("a")
+        val definition = calc(a, op(MathOp.DEFINE), minus, n("4"), plus, n("4"), op(MathOp.MULTIPLY), sqrt(n("3"), i))
+        assertResult("a =  − 4 + 2sqrt(6) + 2isqrt(6)", definition)
+        val reused = runBlocking {
+            MathEngine.calculate(ms(a), MathContext(complexNumbers = true, variables = mapOf("a" to definition.answer!!)))
+        }
+        assertResult(" − 4 + 2sqrt(6) + 2isqrt(6)", reused)
+    }
+
+    @Test
+    fun reusedDecimalResultsStayDecimals() {
+        // A numeric integral has no exact value; reusing its digits must not make up a fraction
+        val integral = calc(IntegralNode(ms(n("0")), ms(n("1")), ms(e, pow(x, pow(n("2"))))))
+        assertTrue(integral.answer!!.nodes.any { it is NumberNode && it.approximate })
+        val reused = runBlocking { MathEngine.calculate(integral.answer!!, MathContext()) }
+        assertResult("1.462651746", reused)
+        // Typed decimals are still exact
+        assertResult("(1)/(4)", calc(n("0.25")))
+    }
 }

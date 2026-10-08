@@ -24,8 +24,13 @@ enum class MathOp(val symbol: String, val precedence: Int) {
     DEFINE(":=", -2)
 }
 
-data class NumberNode(val text: String) : MathNode() {
-    override fun copy(): MathNode = NumberNode(text)
+/**
+ * Digits (and a decimal point). [approximate] marks the digits of a floating point result, e.g.
+ * 1.4626517459071848 for a numeric integral: reused as input (Ans, a variable, a tapped result)
+ * it stays a decimal approximation instead of turning into the exact fraction of its digits.
+ */
+data class NumberNode(val text: String, val approximate: Boolean = false) : MathNode() {
+    override fun copy(): MathNode = NumberNode(text, approximate)
     override fun toString(): String = text
 }
 

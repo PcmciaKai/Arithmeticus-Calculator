@@ -57,7 +57,7 @@ object MathText {
      */
     fun splitNumbers(string: MathString): MathString = MathString(string.nodes.flatMap { node ->
         when {
-            node is NumberNode && node.text.length > 1 -> node.text.map { NumberNode(it.toString()) }
+            node is NumberNode && node.text.length > 1 -> node.text.map { NumberNode(it.toString(), node.approximate) }
             node.subStrings.isEmpty() -> listOf(node)
             else -> listOf(node.subStrings.foldIndexed(node) { i, acc, child -> acc.replaceSubString(i, splitNumbers(child)) })
         }

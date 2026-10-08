@@ -66,11 +66,16 @@ class MathParser {
                 is NumberNode -> {
                     // Combine consecutive number nodes (e.g. '1', '2', '.', '5')
                     val sb = StringBuilder()
+                    var approximate = false
                     while (i < nodes.size && nodes[i] is NumberNode) {
-                        sb.append((nodes[i] as NumberNode).text)
+                        val digits = nodes[i] as NumberNode
+                        sb.append(digits.text)
+                        approximate = approximate || digits.approximate
                         i++
                     }
                     var number: Expression = parseNumberString(sb.toString())
+                    // The digits of a floating point result stay a floating point number
+                    if (approximate && number is Value) number = Value(number.real)
                     // A following "×10ⁿ" is part of this number literal
                     val sci = nodes.getOrNull(i) as? SciExponentNode
                     if (sci != null) {

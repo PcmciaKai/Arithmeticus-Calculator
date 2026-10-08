@@ -196,7 +196,7 @@ class MathWriter(
             places != null -> fixedDigits(magnitude, places, scientific)
             else -> automaticDigits(magnitude, scientific)
         }
-        result.append(NumberNode(digits))
+        result.append(NumberNode(digits, approximate = true))
         if (exponent != null) {
             val exponentString = MathString()
             if (exponent < 0) exponentString.append(OperatorNode(MathOp.MINUS))
