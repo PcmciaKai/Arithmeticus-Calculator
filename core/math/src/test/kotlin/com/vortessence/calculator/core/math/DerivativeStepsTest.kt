@@ -101,17 +101,36 @@ class DerivativeStepsTest {
     }
 
     @Test
-    fun chainRuleLeavesTheInnerDerivativeOpen() {
+    fun chainRuleWithOuterAndInnerDerivative() {
         assertSteps(
             d(f("sin", x, pow(n("2")))),
             "2xcos((x)^(2))",
             Triple("{d/dx(sin((x)^(2)))}", null, null),
-            Triple("[cos((x)^(2)){d/dx((x)^(2))}]", StepRule.SINE, "d/dx(sin((x)^(2))) = cos((x)^(2))d/dx((x)^(2))"),
+            Triple("[{d/du(sin(u))}d/dx((x)^(2))]", StepRule.CHAIN_RULE, "d/dx(sin((x)^(2))) = d/du(sin(u))d/dx((x)^(2))"),
+            Triple("{[cos(u)]}d/dx((x)^(2))", StepRule.SINE, "d/du(sin(u)) = cos(u)"),
+            Triple("[cos((x)^(2))]{d/dx((x)^(2))}", StepRule.BACK_SUBSTITUTION, "u = (x)^(2)"),
             Triple("[2x]cos((x)^(2))", StepRule.POWER, "d/dx((x)^(2)) = 2x")
         )
-        assertTrue(solution(d(f("sin", x, pow(n("2")))))!!.steps[1].chainRule)
-        // With the variable itself inside, there is no inner derivative
-        assertFalse(solution(d(f("sin", x)))!!.steps[1].chainRule)
+        // The inner function is named
+        assertEquals(listOf("u = (x)^(2)"), solution(d(f("sin", x, pow(n("2")))))!!.steps[1].notes.map { it.toString() })
+        // With the variable itself inside, there is no chain rule
+        assertEquals(listOf(StepRule.SINE), solution(d(f("sin", x)))!!.steps.drop(1).map { it.rule })
+    }
+
+    @Test
+    fun rootWrittenAsPowerFirst() {
+        // √(3x) = (3x)^(1/2), then the chain rule, and the power back as a root at the end
+        assertEquals(
+            listOf(
+                StepRule.REWRITE_AS_POWER, StepRule.CHAIN_RULE, StepRule.POWER, StepRule.BACK_SUBSTITUTION,
+                StepRule.CONSTANT_FACTOR, StepRule.POWER_AS_ROOT, StepRule.SIMPLIFY
+            ),
+            solution(d(RadicalNode(null, ms(n("3"), x))))!!.steps.drop(1).map { it.rule }
+        )
+        val steps = solution(d(FractionNode(ms(n("1")), ms(x))))!!.steps
+        assertEquals(listOf(StepRule.REWRITE_AS_POWER, StepRule.POWER, StepRule.POWER_AS_FRACTION), steps.drop(1).map { it.rule })
+        assertEquals("(1)/(x) = (x)^( − 1)", steps[1].change.let { "${it!!.before} = ${it.after}" })
+        assertEquals("d/dx((x)^( − 1)) =  − (x)^( − 2)", steps[2].change.let { "${it!!.before} = ${it.after}" })
     }
 
     @Test

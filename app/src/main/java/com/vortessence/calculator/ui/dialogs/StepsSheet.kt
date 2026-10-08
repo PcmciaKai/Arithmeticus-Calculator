@@ -1,11 +1,13 @@
 package com.vortessence.calculator.ui.dialogs
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -20,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import com.vortessence.calculator.core.math.steps.SolutionStep
 import com.vortessence.calculator.core.math.steps.StepChange
 import com.vortessence.calculator.core.math.steps.StepRule
+import com.vortessence.calculator.core.math.type.HighlightNode
 import com.vortessence.calculator.core.math.type.MathString
 import com.vortessence.calculator.ui.math.MathExpressionView
 import com.vortessence.calculator.ui.math.highlightColor
@@ -28,7 +31,7 @@ import com.vortessence.calculator.viewmodel.StepsState
 /**
  * The step-by-step solution of a calculation: the problem, then for each step an arrow in the
  * step's color with the rule (in general and applied to the part it changes) and the
- * expression it leads to, and finally the result. In each expression, the part the last step
+ * expression it leads to; the last one, the result, is framed. In each expression, the part the last step
  * produced is boxed and the part the next step changes is colored.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -60,16 +63,11 @@ fun StepsSheet(state: StepsState, onDismiss: () -> Unit) {
                 ) {
                     itemsIndexed(solution.steps) { index, step ->
                         if (index > 0) StepArrow(step, highlightColor(index))
-                        ScrollingMath(step.expression, fontSize = 24.sp)
-                    }
-                    item {
-                        Text(
-                            "Result",
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(top = 20.dp, bottom = 4.dp)
-                        )
-                        ScrollingMath(solution.result, fontSize = 26.sp)
+                        if (index == solution.steps.lastIndex && index > 0) {
+                            ResultLine(step.expression)
+                        } else {
+                            ScrollingMath(step.expression, fontSize = 24.sp)
+                        }
                     }
                 }
             }
@@ -138,6 +136,32 @@ private fun ChangeLine(change: StepChange) {
     }
 }
 
+/** The last line, the result, framed so that it stands out. */
+@Composable
+private fun ResultLine(math: MathString) {
+    val color = MaterialTheme.colorScheme.primary
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = color.copy(alpha = 0.08f),
+        border = BorderStroke(1.5.dp, color.copy(alpha = 0.6f))
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
+            Text("Result", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = color)
+            // The frame is enough, without the box of the last step inside it
+            ScrollingMath(withoutHighlights(math), fontSize = 24.sp)
+        }
+    }
+}
+
+/** [math] with its highlighted parts as plain parts. */
+private fun withoutHighlights(math: MathString): MathString = MathString(math.nodes.flatMap { node ->
+    if (node is HighlightNode) {
+        withoutHighlights(node.content).nodes
+    } else {
+        listOf(node.subStrings.foldIndexed(node) { i, acc, sub -> acc.replaceSubString(i, withoutHighlights(sub)) })
+    }
+})
+
 /** Long expressions scroll instead of being squeezed. */
 @Composable
 private fun ScrollingMath(math: MathString, fontSize: androidx.compose.ui.unit.TextUnit) {
@@ -177,6 +201,11 @@ private val StepRule.description: String
         StepRule.FUNDAMENTAL_THEOREM -> "Apply the fundamental theorem of calculus"
         StepRule.MULTIPLY_NUMBERS -> "Multiply numbers"
         StepRule.NUMBER_POWER -> "Calculate the power"
+        StepRule.DIVIDE_BY_FRACTION -> "Divide by the fraction"
+        StepRule.REWRITE_AS_POWER -> "Write as a power"
+        StepRule.CHAIN_RULE -> "Apply the chain rule"
+        StepRule.POWER_AS_ROOT -> "Write the power as a root"
+        StepRule.POWER_AS_FRACTION -> "Write the power as a fraction"
         StepRule.POWER_OF_POWER -> "Multiply the exponents"
         StepRule.POWER_OF_PRODUCT -> "Raise each factor to the power"
         StepRule.EXPAND -> "Multiply out"
@@ -232,6 +261,11 @@ private val StepRule.formula: String?
         StepRule.ABSOLUTE_VALUE -> "|x|′ = x/|x|"
         StepRule.FUNDAMENTAL_THEOREM -> "(∫ₐˣ f(t) dt)′ = f(x)"
         StepRule.COMBINE_POWERS -> "xᵃ·xᵇ = xᵃ⁺ᵇ"
+        StepRule.DIVIDE_BY_FRACTION -> "1/(a/b) = b/a"
+        StepRule.REWRITE_AS_POWER -> "ⁿ√x = x^(1/n), 1/xⁿ = x⁻ⁿ"
+        StepRule.CHAIN_RULE -> "(f(g(x)))′ = f′(u)·g′(x) with u = g(x)"
+        StepRule.POWER_AS_ROOT -> "x^(1/n) = ⁿ√x"
+        StepRule.POWER_AS_FRACTION -> "x⁻ⁿ = 1/xⁿ"
         StepRule.POWER_OF_POWER -> "(xᵃ)ᵇ = xᵃᵇ"
         StepRule.POWER_OF_PRODUCT -> "(a·b)ⁿ = aⁿ·bⁿ"
         StepRule.EXPAND -> "(a + b)·c = a·c + b·c"

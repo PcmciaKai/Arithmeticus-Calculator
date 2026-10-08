@@ -5,6 +5,7 @@ import com.vortessence.calculator.core.math.numbers.BigInt
 import com.vortessence.calculator.core.math.numbers.Rational
 import com.vortessence.calculator.core.math.steps.BackSubstitution
 import com.vortessence.calculator.core.math.steps.EvaluateBetween
+import com.vortessence.calculator.core.math.steps.LiteralPower
 import com.vortessence.calculator.core.math.steps.Marked
 import java.math.BigDecimal
 import java.math.BigInteger
@@ -132,6 +133,17 @@ class MathWriter(
             is Marked -> result.append(HighlightNode(writeExpr(expr.inner), expr.colorIndex, expr.boxed))
             // Solution steps of integrals
             is BackSubstitution -> result.appendAll(writeExpr(expr.inner))
+            is LiteralPower -> {
+                // x^(1/2) as a power, not as √x
+                val power = expr.inner as? Power
+                if (power == null) {
+                    result.appendAll(writeExpr(expr.inner))
+                } else {
+                    val baseStr = writeExpr(power.base)
+                    val base = if (needsParenthesesAsBase(power.base)) MathString(listOf(ParenthesesNode(baseStr))) else baseStr
+                    result.append(ExponentNode(base, writeExpr(power.exponent)))
+                }
+            }
             is EvaluateBetween -> result.append(EvaluationNode(
                 writeExpr(expr.antiderivative), writeExpr(expr.lower), writeExpr(expr.upper), expr.variable.identifier
             ))
@@ -297,6 +309,7 @@ class MathWriter(
 
     private fun needsParenthesesAsBase(base: Expression): Boolean = when (base) {
         is Marked -> needsParenthesesAsBase(base.inner)
+        is LiteralPower -> true
         is Additions, is Multiplications, is Power, is Equals, is Modulo -> true
         is Value -> base.isNegative || base.rational?.isFractional == true || base.rational == null
         else -> false
@@ -427,6 +440,7 @@ class MathWriter(
     private fun factorRank(factor: Expression): Int = when {
         // A highlighted product goes where its first factor would: [2x]·cos(x), not cos(x)·[2x]
         factor is Marked -> (factor.inner as? Multiplications)?.operands?.minOf { factorRank(it) } ?: factorRank(factor.inner)
+        factor is LiteralPower -> factorRank(factor.inner)
         factor is Derivative -> 6
         factor is Value -> 0
         // Powers of numbers in solution steps: 2³x³
@@ -441,6 +455,7 @@ class MathWriter(
     /** The variable of a factor x or xⁿ, which orders such factors alphabetically. */
     private fun variableName(factor: Expression): String? =
         if (factor is Marked) variableName(factor.inner)
+        else if (factor is LiteralPower) variableName(factor.inner)
         else ((if (factor is Power) factor.base else factor) as? Variable)?.identifier
 
     /** Juxtaposition would be ambiguous if the factor starts with digits (2·3, 2·10², 2·−x). */

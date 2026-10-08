@@ -7,6 +7,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -68,6 +69,32 @@ fun MathExpressionView(
     caretGeometry: CaretGeometry? = null,
     path: List<Int> = emptyList(),
     verticalPadding: Dp = 4.dp
+) {
+    // The theme's line height (24sp) would give small text, e.g. a fraction in an exponent, a
+    // line far taller than its letters: wide gaps, and a minus that is not level with the bar.
+    // Below 24sp the line is as tall as the font size, as for 24sp text.
+    val style = LocalTextStyle.current
+    val lineHeight = if (fontSize.value < MAX_SCALED_LINE_HEIGHT_SP) fontSize else style.lineHeight
+    CompositionLocalProvider(LocalTextStyle provides style.copy(lineHeight = lineHeight)) {
+        MathExpressionLayout(mathString, modifier, cursorPath, selectionRange, fontSize, textColor, accentColor, caretGeometry, path, verticalPadding)
+    }
+}
+
+/** Text from this size (sp) up keeps the theme's line height. */
+private const val MAX_SCALED_LINE_HEIGHT_SP = 24f
+
+@Composable
+private fun MathExpressionLayout(
+    mathString: MathString,
+    modifier: Modifier,
+    cursorPath: List<Int>,
+    selectionRange: IntRange?,
+    fontSize: TextUnit,
+    textColor: Color,
+    accentColor: Color,
+    caretGeometry: CaretGeometry?,
+    path: List<Int>,
+    verticalPadding: Dp
 ) {
     if (caretGeometry != null) {
         DisposableEffect(caretGeometry, path) {
@@ -185,6 +212,10 @@ private class ExpressionRow(
                 val isNodeFocused = cursorPath.size > 1 && cursorPath[0] == index
                 val isUnaryMinus = node is OperatorNode && node.op == MathOp.MINUS &&
                     (index == start || (mathString.nodes[index - 1] as? OperatorNode)?.op?.isPostfix == false)
+                // −½: a gap, so that the minus does not run into the fraction bar
+                val isSignOfFraction = isUnaryMinus && mathString.nodes.getOrNull(index + 1).let {
+                    it is FractionNode || (it is HighlightNode && it.content.nodes.firstOrNull() is FractionNode)
+                }
 
                 Box(
                     modifier = Modifier
@@ -207,7 +238,7 @@ private class ExpressionRow(
                         accentColor = accentColor,
                         caretGeometry = caretGeometry
                     )
-                    MathNodeView(node, fontSize, slots, isUnaryMinus, groupedDigits[index])
+                    MathNodeView(node, fontSize, slots, isUnaryMinus, groupedDigits[index], isSignOfFraction)
                 }
             }
 
@@ -295,6 +326,23 @@ private fun Modifier.mathAxisOrCenter() = layout { measurable, constraints ->
         placeable.place(0, 0)
     }
 }
+
+/**
+ * Puts the math axis where the bar of a minus is drawn, [OPERATOR_AXIS_EM] above the baseline,
+ * so that −, + and = are level with fraction bars. (In small text the centre of the line is
+ * noticeably higher.)
+ */
+private fun Modifier.operatorAxis(fontSize: TextUnit) = layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints)
+    val baseline = placeable[FirstBaseline]
+    val axis = if (baseline == AlignmentLine.Unspecified) placeable.height / 2 else baseline - (OPERATOR_AXIS_EM * fontSize.toPx()).roundToInt()
+    layout(placeable.width, placeable.height, mapOf(MathAxis to axis)) {
+        placeable.place(0, 0)
+    }
+}
+
+/** Height of the minus bar above the baseline, in em (Roboto). */
+private const val OPERATOR_AXIS_EM = 0.37f
 
 /** Puts the math axis at the vertical centre, ignoring any axis of the content (e.g. scripts). */
 private fun Modifier.centeredMathAxis() = layout { measurable, constraints ->
@@ -387,7 +435,8 @@ private fun MathNodeView(
     fontSize: TextUnit,
     slots: SlotContext,
     isUnaryMinus: Boolean,
-    displayText: String? = null
+    displayText: String? = null,
+    isSignOfFraction: Boolean = false
 ) {
     val textColor = slots.textColor
     val accentColor = slots.accentColor
@@ -408,8 +457,15 @@ private fun MathNodeView(
                 Text(
                     text = if (node.op.isPostfix || isUnaryMinus) node.op.symbol else " ${node.op.symbol} ",
                     fontSize = fontSize,
-                    fontWeight = if (node.op.isPostfix) FontWeight.Normal else FontWeight.Light,
-                    color = if (node.op.isPostfix) textColor else accentColor
+                    fontWeight = when {
+                        node.op.isPostfix -> FontWeight.Normal
+                        // Light strokes all but vanish in small text, e.g. the minus in x^(−1/2)
+                        fontSize.value < SMALL_TEXT_SP -> FontWeight.Medium
+                        else -> FontWeight.Light
+                    },
+                    color = if (node.op.isPostfix) textColor else accentColor,
+                    modifier = (if (isSignOfFraction) Modifier.padding(end = (fontSize.value * 0.15f).dp) else Modifier)
+                        .then(if (fontSize.value < MAX_SCALED_LINE_HEIGHT_SP && !node.op.isPostfix) Modifier.operatorAxis(fontSize) else Modifier)
                 )
             }
         }
@@ -534,12 +590,19 @@ private fun MathNodeView(
     }
 }
 
+/** Below this size (sp), text is small, e.g. in an exponent, and needs heavier strokes. */
+private const val SMALL_TEXT_SP = 20f
+
 /** Numerator over denominator; the math axis runs through the middle of the bar. */
 @Composable
 private fun FractionView(node: FractionNode, fontSize: TextUnit, slots: SlotContext) =
     FractionLayout(node.numerator, 0, node.denominator, 1, fontSize, slots)
 
-/** [numerator] (slot [numeratorChild]) over [denominator] (slot [denominatorChild]). */
+/**
+ * [numerator] (slot [numeratorChild]) over [denominator] (slot [denominatorChild]). Spacing and
+ * bar scale with [fontSize] (as at 32sp in the input), so that a small fraction, e.g. 1/2 in an
+ * exponent, is not spread out by gaps meant for a large one.
+ */
 @Composable
 private fun FractionLayout(
     numerator: MathString,
@@ -550,23 +613,27 @@ private fun FractionLayout(
     slots: SlotContext
 ) {
     val childFontSize = (fontSize.value * 0.8f).sp
+    val em = fontSize.value / 32f
+    val slotPadding = Modifier.padding(horizontal = (4 * em).dp, vertical = (2 * em).dp)
     Layout(
         content = {
             slots.Slot(
                 child = numeratorChild,
                 string = numerator,
                 fontSize = childFontSize,
-                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                modifier = slotPadding,
+                verticalPadding = (4 * em).dp
             )
-            HorizontalDivider(thickness = 1.8.dp, color = slots.textColor)
+            HorizontalDivider(thickness = max(1f, 1.8f * em).dp, color = slots.textColor)
             slots.Slot(
                 child = denominatorChild,
                 string = denominator,
                 fontSize = childFontSize,
-                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                modifier = slotPadding,
+                verticalPadding = (4 * em).dp
             )
         },
-        modifier = Modifier.padding(horizontal = 2.dp)
+        modifier = Modifier.padding(horizontal = (2 * em).dp)
     ) { measurables, constraints ->
         val loose = constraints.copy(minWidth = 0, minHeight = 0)
         val numerator = measurables[0].measure(loose)

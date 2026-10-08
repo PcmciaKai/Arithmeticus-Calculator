@@ -150,7 +150,8 @@ internal object IntegralSteps {
 
     /** The rules for the open integral [open] at [path]. */
     private class Rules(open: Antiderivative, val path: Path, val context: MathContext) {
-        val f = open.integrand
+        // The integrand may be highlighted, after it was written as a power
+        val f = unmarked(open.integrand)
         val v = open.variable
         val before = unmarked(open)
         val integrator = Integrator(context.copy())
@@ -166,7 +167,27 @@ internal object IntegralSteps {
                     return rewrite(StepRule.INTEGRAL_CONSTANT_FACTOR, product(*constants.toTypedArray(), Antiderivative(rest, v)))
                 }
             }
+            rewriteAsPower()?.let { return it }
             return table(f) ?: expand() ?: substitution() ?: byParts()
+        }
+
+        /**
+         * √x = x^(1/2), 1/x² = x⁻²: a power of a linear argument written as a root or fraction is
+         * written as a power for the power rule (1/x stays, it has a rule of its own).
+         */
+        private fun rewriteAsPower(): Match? {
+            val power = f as? Power ?: return null
+            val exponent = power.exponent as? Value ?: return null
+            val inner = power.base as? Power
+            val rewritten = if (inner != null && inner.exponent is Value) {
+                Power(inner.base, canonical(Multiplications(inner.exponent, exponent)) ?: return null)
+            } else {
+                if (exponent == Value.MINUS_ONE || !(exponent.isNegative || exponent.rational?.isFractional == true)) return null
+                power
+            }
+            if (integrator.linearSlope(rewritten.base, v) == null || rewritten.exponent == Value.MINUS_ONE) return null
+            val literal = LiteralPower(rewritten)
+            return Match(StepRule.REWRITE_AS_POWER, mapOf(path + 0 to literal), power, literal)
         }
 
         private fun rewrite(rule: StepRule, result: Expression, chainRule: Boolean = false, notes: List<Note> = emptyList()) =
@@ -202,6 +223,16 @@ internal object IntegralSteps {
         /** The table integral of [g] (of a linear argument u = a·x + b: divided by a), or null. */
         fun tableIntegral(g: Expression): Pair<Expression, StepRule>? {
             if (g == v) return product(Value.HALF, Power(v, Value.TWO)) to StepRule.INTEGRAL_POWER
+            if (g is LiteralPower) {
+                // x^(1/2): x^(3/2)/(3/2), shown as powers until the end
+                val power = g.inner as? Power ?: return null
+                val a = integrator.linearSlope(power.base, v) ?: return null
+                val next = canonical(Additions(power.exponent, Value.ONE)) as? Value ?: return null
+                val divisor = canonical(Multiplications(next, a)) ?: return null
+                val raised = Power(power.base, next).let { if (next.isNegative || next.rational?.isFractional == true) LiteralPower(it) else it }
+                val result = if ((divisor as? Value)?.rational?.isFractional == true) product(raised, Power(divisor, Value.MINUS_ONE)) else divide(raised, divisor)
+                return result to StepRule.INTEGRAL_POWER
+            }
             when {
                 g is Power && !g.exponent.containsVariable(v) -> {
                     val u = g.base
@@ -240,6 +271,7 @@ internal object IntegralSteps {
         private fun table(g: Expression): Match? {
             val (result, rule) = tableIntegral(g) ?: return null
             val inner = when (g) {
+                is LiteralPower -> (g.inner as? Power)?.base ?: v
                 is Power -> if (g.base.containsVariable(v)) g.base else g.exponent
                 is TrigonometricFunction -> g.operand
                 is Logarithm -> g.operand

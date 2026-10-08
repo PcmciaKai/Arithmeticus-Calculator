@@ -49,7 +49,7 @@ internal object DerivativeSteps {
             if (context.shouldStop || solution.size > MAX_STEPS) return null
             solution.apply(derivativeMatch(solution.current, context) ?: break)
         }
-        if (solution.current.containsExpressionMatching { it is Derivative }) return null
+        if (solution.current.containsExpressionMatching { it is Derivative || it is BackSubstitution }) return null
         if (!solution.simplifyToward(compact, MAX_STEPS)) return null
 
         val point = derivative.point ?: return solution.finish(compact)
@@ -64,10 +64,27 @@ internal object DerivativeSteps {
 
     /** The first derivative that is still open, with one rule applied to it. */
     private fun derivativeMatch(e: Expression, context: MathContext): Match? {
-        val path = pathsOf(e) { it is Derivative }.firstOrNull() ?: return null
-        val open = at(e, path) as Derivative
-        val (rewritten, rule, chainRule) = Rules(open.variable, context).apply(open.body) ?: return null
-        return Match(rule, mapOf(path to rewritten), Derivative(open.body, open.variable), rewritten, chainRule = chainRule)
+        // An inner function substituted for the chain rule goes back in as soon as its outer
+        // derivative is done
+        val path = pathsOf(e) {
+            it is Derivative || (it is BackSubstitution && !it.inner.containsExpressionMatching { inner -> inner is Derivative })
+        }.firstOrNull() ?: return null
+        val part = at(e, path)
+        if (part is BackSubstitution) {
+            val result = normalize(unmarked(part.inner).substituteVariables(mapOf(part.u to part.value)))
+            return Match(StepRule.BACK_SUBSTITUTION, mapOf(path to result), part.u, part.value)
+        }
+        val open = part as Derivative
+        val taken = pathsOf(e) { it is Variable }.map { at(e, it) as Variable }.toSet()
+        // The body may be highlighted, after it was written as a power
+        val rewrite = Rules(open.variable, taken, context).apply(unmarked(open.body)) ?: return null
+        val before = Derivative(unmarked(open.body), open.variable)
+        return if (rewrite.ofBody) {
+            // Only the expression is written differently, the derivative stays open
+            Match(rewrite.rule, mapOf(path + 0 to rewrite.expression), unmarked(open.body), rewrite.expression, notes = rewrite.notes)
+        } else {
+            Match(rewrite.rule, mapOf(path to rewrite.expression), before, rewrite.expression, notes = rewrite.notes)
+        }
     }
 
     /**
@@ -91,20 +108,33 @@ internal object DerivativeSteps {
         }
     }
 
-    private data class Rewrite(val expression: Expression, val rule: StepRule, val chainRule: Boolean = false)
+    /**
+     * The derivative rewritten by [rule]; with [ofBody] only the expression in it, which is
+     * written differently (√x as x^(1/2)) and still to be differentiated.
+     */
+    private data class Rewrite(
+        val expression: Expression,
+        val rule: StepRule,
+        val ofBody: Boolean = false,
+        val notes: List<Note> = emptyList()
+    )
 
-    private class Rules(val v: Variable, val context: MathContext) {
+    /** The rules for derivatives with respect to [v]; [taken] are the variables already in use. */
+    private class Rules(val v: Variable, val taken: Set<Variable>, val context: MathContext) {
 
         fun apply(u: Expression): Rewrite? {
             if (!u.containsVariable(v)) return Rewrite(Value.ZERO, StepRule.CONSTANT)
+            // A function of an inner function: the chain rule first, with the inner function named
+            chainRule(u)?.let { return it }
             return when (u) {
                 v -> Rewrite(Value.ONE, StepRule.VARIABLE)
                 is Additions -> sum(u)
                 is Multiplications -> product(u)
-                is Power -> power(u)
+                is LiteralPower -> power(u.inner as? Power ?: return null, literal = true)
+                is Power -> rewriteAsPower(u) ?: power(u, literal = false)
                 is Logarithm -> logarithm(u)
                 is TrigonometricFunction -> trigonometric(u)
-                is AbsoluteValue -> chain(StepRule.ABSOLUTE_VALUE, u.operand, u.operand, Power(u, Value.MINUS_ONE))
+                is AbsoluteValue -> Rewrite(product(u.operand, Power(u, Value.MINUS_ONE)), StepRule.ABSOLUTE_VALUE)
                 is Integral -> integral(u)
                 else -> null
             }
@@ -112,9 +142,53 @@ internal object DerivativeSteps {
 
         private fun d(u: Expression) = Derivative(u, v)
 
-        /** outer(u)·u', where u' is left open (chain rule) unless u is the variable itself. */
-        private fun chain(rule: StepRule, u: Expression, vararg outer: Expression): Rewrite =
-            if (u == v) Rewrite(product(*outer), rule) else Rewrite(product(*outer, d(u)), rule, chainRule = true)
+        /**
+         * (f(g(x)))' = f'(u)·g'(x) with u = g(x): the outer derivative (with respect to u, put
+         * back in afterwards) and the inner one, for a power, exponential, logarithm,
+         * trigonometric function or absolute value of an inner function g(x) other than x.
+         */
+        private fun chainRule(e: Expression): Rewrite? {
+            val power = (e as? LiteralPower)?.inner as? Power ?: e as? Power
+            val wrap = { outer: Expression -> if (e is LiteralPower) LiteralPower(outer) else outer }
+            val (inner, outerOf) = when {
+                power != null && !power.exponent.containsVariable(v) && !needsRewrite(power, e is LiteralPower) ->
+                    power.base to { w: Expression -> wrap(Power(w, power.exponent)) }
+                power != null && !power.base.containsVariable(v) -> power.exponent to { w: Expression -> Power(power.base, w) }
+                e is Logarithm && !e.base.containsVariable(v) -> e.operand to { w: Expression -> Logarithm(e.base, w) }
+                e is TrigonometricFunction -> e.operand to { w: Expression -> TrigonometricFunction(e.type, w, e.angleUnit ?: context.angleUnit) }
+                e is AbsoluteValue -> e.operand to { w: Expression -> AbsoluteValue(w) }
+                else -> return null
+            }
+            if (unmarked(inner) == v) return null
+            val u = listOf("u", "t", "w", "z").map { Variable(it) }.firstOrNull { it != v && it !in taken } ?: return null
+            return Rewrite(
+                product(BackSubstitution(Derivative(outerOf(u), u), u, inner), d(inner)),
+                StepRule.CHAIN_RULE,
+                notes = listOf(Note(u, inner))
+            )
+        }
+
+        /**
+         * Whether [power] is written as a root or a fraction (√x, 1/x, 1/x²) and has to be
+         * written as a power for the power rule.
+         */
+        private fun needsRewrite(power: Power, isLiteral: Boolean): Boolean {
+            if (isLiteral || power.exponent.containsVariable(v)) return false
+            val exponent = power.exponent as? Value ?: return false
+            return power.base is Power || exponent.isNegative || exponent.rational?.isFractional == true
+        }
+
+        /** √x = x^(1/2), 1/x² = x⁻²: written as a power, with powers of powers combined. */
+        private fun rewriteAsPower(power: Power): Rewrite? {
+            if (!needsRewrite(power, isLiteral = false)) return null
+            val inner = power.base as? Power
+            val rewritten = if (inner != null && inner.exponent is Value) {
+                Power(inner.base, Multiplications(inner.exponent, power.exponent).canonicalize(context.copy()))
+            } else {
+                power
+            }
+            return Rewrite(LiteralPower(rewritten), StepRule.REWRITE_AS_POWER, ofBody = true)
+        }
 
         private fun sum(u: Additions): Rewrite {
             // Constant terms drop out; subtracted terms keep their minus sign in front
@@ -151,7 +225,8 @@ internal object DerivativeSteps {
             return Rewrite(Additions(terms), StepRule.PRODUCT)
         }
 
-        private fun power(u: Power): Rewrite {
+        /** xⁿ, aˣ and x^x (the inner functions are x itself, see [chainRule]). */
+        private fun power(u: Power, literal: Boolean): Rewrite {
             val base = u.base
             val exponent = u.exponent
             return when {
@@ -161,13 +236,15 @@ internal object DerivativeSteps {
                     val outer = when (newExponent) {
                         Value.ONE -> base
                         Value.ZERO -> Value.ONE
-                        else -> Power(base, newExponent)
+                        else -> Power(base, newExponent).let { if (literal) LiteralPower(it) else it }
                     }
-                    chain(StepRule.POWER, base, exponent, outer)
+                    // ½·x^(−½) with the ½ in front, not x^(−½)/2 (a fraction with a fraction in its exponent)
+                    val coefficient = if (literal && (exponent as? Value)?.rational?.isFractional == true) LiteralPower(exponent) else exponent
+                    Rewrite(product(coefficient, outer), StepRule.POWER)
                 }
                 !base.containsVariable(v) ->
-                    if (base == Constant.E) chain(StepRule.EXPONENTIAL, exponent, u)
-                    else chain(StepRule.EXPONENTIAL, exponent, u, Logarithm.ln(base))
+                    if (base == Constant.E) Rewrite(u, StepRule.EXPONENTIAL)
+                    else Rewrite(product(u, Logarithm.ln(base)), StepRule.EXPONENTIAL)
                 else -> Rewrite(product(u, d(product(exponent, Logarithm.ln(base)))), StepRule.GENERAL_POWER)
             }
         }
@@ -178,7 +255,7 @@ internal object DerivativeSteps {
                 return Rewrite(d(quotient), StepRule.CHANGE_OF_BASE)
             }
             val denominator = if (u.base == Constant.E) u.operand else product(u.operand, Logarithm.ln(u.base))
-            return chain(StepRule.LOGARITHM, u.operand, Power(denominator, Value.MINUS_ONE))
+            return Rewrite(Power(denominator, Value.MINUS_ONE), StepRule.LOGARITHM)
         }
 
         private fun trigonometric(u: TrigonometricFunction): Rewrite {
@@ -200,7 +277,7 @@ internal object DerivativeSteps {
                 u.type.isInverse -> product(Value(180L), Power(Constant.PI, Value.MINUS_ONE))
                 else -> product(Constant.PI, Value(1L, 180L))
             }
-            return chain(rule, x, outer, degreeFactor)
+            return Rewrite(product(outer, degreeFactor), rule)
         }
 
         private fun integral(u: Integral): Rewrite? {

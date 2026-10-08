@@ -67,6 +67,20 @@ class IntegralStepsTest {
     }
 
     @Test
+    fun rootsAndFractionsWrittenAsPowers() {
+        assertEquals(
+            listOf(StepRule.REWRITE_AS_POWER, StepRule.INTEGRAL_POWER, StepRule.DIVIDE_BY_FRACTION),
+            rules(integral(RadicalNode(null, ms(x))))
+        )
+        assertEquals(
+            listOf(StepRule.REWRITE_AS_POWER, StepRule.INTEGRAL_POWER, StepRule.POWER_AS_FRACTION),
+            rules(integral(FractionNode(ms(n("1")), ms(x, pow(n("2"))))))
+        )
+        // 1/x has a rule of its own
+        assertEquals(listOf(StepRule.INTEGRAL_RECIPROCAL), rules(integral(FractionNode(ms(n("1")), ms(x)))))
+    }
+
+    @Test
     fun multiplyingOutTheIntegrand() {
         assertEquals(StepRule.EXPAND_INTEGRAND, rules(integral(x, par(x, plus, n("1")), pow(n("2"))))!!.first())
     }

@@ -42,6 +42,7 @@ internal object SimplificationSteps {
             ?: products.firstNotNullOfOrNull { distribute(it, context, keeps) }
             ?: products.firstNotNullOfOrNull { expandProduct(it, context, keeps) }
             ?: powers.firstNotNullOfOrNull { expandPower(at(e, it), it, context, keeps) }
+            ?: pathsOf(e) { it is LiteralPower }.firstNotNullOfOrNull { asRootOrFraction(at(e, it) as LiteralPower, it) }
     }
 
     /** A part of a product or sum (without its highlighting) and where it is. */
@@ -50,6 +51,8 @@ internal object SimplificationSteps {
     /** The factors of the product [e], also those inside highlighted products. */
     private fun factors(e: Expression, path: Path): List<Part> = when (e) {
         is Marked -> factors(e.inner, path + 0)
+        // A fraction kept in front of a power (½·x^(−½)) is a number to multiply
+        is LiteralPower -> if (e.inner is Value) listOf(Part(path + 0, e.inner)) else listOf(Part(path, unmarked(e)))
         is Multiplications -> e.operands.flatMapIndexed { i, op -> factors(op, path + i) }
         else -> listOf(Part(path, unmarked(e)))
     }
@@ -89,7 +92,8 @@ internal object SimplificationSteps {
         if (power.exponent == Value.ONE) return Match(StepRule.NUMBER_POWER, mapOf(path to power.base), power, power.base)
         if (!isNumber(power.base) || !isInteger(power.exponent)) return null
         val value = canonical(power, context).takeIf { isNumber(it) } ?: return null
-        return Match(StepRule.NUMBER_POWER, mapOf(path to value), power, value)
+        val isDivision = power.exponent == Value.MINUS_ONE && (power.base as Value).rational?.isFractional == true
+        return Match(if (isDivision) StepRule.DIVIDE_BY_FRACTION else StepRule.NUMBER_POWER, mapOf(path to value), power, value)
     }
 
     /** 2·3 = 6. A factor −1 is the sign and stays in front: −2·3x = −6x. */
@@ -204,6 +208,17 @@ internal object SimplificationSteps {
         val numerators = group.map { numerator(it.expression) }
         val combined = normalize(Multiplications(listOf(Additions(numerators)) + denominatorFactors))
         return merge(StepRule.COMBINE_FRACTIONS, group, Additions(group.map { it.expression }), combined, Value.ZERO)
+    }
+
+    /**
+     * x^(1/2) = √x, x⁻¹ = 1/x: a power written as a power for the power rule is written as
+     * usual again, once nothing else is left to do.
+     */
+    private fun asRootOrFraction(e: LiteralPower, path: Path): Match {
+        val power = unmarked(e.inner)
+        val exponent = ((power as? Power)?.exponent as? Value)?.rational
+        val rule = if (exponent != null && exponent.isFractional) StepRule.POWER_AS_ROOT else StepRule.POWER_AS_FRACTION
+        return Match(rule, mapOf(path to power), LiteralPower(power), power)
     }
 
     /** 2 + 3 = 5 */

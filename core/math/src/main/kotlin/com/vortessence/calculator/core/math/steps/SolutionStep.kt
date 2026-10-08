@@ -34,12 +34,22 @@ enum class StepRule {
     ARCTANGENT,
     /** |u|' = u'·u/|u| */
     ABSOLUTE_VALUE,
+    /** √x = x^(1/2), 1/x = x⁻¹: a root or fraction written as a power, for the power rule */
+    REWRITE_AS_POWER,
+    /** (f(g(x)))' = f'(u)·g'(x) with u = g(x): outer and inner derivative */
+    CHAIN_RULE,
+    /** x^(1/2) = √x: a power written as a root again */
+    POWER_AS_ROOT,
+    /** x⁻¹ = 1/x: a power written as a fraction again */
+    POWER_AS_FRACTION,
     /** (∫_a^b f(t) dt)' = f(b)·b' − f(a)·a' */
     FUNDAMENTAL_THEOREM,
     /** 2·3 = 6 */
     MULTIPLY_NUMBERS,
     /** 2³ = 8 */
     NUMBER_POWER,
+    /** 1/(a/b) = b/a */
+    DIVIDE_BY_FRACTION,
     /** (xᵃ)ᵇ = xᵃᵇ */
     POWER_OF_POWER,
     /** (a·b)ⁿ = aⁿ·bⁿ */
