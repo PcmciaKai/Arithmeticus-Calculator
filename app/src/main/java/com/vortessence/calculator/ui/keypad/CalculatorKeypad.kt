@@ -412,22 +412,21 @@ fun CalculatorKeypad(
                 // Row 3
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing)) {
                     // Page 0 (cols 0..3)
-                    // Long press: indefinite integral, derivative, derivative at a point. In the
+                    // Long press: definite integral, derivative, derivative at a point. In the
                     // popup the definite integral shows its bounds to tell it from the indefinite one.
                     val derivative = alt("d/dx", KeyAction.Derivative)
                     KeyButton(
                         text = "∫dx",
                         buttonWidth = buttonWidth,
                         isAccent = true,
-                        popupLabel = scriptLabel("∫", sup = "b", sub = "a") + AnnotatedString("dx"),
                         alternates = listOf(
-                            alt("∫dx", KeyAction.Antiderivative),
+                            alt(scriptLabel("∫", sup = "b", sub = "a") + AnnotatedString("dx"), KeyAction.Integral),
                             derivative,
                             alt(scriptLabel("d/dx", sub = "x=a"), KeyAction.DerivativeAt)
                         ),
-                        // More labels do not fit on the key, and "∫dx" would only repeat its label
+                        // More labels do not fit on the key
                         hints = listOf(derivative)
-                    ) { onKeyAction(KeyAction.Integral) }
+                    ) { onKeyAction(KeyAction.Antiderivative) }
                     KeyButton(
                         text = "Σ",
                         buttonWidth = buttonWidth,
