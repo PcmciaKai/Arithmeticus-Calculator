@@ -2,13 +2,17 @@ package com.vortessence.calculator.core.math
 
 import com.vortessence.calculator.core.math.context.AngleUnit
 import com.vortessence.calculator.core.math.context.MathContext
-import com.vortessence.calculator.core.math.steps.SolutionStep
+import com.vortessence.calculator.core.math.steps.Solution
 import com.vortessence.calculator.core.math.steps.StepRule
 import com.vortessence.calculator.core.math.type.*
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Test
 
+/**
+ * In the expected steps, {…} is the part the next step changes and […] the part the step
+ * produced (see [HighlightNode.toString]).
+ */
 class DerivativeStepsTest {
     private fun n(s: String) = NumberNode(s)
     private val x = VariableNode("x")
@@ -18,26 +22,57 @@ class DerivativeStepsTest {
     private fun f(name: String, vararg arg: MathNode) = FunctionNode(name, ms(*arg))
     private fun d(vararg body: MathNode, at: MathString? = null) = ms(DerivativeNode(ms(*body), at))
 
-    private fun steps(input: MathString, angle: AngleUnit = AngleUnit.RADIANS): List<SolutionStep>? = runBlocking {
+    private fun solution(input: MathString, angle: AngleUnit = AngleUnit.RADIANS): Solution? = runBlocking {
         MathEngine.derivativeSteps(input, MathContext(angleUnit = angle))
     }
 
-    private fun assertSteps(input: MathString, vararg expected: Pair<String, StepRule?>) {
-        val actual = steps(input) ?: return fail("No steps")
-        assertEquals(expected.toList(), actual.map { it.expression.toString() to it.rule })
+    /** The steps as (expression, rule, change) and the result. */
+    private fun assertSteps(input: MathString, result: String, vararg expected: Triple<String, StepRule?, String?>) {
+        val actual = solution(input) ?: return fail("No steps")
+        assertEquals(
+            expected.toList(),
+            actual.steps.map { step -> Triple(step.expression.toString(), step.rule, step.change?.let { "${it.before} = ${it.after}" }) }
+        )
+        assertEquals(result, actual.result.toString())
     }
 
     @Test
-    fun sumConstantFactorAndPowerRule() {
+    fun constantFactorPowerRuleAndMultiplyingNumbers() {
+        assertSteps(
+            d(n("2"), x, pow(n("2"))),
+            "4x",
+            Triple("{d/dx(2(x)^(2))}", null, null),
+            Triple("[2{d/dx((x)^(2))}]", StepRule.CONSTANT_FACTOR, "d/dx(2(x)^(2)) = 2d/dx((x)^(2))"),
+            Triple("{2} × [{2}x]", StepRule.POWER, "d/dx((x)^(2)) = 2x"),
+            Triple("[4]x", StepRule.MULTIPLY_NUMBERS, "2 × 2 = 4")
+        )
+    }
+
+    @Test
+    fun eachStepHasItsOwnColor() {
+        val steps = solution(d(n("2"), x, pow(n("2"))))!!.steps
+        fun highlights(math: MathString): List<Pair<Int, Boolean>> = math.nodes.flatMap { node ->
+            (if (node is HighlightNode) listOf(node.colorIndex to node.boxed) else emptyList()) +
+                node.subStrings.flatMap { highlights(it) }
+        }
+        // Step i boxes what it produced in color i and colors what step i + 1 changes
+        assertEquals(listOf(1 to false), highlights(steps[0].expression))
+        assertEquals(listOf(1 to true, 2 to false), highlights(steps[1].expression))
+        assertEquals(listOf(3 to false, 2 to true, 3 to false), highlights(steps[2].expression))
+        assertEquals(listOf(3 to true), highlights(steps[3].expression))
+    }
+
+    @Test
+    fun sumRuleDropsConstantTerms() {
         assertSteps(
             d(n("3"), x, pow(n("2")), op(MathOp.MINUS), n("2"), x, op(MathOp.PLUS), n("1")),
-            "d/dx(3(x)^(2) − 2x + 1)" to null,
-            // The constant term drops out, the subtracted one keeps its sign
-            "d/dx(3(x)^(2)) − d/dx(2x)" to StepRule.SUM,
-            "3d/dx((x)^(2)) − d/dx(2x)" to StepRule.CONSTANT_FACTOR,
-            "3 × 2x − d/dx(2x)" to StepRule.POWER,
-            "3 × 2x − 2" to StepRule.CONSTANT_FACTOR,
-            "6x − 2" to StepRule.SIMPLIFY
+            "6x − 2",
+            Triple("{d/dx(3(x)^(2) − 2x + 1)}", null, null),
+            Triple("[{d/dx(3(x)^(2))} − d/dx(2x)]", StepRule.SUM, "d/dx(3(x)^(2) − 2x + 1) = d/dx(3(x)^(2)) − d/dx(2x)"),
+            Triple("[3{d/dx((x)^(2))}] − d/dx(2x)", StepRule.CONSTANT_FACTOR, "d/dx(3(x)^(2)) = 3d/dx((x)^(2))"),
+            Triple("3 × [2x] − {d/dx(2x)}", StepRule.POWER, "d/dx((x)^(2)) = 2x"),
+            Triple("{3} × {2}x − [2]", StepRule.CONSTANT_FACTOR, "d/dx(2x) = 2"),
+            Triple("[6]x − 2", StepRule.MULTIPLY_NUMBERS, "3 × 2 = 6")
         )
     }
 
@@ -45,65 +80,67 @@ class DerivativeStepsTest {
     fun productRule() {
         assertSteps(
             d(x, pow(n("2")), f("sin", x)),
-            "d/dx((x)^(2)sin(x))" to null,
-            "sin(x)d/dx((x)^(2)) + (x)^(2)d/dx(sin(x))" to StepRule.PRODUCT,
-            "2xsin(x) + (x)^(2)d/dx(sin(x))" to StepRule.POWER,
-            // Already as simple as the result, so there is no separate simplification step
-            "2xsin(x) + (x)^(2)cos(x)" to StepRule.SINE
+            "2xsin(x) + (x)^(2)cos(x)",
+            Triple("{d/dx((x)^(2)sin(x))}", null, null),
+            Triple("[sin(x){d/dx((x)^(2))} + (x)^(2)d/dx(sin(x))]", StepRule.PRODUCT, "d/dx((x)^(2)sin(x)) = sin(x)d/dx((x)^(2)) + (x)^(2)d/dx(sin(x))"),
+            Triple("[2x]sin(x) + (x)^(2){d/dx(sin(x))}", StepRule.POWER, "d/dx((x)^(2)) = 2x"),
+            Triple("2xsin(x) + (x)^(2)[cos(x)]", StepRule.SINE, "d/dx(sin(x)) = cos(x)")
         )
     }
 
     @Test
-    fun quotientRule() {
-        assertSteps(
-            d(FractionNode(ms(f("sin", x)), ms(x))),
-            "d/dx((sin(x))/(x))" to null,
-            "(xd/dx(sin(x)) − sin(x)d/dx(x))/((x)^(2))" to StepRule.QUOTIENT,
-            "(xcos(x) − sin(x)d/dx(x))/((x)^(2))" to StepRule.SINE,
-            "(xcos(x) − sin(x))/((x)^(2))" to StepRule.VARIABLE,
-            "(cos(x))/(x) − (sin(x))/((x)^(2))" to StepRule.SIMPLIFY
+    fun quotientRuleThenMultiplyingOutAndCombining() {
+        val steps = solution(d(FractionNode(ms(x, op(MathOp.PLUS), n("1")), ms(x, op(MathOp.MINUS), n("1")))))!!.steps
+        assertEquals(StepRule.QUOTIENT, steps[1].rule)
+        assertEquals(
+            listOf(StepRule.DISTRIBUTE, StepRule.COMBINE_LIKE_TERMS, StepRule.ADD_NUMBERS),
+            steps.takeLast(3).map { it.rule }
         )
+        // The sign stays outside the sum until it is multiplied in
+        assertEquals(" − (x + 1) =  − x − 1", steps.takeLast(3).first().change.let { "${it!!.before} = ${it.after}" })
     }
 
     @Test
     fun chainRuleLeavesTheInnerDerivativeOpen() {
-        val result = steps(d(f("sin", x, pow(n("2"))))) ?: return fail("No steps")
-        assertEquals("cos((x)^(2))d/dx((x)^(2))", result[1].expression.toString())
-        assertEquals(StepRule.SINE, result[1].rule)
-        assertTrue(result[1].chainRule)
-        assertEquals("2xcos((x)^(2))", result.last().expression.toString())
+        assertSteps(
+            d(f("sin", x, pow(n("2")))),
+            "2xcos((x)^(2))",
+            Triple("{d/dx(sin((x)^(2)))}", null, null),
+            Triple("[cos((x)^(2)){d/dx((x)^(2))}]", StepRule.SINE, "d/dx(sin((x)^(2))) = cos((x)^(2))d/dx((x)^(2))"),
+            Triple("[2x]cos((x)^(2))", StepRule.POWER, "d/dx((x)^(2)) = 2x")
+        )
+        assertTrue(solution(d(f("sin", x, pow(n("2")))))!!.steps[1].chainRule)
         // With the variable itself inside, there is no inner derivative
-        assertFalse(steps(d(f("sin", x)))!![1].chainRule)
+        assertFalse(solution(d(f("sin", x)))!!.steps[1].chainRule)
     }
 
     @Test
-    fun generalPowerAndLogarithm() {
-        assertSteps(
-            d(x, pow(x)),
-            "d/dx((x)^(x))" to null,
-            "(x)^(x)d/dx(xln(x))" to StepRule.GENERAL_POWER,
-            "(x)^(x)(ln(x)d/dx(x) + xd/dx(ln(x)))" to StepRule.PRODUCT,
-            "(x)^(x)(ln(x) + xd/dx(ln(x)))" to StepRule.VARIABLE,
-            "(x)^(x)(ln(x) + (x)/(x))" to StepRule.LOGARITHM,
-            "(x)^(x)(ln(x) + 1)" to StepRule.SIMPLIFY
-        )
+    fun cancelling() {
+        val steps = solution(d(x, pow(x)))!!.steps
+        assertEquals(StepRule.GENERAL_POWER, steps[1].rule)
+        assertEquals(StepRule.CANCEL, steps.last().rule)
+        assertEquals("(x)/(x) = 1", steps.last().change.let { "${it!!.before} = ${it.after}" })
+        assertEquals("(x)^(x)(ln(x) + 1)", steps.last().expression.toString())
     }
 
     @Test
     fun valueAtAPoint() {
         assertSteps(
-            d(x, pow(n("2")), at = ms(n("3"))),
-            "d/dx((x)^(2))|x=(3)" to null,
-            "2x" to StepRule.POWER,
-            "2 × 3" to StepRule.SUBSTITUTE,
-            "6" to StepRule.EVALUATE
+            d(x, pow(n("3")), at = ms(n("2"))),
+            "12",
+            Triple("{d/dx((x)^(3))|x=(2)}", null, null),
+            Triple("[3({x})^(2)]", StepRule.POWER, "d/dx((x)^(3)) = 3(x)^(2)"),
+            Triple("{3([2])^(2)}", StepRule.SUBSTITUTE, "x = 2"),
+            Triple("[12]", StepRule.EVALUATE, "3 × (2)^(2) = 12")
         )
     }
 
     @Test
-    fun lastStepIsTheCalculatedResult() {
+    fun resultIsTheCalculatedResult() {
         val inputs = listOf(
             d(FractionNode(ms(x, op(MathOp.PLUS), n("1")), ms(x, op(MathOp.MINUS), n("1")))),
+            d(FractionNode(ms(f("sin", x)), ms(x))),
+            d(ParenthesesNode(ms(x, op(MathOp.PLUS), n("1"))), pow(n("2"))),
             d(RadicalNode(null, ms(x))),
             d(f("cos", n("3"), x, op(MathOp.PLUS), n("1"))),
             d(f("atan", x)),
@@ -111,17 +148,18 @@ class DerivativeStepsTest {
         )
         for (input in inputs) {
             val result = runBlocking { MathEngine.calculate(input) }
-            assertEquals(result.result.toString(), steps(input)?.last()?.expression.toString())
+            val solution = solution(input) ?: return fail("No steps for $input")
+            assertEquals(result.result.toString(), solution.result.toString())
         }
         val inDegrees = d(f("sin", x))
         val result = runBlocking { MathEngine.calculate(inDegrees, MathContext(angleUnit = AngleUnit.DEGREES)) }
-        assertEquals(result.result.toString(), steps(inDegrees, AngleUnit.DEGREES)?.last()?.expression.toString())
+        assertEquals(result.result.toString(), solution(inDegrees, AngleUnit.DEGREES)?.result.toString())
     }
 
     @Test
     fun noStepsForOtherInput() {
-        assertNull(steps(ms(x, pow(n("2")))))
-        assertNull(steps(d(x, op(MathOp.FACTORIAL))))
+        assertNull(solution(ms(x, pow(n("2")))))
+        assertNull(solution(d(x, op(MathOp.FACTORIAL))))
     }
 
     @Test
@@ -135,7 +173,7 @@ class DerivativeStepsTest {
             ms(x, pow(n("2"))),
         )
         for (input in inputs) {
-            assertEquals(input.toString(), steps(input) != null, MathEngine.hasDerivativeSteps(input))
+            assertEquals(input.toString(), solution(input) != null, MathEngine.hasDerivativeSteps(input))
         }
     }
 }

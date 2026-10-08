@@ -29,7 +29,9 @@ import com.vortessence.calculator.core.math.solvers.NumericIntegrator
 import com.vortessence.calculator.core.math.solvers.NumericRootFinder
 import com.vortessence.calculator.core.math.solvers.PlotCurve
 import com.vortessence.calculator.core.math.steps.DerivativeSteps
+import com.vortessence.calculator.core.math.steps.Solution
 import com.vortessence.calculator.core.math.steps.SolutionStep
+import com.vortessence.calculator.core.math.steps.StepChange
 import com.vortessence.calculator.core.math.type.MathOp
 import com.vortessence.calculator.core.math.type.MathParser
 import com.vortessence.calculator.core.math.type.MathString
@@ -191,7 +193,7 @@ object MathEngine {
         input: MathString,
         context: MathContext = MathContext(),
         timeoutMillis: Long = DEFAULT_TIMEOUT_MILLIS
-    ): List<SolutionStep>? = withContext(Dispatchers.Default) {
+    ): Solution? = withContext(Dispatchers.Default) {
         val execContext = context.copy()
         execContext.deadlineMillis = System.currentTimeMillis() + timeoutMillis
         val job = coroutineContext[Job]
@@ -201,12 +203,20 @@ object MathEngine {
             MathContext.withContext(execContext) steps@{
                 val parsed = parse(input, execContext) as? Derivative
                 if (parsed == null || execContext.shouldStop) return@steps null
-                val steps = DerivativeSteps.steps(parsed, execContext)
-                if (steps == null || execContext.shouldStop || execContext.issues.isNotEmpty()) return@steps null
+                val solution = DerivativeSteps.steps(parsed, execContext)
+                if (solution == null || execContext.shouldStop || execContext.issues.isNotEmpty()) return@steps null
                 val display = displayWriter(execContext)
-                val written = steps.map { SolutionStep(display.write(it.expression), it.rule, it.chainRule) }
-                // A step that does not change how the expression looks, e.g. simplifying 2x, is left out
-                written.filterIndexed { i, step -> i == 0 || step.expression.toString() != written[i - 1].expression.toString() }
+                Solution(
+                    solution.steps.map { step ->
+                        SolutionStep(
+                            display.write(step.expression),
+                            step.rule,
+                            step.chainRule,
+                            step.change?.let { (before, after) -> StepChange(display.write(before), display.write(after)) }
+                        )
+                    },
+                    display.write(solution.result)
+                )
             }
         } catch (e: ArithmeticException) {
             null

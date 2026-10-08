@@ -154,6 +154,7 @@ class MathParser {
                     tokens.add(Token.ValueToken(radExpr))
                 }
                 is ParenthesesNode -> tokens.add(Token.ValueToken(parseSlot(node.inner)))
+                is HighlightNode -> tokens.add(Token.ValueToken(parseSlot(node.content)))
                 is FunctionNode if NamedFunctionKind.byName(node.name) != null -> {
                     val arguments = splitArguments(node.argument).map { parseSlot(it) }
                     tokens.add(Token.ValueToken(NamedFunction(NamedFunctionKind.byName(node.name)!!, arguments)))

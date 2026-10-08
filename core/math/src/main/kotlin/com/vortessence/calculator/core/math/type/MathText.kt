@@ -98,6 +98,7 @@ object MathText {
             "${group(node.radicand)}^(1/${group(node.degree)})"
         }
         is ParenthesesNode -> "(${toPlainText(node.inner)})"
+        is HighlightNode -> "(${toPlainText(node.content)})"
         is FunctionNode -> "${node.name}(${toPlainText(node.argument)})"
         is LogBaseNode -> "log(${toPlainText(node.argument)}, ${toPlainText(node.base)})"
         is IntegralNode -> "integral(${toPlainText(node.integrand)}, ${node.variable}, " +

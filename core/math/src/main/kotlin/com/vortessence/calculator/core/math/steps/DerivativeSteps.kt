@@ -18,16 +18,45 @@ import com.vortessence.calculator.core.math.expressions.Value
 import com.vortessence.calculator.core.math.expressions.Variable
 import com.vortessence.calculator.core.math.expressions.substituteVariables
 import com.vortessence.calculator.core.math.expressions.tidyForDisplay
+import com.vortessence.calculator.core.math.type.MathWriter
 
-/** A step of a solution before it is written for display. */
-internal class ExpressionStep(val expression: Expression, val rule: StepRule?, val chainRule: Boolean = false)
+/**
+ * A step of a solution before it is written for display: [expression] with the part the next
+ * step changes highlighted, and the [change] that led to it (see [SolutionStep]).
+ */
+internal class ExpressionStep(
+    val expression: Expression,
+    val rule: StepRule?,
+    val chainRule: Boolean = false,
+    val change: Pair<Expression, Expression>? = null
+)
+
+internal class ExpressionSolution(val steps: List<ExpressionStep>, val result: Expression)
+
+/** The position of a part of an expression: the child indices from the root down to it. */
+internal typealias Path = List<Int>
+
+/**
+ * A rule applied to one part of an expression: [replacements] replace the parts at their paths
+ * (and are highlighted as the result of the step), [removals] replace the parts that merge into
+ * them by a neutral 1 or 0 (e.g. the second number in 2·2 → 4). [before] = [after] shows it.
+ */
+internal class Match(
+    val rule: StepRule,
+    val replacements: Map<Path, Expression>,
+    val before: Expression,
+    val after: Expression,
+    val removals: Map<Path, Expression> = emptyMap(),
+    val chainRule: Boolean = false
+)
 
 /**
  * The steps of differentiating, as in a textbook: each step applies one rule to the first
  * derivative that is still open, leaving derivatives of inner functions open for later steps,
  * e.g. d/dx(x²·sin(x)) = d/dx(x²)·sin(x) + x²·d/dx(sin(x)) = 2x·sin(x) + x²·d/dx(sin(x)) = …
- * The rules work on the expression as it was typed, so the steps stay close to the input; the
- * last steps simplify it to the calculated result.
+ * Then numbers are multiplied, like terms combined and so on, one at a time
+ * ([SimplificationSteps]); whatever is left to reach the calculated result is a last step.
+ * The rules work on the expression as it was typed, so the steps stay close to the input.
  */
 internal object DerivativeSteps {
 
@@ -35,21 +64,11 @@ internal object DerivativeSteps {
     private const val MAX_STEPS = 100
 
     /** The steps for [derivative], or null if one of its parts has no rule here. */
-    fun steps(derivative: Derivative, context: MathContext): List<ExpressionStep>? {
+    fun steps(derivative: Derivative, context: MathContext): ExpressionSolution? {
         // The parser nests sums ((3x² − 2x) + 1), which would take two steps of the sum rule
         val body = normalize(derivative.body)
         val variable = derivative.variable
         if (body.containsExpressionMatching { it is Derivative || it is MatrixExpression }) return null
-
-        val steps = mutableListOf(ExpressionStep(Derivative(body, variable, derivative.point), null))
-        var current: Expression = Derivative(body, variable)
-        while (true) {
-            if (context.shouldStop || steps.size > MAX_STEPS) return null
-            val open = firstOpenDerivative(current) ?: break
-            val (rewritten, rule, chainRule) = Rules(open.variable, context).apply(open.body) ?: return null
-            current = normalize(current.transform { if (it == open) rewritten else it })
-            steps.add(ExpressionStep(current, rule, chainRule))
-        }
 
         val simplified = Derivative(body, variable).canonicalize(context)
         if (context.shouldStop) return null
@@ -58,15 +77,90 @@ internal object DerivativeSteps {
         } else {
             simplified
         }
-        steps.add(ExpressionStep(compact, StepRule.SIMPLIFY))
 
-        val point = derivative.point ?: return steps
-        steps.add(ExpressionStep(compact.substituteVariables(mapOf(variable to point)), StepRule.SUBSTITUTE))
+        val solution = Solver(context)
+        solution.start(Derivative(body, variable, derivative.point))
+        // Differentiate, then simplify step by step
+        while (true) {
+            if (context.shouldStop || solution.size > MAX_STEPS) return null
+            val match = derivativeMatch(solution.current, context)
+                ?: SimplificationSteps.match(solution.current, context)
+                ?: break
+            solution.apply(match)
+        }
+        if (solution.hasOpenDerivative()) return null
+        // What the rules did not do, e.g. multiplying out a product of sums
+        if (writtenForm(solution.current) != writtenForm(compact)) {
+            solution.apply(Match(StepRule.SIMPLIFY, mapOf(emptyList<Int>() to compact), normalize(unmarked(solution.current)), compact))
+        }
+
+        val point = derivative.point ?: return solution.finish(compact)
+        val variablePaths = pathsOf(solution.current) { it == variable }
+        val substituted = unmarked(solution.current).substituteVariables(mapOf(variable to point))
+        solution.apply(Match(StepRule.SUBSTITUTE, variablePaths.associateWith { point }, variable, point))
         val value = derivative.canonicalize(context)
         if (context.shouldStop) return null
-        steps.add(ExpressionStep(value, StepRule.EVALUATE))
-        return steps
+        solution.apply(Match(StepRule.EVALUATE, mapOf(emptyList<Int>() to value), substituted, value))
+        return solution.finish(value)
     }
+
+    /** Builds the steps: each applied [Match] gives the next expression and highlights its parts. */
+    private class Solver(val context: MathContext) {
+        private class Line(val expression: Expression, val rule: StepRule?, val chainRule: Boolean, val change: Pair<Expression, Expression>?) {
+            var next: Set<Path> = emptySet()
+        }
+
+        private val lines = mutableListOf<Line>()
+        val size: Int get() = lines.size
+        val current: Expression get() = lines.last().expression
+
+        fun start(problem: Expression) {
+            lines.add(Line(problem, null, false, null))
+        }
+
+        fun apply(match: Match) {
+            val color = lines.size
+            lines.last().next = match.replacements.keys + match.removals.keys
+            val result = normalize(rebuild(current, emptyList(), match, color))
+            lines.add(Line(result, match.rule, match.chainRule, match.before to match.after))
+        }
+
+        fun hasOpenDerivative(): Boolean = current.containsExpressionMatching { it is Derivative }
+
+        fun finish(result: Expression) = ExpressionSolution(
+            lines.mapIndexed { i, line ->
+                ExpressionStep(highlight(line.expression, emptyList(), line.next, i + 1), line.rule, line.chainRule, line.change)
+            },
+            result
+        )
+
+        /** [e] with the parts of [match] replaced (boxed in [color]) and earlier boxes removed. */
+        private fun rebuild(e: Expression, path: Path, match: Match, color: Int): Expression {
+            match.replacements[path]?.let { return Marked(it, color, boxed = true) }
+            match.removals[path]?.let { return it }
+            if (e is Marked) return rebuild(e.inner, path + 0, match, color)
+            if (e.children.isEmpty()) return e
+            return e.copyWithChildren(e.children.mapIndexed { i, child -> rebuild(child, path + i, match, color) })
+        }
+
+        /** [e] with the parts at [paths] colored in [color]. */
+        private fun highlight(e: Expression, path: Path, paths: Set<Path>, color: Int): Expression {
+            if (path in paths) return Marked(e, color, boxed = false)
+            if (e.children.isEmpty() || paths.none { it.size > path.size && it.subList(0, path.size) == path }) return e
+            return e.copyWithChildren(e.children.mapIndexed { i, child -> highlight(child, path + i, paths, color) })
+        }
+    }
+
+    /** The first derivative that is still open, with one rule applied to it. */
+    private fun derivativeMatch(e: Expression, context: MathContext): Match? {
+        val path = pathsOf(e) { it is Derivative }.firstOrNull() ?: return null
+        val open = at(e, path) as Derivative
+        val (rewritten, rule, chainRule) = Rules(open.variable, context).apply(open.body) ?: return null
+        return Match(rule, mapOf(path to rewritten), Derivative(open.body, open.variable), rewritten, chainRule = chainRule)
+    }
+
+    /** How [e] looks without highlighting (a highlighted product inside a product is flattened). */
+    private fun writtenForm(e: Expression): String = MathWriter().write(normalize(unmarked(e))).toString()
 
     /**
      * Whether [steps] has a rule for every part of [derivative], without working them out
@@ -87,12 +181,6 @@ internal object DerivativeSteps {
                 hasRules(e.lowerBound, v) && hasRules(e.upperBound, v)
             else -> false
         }
-    }
-
-    private fun firstOpenDerivative(e: Expression): Derivative? {
-        if (e is Derivative) return e
-        for (child in e.children) firstOpenDerivative(child)?.let { return it }
-        return null
     }
 
     private data class Rewrite(val expression: Expression, val rule: StepRule, val chainRule: Boolean = false)
@@ -251,7 +339,7 @@ internal object DerivativeSteps {
      * Flattens nested sums and products and drops factors 1 and terms 0, so that a step does
      * not show leftovers of the rules such as 1·x or + 0. Nothing else is simplified.
      */
-    private fun normalize(e: Expression): Expression = when (e) {
+    fun normalize(e: Expression): Expression = when (e) {
         is Additions -> {
             val terms = e.operands.map { normalize(it) }
                 .flatMap { if (it is Additions) it.operands else listOf(it) }
@@ -267,9 +355,19 @@ internal object DerivativeSteps {
                 .flatMap { if (it is Multiplications) it.operands else listOf(it) }
             when {
                 factors.any { it.isZero } -> Value.ZERO
-                else -> Multiplications.of(*factors.filterNot { it == Value.ONE }.toTypedArray())
+                // Also a highlighted 1, e.g. from d/dx(x) = 1: the step shows where it went
+                else -> Multiplications.of(*factors.filterNot { unmarked(it) == Value.ONE }.toTypedArray())
             }
         }
         else -> if (e.children.isEmpty()) e else e.copyWithChildren(e.children.map { normalize(it) })
     }
 }
+
+/** The paths of the parts of [e] that match [predicate], in reading order (parents first). */
+internal fun pathsOf(e: Expression, path: Path = emptyList(), predicate: (Expression) -> Boolean): List<Path> {
+    val own = if (predicate(e)) listOf(path) else emptyList()
+    return own + e.children.flatMapIndexed { i, child -> pathsOf(child, path + i, predicate) }
+}
+
+/** The part of [e] at [path]. */
+internal fun at(e: Expression, path: Path): Expression = path.fold(e) { part, i -> part.children[i] }

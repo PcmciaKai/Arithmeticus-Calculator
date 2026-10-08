@@ -36,7 +36,19 @@ enum class StepRule {
     ABSOLUTE_VALUE,
     /** (∫_a^b f(t) dt)' = f(b)·b' − f(a)·a' */
     FUNDAMENTAL_THEOREM,
-    /** The result multiplied out, combined and written compactly */
+    /** 2·3 = 6 */
+    MULTIPLY_NUMBERS,
+    /** 2 + 3 = 5 */
+    ADD_NUMBERS,
+    /** xᵃ·xᵇ = xᵃ⁺ᵇ */
+    COMBINE_POWERS,
+    /** x·x⁻¹ = 1 */
+    CANCEL,
+    /** c·(a + b) = c·a + c·b */
+    DISTRIBUTE,
+    /** 2x + 3x = 5x */
+    COMBINE_LIKE_TERMS,
+    /** Whatever the rules above leave to do to reach the calculated result, in one step */
     SIMPLIFY,
     /** The variable replaced by the point the derivative is taken at */
     SUBSTITUTE,
@@ -48,9 +60,21 @@ enum class StepRule {
  * One line of a step-by-step solution: [expression] follows from the previous line by [rule]
  * (null for the first line, the problem itself). With [chainRule], the rule was applied to an
  * inner function, so the result is multiplied by that function's derivative.
+ *
+ * [change] is the rule applied to the part it changes, e.g. d/dx(2x²) = 2·d/dx(x²). In
+ * [expression], the changed part is boxed in highlight color i (for step i of the solution)
+ * and the part the next step changes is colored i + 1, see
+ * [com.vortessence.calculator.core.math.type.HighlightNode].
  */
 data class SolutionStep(
     val expression: MathString,
     val rule: StepRule?,
-    val chainRule: Boolean = false
+    val chainRule: Boolean = false,
+    val change: StepChange? = null
 )
+
+/** [before] = [after]: a rule applied to one part of an expression. */
+data class StepChange(val before: MathString, val after: MathString)
+
+/** The [steps] of a calculation and its [result] (as calculated, without highlighting). */
+data class Solution(val steps: List<SolutionStep>, val result: MathString)

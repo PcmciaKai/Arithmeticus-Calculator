@@ -12,7 +12,7 @@ import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.context.UnitSystem
 import com.vortessence.calculator.core.math.expressions.UnitRegistry
 import com.vortessence.calculator.core.math.solvers.PlotCurve
-import com.vortessence.calculator.core.math.steps.SolutionStep
+import com.vortessence.calculator.core.math.steps.Solution
 import com.vortessence.calculator.core.math.type.*
 import com.vortessence.calculator.ui.keypad.KeyAction
 import com.vortessence.calculator.ui.theme.ThemeMode
@@ -77,10 +77,10 @@ data class CalculatorUiState(
 )
 
 /**
- * The step-by-step solution of [input]; [steps] is null while they are worked out, or if
- * there are none after all ([isLoading] false).
+ * The step-by-step solution of [input]; [solution] is null while it is worked out, or if
+ * there is none after all ([isLoading] false).
  */
-data class StepsState(val input: MathString, val steps: List<SolutionStep>? = null, val isLoading: Boolean = true)
+data class StepsState(val input: MathString, val solution: Solution? = null, val isLoading: Boolean = true)
 
 /**
  * A committed calculation, shown in the [form] chosen when it was committed. [id] is stable,
@@ -539,9 +539,9 @@ class CalculatorViewModel @JvmOverloads constructor(
         _uiState.update { it.copy(steps = StepsState(input)) }
         stepsJob?.cancel()
         stepsJob = viewModelScope.launch {
-            val steps = MathEngine.derivativeSteps(input, state.mathContext().toMathContext())
+            val solution = MathEngine.derivativeSteps(input, state.mathContext().toMathContext())
             _uiState.update {
-                if (it.steps?.input == input) it.copy(steps = StepsState(input, steps, isLoading = false)) else it
+                if (it.steps?.input == input) it.copy(steps = StepsState(input, solution, isLoading = false)) else it
             }
         }
     }

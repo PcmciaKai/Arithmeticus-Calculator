@@ -3,6 +3,7 @@ package com.vortessence.calculator.core.math.type
 import com.vortessence.calculator.core.math.expressions.*
 import com.vortessence.calculator.core.math.numbers.BigInt
 import com.vortessence.calculator.core.math.numbers.Rational
+import com.vortessence.calculator.core.math.steps.Marked
 import java.math.BigDecimal
 import java.math.BigInteger
 import java.math.RoundingMode
@@ -126,6 +127,7 @@ class MathWriter(
                 }
                 result.append(FunctionNode(expr.kind.functionName, arguments))
             }
+            is Marked -> result.append(HighlightNode(writeExpr(expr.inner), expr.colorIndex, expr.boxed))
             is Antiderivative -> result.append(AntiderivativeNode(writeExpr(expr.integrand), expr.variable.identifier))
             is Derivative -> {
                 result.append(DerivativeNode(
@@ -287,6 +289,7 @@ class MathWriter(
     }
 
     private fun needsParenthesesAsBase(base: Expression): Boolean = when (base) {
+        is Marked -> needsParenthesesAsBase(base.inner)
         is Additions, is Multiplications, is Power, is Equals, is Modulo -> true
         is Value -> base.isNegative || base.rational?.isFractional == true || base.rational == null
         else -> false
@@ -297,7 +300,10 @@ class MathWriter(
         val negativeIndex = mult.operands.indexOfFirst { it is Value && it.isNegative }
         if (negativeIndex >= 0) {
             result.append(OperatorNode(MathOp.MINUS))
-            result.appendAll(writeExpr(negatedForDisplay(mult)))
+            val negated = negatedForDisplay(mult)
+            // −(x + 1), not −x + 1 (a solution step can show the sign before it is multiplied in)
+            val nodes = writeExpr(negated)
+            result.appendAll(if (negated is Additions) MathString(listOf(ParenthesesNode(nodes))) else nodes)
             return
         }
 
@@ -362,6 +368,9 @@ class MathWriter(
             var nodes = writeExpr(op)
             if (op is Additions || op is Equals || op is Modulo) {
                 nodes = MathString(listOf(ParenthesesNode(nodes)))
+            } else if (op is Marked && op.inner is Additions) {
+                // The parentheses of a highlighted sum are highlighted with it: 2·(x + 1)
+                nodes = MathString(listOf(HighlightNode(MathString(listOf(ParenthesesNode(writeExpr(op.inner)))), op.colorIndex, op.boxed)))
             }
             if (idx > 0 && needsExplicitTimes(nodes)) {
                 result.append(OperatorNode(MathOp.MULTIPLY))
@@ -375,6 +384,8 @@ class MathWriter(
      * Derivatives still to be taken (in solution steps) come last: 2(x + 1)·d/dx(x + 1).
      */
     private fun factorRank(factor: Expression): Int = when {
+        // A highlighted product goes where its first factor would: [2x]·cos(x), not cos(x)·[2x]
+        factor is Marked -> (factor.inner as? Multiplications)?.operands?.minOf { factorRank(it) } ?: factorRank(factor.inner)
         factor is Derivative -> 6
         factor is Value -> 0
         factor is Constant -> 1
@@ -386,13 +397,15 @@ class MathWriter(
 
     /** The variable of a factor x or xⁿ, which orders such factors alphabetically. */
     private fun variableName(factor: Expression): String? =
-        ((if (factor is Power) factor.base else factor) as? Variable)?.identifier
+        if (factor is Marked) variableName(factor.inner)
+        else ((if (factor is Power) factor.base else factor) as? Variable)?.identifier
 
     /** Juxtaposition would be ambiguous if the factor starts with digits (2·3, 2·10², 2·−x). */
     private fun needsExplicitTimes(factor: MathString): Boolean {
         return when (val first = factor.nodes.firstOrNull()) {
             is NumberNode, is OperatorNode, is FractionNode -> true
             is ExponentNode -> first.base?.nodes?.firstOrNull() is NumberNode
+            is HighlightNode -> needsExplicitTimes(first.content)
             else -> false
         }
     }
@@ -445,6 +458,8 @@ class MathWriter(
      */
     private fun negatedForDisplay(expr: Expression): Expression {
         if (expr is Value) return expr.negate()
+        // The sign goes in front of the highlighting: x − [sin(x)]
+        if (expr is Marked) return Marked(negatedForDisplay(expr.inner), expr.colorIndex, expr.boxed)
         if (expr is Multiplications) {
             val index = expr.operands.indexOfFirst { it is Value && it.isNegative }
                 .takeIf { it >= 0 } ?: expr.operands.indexOfFirst { it.isNegative }

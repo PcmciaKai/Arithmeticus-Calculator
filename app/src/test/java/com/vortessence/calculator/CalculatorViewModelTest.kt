@@ -426,9 +426,9 @@ class CalculatorViewModelTest {
             delay(20)
             attempts++
         }
-        val steps = vm.uiState.value.steps?.steps
-        assertNotNull(steps)
-        assertEquals(vm.uiState.value.result!!.result.toString(), steps!!.last().expression.toString())
+        val solution = vm.uiState.value.steps?.solution
+        assertNotNull(solution)
+        assertEquals(vm.uiState.value.result!!.result.toString(), solution!!.result.toString())
 
         vm.dismissSteps()
         assertNull(vm.uiState.value.steps)

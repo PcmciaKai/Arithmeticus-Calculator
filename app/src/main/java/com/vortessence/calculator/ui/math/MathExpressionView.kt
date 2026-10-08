@@ -326,7 +326,9 @@ private fun SlotContext.Slot(
     string: MathString,
     fontSize: TextUnit,
     modifier: Modifier = Modifier,
-    verticalPadding: Dp = 4.dp
+    verticalPadding: Dp = 4.dp,
+    textColor: Color = this.textColor,
+    accentColor: Color = this.accentColor
 ) {
     val isFocused = focusedChildIdx == child
     MathExpressionView(
@@ -490,6 +492,7 @@ private fun MathNodeView(
         }
         is RadicalNode -> RadicalView(node, fontSize, slots)
         is ParenthesesNode -> ParenthesesView(node, fontSize, slots)
+        is HighlightNode -> HighlightView(node, fontSize, slots)
         is LogBaseNode -> LogBaseView(node, fontSize, slots)
         // The absolute value (e.g. in ln|x|) is written with bars, not as a named function
         is FunctionNode if node.name == "abs" -> slots.Slot(
@@ -807,6 +810,43 @@ private fun ParenthesesView(node: ParenthesesNode, fontSize: TextUnit, slots: Sl
         modifier = Modifier.stretchyParentheses(slots.textColor, fontSize, isFlat(node.inner)),
         verticalPadding = (fontSize.value * 0.125f).dp
     )
+}
+
+/**
+ * The colors that mark the parts of a step-by-step solution, by [HighlightNode.colorIndex]
+ * (they repeat for long solutions).
+ */
+private val HighlightColors = listOf(
+    Color(0xFFE07B53), // orange
+    Color(0xFF4A90D9), // blue
+    Color(0xFF4CAF7A), // green
+    Color(0xFFAF52DE), // purple
+    Color(0xFFD4A017), // yellow
+    Color(0xFFE0557A), // pink
+)
+
+fun highlightColor(index: Int): Color = HighlightColors[Math.floorMod(index - 1, HighlightColors.size)]
+
+/**
+ * A part of a solution step: a box in its color around what the last step produced, or the
+ * part the next step changes in its color.
+ */
+@Composable
+private fun HighlightView(node: HighlightNode, fontSize: TextUnit, slots: SlotContext) {
+    val color = highlightColor(node.colorIndex)
+    if (node.boxed) {
+        slots.Slot(
+            child = 0,
+            string = node.content,
+            fontSize = fontSize,
+            modifier = Modifier
+                .border(1.5.dp, color, RoundedCornerShape(6.dp))
+                .padding(horizontal = 3.dp),
+            verticalPadding = 1.dp
+        )
+    } else {
+        slots.Slot(child = 0, string = node.content, fontSize = fontSize, verticalPadding = 0.dp, textColor = color, accentColor = color)
+    }
 }
 
 /** Vertical bars around the content, as tall as it is: |x|. */

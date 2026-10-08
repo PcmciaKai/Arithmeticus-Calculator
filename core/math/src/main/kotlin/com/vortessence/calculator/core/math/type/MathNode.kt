@@ -163,6 +163,22 @@ data class ParenthesesNode(
 }
 
 /**
+ * A highlighted part of a step-by-step solution, drawn in highlight color [colorIndex]: the
+ * part the next step changes, or with [boxed] the part the previous step produced. Only for
+ * display; as input it is a group like parentheses.
+ */
+data class HighlightNode(
+    val content: MathString = MathString(),
+    val colorIndex: Int = 0,
+    val boxed: Boolean = false
+) : MathNode() {
+    override val subStrings: List<MathString> get() = listOf(content)
+    override fun replaceSubString(index: Int, newString: MathString): MathNode = copy(content = newString)
+    override fun copy(): MathNode = HighlightNode(content.copy(), colorIndex, boxed)
+    override fun toString(): String = if (boxed) "[$content]" else "{$content}"
+}
+
+/**
  * Scientific notation "×10ⁿ" that belongs to the number directly before it, e.g. the "×10³" in
  * 5×10³. Unlike a typed "× 10^n" it is part of that number: it is parsed as one number literal,
  * and editing (fractions, powers, selection) treats "5×10³" as a single value.
