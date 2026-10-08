@@ -327,7 +327,12 @@ fun CalculatorKeypad(
                     KeyButton(text = "7", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("7")) }
                     KeyButton(text = "8", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("8")) }
                     KeyButton(text = "9", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("9")) }
-                    KeyButton(text = "( )", buttonWidth = buttonWidth, isAccent = true) { onKeyAction(KeyAction.Parentheses) }
+                    KeyButton(
+                        text = "( )",
+                        buttonWidth = buttonWidth,
+                        isAccent = true,
+                        alternates = listOf(alt("|x|", KeyAction.Function("abs")))
+                    ) { onKeyAction(KeyAction.Parentheses) }
                     KeyButton(
                         icon = { Icon(Icons.AutoMirrored.Filled.Backspace, contentDescription = "Backspace", tint = AccentRed, modifier = Modifier.size(24.dp)) },
                         buttonWidth = buttonWidth

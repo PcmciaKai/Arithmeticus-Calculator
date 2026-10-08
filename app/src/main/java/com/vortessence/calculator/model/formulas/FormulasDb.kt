@@ -46,7 +46,6 @@ object FormulasDb {
         Formula("Round", "To the nearest whole number, halves away from zero", "Numbers", ofValues("round")),
         Formula("Round to decimal places", "round(x, n): x with n decimal places", "Numbers", ofTwo("round")),
         Formula("Round down (floor)", "Largest whole number not above the value", "Numbers", ofValues("floor")),
-        Formula("Round up (ceiling)", "Smallest whole number not below the value", "Numbers", ofValues("ceil")),
-        Formula("Absolute value", "Distance from zero, |x|", "Numbers", ofValues("abs"))
+        Formula("Round up (ceiling)", "Smallest whole number not below the value", "Numbers", ofValues("ceil"))
     )
 }
