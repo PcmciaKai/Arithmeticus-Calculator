@@ -596,7 +596,18 @@ private fun ExponentView(node: ExponentNode, fontSize: TextUnit, slots: SlotCont
             // slot exists (even if still empty), otherwise [exponent]. No row padding: the
             // surrounding row already has it, and it would push a fraction bar away from y².
             if (base != null) {
-                slots.Slot(child = 0, string = base, fontSize = fontSize, verticalPadding = 0.dp)
+                // A base of several parts is squared as a whole, so it is shown so: (2x)², not 2x²
+                if (MathText.isGroupedBase(base)) {
+                    slots.Slot(
+                        child = 0,
+                        string = base,
+                        fontSize = fontSize,
+                        modifier = Modifier.stretchyParentheses(slots.textColor, fontSize, isFlat(base)),
+                        verticalPadding = (fontSize.value * 0.125f).dp
+                    )
+                } else {
+                    slots.Slot(child = 0, string = base, fontSize = fontSize, verticalPadding = 0.dp)
+                }
             }
             slots.Slot(
                 child = if (base != null) 1 else 0,

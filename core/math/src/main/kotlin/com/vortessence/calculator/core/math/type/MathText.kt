@@ -136,6 +136,14 @@ object MathText {
         return if (isAtomic(string)) text else "($text)"
     }
 
+    /**
+     * Whether the base of a power ([ExponentNode.base]) is a group of several parts, e.g. 2x in
+     * (2x)², which must be shown in parentheses: without them it would look like 2x², where
+     * only x is squared. A unit (m², km²) needs none.
+     */
+    fun isGroupedBase(base: MathString): Boolean =
+        base.isNotEmpty && !isAtomic(base) && !base.nodes.all { it is UnitNode }
+
     private fun isAtomic(string: MathString): Boolean {
         val nodes = string.nodes
         if (nodes.isEmpty()) return false

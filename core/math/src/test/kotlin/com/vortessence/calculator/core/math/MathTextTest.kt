@@ -84,4 +84,17 @@ class MathTextTest {
             MathText.splitNumbers(result)
         )
     }
+
+    @Test
+    fun groupedPowerBases() {
+        // 2x typed into the base of x²: it is (2x)², so it must be shown in parentheses
+        assertTrue(MathText.isGroupedBase(ms(n("2"), v("x"))))
+        assertTrue(MathText.isGroupedBase(ms(op(MathOp.MINUS), v("x"))))
+        assertFalse(MathText.isGroupedBase(ms(v("x"))))
+        assertFalse(MathText.isGroupedBase(ms(n("1"), n("2"))))
+        assertFalse(MathText.isGroupedBase(ms(FunctionNode("sin", ms(v("x"))))))
+        assertFalse(MathText.isGroupedBase(ms(ParenthesesNode(ms(n("2"), v("x"))))))
+        assertFalse(MathText.isGroupedBase(ms(UnitNode("m"))))
+        assertFalse(MathText.isGroupedBase(ms()))
+    }
 }
