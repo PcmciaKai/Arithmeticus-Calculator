@@ -305,16 +305,16 @@ fun CalculatorKeypad(
                         alternates = listOf(alt("%", KeyAction.Operator("%")), alt("mod", KeyAction.Operator("mod")))
                     ) { onKeyAction(KeyAction.Operator("!")) }
                     KeyButton(
-                        text = "x²",
+                        text = "□²",
                         buttonWidth = buttonWidth,
                         isAccent = true,
-                        alternates = listOf(alt(scriptLabel("x", sup = "n"), KeyAction.Power), alt(scriptLabel("x", sup = "−1"), KeyAction.Reciprocal))
+                        alternates = listOf(alt(scriptLabel("□", sup = "n"), KeyAction.Power), alt(scriptLabel("□", sup = "−1"), KeyAction.Reciprocal))
                     ) { onKeyAction(KeyAction.Square) }
                     KeyButton(
-                        text = "√x",
+                        text = "√□",
                         buttonWidth = buttonWidth,
                         isAccent = true,
-                        alternates = listOf(alt("ⁿ√x", KeyAction.NthRoot))
+                        alternates = listOf(alt("ⁿ√□", KeyAction.NthRoot))
                     ) { onKeyAction(KeyAction.Sqrt) }
                     KeyButton(
                         text = "log",
@@ -331,7 +331,7 @@ fun CalculatorKeypad(
                         text = "( )",
                         buttonWidth = buttonWidth,
                         isAccent = true,
-                        alternates = listOf(alt("|x|", KeyAction.Function("abs")))
+                        alternates = listOf(alt("|□|", KeyAction.Function("abs")))
                     ) { onKeyAction(KeyAction.Parentheses) }
                     KeyButton(
                         icon = { Icon(Icons.AutoMirrored.Filled.Backspace, contentDescription = "Backspace", tint = AccentRed, modifier = Modifier.size(24.dp)) },
@@ -527,7 +527,7 @@ fun CalculatorKeypad(
                         isAccent = true,
                         content = {
                             Text(
-                                text = scriptLabel("×10", sup = "x"),
+                                text = scriptLabel("×10", sup = "□"),
                                 fontSize = 20.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.onSecondaryContainer
