@@ -370,8 +370,12 @@ class MathWriter(
         }
     }
 
-    /** Numbers, then constants (π), i, variables and their powers, functions, and sums last: 2πix. */
+    /**
+     * Numbers, then constants (π), i, variables and their powers, functions, and sums: 2πix.
+     * Derivatives still to be taken (in solution steps) come last: 2(x + 1)·d/dx(x + 1).
+     */
     private fun factorRank(factor: Expression): Int = when {
+        factor is Derivative -> 6
         factor is Value -> 0
         factor is Constant -> 1
         factor === ImaginaryUnit -> 2

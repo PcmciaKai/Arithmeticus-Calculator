@@ -38,6 +38,7 @@ import com.vortessence.calculator.core.math.type.ResultForm
 import com.vortessence.calculator.core.math.type.ResultFormatter
 import com.vortessence.calculator.ui.dialogs.ConstantsDialog
 import com.vortessence.calculator.ui.dialogs.FormulasDialog
+import com.vortessence.calculator.ui.dialogs.StepsSheet
 import com.vortessence.calculator.ui.dialogs.MatrixDialog
 import com.vortessence.calculator.ui.dialogs.UnitsDialog
 import com.vortessence.calculator.ui.graph.GraphPlotterView
@@ -197,7 +198,9 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
                         showError = uiState.showResultError,
                         form = uiState.resultForm,
                         onFormChange = { viewModel.setResultForm(it) },
-                        onCopy = ::copyWithFeedback
+                        onCopy = ::copyWithFeedback,
+                        hasSteps = uiState.hasSteps,
+                        onShowSteps = { viewModel.showSteps() }
                     )
                 }
             }
@@ -227,6 +230,10 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
             onDismiss = { viewModel.dismissConstantsDialog() },
             onConstantSelected = { symbol -> viewModel.insertConstant(symbol) }
         )
+    }
+
+    uiState.steps?.let { steps ->
+        StepsSheet(state = steps, onDismiss = { viewModel.dismissSteps() })
     }
 
     if (uiState.showFormulasDialog) {
@@ -281,6 +288,8 @@ private fun LiveResultView(
     form: ResultForm,
     onFormChange: (ResultForm) -> Unit,
     onCopy: (MathString) -> Unit,
+    hasSteps: Boolean,
+    onShowSteps: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -312,6 +321,7 @@ private fun LiveResultView(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
+            if (hasSteps) AnswerPill("Steps", selected = false, onClick = onShowSteps)
             if (forms.size > 1) {
                 forms.forEach { option ->
                     AnswerPill(option.label, shownForm == option) { onFormChange(option) }

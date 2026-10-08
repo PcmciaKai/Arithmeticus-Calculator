@@ -28,6 +28,8 @@ import com.vortessence.calculator.core.math.solvers.LinearSystemSolver
 import com.vortessence.calculator.core.math.solvers.NumericIntegrator
 import com.vortessence.calculator.core.math.solvers.NumericRootFinder
 import com.vortessence.calculator.core.math.solvers.PlotCurve
+import com.vortessence.calculator.core.math.steps.DerivativeSteps
+import com.vortessence.calculator.core.math.steps.SolutionStep
 import com.vortessence.calculator.core.math.type.MathOp
 import com.vortessence.calculator.core.math.type.MathParser
 import com.vortessence.calculator.core.math.type.MathString
@@ -178,6 +180,61 @@ object MathEngine {
             numericImaginary = complex?.im ?: 0.0,
             polar = if (complex != null && definition == null) polarResult(simplified, ctx) else null
         )
+    }
+
+    /**
+     * The steps of calculating [input] if it is a derivative, e.g. d/dx(x²·sin(x)) by the product
+     * rule, then the power rule and so on, ending with the calculated result. Null if [input] is
+     * something else, or if a part of it cannot be differentiated step by step.
+     */
+    suspend fun derivativeSteps(
+        input: MathString,
+        context: MathContext = MathContext(),
+        timeoutMillis: Long = DEFAULT_TIMEOUT_MILLIS
+    ): List<SolutionStep>? = withContext(Dispatchers.Default) {
+        val execContext = context.copy()
+        execContext.deadlineMillis = System.currentTimeMillis() + timeoutMillis
+        val job = coroutineContext[Job]
+        execContext.externalCancellation = { job?.isActive == false }
+
+        val steps = try {
+            MathContext.withContext(execContext) steps@{
+                val parsed = parse(input, execContext) as? Derivative
+                if (parsed == null || execContext.shouldStop) return@steps null
+                val steps = DerivativeSteps.steps(parsed, execContext)
+                if (steps == null || execContext.shouldStop || execContext.issues.isNotEmpty()) return@steps null
+                val display = displayWriter(execContext)
+                val written = steps.map { SolutionStep(display.write(it.expression), it.rule, it.chainRule) }
+                // A step that does not change how the expression looks, e.g. simplifying 2x, is left out
+                written.filterIndexed { i, step -> i == 0 || step.expression.toString() != written[i - 1].expression.toString() }
+            }
+        } catch (e: ArithmeticException) {
+            null
+        } catch (e: IllegalArgumentException) {
+            null
+        } catch (e: StackOverflowError) {
+            null
+        }
+        ensureActive()
+        steps
+    }
+
+    /**
+     * Whether [derivativeSteps] has steps for [input]. Only parses, so it is fast enough to
+     * call for every live result.
+     */
+    fun hasDerivativeSteps(input: MathString, context: MathContext = MathContext()): Boolean {
+        val execContext = context.copy()
+        return try {
+            MathContext.withContext(execContext) {
+                val parsed = parse(input, execContext) as? Derivative
+                parsed != null && !execContext.shouldStop && DerivativeSteps.isSupported(parsed)
+            }
+        } catch (e: ArithmeticException) {
+            false
+        } catch (e: IllegalArgumentException) {
+            false
+        }
     }
 
     /**

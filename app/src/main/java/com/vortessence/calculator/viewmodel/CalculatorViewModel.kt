@@ -12,6 +12,7 @@ import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.context.UnitSystem
 import com.vortessence.calculator.core.math.expressions.UnitRegistry
 import com.vortessence.calculator.core.math.solvers.PlotCurve
+import com.vortessence.calculator.core.math.steps.SolutionStep
 import com.vortessence.calculator.core.math.type.*
 import com.vortessence.calculator.ui.keypad.KeyAction
 import com.vortessence.calculator.ui.theme.ThemeMode
@@ -34,6 +35,10 @@ data class CalculatorUiState(
     val result: CalculationResult? = null,
     /** True after Enter was pressed on an invalid line: show its error even if it is "incomplete". */
     val showResultError: Boolean = false,
+    /** Whether the step-by-step solution of the live result can be shown (for derivatives). */
+    val hasSteps: Boolean = false,
+    /** The step-by-step solution being shown, or null if it is closed. */
+    val steps: StepsState? = null,
     /** Committed calculations, newest first. */
     val history: List<HistoryEntry> = emptyList(),
     /**
@@ -72,6 +77,12 @@ data class CalculatorUiState(
 )
 
 /**
+ * The step-by-step solution of [input]; [steps] is null while they are worked out, or if
+ * there are none after all ([isLoading] false).
+ */
+data class StepsState(val input: MathString, val steps: List<SolutionStep>? = null, val isLoading: Boolean = true)
+
+/**
  * A committed calculation, shown in the [form] chosen when it was committed. [id] is stable,
  * so list items can be animated and removed.
  */
@@ -102,6 +113,7 @@ class CalculatorViewModel @JvmOverloads constructor(
 
     private var commitJob: Job? = null
     private var plotJob: Job? = null
+    private var stepsJob: Job? = null
 
     init {
         loadSettings()
@@ -119,13 +131,15 @@ class CalculatorViewModel @JvmOverloads constructor(
                 .distinctUntilChanged()
                 .collectLatest { input ->
                     if (input.expression.isEmpty) {
-                        _uiState.update { it.copy(result = null, showResultError = false) }
+                        _uiState.update { it.copy(result = null, showResultError = false, hasSteps = false) }
                         return@collectLatest
                     }
                     if (liveResultDelayMillis > 0) delay(liveResultDelayMillis)
-                    val res = MathEngine.calculate(input.expression, input.settings.toMathContext())
+                    val context = input.settings.toMathContext()
+                    val res = MathEngine.calculate(input.expression, context)
+                    val hasSteps = res.isSuccess && MathEngine.hasDerivativeSteps(input.expression, context)
                     _uiState.update {
-                        if (it.expression == input.expression) it.copy(result = res, showResultError = false) else it
+                        if (it.expression == input.expression) it.copy(result = res, showResultError = false, hasSteps = hasSteps) else it
                     }
                 }
         }
@@ -516,6 +530,25 @@ class CalculatorViewModel @JvmOverloads constructor(
     fun insertUnit(symbol: String) {
         insertNode(UnitNode(symbol))
         dismissUnitsDialog()
+    }
+
+    /** Opens the step-by-step solution of the line being typed. */
+    fun showSteps() {
+        val state = _uiState.value
+        val input = state.expression
+        _uiState.update { it.copy(steps = StepsState(input)) }
+        stepsJob?.cancel()
+        stepsJob = viewModelScope.launch {
+            val steps = MathEngine.derivativeSteps(input, state.mathContext().toMathContext())
+            _uiState.update {
+                if (it.steps?.input == input) it.copy(steps = StepsState(input, steps, isLoading = false)) else it
+            }
+        }
+    }
+
+    fun dismissSteps() {
+        stepsJob?.cancel()
+        _uiState.update { it.copy(steps = null) }
     }
 
     fun dismissFormulasDialog() {

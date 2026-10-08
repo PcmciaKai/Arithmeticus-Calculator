@@ -405,6 +405,35 @@ class CalculatorViewModelTest {
         assertEquals(1.0, vm.uiState.value.result!!.numericValue, 1e-12)
     }
 
+    @Test
+    fun derivativeOffersStepByStepSolution() = runBlocking {
+        val vm = newViewModel()
+        vm.onKeyAction(KeyAction.Number("5"))
+        vm.awaitLiveResult()
+        assertFalse(vm.uiState.value.hasSteps)
+
+        vm.onKeyAction(KeyAction.Clear)
+        vm.onKeyAction(KeyAction.Derivative)
+        vm.onKeyAction(KeyAction.Variable("x"))
+        vm.onKeyAction(KeyAction.Function("sin"))
+        vm.onKeyAction(KeyAction.Variable("x"))
+        vm.awaitLiveResult()
+        assertTrue(vm.uiState.value.hasSteps)
+
+        vm.showSteps()
+        var attempts = 0
+        while (vm.uiState.value.steps?.isLoading != false && attempts < 100) {
+            delay(20)
+            attempts++
+        }
+        val steps = vm.uiState.value.steps?.steps
+        assertNotNull(steps)
+        assertEquals(vm.uiState.value.result!!.result.toString(), steps!!.last().expression.toString())
+
+        vm.dismissSteps()
+        assertNull(vm.uiState.value.steps)
+    }
+
     /** Waits until the live result belongs to the current expression. */
     private suspend fun CalculatorViewModel.awaitLiveResult() {
         var attempts = 0
