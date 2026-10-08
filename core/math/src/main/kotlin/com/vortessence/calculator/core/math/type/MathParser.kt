@@ -155,6 +155,14 @@ class MathParser {
                 }
                 is ParenthesesNode -> tokens.add(Token.ValueToken(parseSlot(node.inner)))
                 is HighlightNode -> tokens.add(Token.ValueToken(parseSlot(node.content)))
+                is EvaluationNode -> {
+                    // F(b) − F(a)
+                    val f = parseSlot(node.content)
+                    val v = Variable(node.variable)
+                    val atUpper = f.substituteVariables(mapOf(v to parseSlot(node.upper)))
+                    val atLower = f.substituteVariables(mapOf(v to parseSlot(node.lower)))
+                    tokens.add(Token.ValueToken(Additions(listOf(atUpper, Multiplications(listOf(Value.MINUS_ONE, atLower))))))
+                }
                 is FunctionNode if NamedFunctionKind.byName(node.name) != null -> {
                     val arguments = splitArguments(node.argument).map { parseSlot(it) }
                     tokens.add(Token.ValueToken(NamedFunction(NamedFunctionKind.byName(node.name)!!, arguments)))

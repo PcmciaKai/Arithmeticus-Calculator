@@ -418,6 +418,7 @@ class CalculatorViewModelTest {
         vm.onKeyAction(KeyAction.Function("sin"))
         vm.onKeyAction(KeyAction.Variable("x"))
         vm.awaitLiveResult()
+        vm.awaitSteps()
         assertTrue(vm.uiState.value.hasSteps)
 
         vm.showSteps()
@@ -432,6 +433,34 @@ class CalculatorViewModelTest {
 
         vm.dismissSteps()
         assertNull(vm.uiState.value.steps)
+    }
+
+    @Test
+    fun simplificationOffersStepByStepSolution() = runBlocking {
+        val vm = newViewModel()
+        // x + x = 2x has a step; 2x is already as simple as it gets
+        vm.onKeyAction(KeyAction.Variable("x"))
+        vm.onKeyAction(KeyAction.Operator("+"))
+        vm.onKeyAction(KeyAction.Variable("x"))
+        vm.awaitLiveResult()
+        vm.awaitSteps()
+        assertTrue(vm.uiState.value.hasSteps)
+
+        vm.onKeyAction(KeyAction.Clear)
+        vm.onKeyAction(KeyAction.Number("2"))
+        vm.onKeyAction(KeyAction.Variable("x"))
+        vm.awaitLiveResult()
+        delay(100)
+        assertFalse(vm.uiState.value.hasSteps)
+    }
+
+    /** Waits (a while) until the "Steps" pill is offered. */
+    private suspend fun CalculatorViewModel.awaitSteps() {
+        var attempts = 0
+        while (!uiState.value.hasSteps && attempts < 100) {
+            delay(20)
+            attempts++
+        }
     }
 
     /** Waits until the live result belongs to the current expression. */

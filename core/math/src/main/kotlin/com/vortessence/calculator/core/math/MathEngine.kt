@@ -2,7 +2,9 @@ package com.vortessence.calculator.core.math
 
 import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.context.MathIssue
+import com.vortessence.calculator.core.math.expressions.Additions
 import com.vortessence.calculator.core.math.expressions.Antiderivative
+import com.vortessence.calculator.core.math.expressions.Integral
 import com.vortessence.calculator.core.math.expressions.Derivative
 import com.vortessence.calculator.core.math.expressions.EquationSystem
 import com.vortessence.calculator.core.math.expressions.Equals
@@ -19,7 +21,6 @@ import com.vortessence.calculator.core.math.expressions.UnitConversion
 import com.vortessence.calculator.core.math.expressions.Dimension
 import com.vortessence.calculator.core.math.expressions.dimensionOf
 import com.vortessence.calculator.core.math.expressions.substituteVariables
-import com.vortessence.calculator.core.math.expressions.tidyForDisplay
 import com.vortessence.calculator.core.math.expressions.toPreferredUnits
 import com.vortessence.calculator.core.math.solvers.Function1D
 import com.vortessence.calculator.core.math.solvers.ImplicitCurve
@@ -29,6 +30,10 @@ import com.vortessence.calculator.core.math.solvers.NumericIntegrator
 import com.vortessence.calculator.core.math.solvers.NumericRootFinder
 import com.vortessence.calculator.core.math.solvers.PlotCurve
 import com.vortessence.calculator.core.math.steps.DerivativeSteps
+import com.vortessence.calculator.core.math.steps.ExpressionSteps
+import com.vortessence.calculator.core.math.steps.IntegralSteps
+import com.vortessence.calculator.core.math.steps.Note
+import com.vortessence.calculator.core.math.steps.displayForm
 import com.vortessence.calculator.core.math.steps.Solution
 import com.vortessence.calculator.core.math.steps.SolutionStep
 import com.vortessence.calculator.core.math.steps.StepChange
@@ -37,6 +42,7 @@ import com.vortessence.calculator.core.math.type.MathParser
 import com.vortessence.calculator.core.math.type.MathString
 import com.vortessence.calculator.core.math.type.MathWriter
 import com.vortessence.calculator.core.math.type.OperatorNode
+import com.vortessence.calculator.core.math.type.ParenthesesNode
 import com.vortessence.calculator.core.math.type.TextNode
 import com.vortessence.calculator.core.math.type.VariableNode
 import kotlinx.coroutines.Dispatchers
@@ -160,7 +166,7 @@ object MathEngine {
         val display = displayWriter(ctx)
         val issues = ctx.issues
         // Symbolic results are shown in a compact form; numbers and quantities as they are
-        val compact = if (simplified.variables().isNotEmpty() && simplified.partWithUnit() == null) tidyForDisplay(simplified, ctx) else simplified
+        val compact = displayForm(simplified, ctx)
         // A definition shows what the variable now stands for: "a = 2x²"
         val shown = if (definition != null) Equals(Variable(definition.name), compact) else compact
         val written = display.write(shown)
@@ -185,11 +191,12 @@ object MathEngine {
     }
 
     /**
-     * The steps of calculating [input] if it is a derivative, e.g. d/dx(x²·sin(x)) by the product
-     * rule, then the power rule and so on, ending with the calculated result. Null if [input] is
-     * something else, or if a part of it cannot be differentiated step by step.
+     * The steps of calculating [input], ending with the calculated result: for a derivative,
+     * e.g. d/dx(x²·sin(x)), the product rule, then the power rule and so on; for an expression
+     * with variables, e.g. (x + 1)² − x², the simplifications. Null if [input] is something
+     * else, or if there are no steps for it (see [hasSteps]).
      */
-    suspend fun derivativeSteps(
+    suspend fun steps(
         input: MathString,
         context: MathContext = MathContext(),
         timeoutMillis: Long = DEFAULT_TIMEOUT_MILLIS
@@ -201,22 +208,33 @@ object MathEngine {
 
         val steps = try {
             MathContext.withContext(execContext) steps@{
-                val parsed = parse(input, execContext) as? Derivative
-                if (parsed == null || execContext.shouldStop) return@steps null
-                val solution = DerivativeSteps.steps(parsed, execContext)
+                // "a := …" defines a variable, there is nothing to solve
+                if (splitDefinition(input) != null) return@steps null
+                val parsed = parse(input, execContext)
+                if (execContext.shouldStop) return@steps null
+                val solution = when (parsed) {
+                    is Derivative -> DerivativeSteps.steps(parsed, execContext)
+                    is Antiderivative, is Integral -> IntegralSteps.steps(parsed, execContext)
+                    else -> ExpressionSteps.steps(parsed, execContext)
+                }
                 if (solution == null || execContext.shouldStop || execContext.issues.isNotEmpty()) return@steps null
                 val display = displayWriter(execContext)
-                Solution(
-                    solution.steps.map { step ->
-                        SolutionStep(
-                            display.write(step.expression),
-                            step.rule,
-                            step.chainRule,
-                            step.change?.let { (before, after) -> StepChange(display.write(before), display.write(after)) }
-                        )
-                    },
-                    display.write(solution.result)
-                )
+                val steps = solution.steps.map { step ->
+                    SolutionStep(
+                        display.write(step.expression),
+                        step.rule,
+                        step.chainRule,
+                        step.change?.let { (before, after) -> StepChange(display.write(before), display.write(after)) },
+                        step.notes.map { writeNote(it, display) }
+                    )
+                }
+                val result = display.write(solution.result)
+                // An indefinite integral is only determined up to a constant
+                if (parsed is Antiderivative) {
+                    result.insert(result.length, TextNode(" + C"))
+                    steps.last().expression.insert(steps.last().expression.length, TextNode(" + C"))
+                }
+                Solution(steps, result)
             }
         } catch (e: ArithmeticException) {
             null
@@ -229,22 +247,43 @@ object MathEngine {
         steps
     }
 
+    /** "u = x²", or with a differential "du = 2x dx". */
+    private fun writeNote(note: Note, writer: MathWriter): MathString {
+        val differential = note.differential ?: return writer.write(Equals(note.left, note.right))
+        val result = writer.write(note.left)
+        result.insert(result.length, OperatorNode(MathOp.EQUALS))
+        val right = writer.write(note.right)
+        // du = (2x + 1) dx
+        when {
+            // du = dx rather than du = 1 dx
+            note.right == Value.ONE -> {}
+            note.right is Additions -> result.insert(result.length, ParenthesesNode(right))
+            else -> result.insertAll(result.length, right.nodes)
+        }
+        val gap = if (note.right == Value.ONE) "" else " "
+        result.insert(result.length, TextNode("${gap}d${differential.identifier}"))
+        return result
+    }
+
     /**
-     * Whether [derivativeSteps] has steps for [input]. Only parses, so it is fast enough to
-     * call for every live result.
+     * Whether [steps] has steps for [input]. For a derivative this only parses it; for other
+     * expressions it works out the steps (only then is it clear whether there is anything to
+     * show step by step), so call it in the background like [calculate].
      */
-    fun hasDerivativeSteps(input: MathString, context: MathContext = MathContext()): Boolean {
+    suspend fun hasSteps(input: MathString, context: MathContext = MathContext()): Boolean {
         val execContext = context.copy()
-        return try {
+        val parsed = try {
             MathContext.withContext(execContext) {
-                val parsed = parse(input, execContext) as? Derivative
-                parsed != null && !execContext.shouldStop && DerivativeSteps.isSupported(parsed)
+                if (splitDefinition(input) != null) null else parse(input, execContext)
             }
         } catch (e: ArithmeticException) {
-            false
+            null
         } catch (e: IllegalArgumentException) {
-            false
+            null
         }
+        if (parsed == null || execContext.shouldStop) return false
+        if (parsed is Derivative) return DerivativeSteps.isSupported(parsed)
+        return steps(input, context) != null
     }
 
     /**

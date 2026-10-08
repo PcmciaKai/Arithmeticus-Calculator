@@ -493,6 +493,7 @@ private fun MathNodeView(
         is RadicalNode -> RadicalView(node, fontSize, slots)
         is ParenthesesNode -> ParenthesesView(node, fontSize, slots)
         is HighlightNode -> HighlightView(node, fontSize, slots)
+        is EvaluationNode -> EvaluationView(node, fontSize, slots)
         is LogBaseNode -> LogBaseView(node, fontSize, slots)
         // The absolute value (e.g. in ln|x|) is written with bars, not as a named function
         is FunctionNode if node.name == "abs" -> slots.Slot(
@@ -878,7 +879,7 @@ private fun Modifier.absoluteValueBars(color: Color) = this
 private fun isFlat(string: MathString): Boolean = string.nodes.all { node ->
     when (node) {
         is FractionNode, is MixedFractionNode, is ExponentNode, is SciExponentNode, is RadicalNode, is LogBaseNode,
-        is IntegralNode, is AntiderivativeNode, is DerivativeNode, is MatrixNode, is LineBreakNode,
+        is IntegralNode, is AntiderivativeNode, is DerivativeNode, is MatrixNode, is LineBreakNode, is EvaluationNode,
         is BigOperatorNode, is LimitNode -> false
         else -> node.subStrings.all { isFlat(it) }
     }
@@ -1045,6 +1046,25 @@ private fun DerivativeView(node: DerivativeNode, fontSize: TextUnit, slots: Slot
                 Text(text = "${node.variable}=", fontSize = subscriptFontSize, color = slots.textColor)
                 slots.Slot(child = 1, string = point, fontSize = subscriptFontSize)
             }
+        }
+    }
+}
+
+/** [F]ₐᵇ: the content in square brackets, the upper bound top right, the lower bound bottom right. */
+@Composable
+private fun EvaluationView(node: EvaluationNode, fontSize: TextUnit, slots: SlotContext) {
+    val boundFontSize = (fontSize.value * 0.6f).sp
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(horizontal = 2.dp).centeredMathAxis().height(IntrinsicSize.Min)
+    ) {
+        slots.Slot(child = 0, string = node.content, fontSize = fontSize, modifier = Modifier.squareBrackets(slots.textColor))
+        Column(
+            modifier = Modifier.fillMaxHeight().padding(start = 1.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            slots.Slot(child = 2, string = node.upper, fontSize = boundFontSize, verticalPadding = 0.dp)
+            slots.Slot(child = 1, string = node.lower, fontSize = boundFontSize, verticalPadding = 0.dp)
         }
     }
 }

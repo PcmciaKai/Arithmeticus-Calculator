@@ -95,7 +95,11 @@ private fun StepArrow(step: SolutionStep, color: Color) {
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             step.rule?.let { RuleText(it.description, it.formula) }
-            if (step.chainRule) RuleText("Chain rule", "(f(g))′ = f′(g)·g′")
+            if (step.chainRule) {
+                if (step.rule?.isIntegral == true) RuleText("Linear argument", "∫ f(ax + b) dx = F(ax + b)/a")
+                else RuleText("Chain rule", "(f(g))′ = f′(g)·g′")
+            }
+            step.notes.forEach { NoteLine(it) }
             step.change?.let { ChangeLine(it) }
         }
     }
@@ -109,6 +113,15 @@ private fun RuleText(description: String, formula: String?) {
         fontStyle = FontStyle.Italic,
         color = MaterialTheme.colorScheme.onSurfaceVariant
     )
+}
+
+/** What the rule needs, e.g. u = x². */
+@Composable
+private fun NoteLine(note: MathString) {
+    val color = MaterialTheme.colorScheme.onSurfaceVariant
+    Box(modifier = Modifier.horizontalScroll(rememberScrollState())) {
+        MathExpressionView(mathString = note, fontSize = 17.sp, textColor = color, accentColor = color)
+    }
 }
 
 /** The rule applied to the part it changes: before = after. */
@@ -137,6 +150,10 @@ private fun ScrollingMath(math: MathString, fontSize: androidx.compose.ui.unit.T
     }
 }
 
+/** Whether this is a rule of integration (a linear inner function divides instead of multiplying). */
+private val StepRule.isIntegral: Boolean
+    get() = name.startsWith("INTEGRAL_")
+
 private val StepRule.description: String
     get() = when (this) {
         StepRule.CONSTANT -> "The derivative of a constant is zero"
@@ -159,11 +176,34 @@ private val StepRule.description: String
         StepRule.ABSOLUTE_VALUE -> "Differentiate the absolute value"
         StepRule.FUNDAMENTAL_THEOREM -> "Apply the fundamental theorem of calculus"
         StepRule.MULTIPLY_NUMBERS -> "Multiply numbers"
+        StepRule.NUMBER_POWER -> "Calculate the power"
+        StepRule.POWER_OF_POWER -> "Multiply the exponents"
+        StepRule.POWER_OF_PRODUCT -> "Raise each factor to the power"
+        StepRule.EXPAND -> "Multiply out"
+        StepRule.EXPAND_POWER -> "Multiply out the power"
+        StepRule.COMBINE_FRACTIONS -> "Combine the fractions"
         StepRule.ADD_NUMBERS -> "Add numbers"
         StepRule.COMBINE_POWERS -> "Add the exponents"
         StepRule.CANCEL -> "Cancel"
         StepRule.DISTRIBUTE -> "Multiply out"
         StepRule.COMBINE_LIKE_TERMS -> "Combine like terms"
+        StepRule.INTEGRAL_CONSTANT -> "Integrate the constant"
+        StepRule.INTEGRAL_SUM -> "Integrate term by term"
+        StepRule.INTEGRAL_CONSTANT_FACTOR -> "Factor out the constant"
+        StepRule.INTEGRAL_POWER -> "Apply the power rule"
+        StepRule.INTEGRAL_RECIPROCAL -> "Integrate 1/x"
+        StepRule.INTEGRAL_EXPONENTIAL -> "Integrate the exponential function"
+        StepRule.INTEGRAL_SINE -> "Integrate the sine"
+        StepRule.INTEGRAL_COSINE -> "Integrate the cosine"
+        StepRule.INTEGRAL_TANGENT -> "Integrate the tangent"
+        StepRule.INTEGRAL_LOGARITHM -> "Integrate the logarithm"
+        StepRule.INTEGRAL_TABLE -> "Use a standard integral"
+        StepRule.EXPAND_INTEGRAND -> "Multiply out the integrand"
+        StepRule.SUBSTITUTION -> "Substitute"
+        StepRule.BACK_SUBSTITUTION -> "Substitute back"
+        StepRule.BY_PARTS -> "Integrate by parts"
+        StepRule.ANTIDERIVATIVE -> "Find an antiderivative F"
+        StepRule.BOUNDS -> "Insert the bounds"
         StepRule.SIMPLIFY -> "Simplify"
         StepRule.SUBSTITUTE -> "Insert the point"
         StepRule.EVALUATE -> "Calculate"
@@ -192,8 +232,28 @@ private val StepRule.formula: String?
         StepRule.ABSOLUTE_VALUE -> "|x|′ = x/|x|"
         StepRule.FUNDAMENTAL_THEOREM -> "(∫ₐˣ f(t) dt)′ = f(x)"
         StepRule.COMBINE_POWERS -> "xᵃ·xᵇ = xᵃ⁺ᵇ"
+        StepRule.POWER_OF_POWER -> "(xᵃ)ᵇ = xᵃᵇ"
+        StepRule.POWER_OF_PRODUCT -> "(a·b)ⁿ = aⁿ·bⁿ"
+        StepRule.EXPAND -> "(a + b)·c = a·c + b·c"
+        StepRule.EXPAND_POWER -> "(a + b)² = a² + 2ab + b²"
+        StepRule.COMBINE_FRACTIONS -> "a/c + b/c = (a + b)/c"
         StepRule.CANCEL -> "x/x = 1"
         StepRule.DISTRIBUTE -> "c·(a + b) = c·a + c·b"
-        StepRule.MULTIPLY_NUMBERS, StepRule.ADD_NUMBERS, StepRule.COMBINE_LIKE_TERMS,
+        StepRule.INTEGRAL_CONSTANT -> "∫ c dx = c·x"
+        StepRule.INTEGRAL_SUM -> "∫ (f ± g) dx = ∫ f dx ± ∫ g dx"
+        StepRule.INTEGRAL_CONSTANT_FACTOR -> "∫ c·f dx = c·∫ f dx"
+        StepRule.INTEGRAL_POWER -> "∫ xⁿ dx = xⁿ⁺¹/(n + 1)"
+        StepRule.INTEGRAL_RECIPROCAL -> "∫ 1/x dx = ln|x|"
+        StepRule.INTEGRAL_EXPONENTIAL -> "∫ eˣ dx = eˣ, ∫ aˣ dx = aˣ/ln(a)"
+        StepRule.INTEGRAL_SINE -> "∫ sin x dx = −cos x"
+        StepRule.INTEGRAL_COSINE -> "∫ cos x dx = sin x"
+        StepRule.INTEGRAL_TANGENT -> "∫ tan x dx = −ln|cos x|"
+        StepRule.INTEGRAL_LOGARITHM -> "∫ ln x dx = x·ln x − x"
+        StepRule.SUBSTITUTION -> "∫ f(g(x))·g′(x) dx = ∫ f(u) du"
+        StepRule.BY_PARTS -> "∫ u dv = u·v − ∫ v du"
+        StepRule.ANTIDERIVATIVE -> "∫ₐᵇ f dx = [F]ₐᵇ"
+        StepRule.BOUNDS -> "[F]ₐᵇ = F(b) − F(a)"
+        StepRule.INTEGRAL_TABLE, StepRule.EXPAND_INTEGRAND, StepRule.BACK_SUBSTITUTION,
+        StepRule.MULTIPLY_NUMBERS, StepRule.NUMBER_POWER, StepRule.ADD_NUMBERS, StepRule.COMBINE_LIKE_TERMS,
         StepRule.SIMPLIFY, StepRule.SUBSTITUTE, StepRule.EVALUATE -> null
     }

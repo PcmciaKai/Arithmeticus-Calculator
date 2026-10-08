@@ -99,6 +99,7 @@ object MathText {
         }
         is ParenthesesNode -> "(${toPlainText(node.inner)})"
         is HighlightNode -> "(${toPlainText(node.content)})"
+        is EvaluationNode -> "evaluate(${toPlainText(node.content)}, ${node.variable}, ${toPlainText(node.lower)}, ${toPlainText(node.upper)})"
         is FunctionNode -> "${node.name}(${toPlainText(node.argument)})"
         is LogBaseNode -> "log(${toPlainText(node.argument)}, ${toPlainText(node.base)})"
         is IntegralNode -> "integral(${toPlainText(node.integrand)}, ${node.variable}, " +

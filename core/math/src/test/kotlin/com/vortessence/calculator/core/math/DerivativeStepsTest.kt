@@ -23,7 +23,7 @@ class DerivativeStepsTest {
     private fun d(vararg body: MathNode, at: MathString? = null) = ms(DerivativeNode(ms(*body), at))
 
     private fun solution(input: MathString, angle: AngleUnit = AngleUnit.RADIANS): Solution? = runBlocking {
-        MathEngine.derivativeSteps(input, MathContext(angleUnit = angle))
+        MathEngine.steps(input, MathContext(angleUnit = angle))
     }
 
     /** The steps as (expression, rule, change) and the result. */
@@ -173,7 +173,7 @@ class DerivativeStepsTest {
             ms(x, pow(n("2"))),
         )
         for (input in inputs) {
-            assertEquals(input.toString(), solution(input) != null, MathEngine.hasDerivativeSteps(input))
+            assertEquals(input.toString(), solution(input) != null, runBlocking { MathEngine.hasSteps(input) })
         }
     }
 }

@@ -3,6 +3,8 @@ package com.vortessence.calculator.core.math.type
 import com.vortessence.calculator.core.math.expressions.*
 import com.vortessence.calculator.core.math.numbers.BigInt
 import com.vortessence.calculator.core.math.numbers.Rational
+import com.vortessence.calculator.core.math.steps.BackSubstitution
+import com.vortessence.calculator.core.math.steps.EvaluateBetween
 import com.vortessence.calculator.core.math.steps.Marked
 import java.math.BigDecimal
 import java.math.BigInteger
@@ -128,6 +130,11 @@ class MathWriter(
                 result.append(FunctionNode(expr.kind.functionName, arguments))
             }
             is Marked -> result.append(HighlightNode(writeExpr(expr.inner), expr.colorIndex, expr.boxed))
+            // Solution steps of integrals
+            is BackSubstitution -> result.appendAll(writeExpr(expr.inner))
+            is EvaluateBetween -> result.append(EvaluationNode(
+                writeExpr(expr.antiderivative), writeExpr(expr.lower), writeExpr(expr.upper), expr.variable.identifier
+            ))
             is Antiderivative -> result.append(AntiderivativeNode(writeExpr(expr.integrand), expr.variable.identifier))
             is Derivative -> {
                 result.append(DerivativeNode(
@@ -297,6 +304,16 @@ class MathWriter(
 
     private fun writeMultiplications(mult: Multiplications, result: MathString) {
         // Pull the sign to the front: -2x is written "−2x", not as a "-2" factor mid-product
+        // Signs cancel in pairs, (−1)·(−1)·x = x (only in solution steps; results have one sign)
+        val negatives = mult.operands.indices.filter { mult.operands[it] is Value && mult.operands[it].isNegative }
+        if (negatives.size >= 2) {
+            val flipped = negatives.take(negatives.size / 2 * 2).toSet()
+            val operands = mult.operands.mapIndexedNotNull { i, op ->
+                if (i in flipped) (op as Value).negate().takeIf { it != Value.ONE } else op
+            }
+            result.appendAll(writeExpr(Multiplications.of(*operands.toTypedArray())))
+            return
+        }
         val negativeIndex = mult.operands.indexOfFirst { it is Value && it.isNegative }
         if (negativeIndex >= 0) {
             result.append(OperatorNode(MathOp.MINUS))
@@ -336,6 +353,13 @@ class MathWriter(
         val denominators = mutableListOf<Expression>()
 
         for (op in mult.operands) {
+            // A highlighted part of a solution step stays in the numerator or denominator it belongs to
+            if (op is Marked) {
+                val (num, den) = numeratorAndDenominator(op.inner)
+                num?.let { numerators.add(Marked(it, op.colorIndex, op.boxed)) }
+                den?.let { denominators.add(Marked(it, op.colorIndex, op.boxed)) }
+                continue
+            }
             val exponent = (op as? Power)?.exponent as? Value
             if (op is Power && exponent != null && exponent.isNegative) {
                 val posExp = exponent.negate()
@@ -359,6 +383,23 @@ class MathWriter(
         } else {
             writeFactors(numerators, result)
         }
+    }
+
+    /**
+     * A single factor split into what goes above and below a fraction bar, e.g. (null, x²) for
+     * 1/x², (2, 3) for 2/3, (x, null) for x.
+     */
+    private fun numeratorAndDenominator(factor: Expression): Pair<Expression?, Expression?> {
+        val exponent = (factor as? Power)?.exponent as? Value
+        if (factor is Power && exponent != null && exponent.isNegative) {
+            val posExp = exponent.negate()
+            return null to (if (posExp == Value.ONE) factor.base else Power(factor.base, posExp))
+        }
+        val rational = (factor as? Value)?.rational
+        if (rational != null && rational.isFractional) {
+            return (if (rational.numerator == BigInt.ONE) null else Value(rational.numerator)) to Value(rational.denominator)
+        }
+        return factor to null
     }
 
     private fun writeFactors(factors: List<Expression>, result: MathString) {
@@ -388,6 +429,8 @@ class MathWriter(
         factor is Marked -> (factor.inner as? Multiplications)?.operands?.minOf { factorRank(it) } ?: factorRank(factor.inner)
         factor is Derivative -> 6
         factor is Value -> 0
+        // Powers of numbers in solution steps: 2³x³
+        factor is Power && factor.base is Value && factor.exponent is Value && (factor.exponent as Value).rational?.isFractional == false -> 0
         factor is Constant -> 1
         factor === ImaginaryUnit -> 2
         variableName(factor) != null -> 3

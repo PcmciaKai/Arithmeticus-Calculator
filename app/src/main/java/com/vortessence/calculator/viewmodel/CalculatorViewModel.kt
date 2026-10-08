@@ -137,9 +137,13 @@ class CalculatorViewModel @JvmOverloads constructor(
                     if (liveResultDelayMillis > 0) delay(liveResultDelayMillis)
                     val context = input.settings.toMathContext()
                     val res = MathEngine.calculate(input.expression, context)
-                    val hasSteps = res.isSuccess && MathEngine.hasDerivativeSteps(input.expression, context)
                     _uiState.update {
-                        if (it.expression == input.expression) it.copy(result = res, showResultError = false, hasSteps = hasSteps) else it
+                        if (it.expression == input.expression) it.copy(result = res, showResultError = false, hasSteps = false) else it
+                    }
+                    // Finding out whether there are steps can take as long as the calculation: the
+                    // result is shown first, the "Steps" pill follows
+                    if (res.isSuccess && MathEngine.hasSteps(input.expression, context)) {
+                        _uiState.update { if (it.expression == input.expression) it.copy(hasSteps = true) else it }
                     }
                 }
         }
@@ -539,7 +543,7 @@ class CalculatorViewModel @JvmOverloads constructor(
         _uiState.update { it.copy(steps = StepsState(input)) }
         stepsJob?.cancel()
         stepsJob = viewModelScope.launch {
-            val solution = MathEngine.derivativeSteps(input, state.mathContext().toMathContext())
+            val solution = MathEngine.steps(input, state.mathContext().toMathContext())
             _uiState.update {
                 if (it.steps?.input == input) it.copy(steps = StepsState(input, solution, isLoading = false)) else it
             }

@@ -179,6 +179,26 @@ data class HighlightNode(
 }
 
 /**
+ * [content] evaluated between two values of [variable]: [F]ₐᵇ = F(b) − F(a), as in the steps of
+ * a definite integral.
+ */
+data class EvaluationNode(
+    val content: MathString = MathString(),
+    val lower: MathString = MathString(),
+    val upper: MathString = MathString(),
+    val variable: String = "x"
+) : MathNode() {
+    override val subStrings: List<MathString> get() = listOf(content, lower, upper)
+    override fun replaceSubString(index: Int, newString: MathString): MathNode = when (index) {
+        0 -> copy(content = newString)
+        1 -> copy(lower = newString)
+        else -> copy(upper = newString)
+    }
+    override fun copy(): MathNode = EvaluationNode(content.copy(), lower.copy(), upper.copy(), variable)
+    override fun toString(): String = "[$content]_($lower)^($upper)"
+}
+
+/**
  * Scientific notation "×10ⁿ" that belongs to the number directly before it, e.g. the "×10³" in
  * 5×10³. Unlike a typed "× 10^n" it is part of that number: it is parsed as one number literal,
  * and editing (fractions, powers, selection) treats "5×10³" as a single value.

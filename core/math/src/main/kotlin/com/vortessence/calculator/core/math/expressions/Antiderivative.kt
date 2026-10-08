@@ -99,7 +99,7 @@ internal class Integrator(private val context: MathContext) {
     }
 
     /** The slope a of [u] = a·v + b, or null if [u] is not linear in [v]. */
-    private fun linearSlope(u: Expression, v: Variable): Expression? {
+    internal fun linearSlope(u: Expression, v: Variable): Expression? {
         val du = canonical(Differentiator.derivative(u, v) ?: return null) ?: return null
         return du.takeIf { !it.containsVariable(v) && !it.isZero }
     }
@@ -109,7 +109,7 @@ internal class Integrator(private val context: MathContext) {
     private fun trig(type: TrigType, u: Expression) = TrigonometricFunction(type, u, AngleUnit.RADIANS)
 
     /** Table integrals of a single function of a linear argument u = a·v + b (divided by a). */
-    private fun basic(f: Expression, v: Variable): Expression? {
+    internal fun basic(f: Expression, v: Variable): Expression? {
         if (f == v) return Multiplications(listOf(Value.HALF, Power(v, Value.TWO)))
         return when (f) {
             is Power -> {
@@ -285,13 +285,13 @@ internal class Integrator(private val context: MathContext) {
     }
 
     /** eˣ, sin and cos of a linear argument stay of the same kind when integrated. */
-    private fun isRepeatedlyIntegrable(g: Expression, v: Variable): Boolean = when (g) {
+    internal fun isRepeatedlyIntegrable(g: Expression, v: Variable): Boolean = when (g) {
         is Power -> !g.base.containsVariable(v) && linearSlope(g.exponent, v) != null
         is TrigonometricFunction -> (g.type == TrigType.SIN || g.type == TrigType.COS) && linearSlope(g.operand, v) != null
         else -> false
     }
 
-    private fun isPolynomial(p: Expression, v: Variable): Boolean {
+    internal fun isPolynomial(p: Expression, v: Variable): Boolean {
         var current = p
         repeat(MAX_POLYNOMIAL_DEGREE + 1) {
             if (!current.containsVariable(v)) return true
