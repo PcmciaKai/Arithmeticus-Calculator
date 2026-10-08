@@ -14,7 +14,9 @@ enum class ResultForm {
     /** Scientific notation, mantissa ×10ⁿ. */
     SCIENTIFIC,
     /** Mixed number such as 3 ½ (only for fractions greater than one). */
-    MIXED
+    MIXED,
+    /** Polar form r·e^(iθ), exact (only for complex numbers). */
+    POLAR
 }
 
 /** Formats a [CalculationResult] in a [ResultForm], e.g. for the live result and the history. */
@@ -22,7 +24,9 @@ object ResultFormatter {
     /** The forms that make sense for [result]; [ResultForm.EXACT] is always included. */
     fun availableForms(result: CalculationResult): List<ResultForm> {
         if (!result.isSuccess) return emptyList()
-        if (isComplex(result)) return listOf(ResultForm.EXACT, ResultForm.DECIMAL, ResultForm.SCIENTIFIC)
+        if (isComplex(result)) {
+            return listOfNotNull(ResultForm.EXACT, ResultForm.DECIMAL, ResultForm.SCIENTIFIC, ResultForm.POLAR.takeIf { result.polar != null })
+        }
         // Equations (possibly with several solutions) and true/false are only shown exactly
         val isSingleValue = result.expression !is Equals && result.numericValue.isFinite()
         if (!isSingleValue) return listOf(ResultForm.EXACT)
@@ -40,6 +44,7 @@ object ResultFormatter {
      */
     fun format(result: CalculationResult, form: ResultForm): MathString {
         val effective = if (form in availableForms(result)) form else ResultForm.EXACT
+        if (effective == ResultForm.POLAR) return result.polar!!
         if (effective != ResultForm.EXACT && isComplex(result)) {
             return writeComplex(MathWriter(result.decimalPlaces), result.numericValue, result.numericImaginary, effective == ResultForm.SCIENTIFIC)
         }

@@ -265,6 +265,7 @@ class CalculatorViewModel @JvmOverloads constructor(
             is KeyAction.Product -> insertBigOperator(BigOperator.PRODUCT)
             is KeyAction.Limit -> insertWithBinding(LimitNode(MathString(listOf(VariableNode("x"), OperatorNode(MathOp.CONVERT)))))
             is KeyAction.ImaginaryUnit -> insertImaginaryUnit()
+            is KeyAction.Polar -> insertPolar()
         }
     }
 
@@ -392,11 +393,20 @@ class CalculatorViewModel @JvmOverloads constructor(
 
     /** Inserts i; if complex numbers are off, it turns them on and says so. */
     private fun insertImaginaryUnit() {
-        if (!_uiState.value.complexNumbers) {
-            setComplexNumbers(true)
-            _uiState.update { it.copy(showComplexNotice = true) }
-        }
+        enableComplexNumbers()
         insertNode(ConstantNode("i"))
+    }
+
+    /** Inserts r∠θ; a number before the cursor becomes r. Turns complex numbers on like i. */
+    private fun insertPolar() {
+        enableComplexNumbers()
+        insertWithNumberAsFirstSlot { first -> PolarNode(first, MathString()) }
+    }
+
+    private fun enableComplexNumbers() {
+        if (_uiState.value.complexNumbers) return
+        setComplexNumbers(true)
+        _uiState.update { it.copy(showComplexNotice = true) }
     }
 
     /** Σ or ∏ with the index n; the cursor goes after "n=", to the start value. */
@@ -758,7 +768,15 @@ class CalculatorViewModel @JvmOverloads constructor(
      * Inserts a mixed number. Digits right before the cursor (or a selection) become its whole
      * part and the cursor goes to the numerator; otherwise it starts in the whole part.
      */
-    private fun insertMixedFraction() {
+    private fun insertMixedFraction() =
+        insertWithNumberAsFirstSlot { whole -> MixedFractionNode(whole, MathString(), MathString()) }
+
+    /**
+     * Inserts the node [create] makes from the digits right before the cursor (or a selection),
+     * which fill its first slot; the cursor goes to the next slot, or into the first one if
+     * there were no digits.
+     */
+    private fun insertWithNumberAsFirstSlot(create: (MathString) -> MathNode) {
         val root = _uiState.value.expression.copy()
         val path = _uiState.value.cursorPath
         val target = getTargetString(root, path)
@@ -781,7 +799,7 @@ class CalculatorViewModel @JvmOverloads constructor(
             insertIdx = pos
         }
 
-        target.insert(insertIdx, MixedFractionNode(whole, MathString(), MathString()))
+        target.insert(insertIdx, create(whole))
         val slot = if (whole.isEmpty) 0 else 1
         _uiState.update { it.copy(expression = root, cursorPath = containerPath + listOf(insertIdx, slot, 0), selectionRange = null) }
     }
@@ -1018,11 +1036,11 @@ class CalculatorViewModel @JvmOverloads constructor(
                             return
                         }
                     }
-                    is MixedFractionNode -> {
-                        // Fraction part empty: back to the plain whole number
-                        if (target.isEmpty && containerNode.numerator.isEmpty && containerNode.denominator.isEmpty) {
+                    is MixedFractionNode, is PolarNode -> {
+                        // Everything but the first part empty: back to the plain number
+                        if (target.isEmpty && containerNode.subStrings.drop(1).all { it.isEmpty }) {
                             parentString.removeAt(containerNodeIdx)
-                            val wholeNodes = containerNode.whole.nodes.map { it.copy() }
+                            val wholeNodes = containerNode.subStrings[0].nodes.map { it.copy() }
                             parentString.insertAll(containerNodeIdx, wholeNodes)
                             val newPath = parentPath + (containerNodeIdx + wholeNodes.size)
                             _uiState.update { it.copy(expression = root, cursorPath = newPath, selectionRange = null) }

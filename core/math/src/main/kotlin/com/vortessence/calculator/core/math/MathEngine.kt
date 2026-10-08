@@ -11,6 +11,7 @@ import com.vortessence.calculator.core.math.expressions.Limit
 import com.vortessence.calculator.core.math.expressions.Series
 import com.vortessence.calculator.core.math.expressions.containsImaginaryUnit
 import com.vortessence.calculator.core.math.expressions.numericComplex
+import com.vortessence.calculator.core.math.expressions.polarForm
 import com.vortessence.calculator.core.math.expressions.MatrixExpression
 import com.vortessence.calculator.core.math.expressions.Value
 import com.vortessence.calculator.core.math.expressions.Variable
@@ -61,7 +62,9 @@ data class CalculationResult(
     /** For a definition such as "a := 2x²" the defined variable ("a"); its value is [answer]. */
     val definedVariable: String? = null,
     /** The imaginary part of a complex result; [numericValue] is then its real part. */
-    val numericImaginary: Double = 0.0
+    val numericImaginary: Double = 0.0,
+    /** A complex result in polar form, r·e^(iθ), exact; null if the result is not complex. */
+    val polar: MathString? = null
 )
 
 data class PlotPoint(val x: Double, val y: Double)
@@ -172,8 +175,20 @@ object MathEngine {
             unit = simplified.partWithUnit()?.let { display.writeUnit(it) },
             decimalPlaces = ctx.decimalPlaces,
             definedVariable = definition?.name,
-            numericImaginary = complex?.im ?: 0.0
+            numericImaginary = complex?.im ?: 0.0,
+            polar = if (complex != null && definition == null) polarResult(simplified, ctx) else null
         )
+    }
+
+    /**
+     * [z] written as r·e^(iθ), e.g. √2·e^(iπ/4) for 1 + i; null if it has no polar form. Computed
+     * in a scratch context, so that a problem with it does not affect the result itself.
+     */
+    private fun polarResult(z: Expression, ctx: MathContext): MathString? {
+        val scratch = ctx.copy()
+        val (modulus, argument) = polarForm(z, scratch) ?: return null
+        if (scratch.shouldStop) return null
+        return displayWriter(ctx).writePolar(modulus, argument)
     }
 
     /** Whether [e] contains an indefinite integral whose constant is not differentiated away. */

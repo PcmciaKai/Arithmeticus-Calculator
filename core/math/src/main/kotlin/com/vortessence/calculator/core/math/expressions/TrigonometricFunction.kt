@@ -82,6 +82,11 @@ class TrigonometricFunction(
             }
         }
 
+        if (!type.isInverse) {
+            val simplified = ofArctangent(op, context)
+            if (simplified != null || context.shouldStop) return simplified ?: this
+        }
+
         val exact = if (!type.isInverse) {
             tryExactEvaluation(op, context)
         } else if (isConstant) {
@@ -92,6 +97,40 @@ class TrigonometricFunction(
         if (exact != null || context.shouldStop) return exact ?: this
 
         return TrigonometricFunction(type, op, resolvedUnit)
+    }
+
+    /**
+     * sin, cos and tan of atan(x) ± kπ (in radians), e.g. from a polar form 5·e^(i·atan(4/3)):
+     * cos(atan x) = 1/√(1 + x²), sin(atan x) = x/√(1 + x²), tan(atan x) = x; adding kπ flips
+     * the sign of sin and cos for odd k. Null for other operands.
+     */
+    private fun ofArctangent(op: Expression, context: MathContext): Expression? {
+        val terms = if (op is Additions) op.operands else listOf(op)
+        fun arctangentOf(term: Expression): Expression? {
+            if (term is TrigonometricFunction && term.type == TrigType.ATAN && term.angleUnit == AngleUnit.RADIANS) return term.operand
+            // −atan(x) = atan(−x)
+            if (term is Multiplications && term.operands.size == 2 && term.operands[0] == Value.MINUS_ONE) {
+                return arctangentOf(term.operands[1])?.let { Multiplications.of(Value.MINUS_ONE, it) }
+            }
+            return null
+        }
+        val atanIndex = terms.indexOfFirst { arctangentOf(it) != null }
+        if (atanIndex < 0 || terms.count { arctangentOf(it) != null } > 1) return null
+        val x = arctangentOf(terms[atanIndex])!!
+        val rest = terms.filterIndexed { i, _ -> i != atanIndex }
+        var oddShift = false
+        if (rest.isNotEmpty()) {
+            val k = (Multiplications.of(Additions.of(*rest.toTypedArray()), Power(Constant.PI, Value.MINUS_ONE)).canonicalize(context) as? Value)?.rational
+            if (k == null || k.isFractional) return null
+            oddShift = k.numerator.isOdd
+        }
+        val sign = if (oddShift) Value.MINUS_ONE else Value.ONE
+        val inverseRoot = Power(Additions(listOf(Value.ONE, Power(x, Value.TWO))), Value(-1L, 2L))
+        return when (type) {
+            TrigType.SIN -> Multiplications.of(sign, x, inverseRoot)
+            TrigType.COS -> Multiplications.of(sign, inverseRoot)
+            else -> x
+        }.canonicalize(context)
     }
 
     private fun tryExactEvaluation(op: Expression, context: MathContext): Expression? {

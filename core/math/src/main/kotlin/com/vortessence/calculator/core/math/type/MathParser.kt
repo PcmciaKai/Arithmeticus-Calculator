@@ -122,6 +122,15 @@ class MathParser {
                     tokens.add(Token.ValueToken(Multiplications.of(numExpr, Power.of(denExpr, Value.MINUS_ONE))))
                 }
                 is MixedFractionNode -> tokens.add(Token.ValueToken(parseMixedFraction(node)))
+                is PolarNode -> {
+                    // r·(cos θ + i·sin θ); the angle is in the angle unit of the context
+                    val r = parseSlot(node.magnitude)
+                    val angle = parseSlot(node.angle)
+                    tokens.add(Token.ValueToken(Multiplications.of(r, Additions(listOf(
+                        TrigonometricFunction(TrigType.COS, angle),
+                        Multiplications(listOf(ImaginaryUnit, TrigonometricFunction(TrigType.SIN, angle)))
+                    )))))
+                }
                 is ExponentNode -> {
                     val baseExpr = if (node.base != null) {
                         parseSlot(node.base)

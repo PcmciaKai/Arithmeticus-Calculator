@@ -347,6 +347,7 @@ private val ResultForm.label: String
         ResultForm.DECIMAL -> "Decimal"
         ResultForm.SCIENTIFIC -> "Sci"
         ResultForm.MIXED -> "Mixed"
+        ResultForm.POLAR -> "Polar"
     }
 
 @Composable

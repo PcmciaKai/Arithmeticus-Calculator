@@ -5,6 +5,7 @@ import com.vortessence.calculator.core.math.type.AnsNode
 import com.vortessence.calculator.core.math.type.BigOperatorNode
 import com.vortessence.calculator.core.math.type.LimitNode
 import com.vortessence.calculator.core.math.type.MixedFractionNode
+import com.vortessence.calculator.core.math.type.PolarNode
 import com.vortessence.calculator.core.math.type.ExponentNode
 import com.vortessence.calculator.core.math.type.FunctionNode
 import com.vortessence.calculator.core.math.type.LogBaseNode
@@ -1214,5 +1215,19 @@ class CalculatorViewModelTest {
         assertEquals("mean(2, 4, 9)", vm.uiState.value.expression.toString())
         vm.awaitLiveResult()
         assertEquals(5.0, vm.uiState.value.result!!.numericValue, 0.0)
+    }
+
+    @Test
+    fun testPolarKeyTakesNumberAsMagnitudeAndTurnsOnComplexNumbers() {
+        val vm = newViewModel()
+        vm.onKeyAction(KeyAction.Number("2"))
+        vm.onKeyAction(KeyAction.Polar)
+        assertTrue(vm.uiState.value.complexNumbers)
+        assertTrue(vm.uiState.value.showComplexNotice)
+        assertTrue(vm.uiState.value.expression.nodeAt(0) is PolarNode)
+        assertEquals(listOf(0, 1, 0), vm.uiState.value.cursorPath)
+        // Backspace in the empty angle leaves the number
+        vm.onKeyAction(KeyAction.Backspace)
+        assertEquals("2", vm.uiState.value.expression.toString())
     }
 }

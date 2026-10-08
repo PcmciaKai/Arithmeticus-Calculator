@@ -101,6 +101,26 @@ data class MixedFractionNode(
     override fun toString(): String = "$whole($numerator)/($denominator)"
 }
 
+/**
+ * A complex number in angle notation, [magnitude]∠[angle] = r·(cos θ + i·sin θ), with the angle
+ * in the calculator's angle unit: 2∠30 is √3 + i in degrees.
+ */
+data class PolarNode(
+    val magnitude: MathString = MathString(),
+    val angle: MathString = MathString()
+) : MathNode() {
+    override val subStrings: List<MathString> get() = listOf(magnitude, angle)
+    override fun replaceSubString(index: Int, newString: MathString): MathNode {
+        return when (index) {
+            0 -> copy(magnitude = newString)
+            1 -> copy(angle = newString)
+            else -> this
+        }
+    }
+    override fun copy(): MathNode = PolarNode(magnitude.copy(), angle.copy())
+    override fun toString(): String = "($magnitude)∠($angle)"
+}
+
 data class ExponentNode(
     val base: MathString? = null,
     val exponent: MathString = MathString()

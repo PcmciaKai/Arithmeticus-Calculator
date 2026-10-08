@@ -131,6 +131,8 @@ sealed class KeyAction {
     data object Limit : KeyAction()
     /** The imaginary unit i (turns complex numbers on if they are off). */
     data object ImaginaryUnit : KeyAction()
+    /** A complex number in angle notation r∠θ (also turns complex numbers on). */
+    data object Polar : KeyAction()
 }
 
 /**
@@ -429,7 +431,12 @@ fun CalculatorKeypad(
                         isAccent = true,
                         alternates = listOf(alt("∏", KeyAction.Product), alt("lim", KeyAction.Limit))
                     ) { onKeyAction(KeyAction.Sum) }
-                    KeyButton(text = "i", buttonWidth = buttonWidth, isAccent = true) { onKeyAction(KeyAction.ImaginaryUnit) }
+                    KeyButton(
+                        text = "i",
+                        buttonWidth = buttonWidth,
+                        isAccent = true,
+                        alternates = listOf(alt("r∠θ", KeyAction.Polar))
+                    ) { onKeyAction(KeyAction.ImaginaryUnit) }
                     KeyButton(
                         text = "π",
                         buttonWidth = buttonWidth,

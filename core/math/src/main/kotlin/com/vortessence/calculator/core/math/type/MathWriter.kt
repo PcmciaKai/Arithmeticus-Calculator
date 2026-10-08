@@ -33,6 +33,30 @@ class MathWriter(
         return result
     }
 
+    /**
+     * r·e^(iθ), e.g. √2·e^(iπ/4) or 5·e^(i·atan(4/3)), with the sign of θ in front of the i:
+     * e^(−iπ/2). It reads back as the same complex number.
+     */
+    fun writePolar(modulus: Expression, argument: Expression): MathString {
+        val result = MathString()
+        if (modulus != Value.ONE) {
+            val r = writeExpr(modulus)
+            result.appendAll(if (modulus is Additions) MathString(listOf(ParenthesesNode(r))) else r)
+        }
+        val exponent = MathString()
+        val angle = if (argument.isNegative && argument !is Additions) {
+            exponent.append(OperatorNode(MathOp.MINUS))
+            negatedForDisplay(argument)
+        } else {
+            argument
+        }
+        exponent.append(ConstantNode("i"))
+        val angleNodes = writeExpr(angle)
+        exponent.appendAll(if (angle is Additions) MathString(listOf(ParenthesesNode(angleNodes))) else angleNodes)
+        result.append(ExponentNode(MathString(listOf(ConstantNode("e"))), exponent))
+        return result
+    }
+
     /** Writes only a unit, e.g. "m/s²" (without a magnitude). */
     fun writeUnit(unit: Expression): MathString = writeExpr(unit)
 

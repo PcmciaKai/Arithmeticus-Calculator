@@ -114,7 +114,7 @@ class NewFunctionsTest {
         val res = calc(frac(ms(n("1")), ms(n("1"), plus, i)))
         assertEquals(0.5, res.numericValue, 1e-15)
         assertEquals(-0.5, res.numericImaginary, 1e-15)
-        assertEquals(listOf(ResultForm.EXACT, ResultForm.DECIMAL, ResultForm.SCIENTIFIC), ResultFormatter.availableForms(res))
+        assertEquals(listOf(ResultForm.EXACT, ResultForm.DECIMAL, ResultForm.SCIENTIFIC, ResultForm.POLAR), ResultFormatter.availableForms(res))
         assertEquals("0.5 − 0.5i", ResultFormatter.format(res, ResultForm.DECIMAL).toString())
         assertEquals(" − i", ResultFormatter.format(calc(i, pow(n("3"))), ResultForm.DECIMAL).toString())
     }
@@ -304,5 +304,55 @@ class NewFunctionsTest {
     fun rootsOfDifferentNumbersAreCombined() {
         assertResult("3sqrt(2)", calc(sqrt(n("6")), sqrt(n("3"))))
         assertResult("sqrt(6)", calc(sqrt(n("2")), sqrt(n("3"))))
+    }
+
+    private fun polarOf(vararg nodes: MathNode): String = ResultFormatter.format(calc(*nodes), ResultForm.POLAR).toString()
+
+    @Test
+    fun polarResultForm() {
+        assertEquals("sqrt(2)(e)^(i(π)/(4))", polarOf(n("1"), plus, i))
+        assertEquals("2(e)^(i(2π)/(3))", polarOf(minus, n("1"), plus, i, sqrt(n("3"))))
+        assertEquals("2(e)^( − i(π)/(2))", polarOf(minus, n("2"), i))
+        assertEquals("(e)^(i(π)/(2))", polarOf(i))
+        assertEquals("5(e)^(iatan((4)/(3)))", polarOf(n("3"), plus, n("4"), i))
+        assertEquals("5(e)^(i(π − atan((4)/(3))))", polarOf(minus, n("3"), plus, n("4"), i))
+        assertEquals("5(e)^(i(atan((4)/(3)) − π))", polarOf(minus, n("3"), minus, n("4"), i))
+        // Only for complex results
+        assertTrue(ResultForm.POLAR in ResultFormatter.availableForms(calc(n("1"), plus, i)))
+        assertFalse(ResultForm.POLAR in ResultFormatter.availableForms(calc(minus, n("2"))))
+        assertEquals(" − 2", ResultFormatter.format(calc(minus, n("2")), ResultForm.POLAR).toString())
+    }
+
+    @Test
+    fun polarFormReadsBackExactly() {
+        val numbers = listOf(
+            listOf(n("1"), plus, i), listOf(minus, n("2"), i), listOf(n("3"), plus, n("4"), i),
+            listOf(minus, n("3"), plus, n("4"), i), listOf(minus, n("3"), minus, n("4"), i), listOf(minus, n("1"), minus, i)
+        )
+        for (nodes in numbers) {
+            val original = calc(*nodes.toTypedArray())
+            val reread = runBlocking { MathEngine.calculate(original.polar!!, MathContext(complexNumbers = true)) }
+            assertEquals(original.result.toString(), reread.result.toString())
+        }
+    }
+
+    @Test
+    fun trigonometryOfArctangentIsExact() {
+        assertResult("(3)/(5)", calc(f("cos", f("atan", frac(ms(n("4")), ms(n("3")))))))
+        assertResult("(4)/(5)", calc(f("sin", f("atan", frac(ms(n("4")), ms(n("3")))))))
+        assertResult(" − (3)/(5)", calc(f("cos", pi, minus, f("atan", frac(ms(n("4")), ms(n("3")))))))
+    }
+
+    @Test
+    fun angleNotationInput() {
+        fun polar(r: String, vararg angle: MathNode) = PolarNode(ms(n(r)), ms(*angle))
+        assertResult("sqrt(3) + i", calc(polar("2", frac(ms(pi), ms(n("6"))))))
+        assertResult(" − 2", calc(polar("2", pi)))
+        // The angle follows the angle unit
+        val degrees = runBlocking {
+            MathEngine.calculate(ms(polar("2", n("30"))), MathContext(complexNumbers = true, angleUnit = com.vortessence.calculator.core.math.context.AngleUnit.DEGREES))
+        }
+        assertResult("sqrt(3) + i", degrees)
+        assertEquals(listOf(MathIssue.COMPLEX_RESULT), calc(polar("2", pi), complex = false).issues)
     }
 }

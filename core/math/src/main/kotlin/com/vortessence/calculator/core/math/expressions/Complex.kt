@@ -1,5 +1,6 @@
 package com.vortessence.calculator.core.math.expressions
 
+import com.vortessence.calculator.core.math.context.AngleUnit
 import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.context.MathIssue
 import kotlin.math.abs
@@ -124,4 +125,36 @@ internal fun numericComplex(e: Expression): ComplexDouble? {
     if (re.variables().isNotEmpty() || im.variables().isNotEmpty()) return null
     val z = ComplexDouble(re.evaluateNumerically(), im.evaluateNumerically())
     return z.takeIf { it.isFinite }
+}
+
+/**
+ * The modulus r and argument θ of the constant complex number [z] (with z = r·e^(iθ)), both
+ * exact: θ in (−π, π] is a fraction of π where it is one (π/4 for 1 + i), otherwise an
+ * arctangent with the quadrant corrected (atan(4/3) for 3 + 4i). Null if [z] is not a constant
+ * complex number with a nonzero imaginary part.
+ */
+internal fun polarForm(z: Expression, context: MathContext): Pair<Expression, Expression>? {
+    val (re, im) = complexParts(z) ?: return null
+    val value = numericComplex(z) ?: return null
+    if (value.im == 0.0) return null
+    val modulus = AbsoluteValue(z).canonicalize(context)
+    val angle = value.arg
+    val twelfths = angle / (kotlin.math.PI / 12.0)
+    val k = kotlin.math.round(twelfths)
+    val argument = if (abs(twelfths - k) < 1e-9) {
+        Multiplications.of(Value(k.toLong(), 12L), Constant.PI)
+    } else {
+        // atan(b/a) is in (−π/2, π/2); left of the imaginary axis the angle is π − atan|b/a|
+        // or atan|b/a| − π
+        fun atan(x: Expression) = TrigonometricFunction(TrigType.ATAN, x, AngleUnit.RADIANS)
+        val ratio = Multiplications.of(im, Power(re, Value.MINUS_ONE))
+        val magnitude = if (value.im / value.re < 0.0) Multiplications.of(Value.MINUS_ONE, ratio) else ratio
+        when {
+            value.re > 0.0 -> atan(ratio)
+            value.im > 0.0 -> Additions(listOf(Constant.PI, Multiplications.of(Value.MINUS_ONE, atan(magnitude))))
+            else -> Additions(listOf(atan(magnitude), Multiplications.of(Value.MINUS_ONE, Constant.PI)))
+        }
+    }.canonicalize(context)
+    if (context.shouldStop) return null
+    return modulus to argument
 }

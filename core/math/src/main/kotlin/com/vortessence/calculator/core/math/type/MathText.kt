@@ -81,6 +81,7 @@ object MathText {
             // Inside a product or under a power, "1/2x" or "1/2^2" would read differently
             if (isValue(previous) || isValue(next) || next.isPostfix || next is ExponentNode || previous.isOp(MathOp.DIVIDE)) "($fraction)" else fraction
         }
+        is PolarNode -> "(${group(node.magnitude)}∠${group(node.angle)})"
         is MixedFractionNode -> "(${toPlainText(node.whole)} + ${group(node.numerator)}/${group(node.denominator)})"
         is ExponentNode -> (node.base?.let { group(it) } ?: "") + "^" + group(node.exponent)
         is SciExponentNode -> {

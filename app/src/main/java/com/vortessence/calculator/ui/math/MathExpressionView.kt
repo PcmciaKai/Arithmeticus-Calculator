@@ -466,6 +466,11 @@ private fun MathNodeView(
             )
         }
         is FractionNode -> FractionView(node, fontSize, slots)
+        is PolarNode -> Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.centeredMathAxis()) {
+            slots.Slot(child = 0, string = node.magnitude, fontSize = fontSize)
+            Text(text = "∠", fontSize = fontSize, fontWeight = FontWeight.Light, color = accentColor)
+            slots.Slot(child = 1, string = node.angle, fontSize = fontSize)
+        }
         is MixedFractionNode -> Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.centeredMathAxis()) {
             slots.Slot(child = 0, string = node.whole, fontSize = fontSize)
             FractionLayout(node.numerator, 1, node.denominator, 2, fontSize, slots)
