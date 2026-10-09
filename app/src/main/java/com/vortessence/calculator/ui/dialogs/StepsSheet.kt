@@ -10,6 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -94,7 +95,7 @@ private fun StepArrow(step: SolutionStep, color: Color) {
         ) {
             step.rule?.let { RuleText(it.description, it.formula) }
             if (step.chainRule) {
-                if (step.rule?.isIntegral == true) RuleText("Linear argument", "∫ f(ax + b) dx = F(ax + b)/a")
+                if (step.rule?.isIntegral == true) RuleText("Linear argument", "\\int{f(ax + b)}{x} = \\frac{F(ax + b)}{a}")
                 else RuleText("Chain rule", "(f(g))′ = f′(g)·g′")
             }
             step.notes.forEach { NoteLine(it) }
@@ -104,13 +105,21 @@ private fun StepArrow(step: SolutionStep, color: Color) {
 }
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 private fun RuleText(description: String, formula: String?) {
-    Text(
-        text = if (formula == null) description else "$description: $formula",
-        fontSize = 14.sp,
-        fontStyle = FontStyle.Italic,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
+    val color = MaterialTheme.colorScheme.onSurfaceVariant
+    // The formula follows the description, or goes on the next line if there is no room
+    FlowRow(verticalArrangement = Arrangement.Center, itemVerticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = if (formula == null) description else "$description:  ",
+            fontSize = 14.sp,
+            fontStyle = FontStyle.Italic,
+            color = color
+        )
+        if (formula != null) {
+            MathExpressionView(mathString = remember(formula) { ruleFormula(formula) }, fontSize = 15.sp, textColor = color, accentColor = color)
+        }
+    }
 }
 
 /** What the rule needs, e.g. u = x². */
@@ -238,55 +247,58 @@ private val StepRule.description: String
         StepRule.EVALUATE -> "Calculate"
     }
 
-/** The rule in general, as a formula; null where the description says it all. */
-private val StepRule.formula: String?
+/**
+ * The rule in general, as a formula in the notation of [ruleFormula]; null where the
+ * description says it all.
+ */
+internal val StepRule.formula: String?
     get() = when (this) {
         StepRule.CONSTANT -> "c′ = 0"
         StepRule.VARIABLE -> "x′ = 1"
         StepRule.SUM -> "(f ± g)′ = f′ ± g′"
         StepRule.CONSTANT_FACTOR -> "(c·f)′ = c·f′"
         StepRule.PRODUCT -> "(f·g)′ = f′·g + f·g′"
-        StepRule.QUOTIENT -> "(f/g)′ = (f′·g − f·g′)/g²"
-        StepRule.POWER -> "(xⁿ)′ = n·xⁿ⁻¹"
-        StepRule.EXPONENTIAL -> "(aˣ)′ = aˣ·ln(a), (eˣ)′ = eˣ"
-        StepRule.GENERAL_POWER -> "(fᵍ)′ = (e^(g·ln f))′ = fᵍ·(g·ln f)′"
-        StepRule.LOGARITHM -> "(ln x)′ = 1/x, (logₐ x)′ = 1/(x·ln a)"
-        StepRule.CHANGE_OF_BASE -> "log_f(g) = ln g/ln f"
-        StepRule.SINE -> "(sin x)′ = cos x"
-        StepRule.COSINE -> "(cos x)′ = −sin x"
-        StepRule.TANGENT -> "(tan x)′ = 1/cos²x"
-        StepRule.ARCSINE -> "(asin x)′ = 1/√(1 − x²)"
-        StepRule.ARCCOSINE -> "(acos x)′ = −1/√(1 − x²)"
-        StepRule.ARCTANGENT -> "(atan x)′ = 1/(1 + x²)"
-        StepRule.ABSOLUTE_VALUE -> "|x|′ = x/|x|"
-        StepRule.FUNDAMENTAL_THEOREM -> "(∫ₐˣ f(t) dt)′ = f(x)"
-        StepRule.COMBINE_POWERS -> "xᵃ·xᵇ = xᵃ⁺ᵇ"
-        StepRule.DIVIDE_BY_FRACTION -> "1/(a/b) = b/a"
-        StepRule.REWRITE_AS_POWER -> "ⁿ√x = x^(1/n), 1/xⁿ = x⁻ⁿ"
-        StepRule.CHAIN_RULE -> "(f(g(x)))′ = f′(u)·g′(x) with u = g(x)"
-        StepRule.POWER_AS_ROOT -> "x^(1/n) = ⁿ√x"
-        StepRule.POWER_AS_FRACTION -> "x⁻ⁿ = 1/xⁿ"
-        StepRule.POWER_OF_POWER -> "(xᵃ)ᵇ = xᵃᵇ"
-        StepRule.POWER_OF_PRODUCT -> "(a·b)ⁿ = aⁿ·bⁿ"
+        StepRule.QUOTIENT -> "(\\frac{f}{g})′ = \\frac{f′·g − f·g′}{g^2}"
+        StepRule.POWER -> "(x^n)′ = n·x^{n − 1}"
+        StepRule.EXPONENTIAL -> "(e^x)′ = e^x, (a^x)′ = a^x·ln(a)"
+        StepRule.GENERAL_POWER -> "(f^g)′ = (e^{g·ln(f)})′ = f^g·(g·ln(f))′"
+        StepRule.LOGARITHM -> "(ln(x))′ = \\frac{1}{x}, (\\log{a}{x})′ = \\frac{1}{x·ln(a)}"
+        StepRule.CHANGE_OF_BASE -> "\\log{f}{g} = \\frac{ln(g)}{ln(f)}"
+        StepRule.SINE -> "(sin(x))′ = cos(x)"
+        StepRule.COSINE -> "(cos(x))′ = −sin(x)"
+        StepRule.TANGENT -> "(tan(x))′ = \\frac{1}{cos(x)^2}"
+        StepRule.ARCSINE -> "(asin(x))′ = \\frac{1}{\\sqrt{1 − x^2}}"
+        StepRule.ARCCOSINE -> "(acos(x))′ = −\\frac{1}{\\sqrt{1 − x^2}}"
+        StepRule.ARCTANGENT -> "(atan(x))′ = \\frac{1}{1 + x^2}"
+        StepRule.ABSOLUTE_VALUE -> "|x|′ = \\frac{x}{|x|}"
+        StepRule.FUNDAMENTAL_THEOREM -> "(\\intab{a}{x}{f(t)}{t})′ = f(x)"
+        StepRule.COMBINE_POWERS -> "x^a·x^b = x^{a + b}"
+        StepRule.DIVIDE_BY_FRACTION -> "\\frac{1}{\\frac{a}{b}} = \\frac{b}{a}"
+        StepRule.REWRITE_AS_POWER -> "\\sqrt[n]{x} = x^{\\frac{1}{n}}, \\frac{1}{x^n} = x^{−n}"
+        StepRule.CHAIN_RULE -> "(f(g(x)))′ = f′(u)·g′(x)\\text{  with  }u = g(x)"
+        StepRule.POWER_AS_ROOT -> "x^{\\frac{1}{n}} = \\sqrt[n]{x}"
+        StepRule.POWER_AS_FRACTION -> "x^{−n} = \\frac{1}{x^n}"
+        StepRule.POWER_OF_POWER -> "(x^a)^b = x^{a·b}"
+        StepRule.POWER_OF_PRODUCT -> "(a·b)^n = a^n·b^n"
         StepRule.EXPAND -> "(a + b)·c = a·c + b·c"
-        StepRule.EXPAND_POWER -> "(a + b)² = a² + 2ab + b²"
-        StepRule.COMBINE_FRACTIONS -> "a/c + b/c = (a + b)/c"
-        StepRule.CANCEL -> "x/x = 1"
+        StepRule.EXPAND_POWER -> "(a + b)^2 = a^2 + 2ab + b^2"
+        StepRule.COMBINE_FRACTIONS -> "\\frac{a}{c} + \\frac{b}{c} = \\frac{a + b}{c}"
+        StepRule.CANCEL -> "\\frac{x}{x} = 1"
         StepRule.DISTRIBUTE -> "c·(a + b) = c·a + c·b"
-        StepRule.INTEGRAL_CONSTANT -> "∫ c dx = c·x"
-        StepRule.INTEGRAL_SUM -> "∫ (f ± g) dx = ∫ f dx ± ∫ g dx"
-        StepRule.INTEGRAL_CONSTANT_FACTOR -> "∫ c·f dx = c·∫ f dx"
-        StepRule.INTEGRAL_POWER -> "∫ xⁿ dx = xⁿ⁺¹/(n + 1)"
-        StepRule.INTEGRAL_RECIPROCAL -> "∫ 1/x dx = ln|x|"
-        StepRule.INTEGRAL_EXPONENTIAL -> "∫ eˣ dx = eˣ, ∫ aˣ dx = aˣ/ln(a)"
-        StepRule.INTEGRAL_SINE -> "∫ sin x dx = −cos x"
-        StepRule.INTEGRAL_COSINE -> "∫ cos x dx = sin x"
-        StepRule.INTEGRAL_TANGENT -> "∫ tan x dx = −ln|cos x|"
-        StepRule.INTEGRAL_LOGARITHM -> "∫ ln x dx = x·ln x − x"
-        StepRule.SUBSTITUTION -> "∫ f(g(x))·g′(x) dx = ∫ f(u) du"
-        StepRule.BY_PARTS -> "∫ u dv = u·v − ∫ v du"
-        StepRule.ANTIDERIVATIVE -> "∫ₐᵇ f dx = [F]ₐᵇ"
-        StepRule.BOUNDS -> "[F]ₐᵇ = F(b) − F(a)"
+        StepRule.INTEGRAL_CONSTANT -> "\\int{c}{x} = c·x"
+        StepRule.INTEGRAL_SUM -> "\\int{f ± g}{x} = \\int{f}{x} ± \\int{g}{x}"
+        StepRule.INTEGRAL_CONSTANT_FACTOR -> "\\int{c·f}{x} = c·\\int{f}{x}"
+        StepRule.INTEGRAL_POWER -> "\\int{x^n}{x} = \\frac{x^{n + 1}}{n + 1}"
+        StepRule.INTEGRAL_RECIPROCAL -> "\\int{\\frac{1}{x}}{x} = ln(|x|)"
+        StepRule.INTEGRAL_EXPONENTIAL -> "\\int{e^x}{x} = e^x, \\int{a^x}{x} = \\frac{a^x}{ln(a)}"
+        StepRule.INTEGRAL_SINE -> "\\int{sin(x)}{x} = −cos(x)"
+        StepRule.INTEGRAL_COSINE -> "\\int{cos(x)}{x} = sin(x)"
+        StepRule.INTEGRAL_TANGENT -> "\\int{tan(x)}{x} = −ln(|cos(x)|)"
+        StepRule.INTEGRAL_LOGARITHM -> "\\int{ln(x)}{x} = x·ln(x) − x"
+        StepRule.SUBSTITUTION -> "\\int{f(g(x))·g′(x)}{x} = \\int{f(u)}{u}"
+        StepRule.BY_PARTS -> "\\int{u}{v} = u·v − \\int{v}{u}"
+        StepRule.ANTIDERIVATIVE -> "\\intab{a}{b}{f}{x} = \\eval{F}{a}{b}"
+        StepRule.BOUNDS -> "\\eval{F}{a}{b} = F(b) − F(a)"
         StepRule.INTEGRAL_TABLE, StepRule.EXPAND_INTEGRAND, StepRule.BACK_SUBSTITUTION,
         StepRule.MULTIPLY_NUMBERS, StepRule.NUMBER_POWER, StepRule.ADD_NUMBERS, StepRule.COMBINE_LIKE_TERMS,
         StepRule.SIMPLIFY, StepRule.SUBSTITUTE, StepRule.EVALUATE -> null

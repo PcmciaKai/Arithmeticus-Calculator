@@ -213,7 +213,7 @@ private class ExpressionRow(
                 val isUnaryMinus = node is OperatorNode && node.op == MathOp.MINUS &&
                     (index == start || (mathString.nodes[index - 1] as? OperatorNode)?.op?.isPostfix == false)
                 // −½: a gap, so that the minus does not run into the fraction bar
-                val isSignOfFraction = isUnaryMinus && mathString.nodes.getOrNull(index + 1).let {
+                val isSignOfFraction = isUnaryMinus && !LocalInExponent.current && mathString.nodes.getOrNull(index + 1).let {
                     it is FractionNode || (it is HighlightNode && it.content.nodes.firstOrNull() is FractionNode)
                 }
 
@@ -523,7 +523,7 @@ private fun MathNodeView(
                 color = textColor
             )
         }
-        is FractionNode -> FractionView(node, fontSize, slots)
+        is FractionNode -> if (LocalInExponent.current) InlineFractionView(node, fontSize, slots) else FractionView(node, fontSize, slots)
         is PolarNode -> Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.centeredMathAxis()) {
             slots.Slot(child = 0, string = node.magnitude, fontSize = fontSize)
             Text(text = "∠", fontSize = fontSize, fontWeight = FontWeight.Light, color = accentColor)
@@ -538,12 +538,14 @@ private fun MathNodeView(
             // Part of the number before it: no spacing, same color as digits
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.centeredMathAxis()) {
                 Text(text = "×10", fontSize = fontSize, fontWeight = FontWeight.Normal, color = textColor)
-                slots.Slot(
-                    child = 0,
-                    string = node.exponent,
-                    fontSize = (fontSize.value * 0.62f).sp,
-                    modifier = Modifier.padding(bottom = (fontSize.value * 0.56f).dp)
-                )
+                CompositionLocalProvider(LocalInExponent provides true) {
+                    slots.Slot(
+                        child = 0,
+                        string = node.exponent,
+                        fontSize = (fontSize.value * 0.62f).sp,
+                        modifier = Modifier.padding(bottom = (fontSize.value * 0.56f).dp)
+                    )
+                }
             }
         }
         is RadicalNode -> RadicalView(node, fontSize, slots)
@@ -592,6 +594,33 @@ private fun MathNodeView(
 
 /** Below this size (sp), text is small, e.g. in an exponent, and needs heavier strokes. */
 private const val SMALL_TEXT_SP = 20f
+
+/**
+ * Whether the content is in an exponent, where fractions are written inline (x^(1/2)): stacked,
+ * they would be too small to read.
+ */
+private val LocalInExponent = compositionLocalOf { false }
+
+/**
+ * Numerator/denominator on one line, for an exponent; a numerator or denominator of several
+ * parts in parentheses: x^((n + 1)/2).
+ */
+@Composable
+private fun InlineFractionView(node: FractionNode, fontSize: TextUnit, slots: SlotContext) {
+    @Composable
+    fun Part(child: Int, string: MathString) = slots.Slot(
+        child = child,
+        string = string,
+        fontSize = fontSize,
+        modifier = if (MathText.isGroupedBase(string)) Modifier.stretchyParentheses(slots.textColor, fontSize, isFlat(string)) else Modifier,
+        verticalPadding = 0.dp
+    )
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.centeredMathAxis()) {
+        Part(0, node.numerator)
+        Text(text = "/", fontSize = fontSize, fontWeight = FontWeight.Normal, color = slots.textColor)
+        Part(1, node.denominator)
+    }
+}
 
 /** Numerator over denominator; the math axis runs through the middle of the bar. */
 @Composable
@@ -677,12 +706,15 @@ private fun ExponentView(node: ExponentNode, fontSize: TextUnit, slots: SlotCont
                     slots.Slot(child = 0, string = base, fontSize = fontSize, verticalPadding = 0.dp)
                 }
             }
-            slots.Slot(
-                child = if (base != null) 1 else 0,
-                string = node.exponent,
-                fontSize = expFontSize,
-                verticalPadding = 0.dp
-            )
+            // Fractions in the exponent are written inline, x^(1/2)
+            CompositionLocalProvider(LocalInExponent provides true) {
+                slots.Slot(
+                    child = if (base != null) 1 else 0,
+                    string = node.exponent,
+                    fontSize = expFontSize,
+                    verticalPadding = 0.dp
+                )
+            }
         }
     ) { measurables, constraints ->
         val em = fontSize.toPx()
@@ -920,8 +952,9 @@ private fun HighlightView(node: HighlightNode, fontSize: TextUnit, slots: SlotCo
             fontSize = fontSize,
             modifier = Modifier
                 .border(1.5.dp, color, RoundedCornerShape(6.dp))
-                .padding(horizontal = 3.dp),
-            verticalPadding = 1.dp
+                .padding(horizontal = max(3f, fontSize.value * 0.2f).dp),
+            // Room for the top line of a root, which would otherwise run along the border
+            verticalPadding = max(4f, fontSize.value * 0.25f).dp
         )
     } else {
         slots.Slot(child = 0, string = node.content, fontSize = fontSize, verticalPadding = 0.dp, textColor = color, accentColor = color)
