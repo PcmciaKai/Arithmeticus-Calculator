@@ -231,16 +231,61 @@ internal class Integrator(private val context: MathContext) {
      */
     private fun bySubstitution(f: Expression, v: Variable, depth: Int): Expression? {
         val w = Variable("_w$depth")
-        for (u in innerExpressions(f, v)) {
+        for (u in substitutionCandidates(f, v)) {
             val du = canonical(Differentiator.derivative(u, v) ?: continue) ?: continue
             if (du.isZero) continue
             val quotient = canonical(Multiplications(listOf(f, inverse(du)))) ?: continue
-            val inW = quotient.substitute(u, w)
+            val inW = inTermsOf(quotient, u, w, v)
             if (inW.containsVariable(v)) continue
             val g = integrate(inW, w, depth + 1) ?: continue
             return g.substituteVariables(mapOf(w to u))
         }
         return null
+    }
+
+    /**
+     * The candidates for u: arguments of functions, bases and exponents of powers, innermost
+     * first (u = x² rather than u = e^(x²) for x·e^(x²), as one would choose by hand), and then
+     * powers of [v] that a higher power in [f] is a power of, the highest first, e.g. x² for
+     * x/(1 + x⁴), where x⁴ = (x²)² (u = x² does not appear in it as it is).
+     */
+    internal fun substitutionCandidates(f: Expression, v: Variable): List<Expression> {
+        val inner = innerExpressions(f, v)
+        // Deeper ones first; side by side (sin(x)·cos(x)) in the order they appear
+        val result = LinkedHashSet(inner.sortedByDescending { depthIn(f, it) })
+        val exponents = inner.mapNotNull { e -> integerExponentOf(e, v) }.distinct()
+        for (n in exponents.sortedDescending()) {
+            for (k in (n - 1) downTo 2) if (n % k == 0) result.add(Power(v, Value(k.toLong())))
+        }
+        return result.toList()
+    }
+
+    /**
+     * [e] written in [w] = [u]: u replaced by w, and for u = vᵏ also each power v^(n·k) by wⁿ,
+     * e.g. x⁴ by w² for u = x².
+     */
+    internal fun inTermsOf(e: Expression, u: Expression, w: Variable, v: Variable): Expression {
+        val replaced = e.substitute(u, w)
+        val k = integerExponentOf(u, v) ?: return replaced
+        return replaced.transform { part ->
+            val n = integerExponentOf(part, v)
+            if (n != null && n % k == 0) Power(w, Value((n / k).toLong())) else part
+        }
+    }
+
+    /** How deep [part] first appears in [e] (0 for [e] itself), or −1 if it does not. */
+    private fun depthIn(e: Expression, part: Expression): Int {
+        if (e == part) return 0
+        val depths = e.children.map { depthIn(it, part) }.filter { it >= 0 }
+        return if (depths.isEmpty()) -1 else depths.min() + 1
+    }
+
+    /** n for [e] = vⁿ with a whole number n ≥ 2, otherwise null. */
+    private fun integerExponentOf(e: Expression, v: Variable): Int? {
+        if (e !is Power || e.base != v) return null
+        val n = (e.exponent as? Value)?.rational ?: return null
+        if (n.isFractional || n.isNegative || n.numerator.value.bitLength() > 16) return null
+        return n.numerator.value.toInt().takeIf { it >= 2 }
     }
 
     /** The candidates for u: arguments of functions, bases and exponents of powers. */

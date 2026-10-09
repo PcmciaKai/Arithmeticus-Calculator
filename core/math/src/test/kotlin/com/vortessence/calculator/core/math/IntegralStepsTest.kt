@@ -57,6 +57,17 @@ class IntegralStepsTest {
     }
 
     @Test
+    fun substitutionChosenAsByHand() {
+        // u = x² for x/(1 + x⁴), although x² does not appear in it
+        val steps = solution(integral(FractionNode(ms(x), ms(n("1"), plus, x, pow(n("4"))))))!!.steps
+        assertEquals(listOf("u = (x)^(2)", "du = 2x dx"), steps.first { it.rule == StepRule.SUBSTITUTION }.notes.map { it.toString() })
+        assertEquals("(atan((x)^(2)))/(2) + C", steps.last().expression.toString().replace(Regex("[\\[\\]{}]"), ""))
+        // The inner function, x², not the whole e^(x²)
+        val exponential = solution(integral(x, e, pow(x, pow(n("2")))))!!.steps
+        assertEquals("u = (x)^(2)", exponential.first { it.rule == StepRule.SUBSTITUTION }.notes.first().toString())
+    }
+
+    @Test
     fun integrationByParts() {
         val steps = solution(integral(x, e, pow(x)))!!.steps
         assertEquals(StepRule.BY_PARTS, steps[1].rule)

@@ -293,11 +293,11 @@ internal object IntegralSteps {
             val fc = canonical(f) ?: return null
             val name = listOf("u", "t", "w", "z").firstOrNull { Variable(it) != v && Variable(it) !in fc.variables() } ?: return null
             val w = Variable(name)
-            for (u in innerExpressions(fc)) {
+            for (u in integrator.substitutionCandidates(fc, v)) {
                 val du = canonical(Differentiator.derivative(u, v) ?: continue) ?: continue
                 if (du.isZero) continue
                 val quotient = canonical(Multiplications(fc, Power(du, Value.MINUS_ONE))) ?: continue
-                val inW = quotient.substitute(u, w)
+                val inW = integrator.inTermsOf(quotient, u, w, v)
                 if (inW.containsVariable(v) || integrator.antiderivative(inW, w) == null) continue
                 val substituted = Antiderivative(inW, w)
                 return Match(
@@ -309,18 +309,6 @@ internal object IntegralSteps {
                 )
             }
             return null
-        }
-
-        /** The candidates for u: arguments of functions, bases and exponents of powers. */
-        private fun innerExpressions(e: Expression): List<Expression> {
-            val result = LinkedHashSet<Expression>()
-            val queue = ArrayDeque(listOf(e))
-            while (queue.isNotEmpty()) {
-                val part = queue.removeFirst()
-                if (part != e && part != v && part.containsVariable(v) && part !is Value) result.add(part)
-                queue.addAll(part.children)
-            }
-            return result.toList()
         }
 
         /**

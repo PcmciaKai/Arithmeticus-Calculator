@@ -33,6 +33,16 @@ class IndefiniteIntegralTest {
     private fun assertNotFound(res: CalculationResult) = assertEquals(listOf(MathIssue.CANT_INTEGRATE), res.issues)
 
     @Test
+    fun substitutionOfAPowerThatDoesNotAppearAsItIs() {
+        // u = x², where x⁴ = (x²)²
+        assertResult("(atan((x)^(2)))/(2) + C", calc(i(frac(ms(x), ms(n("1"), op(MathOp.PLUS), x, pow(n("4")))))))
+        assertResult("(asin((x)^(2)))/(2) + C",
+            calc(i(frac(ms(x), ms(RadicalNode(null, ms(n("1"), op(MathOp.MINUS), x, pow(n("4")))))))))
+        // u = x⁴ rather than x²
+        assertResult("(atan((x)^(4)))/(4) + C", calc(i(frac(ms(x, pow(n("3"))), ms(n("1"), op(MathOp.PLUS), x, pow(n("8")))))))
+    }
+
+    @Test
     fun polynomialsAndPowers() {
         assertResult("((x)^(3))/(3) + C", calc(i(x, pow(n("2")))))
         assertResult("(x)^(3) + (x)^(2) + x + C", calc(i(n("3"), x, pow(n("2")), op(MathOp.PLUS), n("2"), x, op(MathOp.PLUS), n("1"))))
