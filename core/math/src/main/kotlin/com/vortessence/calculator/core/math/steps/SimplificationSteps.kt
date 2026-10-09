@@ -6,12 +6,14 @@ import com.vortessence.calculator.core.math.expressions.Expression
 import com.vortessence.calculator.core.math.expressions.Multiplications
 import com.vortessence.calculator.core.math.expressions.Power
 import com.vortessence.calculator.core.math.expressions.Value
+import com.vortessence.calculator.core.math.numbers.BigInt
+import com.vortessence.calculator.core.math.numbers.Rational
 
 /**
  * Simplifications as steps of a solution, one at a time, as they would be written by hand:
  * powers of numbers (3² = 9), multiplying numbers (2·2x = 4x), powers of powers and of products
  * ((x²)³ = x⁶, (2x)³ = 2³x³), combining powers (x·x² = x³), cancelling (x·1/x = 1), combining
- * like terms (2x + 3x = 5x), adding numbers, fractions with the same denominator
+ * like terms (2x + 3x = 5x), taking away a sum (2x + 3 − (2x + 3) = 0), adding numbers, fractions with the same denominator
  * ((x + 1)/x − 1/x = (x + 1 − 1)/x) and multiplying out (−(x + 1) = −x − 1,
  * (x + 1)(x − 1) = x² − x + x − 1). Multiplying out comes last, so that fractions are combined
  * rather than split.
@@ -31,11 +33,13 @@ internal object SimplificationSteps {
         val powers = pathsOf(e) { it is Power }
         val products = pathsOf(e) { it is Multiplications }.map { factors(at(e, it), it) }
         val sums = pathsOf(e) { it is Additions }.map { terms(at(e, it), it) }
-        return powers.firstNotNullOfOrNull { numberPower(at(e, it), it, context) }
+        return products.firstNotNullOfOrNull { divideByNegativeNumber(it, context) }
+            ?: powers.firstNotNullOfOrNull { numberPower(at(e, it), it, context) }
             ?: products.firstNotNullOfOrNull { multiplyNumbers(it, context) }
             ?: powers.firstNotNullOfOrNull { powerOfPower(at(e, it), it, context) }
             ?: powers.firstNotNullOfOrNull { powerOfProduct(at(e, it), it) }
             ?: products.firstNotNullOfOrNull { combinePowers(it, context) }
+            ?: sums.firstNotNullOfOrNull { subtractSameSum(it, context) }
             ?: sums.firstNotNullOfOrNull { combineLikeTerms(it, context) }
             ?: sums.firstNotNullOfOrNull { addNumbers(it, context) }
             ?: sums.firstNotNullOfOrNull { combineFractions(it, context) }
@@ -90,18 +94,78 @@ internal object SimplificationSteps {
         val power = unmarked(e) as? Power ?: return null
         if (power.exponent == Value.ZERO) return Match(StepRule.NUMBER_POWER, mapOf(path to Value.ONE), power, Value.ONE)
         if (power.exponent == Value.ONE) return Match(StepRule.NUMBER_POWER, mapOf(path to power.base), power, power.base)
+        // √9 = 3, when the root is a whole or fractional number (√2 stays)
+        if (isNumber(power.base) && !power.base.isNegative && (power.exponent as? Value)?.rational?.isFractional == true) {
+            val root = canonical(power, context).takeIf { isNumber(it) } ?: return null
+            return Match(StepRule.ROOT_OF_NUMBER, mapOf(path to root), power, root)
+        }
         if (!isNumber(power.base) || !isInteger(power.exponent)) return null
         val value = canonical(power, context).takeIf { isNumber(it) } ?: return null
         val isDivision = power.exponent == Value.MINUS_ONE && (power.base as Value).rational?.isFractional == true
         return Match(if (isDivision) StepRule.DIVIDE_BY_FRACTION else StepRule.NUMBER_POWER, mapOf(path to value), power, value)
     }
 
+    /**
+     * −3y ÷ (−3) = y: a number divided by a negative number is divided as it is written, rather
+     * than first turning the division into the factor −⅓.
+     */
+    private fun divideByNegativeNumber(factors: List<Part>, context: MathContext): Match? {
+        val divisor = factors.firstOrNull { part ->
+            val power = part.expression as? Power
+            power != null && power.exponent == Value.MINUS_ONE && isInteger(power.base) && (power.base as Value).isNegative
+        } ?: return null
+        val numbers = factors.filter { isNumber(it.expression) }
+        if (numbers.isEmpty()) return null
+        val parts = numbers + divisor
+        val product = Multiplications(parts.map { it.expression })
+        return merge(StepRule.DIVIDE_NUMBERS, parts, product, canonical(product, context), Value.ONE)
+    }
+
     /** 2·3 = 6. A factor −1 is the sign and stays in front: −2·3x = −6x. */
     private fun multiplyNumbers(factors: List<Part>, context: MathContext): Match? {
-        val numbers = factors.filter { isNumber(it.expression) && it.expression != Value.MINUS_ONE }
+        // The sign is multiplied in only where there is nothing but numbers: −1·4 = −4
+        val onlyNumbers = factors.all { isNumber(it.expression) }
+        val numbers = factors.filter { isNumber(it.expression) && (onlyNumbers || it.expression != Value.MINUS_ONE) }
         if (numbers.size < 2) return null
         val product = Multiplications(numbers.map { it.expression })
-        return merge(StepRule.MULTIPLY_NUMBERS, numbers, product, canonical(product, context), Value.ONE)
+        val result = canonical(product, context)
+        // 3·1 = 3 is shown with its 1
+        val written: Expression = if (numbers.any { it.expression == Value.ONE }) WrittenOut(numbers.map { it.expression }) else product
+        return merge(productRule(numbers.mapNotNull { (it.expression as Value).rational }, result), numbers, written, result, Value.ONE)
+    }
+
+    /**
+     * What multiplying the numbers [factors] into [result] is when written down: with fractions
+     * among them dividing (4/2 = 2) or reducing a fraction (4/6 = 2/3), otherwise multiplying.
+     */
+    private fun productRule(factors: List<Rational>, result: Expression): StepRule {
+        if (factors.none { it.isFractional }) return StepRule.MULTIPLY_NUMBERS
+        if ((result as? Value)?.rational?.isFractional == false) return StepRule.DIVIDE_NUMBERS
+        val numerator = factors.fold(BigInt.ONE) { p, f -> p * f.numerator }
+        val denominator = factors.fold(BigInt.ONE) { p, f -> p * f.denominator }
+        return if (factors.size == 2 && numerator.gcd(denominator) != BigInt.ONE) StepRule.REDUCE_FRACTION else StepRule.MULTIPLY_NUMBERS
+    }
+
+    /**
+     * 2x + 3 − (2x + 3) = 0: a sum taken away from a side that contains all of its terms, in
+     * one step rather than by multiplying out first.
+     */
+    private fun subtractSameSum(terms: List<Part>, context: MathContext): Match? {
+        for (subtracted in terms) {
+            val product = subtracted.expression as? Multiplications ?: continue
+            if (product.operands.size != 2 || product.operands[0] != Value.MINUS_ONE) continue
+            val sum = product.operands[1] as? Additions ?: continue
+            val others = terms.filter { it !== subtracted }.toMutableList()
+            val same = sum.operands.map { term ->
+                val part = others.firstOrNull { canonical(it.expression, context) == canonical(term, context) } ?: return@map null
+                others.remove(part)
+                part
+            }
+            if (same.any { it == null }) continue
+            val parts = same.filterNotNull() + subtracted
+            return merge(StepRule.SUBTRACT_SAME, parts, Additions(parts.map { it.expression }), Value.ZERO, Value.ZERO)
+        }
+        return null
     }
 
     /** (x²)³ = x⁶, √(x²) = x */
@@ -226,6 +290,13 @@ internal object SimplificationSteps {
         val numbers = terms.filter { isNumber(it.expression) }
         if (numbers.size < 2) return null
         val sum = Additions(numbers.map { it.expression })
-        return merge(StepRule.ADD_NUMBERS, numbers, sum, canonical(sum, context), Value.ZERO)
+        // Written with their signs: 5 − 1 subtracts, −1 + 5 adds
+        val subtracted = numbers.drop(1).count { it.expression.isNegative }
+        val rule = when (subtracted) {
+            0 -> StepRule.ADD_NUMBERS
+            numbers.size - 1 -> StepRule.SUBTRACT_NUMBERS
+            else -> StepRule.ADD_AND_SUBTRACT_NUMBERS
+        }
+        return merge(rule, numbers, sum, canonical(sum, context), Value.ZERO)
     }
 }

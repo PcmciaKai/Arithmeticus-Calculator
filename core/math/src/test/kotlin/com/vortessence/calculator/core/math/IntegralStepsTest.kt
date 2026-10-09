@@ -30,7 +30,7 @@ class IntegralStepsTest {
     fun sumConstantFactorAndTableIntegrals() {
         val steps = solution(integral(n("3"), x, pow(n("2")), plus, f("cos", x)))!!.steps
         assertEquals(
-            listOf(StepRule.INTEGRAL_SUM, StepRule.INTEGRAL_CONSTANT_FACTOR, StepRule.INTEGRAL_POWER, StepRule.INTEGRAL_COSINE, StepRule.MULTIPLY_NUMBERS),
+            listOf(StepRule.INTEGRAL_SUM, StepRule.INTEGRAL_CONSTANT_FACTOR, StepRule.INTEGRAL_POWER, StepRule.INTEGRAL_COSINE, StepRule.DIVIDE_NUMBERS),
             steps.drop(1).map { it.rule }
         )
         assertEquals("int ((x)^(2)) dx = ((x)^(3))/(3)", steps[3].change.let { "${it!!.before} = ${it.after}" })

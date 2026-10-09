@@ -1,7 +1,6 @@
 package com.vortessence.calculator.ui.dialogs
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -13,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -67,7 +67,7 @@ fun StepsSheet(state: StepsState, onDismiss: () -> Unit) {
                         if (index == solution.steps.lastIndex && index > 0) {
                             ResultLine(step.expression)
                         } else {
-                            ScrollingMath(step.expression, fontSize = 24.sp)
+                            ExpressionLine(step, highlightColor(index + 1))
                         }
                     }
                 }
@@ -79,28 +79,30 @@ fun StepsSheet(state: StepsState, onDismiss: () -> Unit) {
 /** A downward arrow in [color], next to what the step does. */
 @Composable
 private fun StepArrow(step: SolutionStep, color: Color) {
-    Row(modifier = Modifier.height(IntrinsicSize.Min).padding(vertical = 4.dp)) {
-        Canvas(modifier = Modifier.width(24.dp).fillMaxHeight()) {
-            val x = size.width / 2
-            val stroke = 2.dp.toPx()
-            val head = 6.dp.toPx()
-            val bottom = size.height - stroke
-            drawLine(color, Offset(x, 0f), Offset(x, bottom), stroke, StrokeCap.Round)
-            drawLine(color, Offset(x - head, bottom - head), Offset(x, bottom), stroke, StrokeCap.Round)
-            drawLine(color, Offset(x + head, bottom - head), Offset(x, bottom), stroke, StrokeCap.Round)
-        }
-        Column(
-            modifier = Modifier.padding(start = 12.dp, top = 8.dp, bottom = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            step.rule?.let { RuleText(it.description, it.formula) }
-            if (step.chainRule) {
-                if (step.rule?.isIntegral == true) RuleText("Linear argument", "\\int{f(ax + b)}{x} = \\frac{F(ax + b)}{a}")
-                else RuleText("Chain rule", "(f(g))′ = f′(g)·g′")
+    // The arrow is drawn behind the column, so the column keeps its natural height (measuring it
+    // in advance, as for a Canvas beside it, cuts off tall lines such as the discriminant)
+    Column(
+        modifier = Modifier
+            .padding(vertical = 4.dp)
+            .drawBehind {
+                val x = 12.dp.toPx()
+                val stroke = 2.dp.toPx()
+                val head = 6.dp.toPx()
+                val bottom = size.height - stroke
+                drawLine(color, Offset(x, 0f), Offset(x, bottom), stroke, StrokeCap.Round)
+                drawLine(color, Offset(x - head, bottom - head), Offset(x, bottom), stroke, StrokeCap.Round)
+                drawLine(color, Offset(x + head, bottom - head), Offset(x, bottom), stroke, StrokeCap.Round)
             }
-            step.notes.forEach { NoteLine(it) }
-            step.change?.let { ChangeLine(it) }
+            .padding(start = 36.dp, top = 8.dp, bottom = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        step.rule?.let { RuleText(it.description, it.formula) }
+        if (step.chainRule) {
+            if (step.rule?.isIntegral == true) RuleText("Linear argument", "\\int{f(ax + b)}{x} = \\frac{F(ax + b)}{a}")
+            else RuleText("Chain rule", "(f(g))′ = f′(g)·g′")
         }
+        step.notes.forEach { NoteLine(it) }
+        step.change?.let { ChangeLine(it) }
     }
 }
 
@@ -171,6 +173,23 @@ private fun withoutHighlights(math: MathString): MathString = MathString(math.no
     }
 })
 
+/**
+ * A step's expression and, for an equation, what the next step does to both sides after a bar
+ * in that step's [color]: 3x + 5 = 2x − 1 | − 2x.
+ */
+@Composable
+private fun ExpressionLine(step: SolutionStep, color: Color) {
+    val operation = step.operation ?: return ScrollingMath(step.expression, fontSize = 24.sp)
+    Row(
+        modifier = Modifier.horizontalScroll(rememberScrollState()),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        MathExpressionView(mathString = step.expression, fontSize = 24.sp, textColor = MaterialTheme.colorScheme.onBackground)
+        Text("   |  ", fontSize = 24.sp, fontWeight = FontWeight.Light, color = color)
+        MathExpressionView(mathString = operation, fontSize = 22.sp, textColor = color, accentColor = color)
+    }
+}
+
 /** Long expressions scroll instead of being squeezed. */
 @Composable
 private fun ScrollingMath(math: MathString, fontSize: androidx.compose.ui.unit.TextUnit) {
@@ -209,6 +228,8 @@ private val StepRule.description: String
         StepRule.ABSOLUTE_VALUE -> "Differentiate the absolute value"
         StepRule.FUNDAMENTAL_THEOREM -> "Apply the fundamental theorem of calculus"
         StepRule.MULTIPLY_NUMBERS -> "Multiply numbers"
+        StepRule.DIVIDE_NUMBERS -> "Divide numbers"
+        StepRule.REDUCE_FRACTION -> "Reduce the fraction"
         StepRule.NUMBER_POWER -> "Calculate the power"
         StepRule.DIVIDE_BY_FRACTION -> "Divide by the fraction"
         StepRule.REWRITE_AS_POWER -> "Write as a power"
@@ -221,6 +242,9 @@ private val StepRule.description: String
         StepRule.EXPAND_POWER -> "Multiply out the power"
         StepRule.COMBINE_FRACTIONS -> "Combine the fractions"
         StepRule.ADD_NUMBERS -> "Add numbers"
+        StepRule.SUBTRACT_NUMBERS -> "Subtract numbers"
+        StepRule.ADD_AND_SUBTRACT_NUMBERS -> "Add and subtract numbers"
+        StepRule.SUBTRACT_SAME -> "Subtract"
         StepRule.COMBINE_POWERS -> "Add the exponents"
         StepRule.CANCEL -> "Cancel"
         StepRule.DISTRIBUTE -> "Multiply out"
@@ -242,6 +266,24 @@ private val StepRule.description: String
         StepRule.BY_PARTS -> "Integrate by parts"
         StepRule.ANTIDERIVATIVE -> "Find an antiderivative F"
         StepRule.BOUNDS -> "Insert the bounds"
+        StepRule.ADD_TO_BOTH_SIDES -> "Add to both sides"
+        StepRule.SUBTRACT_FROM_BOTH_SIDES -> "Subtract from both sides"
+        StepRule.MULTIPLY_BOTH_SIDES -> "Multiply both sides"
+        StepRule.DIVIDE_BOTH_SIDES -> "Divide both sides"
+        StepRule.SWAP_SIDES -> "Swap the sides"
+        StepRule.SQUARE_ROOT_BOTH_SIDES -> "Take the square root of both sides"
+        StepRule.FACTOR_OUT -> "Factor out x"
+        StepRule.ZERO_PRODUCT -> "A product is zero if one of its factors is zero"
+        StepRule.QUADRATIC_FORMULA -> "Apply the quadratic formula"
+        StepRule.ROOT_OF_NUMBER -> "Calculate the root"
+        StepRule.SOLVE_FOR -> "Solve one of the equations for a variable"
+        StepRule.SUBSTITUTE_SOLUTION -> "Write it into the other equations"
+        StepRule.MULTIPLY_EQUATIONS -> "Multiply the equations so that a variable has the same coefficient"
+        StepRule.ADD_EQUATIONS -> "Add the equations"
+        StepRule.SUBTRACT_EQUATIONS -> "Subtract the equations"
+        StepRule.INSERT_VALUE -> "Insert the value"
+        StepRule.COLLECT_SOLUTION -> "The solution of the system"
+        StepRule.IDENTITY -> "Both sides are equal for every value"
         StepRule.SIMPLIFY -> "Simplify"
         StepRule.SUBSTITUTE -> "Insert the point"
         StepRule.EVALUATE -> "Calculate"
@@ -284,6 +326,7 @@ internal val StepRule.formula: String?
         StepRule.EXPAND_POWER -> "(a + b)^2 = a^2 + 2ab + b^2"
         StepRule.COMBINE_FRACTIONS -> "\\frac{a}{c} + \\frac{b}{c} = \\frac{a + b}{c}"
         StepRule.CANCEL -> "\\frac{x}{x} = 1"
+        StepRule.SUBTRACT_SAME -> "a − a = 0"
         StepRule.DISTRIBUTE -> "c·(a + b) = c·a + c·b"
         StepRule.INTEGRAL_CONSTANT -> "\\int{c}{x} = c·x"
         StepRule.INTEGRAL_SUM -> "\\int{f ± g}{x} = \\int{f}{x} ± \\int{g}{x}"
@@ -299,7 +342,19 @@ internal val StepRule.formula: String?
         StepRule.BY_PARTS -> "\\int{u}{v} = u·v − \\int{v}{u}"
         StepRule.ANTIDERIVATIVE -> "\\intab{a}{b}{f}{x} = \\eval{F}{a}{b}"
         StepRule.BOUNDS -> "\\eval{F}{a}{b} = F(b) − F(a)"
+        StepRule.ADD_TO_BOTH_SIDES -> "a = b\\text{  ⇔  }a + c = b + c"
+        StepRule.SUBTRACT_FROM_BOTH_SIDES -> "a = b\\text{  ⇔  }a − c = b − c"
+        StepRule.MULTIPLY_BOTH_SIDES -> "a = b\\text{  ⇔  }a·c = b·c"
+        StepRule.DIVIDE_BOTH_SIDES -> "a = b\\text{  ⇔  }\\frac{a}{c} = \\frac{b}{c}"
+        StepRule.SWAP_SIDES -> "a = b\\text{  ⇔  }b = a"
+        StepRule.SQUARE_ROOT_BOTH_SIDES -> "u^2 = c\\text{  ⇔  }u = \\sqrt{c}\\text{  or  }u = −\\sqrt{c}"
+        StepRule.FACTOR_OUT -> "ax^2 + bx = x·(ax + b)"
+        StepRule.ZERO_PRODUCT -> "a·b = 0\\text{  ⇔  }a = 0\\text{  or  }b = 0"
+        StepRule.QUADRATIC_FORMULA -> "x = \\frac{−b ± \\sqrt{D}}{2a}\\text{  with  }D = b^2 − 4ac"
+        StepRule.ROOT_OF_NUMBER, StepRule.IDENTITY, StepRule.SOLVE_FOR, StepRule.SUBSTITUTE_SOLUTION,
+        StepRule.MULTIPLY_EQUATIONS, StepRule.ADD_EQUATIONS, StepRule.SUBTRACT_EQUATIONS, StepRule.INSERT_VALUE, StepRule.COLLECT_SOLUTION,
         StepRule.INTEGRAL_TABLE, StepRule.EXPAND_INTEGRAND, StepRule.BACK_SUBSTITUTION,
-        StepRule.MULTIPLY_NUMBERS, StepRule.NUMBER_POWER, StepRule.ADD_NUMBERS, StepRule.COMBINE_LIKE_TERMS,
+        StepRule.MULTIPLY_NUMBERS, StepRule.DIVIDE_NUMBERS, StepRule.REDUCE_FRACTION, StepRule.NUMBER_POWER,
+        StepRule.ADD_NUMBERS, StepRule.SUBTRACT_NUMBERS, StepRule.ADD_AND_SUBTRACT_NUMBERS, StepRule.COMBINE_LIKE_TERMS,
         StepRule.SIMPLIFY, StepRule.SUBSTITUTE, StepRule.EVALUATE -> null
     }

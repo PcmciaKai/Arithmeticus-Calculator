@@ -18,8 +18,24 @@ internal class ExpressionStep(
     val rule: StepRule?,
     val chainRule: Boolean = false,
     val change: Pair<Expression, Expression>? = null,
-    val notes: List<Note> = emptyList()
+    val notes: List<Note> = emptyList(),
+    /** What the next step does to both sides of the equation in [expression], e.g. "− 2x". */
+    val operation: BothSides? = null
 )
+
+/**
+ * An operation on both sides of an equation, shown next to it as in "3x + 5 = 2x − 1 | − 2x":
+ * adding, subtracting, multiplying or dividing by [operand], or taking the square root.
+ */
+internal class BothSides(val kind: Kind, val operand: Expression? = null) {
+    enum class Kind { ADD, SUBTRACT, MULTIPLY, DIVIDE, SQUARE_ROOT }
+}
+
+/**
+ * The color of boxes a rule puts into its replacement itself (with [Match.boxReplacements]
+ * false), e.g. around the −2x added to each side; the step's color once it is applied.
+ */
+internal const val PENDING_COLOR = -1
 
 internal class ExpressionSolution(val steps: List<ExpressionStep>, val result: Expression)
 
@@ -43,7 +59,15 @@ internal class Match(
     val after: Expression,
     val removals: Map<Path, Expression> = emptyMap(),
     val chainRule: Boolean = false,
-    val notes: List<Note> = emptyList()
+    val notes: List<Note> = emptyList(),
+    /** Shown next to the expression the step is applied to, see [BothSides]. */
+    val operation: BothSides? = null,
+    /** Whether [before] = [after] is shown; not for an equation changed on both sides. */
+    val showChange: Boolean = true,
+    /** Whether replacements are boxed as a whole; if not, they bring their own boxes. */
+    val boxReplacements: Boolean = true,
+    /** The parts of the previous line to color, where they are not those that are replaced. */
+    val highlight: Set<Path>? = null
 )
 
 /** Builds the steps: each applied [Match] gives the next expression and highlights its parts. */
@@ -56,6 +80,7 @@ internal class Solver(val context: MathContext) {
         val notes: List<Note> = emptyList()
     ) {
         var next: Set<Path> = emptySet()
+        var operation: BothSides? = null
     }
 
     private val lines = mutableListOf<Line>()
@@ -68,14 +93,21 @@ internal class Solver(val context: MathContext) {
 
     fun apply(match: Match) {
         // A change that cannot be seen, e.g. 2⁻¹ = 1/2, is made without a step of its own
-        if (match.notes.isEmpty() && writtenForm(match.before) == writtenForm(match.after)) {
-            lines.last().expression = normalize(rebuild(current, emptyList(), match, color = 0, silent = true))
+        val keepsValue = current.containsExpressionMatching { it is Marked && it.keep }
+        if (!keepsValue && match.notes.isEmpty() && match.operation == null && writtenForm(match.before) == writtenForm(match.after)) {
+            // A value written in is no longer kept as a factor 1 or 0 once something is done with it
+            val rebuilt = rebuild(current, emptyList(), match, color = 0, silent = true)
+            lines.last().expression = normalize(rebuilt.transform { if (it is Marked && it.keep) Marked(it.inner, it.colorIndex, it.boxed) else it })
             return
         }
         val color = lines.size
-        lines.last().next = match.replacements.keys + match.removals.keys
-        val result = normalize(rebuild(current, emptyList(), match, color))
-        lines.add(Line(result, match.rule, match.chainRule, match.before to match.after, match.notes))
+        lines.last().next = match.highlight ?: (match.replacements.keys + match.removals.keys)
+        lines.last().operation = match.operation
+        val rebuilt = rebuild(current, emptyList(), match, color)
+        // Boxes the rule put in itself get the step's color
+        val result = normalize(rebuilt.transform { if (it is Marked && it.colorIndex == PENDING_COLOR) Marked(it.inner, color, it.boxed, it.keep) else it })
+        val change = if (match.showChange) match.before to match.after else null
+        lines.add(Line(result, match.rule, match.chainRule, change, match.notes))
     }
 
     /**
@@ -98,7 +130,7 @@ internal class Solver(val context: MathContext) {
 
     fun finish(result: Expression) = ExpressionSolution(
         lines.mapIndexed { i, line ->
-            ExpressionStep(highlight(line.expression, emptyList(), line.next, i + 1), line.rule, line.chainRule, line.change, line.notes)
+            ExpressionStep(highlight(line.expression, emptyList(), line.next, i + 1), line.rule, line.chainRule, line.change, line.notes, line.operation)
         },
         result
     )
@@ -108,7 +140,7 @@ internal class Solver(val context: MathContext) {
      * [silent] change is not boxed and keeps the earlier boxes.
      */
     private fun rebuild(e: Expression, path: Path, match: Match, color: Int, silent: Boolean = false): Expression {
-        match.replacements[path]?.let { return if (silent) it else Marked(it, color, boxed = true) }
+        match.replacements[path]?.let { return if (silent || !match.boxReplacements) it else Marked(it, color, boxed = true) }
         match.removals[path]?.let { return it }
         if (e is Marked && !silent) return rebuild(e.inner, path + 0, match, color)
         if (e.children.isEmpty()) return e
@@ -151,9 +183,9 @@ internal fun normalize(e: Expression): Expression = when (e) {
         val factors = e.operands.map { normalize(it) }
             .flatMap { if (it is Multiplications) it.operands else listOf(it) }
         when {
-            factors.any { it.isZero } -> Value.ZERO
+            factors.any { it.isZero && !isKept(it) } -> Value.ZERO
             // Also a highlighted 1, e.g. from d/dx(x) = 1: the step shows where it went
-            else -> Multiplications.of(*factors.filterNot { unmarked(it) == Value.ONE }.toTypedArray())
+            else -> Multiplications.of(*factors.filterNot { unmarked(it) == Value.ONE && !isKept(it) }.toTypedArray())
         }
     }
     else -> if (e.children.isEmpty()) e else e.copyWithChildren(e.children.map { normalize(it) })
@@ -167,3 +199,5 @@ internal fun pathsOf(e: Expression, path: Path = emptyList(), predicate: (Expres
 
 /** The part of [e] at [path]. */
 internal fun at(e: Expression, path: Path): Expression = path.fold(e) { part, i -> part.children[i] }
+
+private fun isKept(e: Expression) = e is Marked && e.keep

@@ -29,7 +29,10 @@ import com.vortessence.calculator.core.math.solvers.LinearSystemSolver
 import com.vortessence.calculator.core.math.solvers.NumericIntegrator
 import com.vortessence.calculator.core.math.solvers.NumericRootFinder
 import com.vortessence.calculator.core.math.solvers.PlotCurve
+import com.vortessence.calculator.core.math.steps.BothSides
 import com.vortessence.calculator.core.math.steps.DerivativeSteps
+import com.vortessence.calculator.core.math.steps.EquationSteps
+import com.vortessence.calculator.core.math.steps.SystemSteps
 import com.vortessence.calculator.core.math.steps.ExpressionSteps
 import com.vortessence.calculator.core.math.steps.IntegralSteps
 import com.vortessence.calculator.core.math.steps.Note
@@ -215,6 +218,8 @@ object MathEngine {
                 val solution = when (parsed) {
                     is Derivative -> DerivativeSteps.steps(parsed, execContext)
                     is Antiderivative, is Integral -> IntegralSteps.steps(parsed, execContext)
+                    is EquationSystem -> SystemSteps.steps(parsed, execContext)
+                    is Equals -> parsed.variables().takeIf { it.isNotEmpty() }?.let { EquationSteps.steps(parsed, pickVariable(it), execContext) }
                     else -> ExpressionSteps.steps(parsed, execContext)
                 }
                 if (solution == null || execContext.shouldStop || execContext.issues.isNotEmpty()) return@steps null
@@ -225,7 +230,8 @@ object MathEngine {
                         step.rule,
                         step.chainRule,
                         step.change?.let { (before, after) -> StepChange(display.write(before), display.write(after)) },
-                        step.notes.map { writeNote(it, display) }
+                        step.notes.map { writeNote(it, display) },
+                        step.operation?.let { writeOperation(it, display) }
                     )
                 }
                 val result = display.write(solution.result)
@@ -245,6 +251,23 @@ object MathEngine {
         }
         ensureActive()
         steps
+    }
+
+    /** "− 2x", "÷ 3", "· (x + 1)" or "√": what is done to both sides of an equation. */
+    private fun writeOperation(operation: BothSides, writer: MathWriter): MathString {
+        val result = MathString()
+        when (operation.kind) {
+            BothSides.Kind.ADD -> result.insert(result.length, OperatorNode(MathOp.PLUS))
+            BothSides.Kind.SUBTRACT -> result.insert(result.length, OperatorNode(MathOp.MINUS))
+            BothSides.Kind.MULTIPLY -> result.insert(result.length, TextNode("· "))
+            BothSides.Kind.DIVIDE -> result.insert(result.length, OperatorNode(MathOp.DIVIDE))
+            BothSides.Kind.SQUARE_ROOT -> result.insert(result.length, TextNode("√"))
+        }
+        val operand = operation.operand ?: return result
+        val written = writer.write(operand)
+        // · (x + 1), ÷ (−3)
+        if (operand is Additions || operand.isNegative) result.insert(result.length, ParenthesesNode(written)) else result.insertAll(result.length, written.nodes)
+        return result
     }
 
     /** "u = x²", or with a differential "du = 2x dx". */

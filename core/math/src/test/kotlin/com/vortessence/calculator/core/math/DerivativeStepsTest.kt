@@ -93,7 +93,7 @@ class DerivativeStepsTest {
         val steps = solution(d(FractionNode(ms(x, op(MathOp.PLUS), n("1")), ms(x, op(MathOp.MINUS), n("1")))))!!.steps
         assertEquals(StepRule.QUOTIENT, steps[1].rule)
         assertEquals(
-            listOf(StepRule.DISTRIBUTE, StepRule.COMBINE_LIKE_TERMS, StepRule.ADD_NUMBERS),
+            listOf(StepRule.DISTRIBUTE, StepRule.COMBINE_LIKE_TERMS, StepRule.SUBTRACT_NUMBERS),
             steps.takeLast(3).map { it.rule }
         )
         // The sign stays outside the sum until it is multiplied in

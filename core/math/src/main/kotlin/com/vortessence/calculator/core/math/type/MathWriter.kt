@@ -3,7 +3,10 @@ package com.vortessence.calculator.core.math.type
 import com.vortessence.calculator.core.math.expressions.*
 import com.vortessence.calculator.core.math.numbers.BigInt
 import com.vortessence.calculator.core.math.numbers.Rational
+import com.vortessence.calculator.core.math.steps.Alternatives
 import com.vortessence.calculator.core.math.steps.BackSubstitution
+import com.vortessence.calculator.core.math.steps.TextExpression
+import com.vortessence.calculator.core.math.steps.WrittenOut
 import com.vortessence.calculator.core.math.steps.EvaluateBetween
 import com.vortessence.calculator.core.math.steps.LiteralPower
 import com.vortessence.calculator.core.math.steps.Marked
@@ -133,6 +136,17 @@ class MathWriter(
             is Marked -> result.append(HighlightNode(writeExpr(expr.inner), expr.colorIndex, expr.boxed))
             // Solution steps of integrals
             is BackSubstitution -> result.appendAll(writeExpr(expr.inner))
+            // Solution steps of equations
+            is Alternatives -> expr.equations.forEachIndexed { i, equation ->
+                if (i > 0) result.append(if (expr.inline) TextNode(", ") else LineBreakNode)
+                result.appendAll(writeExpr(equation))
+            }
+            is TextExpression -> result.append(TextNode(expr.text))
+            is WrittenOut -> expr.factors.forEachIndexed { i, factor ->
+                if (i > 0) result.append(OperatorNode(MathOp.MULTIPLY))
+                val nodes = writeExpr(factor)
+                result.appendAll(if (factor.isNegative || factor is Additions) MathString(listOf(ParenthesesNode(nodes))) else nodes)
+            }
             is LiteralPower -> {
                 // x^(1/2) as a power, not as √x
                 val power = expr.inner as? Power
@@ -368,6 +382,11 @@ class MathWriter(
         for (op in mult.operands) {
             // A highlighted part of a solution step stays in the numerator or denominator it belongs to
             if (op is Marked) {
+                // A value written in for a variable stays, even as 3·1
+                if (op.keep && (op.inner == Value.ONE || op.inner.isZero)) {
+                    numerators.add(op)
+                    continue
+                }
                 val (num, den) = numeratorAndDenominator(op.inner)
                 num?.let { numerators.add(Marked(it, op.colorIndex, op.boxed)) }
                 den?.let { denominators.add(Marked(it, op.colorIndex, op.boxed)) }
@@ -403,6 +422,11 @@ class MathWriter(
      * 1/x², (2, 3) for 2/3, (x, null) for x.
      */
     private fun numeratorAndDenominator(factor: Expression): Pair<Expression?, Expression?> {
+        // Highlighted twice (boxed by one step, colored for the next)
+        if (factor is Marked) {
+            val (num, den) = numeratorAndDenominator(factor.inner)
+            return num?.let { Marked(it, factor.colorIndex, factor.boxed) } to den?.let { Marked(it, factor.colorIndex, factor.boxed) }
+        }
         val exponent = (factor as? Power)?.exponent as? Value
         if (factor is Power && exponent != null && exponent.isNegative) {
             val posExp = exponent.negate()
@@ -415,6 +439,14 @@ class MathWriter(
         return factor to null
     }
 
+    /** A sum that is highlighted (maybe twice, boxed by one step and colored for the next). */
+    private fun isHighlightedSum(e: Expression): Boolean = e is Marked && (e.inner is Additions || isHighlightedSum(e.inner))
+
+    /** [e] in parentheses, inside its highlighting: [(2x + 3)]. */
+    private fun writeInParentheses(e: Expression): MathString =
+        if (e is Marked) MathString(listOf(HighlightNode(writeInParentheses(e.inner), e.colorIndex, e.boxed)))
+        else MathString(listOf(ParenthesesNode(writeExpr(e))))
+
     private fun writeFactors(factors: List<Expression>, result: MathString) {
         // The usual order: 6x(x² + 1)² rather than 6(x² + 1)²x, 2xy rather than 2yx
         val ordered = factors.sortedWith(compareBy({ factorRank(it) }, { variableName(it) }))
@@ -422,9 +454,9 @@ class MathWriter(
             var nodes = writeExpr(op)
             if (op is Additions || op is Equals || op is Modulo) {
                 nodes = MathString(listOf(ParenthesesNode(nodes)))
-            } else if (op is Marked && op.inner is Additions) {
+            } else if (isHighlightedSum(op)) {
                 // The parentheses of a highlighted sum are highlighted with it: 2·(x + 1)
-                nodes = MathString(listOf(HighlightNode(MathString(listOf(ParenthesesNode(writeExpr(op.inner)))), op.colorIndex, op.boxed)))
+                nodes = writeInParentheses(op)
             }
             if (idx > 0 && needsExplicitTimes(nodes)) {
                 result.append(OperatorNode(MathOp.MULTIPLY))
@@ -488,6 +520,9 @@ class MathWriter(
             val nodes = writeExpr(term)
             if (term is Additions) {
                 result.append(ParenthesesNode(nodes))
+            } else if (idx > 0 && op.isNegative && isHighlightedSum(term)) {
+                // x² − [(2x + 3)]: a highlighted sum that is subtracted
+                result.appendAll(writeInParentheses(term))
             } else {
                 result.appendAll(nodes)
             }
@@ -524,7 +559,8 @@ class MathWriter(
             if (index >= 0) {
                 val flipped = negatedForDisplay(expr.operands[index])
                 val operands = expr.operands.toMutableList()
-                if (flipped == Value.ONE) operands.removeAt(index) else operands[index] = flipped
+                // Also a highlighted −1: −[(2x + 3)], not −[1·(2x + 3)]
+                if (flipped == Value.ONE || (flipped is Marked && flipped.inner == Value.ONE)) operands.removeAt(index) else operands[index] = flipped
                 return Multiplications.of(*operands.toTypedArray())
             }
         }

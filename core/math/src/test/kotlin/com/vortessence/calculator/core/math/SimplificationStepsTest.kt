@@ -62,7 +62,7 @@ class SimplificationStepsTest {
         )
         // Combined over the common denominator rather than split up
         assertEquals(
-            listOf(StepRule.COMBINE_FRACTIONS, StepRule.ADD_NUMBERS, StepRule.CANCEL),
+            listOf(StepRule.COMBINE_FRACTIONS, StepRule.SUBTRACT_NUMBERS, StepRule.CANCEL),
             rules(ms(fr(ms(x, plus, n("1")), ms(x)), minus, fr(ms(n("1")), ms(x))))
         )
     }
@@ -77,7 +77,7 @@ class SimplificationStepsTest {
             ms(fr(ms(n("6"), x, pow(n("2"))), ms(n("3"), x))),
             "2x",
             Triple("({6}(x)^(2))/({3}x)", null, null),
-            Triple("([2]{(x)^(2)})/({x})", StepRule.MULTIPLY_NUMBERS, "(6)/(3) = 2"),
+            Triple("([2]{(x)^(2)})/({x})", StepRule.DIVIDE_NUMBERS, "(6)/(3) = 2"),
             Triple("2[x]", StepRule.COMBINE_POWERS, "((x)^(2))/(x) = x")
         )
     }
@@ -106,8 +106,7 @@ class SimplificationStepsTest {
         assertNull(solution(ms(fr(ms(n("1")), ms(x)), plus, fr(ms(n("1")), ms(y)))))
         // Plain arithmetic has no steps
         assertNull(solution(ms(n("2"), plus, n("3"))))
-        // Nor do equations and definitions
-        assertNull(solution(ms(x, plus, x, op(MathOp.EQUALS), n("4"))))
+        // Nor do definitions (equations have steps of their own, see EquationStepsTest)
         assertNull(solution(ms(VariableNode("a"), op(MathOp.DEFINE), x, plus, x)))
     }
 }

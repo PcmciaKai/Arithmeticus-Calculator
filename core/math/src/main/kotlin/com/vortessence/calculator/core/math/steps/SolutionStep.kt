@@ -46,6 +46,10 @@ enum class StepRule {
     FUNDAMENTAL_THEOREM,
     /** 2·3 = 6 */
     MULTIPLY_NUMBERS,
+    /** 4/2 = 2 */
+    DIVIDE_NUMBERS,
+    /** 4/6 = 2/3 */
+    REDUCE_FRACTION,
     /** 2³ = 8 */
     NUMBER_POWER,
     /** 1/(a/b) = b/a */
@@ -62,6 +66,12 @@ enum class StepRule {
     COMBINE_FRACTIONS,
     /** 2 + 3 = 5 */
     ADD_NUMBERS,
+    /** 5 − 3 = 2 */
+    SUBTRACT_NUMBERS,
+    /** 5 − 3 + 1 = 3 */
+    ADD_AND_SUBTRACT_NUMBERS,
+    /** a − a = 0, also for a sum: 2x + 3 − (2x + 3) = 0 */
+    SUBTRACT_SAME,
     /** xᵃ·xᵇ = xᵃ⁺ᵇ */
     COMBINE_POWERS,
     /** x·x⁻¹ = 1 */
@@ -103,6 +113,40 @@ enum class StepRule {
     ANTIDERIVATIVE,
     /** [F]ₐᵇ = F(b) − F(a) */
     BOUNDS,
+    /** a = b ⇔ a + c = b + c */
+    ADD_TO_BOTH_SIDES,
+    /** a = b ⇔ a − c = b − c */
+    SUBTRACT_FROM_BOTH_SIDES,
+    /** a = b ⇔ a·c = b·c (c ≠ 0) */
+    MULTIPLY_BOTH_SIDES,
+    /** a = b ⇔ a/c = b/c (c ≠ 0) */
+    DIVIDE_BOTH_SIDES,
+    /** a = b ⇔ b = a */
+    SWAP_SIDES,
+    /** u² = c ⇔ u = √c or u = −√c */
+    SQUARE_ROOT_BOTH_SIDES,
+    /** ax² + bx = x(ax + b) */
+    FACTOR_OUT,
+    /** Solving one equation of a system for one of its variables */
+    SOLVE_FOR,
+    /** The solved variable written into the other equations */
+    SUBSTITUTE_SOLUTION,
+    /** The equations multiplied so that a variable has the same coefficient in both */
+    MULTIPLY_EQUATIONS,
+    ADD_EQUATIONS,
+    /** The values found for the variables, written together */
+    COLLECT_SOLUTION,
+    SUBTRACT_EQUATIONS,
+    /** A value found written into an equation or a solved variable */
+    INSERT_VALUE,
+    /** a·b = 0 ⇔ a = 0 or b = 0 */
+    ZERO_PRODUCT,
+    /** ax² + bx + c = 0 ⇔ x = (−b ± √(b² − 4ac))/(2a) */
+    QUADRATIC_FORMULA,
+    /** √9 = 3 */
+    ROOT_OF_NUMBER,
+    /** Both sides are the same for every value of the variable */
+    IDENTITY,
     /** The variable replaced by the point the derivative is taken at */
     SUBSTITUTE,
     /** The value calculated */
@@ -126,7 +170,12 @@ data class SolutionStep(
     val chainRule: Boolean = false,
     val change: StepChange? = null,
     /** What the rule needs, e.g. u = x² and du = 2x·dx for a substitution. */
-    val notes: List<MathString> = emptyList()
+    val notes: List<MathString> = emptyList(),
+    /**
+     * What the next step does to both sides of the equation in [expression], e.g. "− 2x" or
+     * "÷ 3", written next to it after a bar: 3x + 5 = 2x − 1 | − 2x.
+     */
+    val operation: MathString? = null
 )
 
 /** [before] = [after]: a rule applied to one part of an expression. */

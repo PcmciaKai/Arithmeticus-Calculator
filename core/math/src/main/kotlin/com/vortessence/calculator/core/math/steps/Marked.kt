@@ -9,11 +9,17 @@ import com.vortessence.calculator.core.math.expressions.Variable
  * [com.vortessence.calculator.core.math.type.HighlightNode]): the part the next step changes,
  * or with [boxed] the part the previous step produced. Mathematically it is just [inner].
  */
-internal class Marked(val inner: Expression, val colorIndex: Int, val boxed: Boolean) : Expression() {
+internal class Marked(
+    val inner: Expression,
+    val colorIndex: Int,
+    val boxed: Boolean,
+    /** A value written in for a variable: kept as a factor even if it is 1 (or 0), as in 3·1. */
+    val keep: Boolean = false
+) : Expression() {
 
     override val children: List<Expression> get() = listOf(inner)
 
-    override fun copyWithChildren(children: List<Expression>): Expression = Marked(children[0], colorIndex, boxed)
+    override fun copyWithChildren(children: List<Expression>): Expression = Marked(children[0], colorIndex, boxed, keep)
 
     override fun canonicalize(context: MathContext): Expression = inner.canonicalize(context)
 
@@ -23,7 +29,7 @@ internal class Marked(val inner: Expression, val colorIndex: Int, val boxed: Boo
     override val isZero: Boolean get() = inner.isZero
 
     override fun equals(other: Any?): Boolean =
-        other is Marked && inner == other.inner && colorIndex == other.colorIndex && boxed == other.boxed
+        other is Marked && inner == other.inner && colorIndex == other.colorIndex && boxed == other.boxed && keep == other.keep
 
     override fun hashCode(): Int = (inner.hashCode() * 31 + colorIndex) * 31 + boxed.hashCode()
 
