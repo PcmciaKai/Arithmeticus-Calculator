@@ -26,6 +26,7 @@ import com.vortessence.calculator.core.math.expressions.toPreferredUnits
 import com.vortessence.calculator.core.math.solvers.Function1D
 import com.vortessence.calculator.core.math.solvers.ImplicitCurve
 import com.vortessence.calculator.core.math.solvers.ImplicitPlotter
+import com.vortessence.calculator.core.math.numbers.BigInt
 import com.vortessence.calculator.core.math.numbers.Rational
 import com.vortessence.calculator.core.math.solvers.LinearSystemSolver
 import com.vortessence.calculator.core.math.solvers.NumericIntegrator
@@ -37,6 +38,7 @@ import com.vortessence.calculator.core.math.steps.EquationSteps
 import com.vortessence.calculator.core.math.steps.SystemSteps
 import com.vortessence.calculator.core.math.steps.ExpressionSteps
 import com.vortessence.calculator.core.math.steps.IntegralSteps
+import com.vortessence.calculator.core.math.steps.LimitSteps
 import com.vortessence.calculator.core.math.steps.Note
 import com.vortessence.calculator.core.math.steps.displayForm
 import com.vortessence.calculator.core.math.steps.Solution
@@ -46,6 +48,7 @@ import com.vortessence.calculator.core.math.type.MathOp
 import com.vortessence.calculator.core.math.type.MathParser
 import com.vortessence.calculator.core.math.type.MathString
 import com.vortessence.calculator.core.math.type.MathWriter
+import com.vortessence.calculator.core.math.type.NumberNode
 import com.vortessence.calculator.core.math.type.OperatorNode
 import com.vortessence.calculator.core.math.type.ParenthesesNode
 import com.vortessence.calculator.core.math.type.TextNode
@@ -221,15 +224,18 @@ object MathEngine {
                 val solution = when (parsed) {
                     is Derivative -> DerivativeSteps.steps(parsed, execContext)
                     is Antiderivative, is Integral -> IntegralSteps.steps(parsed, execContext)
+                    is Limit -> LimitSteps.steps(parsed, execContext)
                     is EquationSystem -> SystemSteps.steps(parsed, execContext)
                     is Equals -> parsed.variables().takeIf { it.isNotEmpty() }?.let { EquationSteps.steps(parsed, pickVariable(it), execContext) }
                     else -> ExpressionSteps.steps(parsed, execContext)
                 }
                 if (solution == null || execContext.shouldStop || execContext.issues.isNotEmpty()) return@steps null
                 val display = displayWriter(execContext)
-                val steps = solution.steps.map { step ->
+                // The problem is shown as it was typed: 0.5, not 1/2
+                val typed = MathWriter(decimalPlaces = execContext.decimalPlaces, typedDecimals = typedDecimals(input))
+                val steps = solution.steps.mapIndexed { index, step ->
                     SolutionStep(
-                        display.write(step.expression),
+                        (if (index == 0) typed else display).write(step.expression),
                         step.rule,
                         step.chainRule,
                         step.change?.let { (before, after) -> StepChange(display.write(before), display.write(after)) },
@@ -257,6 +263,29 @@ object MathEngine {
         steps
     }
 
+    /** The decimals typed in [input], e.g. 0.5 as the fraction 1/2 (what they are parsed to). */
+    private fun typedDecimals(input: MathString): Set<Rational> {
+        val found = mutableSetOf<Rational>()
+        fun scan(string: MathString) {
+            var run = StringBuilder()
+            fun flush() {
+                val text = run.toString()
+                run = StringBuilder()
+                if (!text.contains('.')) return
+                val decimal = text.toBigDecimalOrNull() ?: return
+                val scale = decimal.scale().coerceAtLeast(0)
+                found.add(Rational.of(BigInt(decimal.movePointRight(scale).toBigInteger()), BigInt(java.math.BigInteger.TEN.pow(scale))))
+            }
+            for (node in string.nodes) {
+                if (node is NumberNode) run.append(node.text) else flush()
+                node.subStrings.forEach { scan(it) }
+            }
+            flush()
+        }
+        scan(input)
+        return found
+    }
+
     /** "− 2x", "÷ 3", "· (x + 1)" or "√": what is done to both sides of an equation. */
     private fun writeOperation(operation: BothSides, writer: MathWriter): MathString {
         val result = MathString()
@@ -279,6 +308,21 @@ object MathEngine {
                 result.insert(result.length, TextNode(text))
                 return result
             }
+            BothSides.Kind.SQUARE -> {
+                result.insert(result.length, TextNode("²"))
+                return result
+            }
+            // e^, 10^ or 2^: the base raised to both sides
+            BothSides.Kind.EXPONENTIATE -> {
+                val base = operation.operand
+                val text = when {
+                    base == Constant.E -> "e^"
+                    base is Value && base.rational != null -> "${writer.write(base)}^"
+                    else -> "^"
+                }
+                result.insert(result.length, TextNode(text))
+                return result
+            }
             // ³√ : the degree as small raised digits
             BothSides.Kind.ROOT -> {
                 val degree = (operation.operand as? Value)?.rational?.toDouble()?.toInt()?.toString().orEmpty()
@@ -295,6 +339,12 @@ object MathEngine {
 
     /** "u = x²", or with a differential "du = 2x dx". */
     private fun writeNote(note: Note, writer: MathWriter): MathString {
+        note.relation?.let { relation ->
+            val result = writer.write(note.left)
+            result.insert(result.length, TextNode(" $relation "))
+            result.insertAll(result.length, writer.write(note.right).nodes)
+            return result
+        }
         val differential = note.differential ?: return writer.write(Equals(note.left, note.right))
         val result = writer.write(note.left)
         result.insert(result.length, OperatorNode(MathOp.EQUALS))

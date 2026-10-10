@@ -1,6 +1,11 @@
 package com.vortessence.calculator.core.math.steps
 
 import com.vortessence.calculator.core.math.context.MathContext
+import com.vortessence.calculator.core.math.context.AngleUnit
+import com.vortessence.calculator.core.math.expressions.AbsoluteValue
+import com.vortessence.calculator.core.math.expressions.Constant
+import com.vortessence.calculator.core.math.expressions.TrigType
+import com.vortessence.calculator.core.math.expressions.TrigonometricFunction
 import com.vortessence.calculator.core.math.expressions.Additions
 import com.vortessence.calculator.core.math.expressions.Antiderivative
 import com.vortessence.calculator.core.math.expressions.Derivative
@@ -60,8 +65,11 @@ internal object EquationSteps {
 
         val solution = Solver(context)
         solution.start(normalize(equation))
-        // The variable standing for a power of v while an equation in it is solved (x⁴ − 5x² + 4: u = x²)
+        // The variable standing for a power of v (or of e: u = eˣ) while an equation in it is solved
         var stand: Variable? = null
+        var standFor: Expression = v
+        // The whole numbers k of the general solution of a sine, cosine or tangent equation
+        var period: Variable? = null
         while (true) {
             if (context.shouldStop || solution.size > MAX_STEPS) return null
             val e = solution.current
@@ -75,12 +83,16 @@ internal object EquationSteps {
                 } else {
                     Moves(e, path, variable, context, allowSubstitution = stand == null).match() ?: return null
                 }
-            } ?: stand?.let { backSubstitute(e, it, v) } ?: break
+            } ?: stand?.let { backSubstitute(e, it, standFor) } ?: break
             solution.apply(match)
             when (match.rule) {
                 StepRule.IDENTITY -> break
-                StepRule.SUBSTITUTE_POWER -> stand = match.notes.first().left as Variable
+                StepRule.SUBSTITUTE_POWER -> {
+                    stand = match.notes.first().left as Variable
+                    standFor = match.notes.first().right
+                }
                 StepRule.BACK_SUBSTITUTE_POWER -> stand = null
+                StepRule.TRIG_GENERAL_SOLUTION -> period = match.notes.first().left as Variable
                 else -> {}
             }
         }
@@ -89,10 +101,15 @@ internal object EquationSteps {
             return solution.finish(TextExpression(TRUE))
         }
 
+        period?.let { return periodicResult(solution, v, it, solutions) }
+
         // Each branch x = value is one of the calculated solutions; it ends written as that one
-        val branches = alternativesOf(unmarked(solution.current))
-            .filterNot { it == TextExpression(NO_REAL_SOLUTION) }
+        var branches = alternativesOf(unmarked(solution.current))
+            .filter { it !is TextExpression }
             .map { it as? Equals ?: return null }
+        if (pathsOf(solution.current) { it is Equals }.size != branches.size) return null
+        // Squaring, fractions and absolute values can give values that are no solutions
+        checkSolutions(solution, equation, v, branches, context)?.let { branches = it }
         val matched = branches.map { branch -> solutions.firstOrNull { sameValue(branch.right, it, v, context) } ?: return null }
         // A double root is found twice; every calculated solution must be found
         if (matched.toSet().size != solutions.size) return null
@@ -102,12 +119,65 @@ internal object EquationSteps {
         val values = finalValues.zip(matched).map { (own, calculated) -> if (calculated is Value && calculated.rational == null) own else calculated }
         for ((i, value) in values.withIndex()) {
             if (writtenForm(finalValues[i]) == writtenForm(value)) continue
-            val valuePath = if (values.size == 1) listOf(1) else listOf(i, 1)
-            solution.apply(Match(StepRule.SIMPLIFY, mapOf(valuePath to value), finalValues[i], value))
+            // The branches are the equations of the current expression, in order (earlier steps moved boxes around)
+            val branchPath = pathsOf(solution.current) { it is Equals }[i]
+            solution.apply(Match(StepRule.SIMPLIFY, mapOf((branchPath + 1) to value), finalValues[i], value))
         }
         // In the order of the calculated solutions, each once (a double root was found twice)
         val ordered = solutions.map { values[matched.indexOf(it)] }
         return solution.finish(if (ordered.size == 1) Equals(v, ordered.single()) else Alternatives(ordered.map { Equals(v, it) }, inline = true))
+    }
+
+    /**
+     * Tries the candidates in the original [equation]: roots that were squared, a denominator that
+     * became 0 or an absolute value against a negative number leave values that are no solutions.
+     * Those are crossed out; returns the remaining branches, or null if the check
+     * does not apply (letters in the equation) or there was nothing to show.
+     */
+    private fun checkSolutions(
+        solution: Solver,
+        equation: Equals,
+        v: Variable,
+        branches: List<Equals>,
+        context: MathContext
+    ): List<Equals>? {
+        if (equation.variables() != setOf(v) || branches.isEmpty()) return null
+        val hasRoot = equation.containsExpressionMatching { it is Power && (it.exponent as? Value)?.rational == Rational.HALF && it.base.containsVariable(v) }
+        val hasAbsolute = equation.containsExpressionMatching { it is AbsoluteValue && it.operand.containsVariable(v) }
+        val hasDenominator = equation.containsExpressionMatching { it is Power && (it.exponent as? Value)?.isNegative == true && it.base.containsVariable(v) }
+        if (!hasRoot && !hasAbsolute && !hasDenominator) return null
+
+        class Candidate(val branch: Equals, val ok: Boolean, val note: Note)
+        val candidates = branches.map { branch ->
+            val value = unmarked(branch.right)
+            val x = value.evaluateNumerically()
+            val l = equation.left.evaluateNumerically(mapOf(v to x))
+            val r = equation.right.evaluateNumerically(mapOf(v to x))
+            val defined = l.isFinite() && r.isFinite()
+            val ok = defined && abs(l - r) <= 1e-9 * max(1.0, max(abs(l), abs(r)))
+            fun inserted(e: Expression) = e.transform { if (it == v) value else it }
+            val note = when {
+                ok -> Note(inserted(equation.left), inserted(equation.right), relation = "=")
+                defined -> Note(inserted(equation.left), inserted(equation.right), relation = "≠")
+                else -> Note(TextExpression("x = ${writtenForm(value)}".replace("x", v.identifier)), TextExpression("not defined"), relation = ":")
+            }
+            Candidate(branch, ok, note)
+        }
+        val rejected = candidates.indices.filter { !candidates[it].ok }
+        // Squared roots and absolute values against an expression always show the check
+        val alwaysShown = hasRoot || (hasAbsolute && (equation.left !is AbsoluteValue || equation.right.containsVariable(v)))
+        if (rejected.isEmpty() && !alwaysShown) return null
+        val paths = pathsOf(solution.current) { it is Equals }
+        val crossedOut = rejected.associate { i ->
+            paths[i] to TextExpression("${v.identifier} = ${writtenForm(candidates[i].branch.right)} is not a solution")
+        }
+        solution.apply(
+            Match(
+                StepRule.CHECK_SOLUTIONS, crossedOut, solution.current, solution.current,
+                notes = candidates.map { it.note }, showChange = false
+            )
+        )
+        return candidates.filter { it.ok }.map { it.branch }
     }
 
     private const val TRUE = "true"
@@ -133,18 +203,44 @@ internal object EquationSteps {
         }
     }
 
+    /**
+     * The result of a trigonometric equation: the solutions x = a + b·k for all whole numbers k.
+     * Each calculated solution (the calculator lists those near 0) must be one of them.
+     */
+    private fun periodicResult(solution: Solver, v: Variable, k: Variable, calculated: List<Expression>): ExpressionSolution? {
+        val branches = alternativesOf(unmarked(solution.current)).filter { it !is TextExpression }.map { it as? Equals ?: return null }
+        if (branches.isEmpty()) return null
+        val affine = branches.map { branch ->
+            val at0 = branch.right.evaluateNumerically(mapOf(k to 0.0))
+            val at1 = branch.right.evaluateNumerically(mapOf(k to 1.0))
+            if (!at0.isFinite() || !at1.isFinite() || abs(at1 - at0) < 1e-12) return null
+            at0 to (at1 - at0)
+        }
+        for (s in calculated) {
+            val x = (s as? Value)?.real?.value ?: return null
+            val found = affine.any { (a, b) ->
+                val steps = (x - a) / b
+                abs(steps - Math.rint(steps)) < 1e-6
+            }
+            if (!found) return null
+        }
+        val values = branches.map { normalize(unmarked(it.right)) }.distinctBy { writtenForm(it) }
+        val equations = values.map { Equals(v, it) }
+        return solution.finish(Alternatives(equations + TextExpression("${k.identifier} ∈ ℤ"), inline = true))
+    }
+
     /** The cases of [e], also those nested in other cases. */
     private fun alternativesOf(e: Expression): List<Expression> =
         if (e is Alternatives) e.equations.flatMap { alternativesOf(unmarked(it)) } else listOf(e)
 
-    /** u = x² written back: every solved equation u = c becomes x² = c. */
-    private fun backSubstitute(e: Expression, u: Variable, v: Variable): Match? {
+    /** u = x² written back: every solved equation u = c becomes x² = c ([standFor] is x²). */
+    private fun backSubstitute(e: Expression, u: Variable, standFor: Expression): Match? {
         val paths = pathsOf(e) { it is Equals && unmarked(it).let { eq -> (eq as Equals).left == u } }
         if (paths.isEmpty()) return null
-        val replacements = paths.associateWith { Equals(Power(v, Value.TWO), (unmarked(at(e, it)) as Equals).right) }
+        val replacements = paths.associateWith { Equals(standFor, (unmarked(at(e, it)) as Equals).right) }
         return Match(
             StepRule.BACK_SUBSTITUTE_POWER, replacements, e, e,
-            notes = listOf(Note(u, Power(v, Value.TWO))), showChange = false
+            notes = listOf(Note(u, standFor)), showChange = false
         )
     }
 
@@ -205,12 +301,18 @@ internal object EquationSteps {
             if (!equation.containsVariable(v)) return identity()
             // (x + 1)² = 4 and (x − 2)(x + 3) = 0 as they are, before they would be multiplied out
             powerRoot(alone = true)?.let { return it }
+            zeroFraction()?.let { return it }
             zeroProduct()?.let { return it }
             // Each side simplified first, e.g. 3x − 2x combined
             SimplificationSteps.match(at(e, path), Value.ZERO, context)?.let { return prefixed(it, path) }
             powerRoot(alone = false)?.let { return it }
             clearDenominator()?.let { return it }
             exponential(alone = false)?.let { return it }
+            logarithmic()?.let { return it }
+            radical()?.let { return it }
+            absoluteValue()?.let { return it }
+            trigonometric()?.let { return it }
+            exponentialSubstitution()?.let { return it }
             val coefficients = polynomial() ?: return null
             return when (coefficients.keys.maxOrNull()) {
                 // x + 1 = 1 + x: the variable drops out
@@ -259,7 +361,7 @@ internal object EquationSteps {
         }
 
         /** Multiplies both sides by [factor], or with [divide] divides them by it. */
-        private fun multiplyBothSides(factor: Expression, divide: Boolean = false): Match {
+        private fun multiplyBothSides(factor: Expression, divide: Boolean = false, notes: List<Note> = emptyList()): Match {
             val by = Marked(if (divide) Power(factor, Value.MINUS_ONE) else factor, PENDING_COLOR, boxed = true)
             val result = Equals(Multiplications(left, by), Multiplications(right, by))
             return Match(
@@ -268,6 +370,7 @@ internal object EquationSteps {
                 equation,
                 unmarked(result),
                 operation = BothSides(if (divide) BothSides.Kind.DIVIDE else BothSides.Kind.MULTIPLY, factor),
+                notes = notes,
                 showChange = false,
                 boxReplacements = false
             )
@@ -347,6 +450,13 @@ internal object EquationSteps {
                 if (alone) return null
                 return multiplyBothSides(Multiplications.of(*others.toTypedArray()), divide = true)
             }
+            // A power of a positive number is positive
+            val value = canonical(right)
+            if (value is Value && value.rational != null && (value.isNegative || value.isZero)) {
+                if (path.isEmpty()) return null
+                val none = TextExpression(NO_REAL_SOLUTION)
+                return Match(StepRule.NO_REAL_SOLUTION, mapOf(path to none), equation, none, showChange = false)
+            }
             val result = Equals(power.exponent, Logarithm(power.base, right))
             return Match(
                 StepRule.LOGARITHM_BOTH_SIDES, mapOf(path to result), equation, result,
@@ -354,10 +464,193 @@ internal object EquationSteps {
             )
         }
 
+        /**
+         * Moves what stands in the way of the term [isTarget] picks, to have it alone on the left:
+         * the equation swapped if it is on the right, other terms to the right, a coefficient
+         * divided out. Null if it is alone already, or cannot be isolated.
+         */
+        private fun isolate(isTarget: (Expression) -> Boolean): Match? {
+            fun has(e: Expression) = e.containsExpressionMatching(isTarget)
+            val leftTerms = terms(left)
+            val rightTerms = terms(right)
+            if (leftTerms.none { has(it) } && rightTerms.any { has(it) }) {
+                val result = Equals(right, left)
+                return Match(StepRule.SWAP_SIDES, mapOf(path to result), equation, result, showChange = false)
+            }
+            if (rightTerms.any { has(it) }) return null
+            val withTarget = leftTerms.filter { has(it) }
+            if (withTarget.size != 1) return null
+            if (leftTerms.size > 1) return addToBothSides(negated(sum(leftTerms.filterNot { has(it) })))
+            val term = withTarget.single()
+            if (isTarget(term)) return null
+            val factors = (term as? Multiplications)?.operands ?: return null
+            val target = factors.singleOrNull { isTarget(it) } ?: return null
+            val others = factors.filter { it !== target }
+            if (factors.count { has(it) } != 1 || others.any { it.containsVariable(v) }) return null
+            return multiplyBothSides(Multiplications.of(*others.toTypedArray()), divide = true)
+        }
+
+        /** A match that says there is no real solution, or null for the whole problem (nothing else to show). */
+        private fun noRealSolution(): Match? {
+            if (path.isEmpty()) return null
+            val none = TextExpression(NO_REAL_SOLUTION)
+            return Match(StepRule.NO_REAL_SOLUTION, mapOf(path to none), equation, none, showChange = false)
+        }
+
+        /** ln(f) = c ⇔ f = eᶜ, log_b(f) = c ⇔ f = bᶜ. */
+        private fun logarithmic(): Match? {
+            if (right.containsVariable(v)) return null
+            val isLog = { e: Expression -> e is Logarithm && !e.base.containsVariable(v) && e.operand.containsVariable(v) }
+            isolate(isLog)?.let { return it }
+            val log = left as? Logarithm ?: return null
+            if (!isLog(log)) return null
+            val result = Equals(log.operand, Power(log.base, right))
+            return Match(
+                StepRule.EXPONENTIATE_BOTH_SIDES, mapOf(path to result), equation, result,
+                operation = BothSides(BothSides.Kind.EXPONENTIATE, log.base), showChange = false
+            )
+        }
+
+        /** √f = g ⇔ f = g² (and the solutions are checked afterwards, see [checkSolutions]). */
+        private fun radical(): Match? {
+            val isRoot = { e: Expression -> e is Power && (e.exponent as? Value)?.rational == Rational.HALF && e.base.containsVariable(v) }
+            isolate(isRoot)?.let { return it }
+            val root = left as? Power ?: return null
+            if (!isRoot(root)) return null
+            if (!right.containsVariable(v) && canonical(right)?.isNegative == true) return noRealSolution()
+            val result = Equals(root.base, Power(right, Value.TWO))
+            return Match(
+                StepRule.SQUARE_BOTH_SIDES, mapOf(path to result), equation, result,
+                operation = BothSides(BothSides.Kind.SQUARE), showChange = false
+            )
+        }
+
+        /** |f| = g ⇔ f = g or f = −g. */
+        private fun absoluteValue(): Match? {
+            val isAbsolute = { e: Expression -> e is AbsoluteValue && e.operand.containsVariable(v) }
+            isolate(isAbsolute)?.let { return it }
+            val absolute = left as? AbsoluteValue ?: return null
+            if (!isAbsolute(absolute)) return null
+            val result: Expression = if (!right.containsVariable(v)) {
+                val value = canonical(right) ?: return null
+                when {
+                    value.isNegative -> return noRealSolution()
+                    value.isZero -> Equals(absolute.operand, Value.ZERO)
+                    else -> Alternatives(listOf(Equals(absolute.operand, right), Equals(absolute.operand, Multiplications(Value.MINUS_ONE, right))))
+                }
+            } else {
+                Alternatives(listOf(Equals(absolute.operand, right), Equals(absolute.operand, Multiplications(Value.MINUS_ONE, right))))
+            }
+            return Match(StepRule.ABSOLUTE_VALUE_CASES, mapOf(path to result), equation, result, showChange = false)
+        }
+
+        /**
+         * e²ˣ − 3eˣ + 2 = 0: powers of the same base b with exponents that are multiples of the
+         * variable, so u = bˣ gives a polynomial equation in u.
+         */
+        private fun exponentialSubstitution(): Match? {
+            if (!allowSubstitution || context.complexNumbers) return null
+            fun multiple(exponent: Expression): Int? = when {
+                exponent == v -> 1
+                exponent is Multiplications && exponent.operands.size == 2 && exponent.operands[1] == v ->
+                    ((exponent.operands[0] as? Value)?.rational?.takeIf { !it.isFractional && !it.isNegative && !it.isZero })?.toDouble()?.toInt()
+                else -> null
+            }
+            var base: Expression? = null
+            val multiples = mutableListOf<Int>()
+            for (term in terms(left) + terms(right)) {
+                if (!term.containsVariable(v)) continue
+                val factors = if (term is Multiplications) term.operands else listOf(term)
+                val power = factors.singleOrNull { it is Power && it.exponent.containsVariable(v) } as? Power ?: return null
+                if (power.base.containsVariable(v) || factors.any { it !== power && it.containsVariable(v) }) return null
+                val k = multiple(power.exponent) ?: return null
+                if (base != null && base != power.base) return null
+                base = power.base
+                multiples.add(k)
+            }
+            val b = base ?: return null
+            if (multiples.distinct().size < 2) return null
+            if (!right.isZero) return addToBothSides(negated(right))
+            fun gcd(a: Int, c: Int): Int = if (c == 0) a else gcd(c, a % c)
+            val g = multiples.reduce { a, c -> gcd(a, c) }
+            val u = standInVariable(equation)
+            val stand = Power(b, if (g == 1) v else Multiplications(Value(g.toLong()), v))
+            val inU = left.transform { e ->
+                if (e is Power && e.base == b && e.exponent.containsVariable(v)) Power(u, Value((multiple(e.exponent)!! / g).toLong())) else e
+            }
+            val result = Equals(canonical(inU) ?: return null, Value.ZERO)
+            return Match(
+                StepRule.SUBSTITUTE_POWER, mapOf(path to result), equation, result,
+                notes = listOf(Note(u, stand)), showChange = false
+            )
+        }
+
+        /**
+         * sin(u) = c ⇔ u = asin(c) + 2kπ or u = π − asin(c) + 2kπ, cos(u) = c ⇔ u = ±acos(c) + 2kπ,
+         * tan(u) = c ⇔ u = atan(c) + kπ, for whole numbers k (radians only).
+         */
+        private fun trigonometric(): Match? {
+            if (context.angleUnit != AngleUnit.RADIANS || right.containsVariable(v)) return null
+            val isTrig = { e: Expression ->
+                e is TrigonometricFunction && e.type in listOf(TrigType.SIN, TrigType.COS, TrigType.TAN) &&
+                    e.operand.containsVariable(v) && (e.angleUnit ?: AngleUnit.RADIANS) == AngleUnit.RADIANS
+            }
+            isolate(isTrig)?.let { return it }
+            val trig = left as? TrigonometricFunction ?: return null
+            if (!isTrig(trig)) return null
+            val c = canonical(right) ?: return null
+            val numeric = c.evaluateNumerically()
+            if (!numeric.isFinite()) return null
+            if (trig.type != TrigType.TAN && abs(numeric) > 1 + 1e-12) return noRealSolution()
+            val k = listOf("k", "n", "m").map { Variable(it) }.firstOrNull { it !in equation.variables() } ?: return null
+            val inverseType = when (trig.type) {
+                TrigType.SIN -> TrigType.ASIN
+                TrigType.COS -> TrigType.ACOS
+                else -> TrigType.ATAN
+            }
+            val inverse = TrigonometricFunction(inverseType, c, AngleUnit.RADIANS)
+            // asin(1/2) = π/6 where the calculator knows the angle, otherwise asin(…) stays
+            val exact = canonical(inverse)?.takeIf { e -> !(e is Value && e.rational == null) } ?: inverse
+            val twoKPi = Multiplications(Value.TWO, k, Constant.PI)
+            val kPi = Multiplications(k, Constant.PI)
+            val u = trig.operand
+            val cases: List<Expression> = when (trig.type) {
+                TrigType.SIN -> listOf(Additions(exact, twoKPi)) +
+                    (if (abs(abs(numeric) - 1) < 1e-12) emptyList() else listOf(Additions(Constant.PI, Multiplications(Value.MINUS_ONE, exact), twoKPi)))
+                TrigType.COS -> listOf(Additions(exact, twoKPi)) +
+                    (if (abs(abs(numeric) - 1) < 1e-12) emptyList() else listOf(Additions(Multiplications(Value.MINUS_ONE, exact), twoKPi)))
+                else -> listOf(Additions(exact, kPi))
+            }
+            val equations = cases.map { Equals(u, it) }
+            val result: Expression = if (equations.size == 1) equations.single() else Alternatives(equations)
+            val notes = buildList {
+                add(Note(k, TextExpression("ℤ"), relation = "∈"))
+                if (writtenForm(exact) != writtenForm(inverse)) add(Note(inverse, exact))
+            }
+            return Match(StepRule.TRIG_GENERAL_SOLUTION, mapOf(path to result), equation, result, notes = notes, showChange = false)
+        }
+
+        /** a/b = 0 ⇔ a = 0, where b ≠ 0 (the solutions are checked afterwards). */
+        private fun zeroFraction(): Match? {
+            if (!right.isZero) return null
+            val factors = (left as? Multiplications)?.operands ?: return null
+            fun isDenominator(e: Expression) = e is Power && (e.exponent as? Value)?.isNegative == true && e.base.containsVariable(v)
+            val denominators = factors.filter { isDenominator(it) }
+            if (denominators.isEmpty()) return null
+            val numerator = Multiplications.of(*factors.filterNot { isDenominator(it) }.toTypedArray())
+            if (!numerator.containsVariable(v)) return null
+            val result = Equals(numerator, Value.ZERO)
+            return Match(
+                StepRule.ZERO_FRACTION, mapOf(path to result), equation, result,
+                notes = denominators.map { Note((it as Power).base, Value.ZERO, relation = "≠") }, showChange = false
+            )
+        }
+
         /** a·b = 0 ⇔ a = 0 or b = 0, for the factors that contain the variable. */
         private fun zeroProduct(): Match? {
             if (!right.isZero || left !is Multiplications) return null
-            val factors = left.operands.filter { it.containsVariable(v) }
+            // A denominator is never 0 itself: a/b = 0 is a = 0, with b ≠ 0 checked afterwards
+            val factors = left.operands.filter { it.containsVariable(v) && !((it as? Power)?.exponent as? Value)?.isNegative.let { negative -> negative == true } }
             if (factors.size < 2) return null
             val result = Alternatives(factors.map { Equals(it, Value.ZERO) })
             return Match(StepRule.ZERO_PRODUCT, mapOf(path to result), equation, result, showChange = false)
@@ -371,7 +664,11 @@ internal object EquationSteps {
                     val exponent = (factor as? Power)?.exponent as? Value ?: continue
                     if (!exponent.isNegative || !factor.base.containsVariable(v)) continue
                     val positive = exponent.negate()
-                    return multiplyBothSides(if (positive == Value.ONE) factor.base else Power(factor.base, positive))
+                    // The denominator must not be 0
+                    return multiplyBothSides(
+                        if (positive == Value.ONE) factor.base else Power(factor.base, positive),
+                        notes = listOf(Note(factor.base, Value.ZERO, relation = "≠"))
+                    )
                 }
             }
             return null

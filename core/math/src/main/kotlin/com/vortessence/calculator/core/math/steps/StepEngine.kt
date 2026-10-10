@@ -25,10 +25,10 @@ internal class ExpressionStep(
 
 /**
  * An operation on both sides of an equation, shown next to it as in "3x + 5 = 2x − 1 | − 2x":
- * adding, subtracting, multiplying or dividing by [operand], or taking the square root (or the n-th root, with n as the operand), or the logarithm to the base [operand].
+ * adding, subtracting, multiplying or dividing by [operand], or taking the square root (or the n-th root, with n as the operand), the logarithm to the base [operand], squaring, or raising the base [operand] to both sides.
  */
 internal class BothSides(val kind: Kind, val operand: Expression? = null) {
-    enum class Kind { ADD, SUBTRACT, MULTIPLY, DIVIDE, SQUARE_ROOT, ROOT, LOGARITHM }
+    enum class Kind { ADD, SUBTRACT, MULTIPLY, DIVIDE, SQUARE_ROOT, ROOT, LOGARITHM, SQUARE, EXPONENTIATE }
 }
 
 /**
@@ -42,7 +42,13 @@ internal class ExpressionSolution(val steps: List<ExpressionStep>, val result: E
 /**
  * A line that tells what a rule needs, e.g. u = x² or, with a [differential], du = 2x dx.
  */
-internal class Note(val left: Expression, val right: Expression, val differential: Variable? = null)
+internal class Note(
+    val left: Expression,
+    val right: Expression,
+    val differential: Variable? = null,
+    /** Written between the sides instead of "=", e.g. "≠" in x − 1 ≠ 0. */
+    val relation: String? = null
+)
 
 /** The position of a part of an expression: the child indices from the root down to it. */
 internal typealias Path = List<Int>

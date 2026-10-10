@@ -217,4 +217,91 @@ class EquationStepsTest {
         assertEquals("x₀ = 1", notes[1])
         assertEquals("x = 0.7390851332", solution.result.toString())
     }
+
+    @Test
+    fun theProblemIsShownWithTheDecimalsThatWereTyped() {
+        // 0.5x + 1.2 = 3
+        val solution = solution(ms(n("0"), n("."), n("5"), x, plus, n("1"), n("."), n("2"), eq, n("3")))!!
+        assertEquals("{0.5x + 1.2 = 3}", solution.steps.first().expression.toString().replace("\n", " "))
+        // The calculation itself is exact
+        assertEquals("x = (18)/(5)", solution.result.toString())
+    }
+
+    private fun f(name: String, vararg arg: MathNode) = FunctionNode(name, ms(*arg))
+
+    @Test
+    fun logarithmicEquationsRaiseTheBase() {
+        // ln(x) = 2: e^ on both sides, exact although the calculator has 7.389…
+        val natural = solution(ms(f("ln", x), eq, n("2")))!!
+        assertEquals("e^", natural.steps.first().operation.toString())
+        assertEquals("x = (e)^(2)", natural.result.toString())
+        // 2·ln(x) + 1 = 7: the 1, the 2, then e^
+        val rules = solution(ms(n("2"), f("ln", x), plus, n("1"), eq, n("7")))!!.steps.map { it.rule }
+        assertEquals(StepRule.EXPONENTIATE_BOTH_SIDES, rules.last())
+        // log(x + 1) = 1: 10^ and then a linear equation
+        assertEquals("x = 9", solution(ms(f("log", x, plus, n("1")), eq, n("1")))!!.result.toString())
+    }
+
+    @Test
+    fun exponentialEquationsInAnExponentialOfTheVariableBySubstitution() {
+        // e^(2x) − 3e^x + 2 = 0: u = eˣ, u = 2 or u = 1, then eˣ = 2 and eˣ = 1
+        val solution = solution(ms(ConstantNode("e"), pow(n("2"), x), minus, n("3"), ConstantNode("e"), pow(x), plus, n("2"), eq, n("0")))!!
+        val rules = solution.steps.map { it.rule }
+        assertTrue(StepRule.SUBSTITUTE_POWER in rules)
+        assertTrue(StepRule.BACK_SUBSTITUTE_POWER in rules)
+        assertEquals("u = (e)^(x)", solution.steps[1].notes.single().toString())
+        assertEquals("x = 0, x = ln(2)", solution.result.toString())
+    }
+
+    @Test
+    fun squaredRootsAreChecked() {
+        // √(x + 1) = x − 1: x = 0 or x = 3, and 0 is no solution
+        val solution = solution(ms(RadicalNode(null, ms(x, plus, n("1"))), eq, x, minus, n("1")))!!
+        val rules = solution.steps.map { it.rule }
+        assertEquals(StepRule.SQUARE_BOTH_SIDES, rules[1])
+        assertEquals("²", solution.steps.first().operation.toString())
+        assertEquals(StepRule.CHECK_SOLUTIONS, rules.last())
+        assertEquals("sqrt(0 + 1) ≠ 0 − 1", solution.steps.last().notes.first().toString())
+        assertEquals("x = 3", solution.result.toString())
+    }
+
+    @Test
+    fun aDenominatorThatBecomesZeroIsExcluded() {
+        // (x² − 1)/(x − 1) = 0: the numerator is 0 for x = ±1, but x ≠ 1
+        val solution = solution(ms(FractionNode(ms(x, pow(n("2")), minus, n("1")), ms(x, minus, n("1"))), eq, n("0")))!!
+        val rules = solution.steps.map { it.rule }
+        assertEquals(StepRule.ZERO_FRACTION, rules[1])
+        assertEquals("x − 1 ≠ 0", solution.steps[1].notes.single().toString())
+        assertEquals(StepRule.CHECK_SOLUTIONS, rules.last())
+        assertEquals("x =  − 1", solution.result.toString())
+    }
+
+    @Test
+    fun absoluteValuesSplitIntoTwoCases() {
+        // |x − 1| = 3
+        val simple = solution(ms(f("abs", x, minus, n("1")), eq, n("3")))!!
+        assertEquals(StepRule.ABSOLUTE_VALUE_CASES, simple.steps[1].rule)
+        assertEquals("x =  − 2, x = 4", simple.result.toString())
+        // |2x + 1| = x + 4: both solutions are checked, 2·(−5/3) + 1 included
+        val withVariable = solution(ms(f("abs", n("2"), x, plus, n("1")), eq, x, plus, n("4")))!!
+        assertEquals(StepRule.CHECK_SOLUTIONS, withVariable.steps.last().rule)
+        // No solution for a negative number
+        assertNull(solution(ms(f("abs", x), eq, OperatorNode(MathOp.MINUS), n("2"))))
+    }
+
+    @Test
+    fun trigonometricEquationsHaveAGeneralSolution() {
+        // sin(x) = 1/2: x = π/6 + 2kπ or x = 5π/6 + 2kπ
+        val sine = solution(ms(f("sin", x), eq, FractionNode(ms(n("1")), ms(n("2")))))!!
+        assertEquals(StepRule.TRIG_GENERAL_SOLUTION, sine.steps[1].rule)
+        assertEquals(listOf("k ∈ ℤ", "asin((1)/(2)) = (π)/(6)"), sine.steps[1].notes.map { it.toString() })
+        assertEquals("x = (π)/(6) + 2πk, x = (5π)/(6) + 2πk, k ∈ ℤ", sine.result.toString())
+        // tan repeats every π
+        assertEquals("x = (π)/(4) + πk, k ∈ ℤ", solution(ms(f("tan", x), eq, n("1")))!!.result.toString())
+        // 2x: the solutions are divided by 2
+        val double = solution(ms(f("sin", n("2"), x), eq, FractionNode(ms(n("1")), ms(n("2")))))!!
+        assertEquals("x = (π)/(12) + πk, x = (5π)/(12) + πk, k ∈ ℤ", double.result.toString())
+        // |c| > 1: no solution
+        assertNull(solution(ms(f("sin", x), eq, n("2"))))
+    }
 }

@@ -143,6 +143,22 @@ enum class StepRule {
     INSERT_VALUE,
     /** A root r of a polynomial splits off the factor (x − r) */
     FACTOR_BY_ROOT,
+    /** √f = g ⇔ f = g² (with a check) */
+    SQUARE_BOTH_SIDES,
+    /** sin(u) = c ⇔ u = asin(c) + 2kπ or … */
+    TRIG_GENERAL_SOLUTION,
+    /** lim f(x) = f(a) where f is defined at a */
+    LIMIT_SUBSTITUTE,
+    /** 0/0: lim f/g = lim f′/g′ */
+    LHOPITAL,
+    /** a/b = 0 ⇔ a = 0 */
+    ZERO_FRACTION,
+    /** |f| = g ⇔ f = g or f = −g */
+    ABSOLUTE_VALUE_CASES,
+    /** log_b(f) = c ⇔ f = bᶜ */
+    EXPONENTIATE_BOTH_SIDES,
+    /** The solutions tried in the original equation */
+    CHECK_SOLUTIONS,
     /** Only even powers: u = x² */
     SUBSTITUTE_POWER,
     /** u = x² written back */

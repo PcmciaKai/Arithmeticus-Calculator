@@ -29,7 +29,9 @@ import kotlin.math.log10
  */
 class MathWriter(
     private val decimalPlaces: Int? = null,
-    private val lossless: Boolean = false
+    private val lossless: Boolean = false,
+    /** Fractions written as the decimals they were typed as (0.5, not 1/2), for the first line of a solution. */
+    private val typedDecimals: Set<Rational> = emptySet()
 ) {
 
     /** Writes [expr]; a bare unit is written as a quantity of 1, e.g. "1 psi". */
@@ -219,7 +221,9 @@ class MathWriter(
         if (rational != null) {
             if (rational.isNegative) result.append(OperatorNode(MathOp.MINUS))
             val numerator = rational.numerator.abs().toString()
-            if (rational.isFractional) {
+            if (rational.isFractional && rational.abs() in typedDecimals) {
+                result.append(NumberNode(BigDecimal(rational.numerator.abs().value).divide(BigDecimal(rational.denominator.value)).toPlainString()))
+            } else if (rational.isFractional) {
                 val numStr = MathString(listOf(NumberNode(numerator)))
                 val denStr = MathString(listOf(NumberNode(rational.denominator.toString())))
                 result.append(FractionNode(numStr, denStr))
@@ -396,7 +400,7 @@ class MathWriter(
             if (op is Power && exponent != null && exponent.isNegative) {
                 val posExp = exponent.negate()
                 denominators.add(if (posExp == Value.ONE) op.base else Power(op.base, posExp))
-            } else if (op is Value && op.rational != null && op.rational.isFractional) {
+            } else if (op is Value && op.rational != null && op.rational.isFractional && op.rational.abs() !in typedDecimals) {
                 if (op.rational.numerator != BigInt.ONE) {
                     numerators.add(Value(op.rational.numerator))
                 }

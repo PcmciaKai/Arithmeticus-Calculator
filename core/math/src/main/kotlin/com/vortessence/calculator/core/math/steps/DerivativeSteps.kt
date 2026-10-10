@@ -63,7 +63,7 @@ internal object DerivativeSteps {
     }
 
     /** The first derivative that is still open, with one rule applied to it. */
-    private fun derivativeMatch(e: Expression, context: MathContext): Match? {
+    internal fun derivativeMatch(e: Expression, context: MathContext): Match? {
         // An inner function substituted for the chain rule goes back in as soon as its outer
         // derivative is done
         val path = pathsOf(e) {
