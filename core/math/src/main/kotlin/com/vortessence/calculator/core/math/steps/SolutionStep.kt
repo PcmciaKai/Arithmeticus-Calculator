@@ -139,6 +139,10 @@ enum class StepRule {
     SUBTRACT_EQUATIONS,
     /** A value found written into an equation or a solved variable */
     INSERT_VALUE,
+    /** A root r of a polynomial splits off the factor (x − r) */
+    FACTOR_BY_ROOT,
+    /** The discriminant is negative */
+    NO_REAL_SOLUTION,
     /** a·b = 0 ⇔ a = 0 or b = 0 */
     ZERO_PRODUCT,
     /** ax² + bx + c = 0 ⇔ x = (−b ± √(b² − 4ac))/(2a) */

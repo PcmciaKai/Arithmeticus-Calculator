@@ -273,6 +273,8 @@ private val StepRule.description: String
         StepRule.SWAP_SIDES -> "Swap the sides"
         StepRule.SQUARE_ROOT_BOTH_SIDES -> "Take the square root of both sides"
         StepRule.FACTOR_OUT -> "Factor out x"
+        StepRule.FACTOR_BY_ROOT -> "Split off a factor: if P(r) = 0, then (x − r) is a factor"
+        StepRule.NO_REAL_SOLUTION -> "No real solution: a square is never negative"
         StepRule.ZERO_PRODUCT -> "A product is zero if one of its factors is zero"
         StepRule.QUADRATIC_FORMULA -> "Apply the quadratic formula"
         StepRule.ROOT_OF_NUMBER -> "Calculate the root"
@@ -352,7 +354,7 @@ internal val StepRule.formula: String?
         StepRule.ZERO_PRODUCT -> "a·b = 0\\text{  ⇔  }a = 0\\text{  or  }b = 0"
         StepRule.QUADRATIC_FORMULA -> "x = \\frac{−b ± \\sqrt{D}}{2a}\\text{  with  }D = b^2 − 4ac"
         StepRule.ROOT_OF_NUMBER, StepRule.IDENTITY, StepRule.SOLVE_FOR, StepRule.SUBSTITUTE_SOLUTION,
-        StepRule.MULTIPLY_EQUATIONS, StepRule.ADD_EQUATIONS, StepRule.SUBTRACT_EQUATIONS, StepRule.INSERT_VALUE, StepRule.COLLECT_SOLUTION,
+        StepRule.MULTIPLY_EQUATIONS, StepRule.ADD_EQUATIONS, StepRule.SUBTRACT_EQUATIONS, StepRule.INSERT_VALUE, StepRule.COLLECT_SOLUTION, StepRule.FACTOR_BY_ROOT, StepRule.NO_REAL_SOLUTION,
         StepRule.INTEGRAL_TABLE, StepRule.EXPAND_INTEGRAND, StepRule.BACK_SUBSTITUTION,
         StepRule.MULTIPLY_NUMBERS, StepRule.DIVIDE_NUMBERS, StepRule.REDUCE_FRACTION, StepRule.NUMBER_POWER,
         StepRule.ADD_NUMBERS, StepRule.SUBTRACT_NUMBERS, StepRule.ADD_AND_SUBTRACT_NUMBERS, StepRule.COMBINE_LIKE_TERMS,

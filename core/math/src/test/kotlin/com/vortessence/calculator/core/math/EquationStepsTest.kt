@@ -120,4 +120,33 @@ class EquationStepsTest {
         // No solution
         assertNull(solution(ms(x, eq, x, plus, n("1"))))
     }
+
+    @Test
+    fun aRationalRootSplitsOffAFactor() {
+        val solution = solution(
+            ms(x, pow(n("3")), minus, n("6"), x, pow(n("2")), plus, n("11"), x, minus, n("6"), eq, n("0"))
+        )!!
+        val rules = solution.steps.map { it.rule }
+        assertEquals(StepRule.FACTOR_BY_ROOT, rules[1])
+        assertEquals(StepRule.ZERO_PRODUCT, rules[2])
+        assertTrue(StepRule.QUADRATIC_FORMULA in rules)
+        assertEquals("P(1) = (1)^(3) − 6 × (1)^(2) + 11 × 1 − 6 = 0", solution.steps[1].notes.single().toString())
+        // In the order of the calculator's solutions
+        assertEquals("x = 1, x = 2, x = 3", solution.result.toString())
+    }
+
+    @Test
+    fun aCaseWithoutRealSolutionsDropsOut() {
+        // x³ = 8: x = 2, and x² + 2x + 4 = 0 has a negative discriminant
+        val solution = solution(ms(x, pow(n("3")), eq, n("8")))!!
+        assertTrue(StepRule.NO_REAL_SOLUTION in solution.steps.map { it.rule })
+        assertEquals("x = 2", solution.result.toString())
+    }
+
+    @Test
+    fun aDoubleRootIsListedOnce() {
+        // x³ − 3x + 2 = (x − 1)²(x + 2)
+        val solution = solution(ms(x, pow(n("3")), minus, n("3"), x, plus, n("2"), eq, n("0")))!!
+        assertEquals("x =  − 2, x = 1", solution.result.toString())
+    }
 }

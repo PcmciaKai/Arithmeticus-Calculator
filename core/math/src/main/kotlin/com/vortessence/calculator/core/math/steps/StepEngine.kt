@@ -188,6 +188,11 @@ internal fun normalize(e: Expression): Expression = when (e) {
             else -> Multiplications.of(*factors.filterNot { unmarked(it) == Value.ONE && !isKept(it) }.toTypedArray())
         }
     }
+    // Alternatives inside alternatives (a factor with two solutions among others) are one list
+    is Alternatives -> Alternatives(
+        e.equations.map { normalize(it) }.flatMap { if (it is Alternatives) it.equations else listOf(it) },
+        e.inline
+    )
     else -> if (e.children.isEmpty()) e else e.copyWithChildren(e.children.map { normalize(it) })
 }
 

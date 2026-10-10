@@ -14,6 +14,7 @@ import com.vortessence.calculator.core.math.expressions.UnitExpression
 import com.vortessence.calculator.core.math.expressions.Value
 import com.vortessence.calculator.core.math.expressions.Variable
 import com.vortessence.calculator.core.math.expressions.expandProducts
+import com.vortessence.calculator.core.math.numbers.Rational
 import kotlin.math.abs
 import kotlin.math.max
 
@@ -35,6 +36,8 @@ import kotlin.math.max
 internal object EquationSteps {
 
     private const val MAX_STEPS = 150
+
+    private const val MAX_ROOT_SEARCH = 1000.0
 
     fun steps(equation: Equals, v: Variable, context: MathContext): ExpressionSolution? {
         if (equation.containsExpressionMatching {
@@ -68,9 +71,11 @@ internal object EquationSteps {
         }
 
         // Each branch x = value is one of the calculated solutions; it ends written as that one
-        val branches = (unmarked(solution.current).let { if (it is Alternatives) it.equations else listOf(it) }).map { it as? Equals ?: return null }
-        if (branches.size != solutions.size) return null
+        val branches = (unmarked(solution.current).let { if (it is Alternatives) it.equations else listOf(it) })
+            .filterNot { it == TextExpression(NO_REAL_SOLUTION) }
+            .map { it as? Equals ?: return null }
         val matched = branches.map { branch -> solutions.firstOrNull { sameValue(branch.right, it, v) } ?: return null }
+        // A double root is found twice; every calculated solution must be found
         if (matched.toSet().size != solutions.size) return null
         // What the rules did not do, for each value on its own. Where the calculator only found a
         // decimal (solving numerically), the exact value of the steps stays.
@@ -81,10 +86,14 @@ internal object EquationSteps {
             val valuePath = if (values.size == 1) listOf(1) else listOf(i, 1)
             solution.apply(Match(StepRule.SIMPLIFY, mapOf(valuePath to value), finalValues[i], value))
         }
-        return solution.finish(if (values.size == 1) Equals(v, values.single()) else Alternatives(values.map { Equals(v, it) }, inline = true))
+        // In the order of the calculated solutions, each once (a double root was found twice)
+        val ordered = solutions.map { values[matched.indexOf(it)] }
+        return solution.finish(if (ordered.size == 1) Equals(v, ordered.single()) else Alternatives(ordered.map { Equals(v, it) }, inline = true))
     }
 
     private const val TRUE = "true"
+
+    private const val NO_REAL_SOLUTION = "no real solution"
 
     /**
      * Solves the equation at [path] of the current expression of [solution] for [v], step by
@@ -150,7 +159,7 @@ internal object EquationSteps {
                 // x + 1 = 1 + x: the variable drops out
                 null, 1 -> linear()
                 2 -> quadratic(coefficients)
-                else -> null
+                else -> higherDegree(coefficients)
             }
         }
 
@@ -225,7 +234,12 @@ internal object EquationSteps {
                 return multiplyBothSides(Multiplications.of(*others.toTypedArray()), divide = true)
             }
             val value = canonical(right) ?: return null
-            if (value.isNegative) return null
+            if (value.isNegative) {
+                // A square is never negative; only one case among several can be left out
+                if (path.isEmpty()) return null
+                val none = TextExpression(NO_REAL_SOLUTION)
+                return Match(StepRule.NO_REAL_SOLUTION, mapOf(path to none), equation, none, showChange = false)
+            }
             val result: Expression = if (value.isZero) {
                 Equals(square.base, Value.ZERO)
             } else {
@@ -329,6 +343,68 @@ internal object EquationSteps {
             return formula(coefficients)
         }
 
+        /**
+         * Polynomials of degree 3 and up with whole number coefficients: everything to the left,
+         * then a rational root r (found by trying ±p/q, p dividing the constant term and q the
+         * leading coefficient) splits off the factor (x − r), see [ZERO_PRODUCT].
+         */
+        private fun higherDegree(coefficients: Map<Int, Expression>): Match? {
+            if (!right.isZero) return addToBothSides(negated(right))
+            val degree = coefficients.keys.max()
+            val numbers = (0..degree).map { k ->
+                val c = coefficients[k] ?: return@map Rational.ZERO
+                (c as? Value)?.rational?.takeIf { !it.isFractional } ?: return null
+            }
+            val root = rationalRoot(numbers) ?: return null
+            val p = root.numerator.toDouble().toLong()
+            val q = root.denominator.toDouble().toLong()
+            // Q with P = (x − r)·Q' and (qx − p) = q·(x − r): Q = Q'/q
+            val quotient = ArrayList<Rational>()
+            var carry = Rational.ZERO
+            for (k in degree downTo 1) {
+                carry = numbers[k] + carry * root
+                quotient.add(carry)
+            }
+            val scaled = quotient.map { it / Rational.of(q) }
+            if (scaled.any { it.isFractional }) return null
+            val quotientExpression = canonical(
+                Additions(scaled.mapIndexed { i, c -> Multiplications(Value(c), Power(v, Value((degree - 1 - i).toLong()))) })
+            ) ?: return null
+            val factor: Expression = when {
+                p == 0L -> v
+                q == 1L -> Additions(v, Value(-p))
+                else -> Additions(Multiplications(Value(q), v), Value(-p))
+            }
+            val factored = Multiplications(factor, quotientExpression)
+            // P(r) written out, highest power first: 1³ − 6·1² + 11·1 − 6
+            val check = Additions((degree downTo 0).mapNotNull { k ->
+                val c = numbers[k]
+                when {
+                    c.isZero -> null
+                    k == 0 -> Value(c)
+                    k == 1 -> WrittenOut(listOf(Value(c), Value(root)))
+                    else -> Multiplications(Value(c), Power(Value(root), Value(k.toLong())))
+                }
+            })
+            val shown = if (root.isNegative) "−${root.abs()}" else "$root"
+            val note = Note(TextExpression("P($shown)"), Equals(check, Value.ZERO))
+            return Match(StepRule.FACTOR_BY_ROOT, mapOf(path + 0 to factored), left, factored, notes = listOf(note))
+        }
+
+        /** The first rational root of the polynomial with whole number [coefficients] (constant term first). */
+        private fun rationalRoot(coefficients: List<Rational>): Rational? {
+            if (coefficients.first().isZero) return Rational.ZERO
+            val constant = coefficients.first().numerator.abs().toDouble()
+            val leading = coefficients.last().numerator.abs().toDouble()
+            if (constant > MAX_ROOT_SEARCH || leading > MAX_ROOT_SEARCH) return null
+            fun divisors(n: Long) = (1..n).filter { n % it == 0L }
+            val candidates = divisors(constant.toLong()).flatMap { p -> divisors(leading.toLong()).map { q -> Rational.of(p, q) } }
+                .distinct().sortedBy { it.toDouble() }.flatMap { listOf(it, -it) }
+            return candidates.firstOrNull { r ->
+                coefficients.foldIndexed(Rational.ZERO) { k, sum, c -> sum + c * r.pow(k.toLong()) }.isZero
+            }
+        }
+
         /** ax² + bx = x(ax + b) */
         private fun factorOut(): Match? {
             val inner = terms(left).map { canonical(Multiplications(it, Power(v, Value.MINUS_ONE))) ?: return null }
@@ -347,13 +423,18 @@ internal object EquationSteps {
             val d = canonical(discriminant) as? Value ?: return null
             // b² − 4·a·c with the numbers as they are: 1² − 4·1·(−1)
             val writtenOut = Additions(Power(b, Value.TWO), Multiplications(Value.MINUS_ONE, WrittenOut(listOf(Value(4L), a, c))))
-            if (d.isNegative) return null
             val notes = listOf(
                 Note(Variable("a"), a),
                 Note(Variable("b"), b),
                 Note(Variable("c"), c),
                 Note(Variable("D"), Equals(writtenOut, d))
             )
+            // A negative discriminant: no real solution, which only matters as one of several cases
+            if (d.isNegative) {
+                if (path.isEmpty()) return null
+                val none = TextExpression(NO_REAL_SOLUTION)
+                return Match(StepRule.NO_REAL_SOLUTION, mapOf(path to none), equation, none, notes = notes, showChange = false)
+            }
             val minusB = b.negate()
             val twoA = Multiplications(Value.TWO, a)
             val result: Expression = if (d.isZero) {
