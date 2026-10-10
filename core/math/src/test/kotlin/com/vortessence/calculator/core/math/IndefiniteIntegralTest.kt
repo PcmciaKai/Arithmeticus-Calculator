@@ -100,9 +100,17 @@ class IndefiniteIntegralTest {
     fun noClosedForm() {
         assertNotFound(calc(i(e, pow(x, pow(n("2"))))))
         assertNotFound(calc(i(frac(ms(f("sin", x)), ms(x)))))
-        // Would need partial fractions
-        assertNotFound(calc(i(frac(ms(n("1")), ms(x, pow(n("2")), op(MathOp.MINUS), n("1"))))))
+        // A denominator that does not split into linear factors (completing the square is not done)
+        assertNotFound(calc(i(frac(ms(n("1")), ms(x, pow(n("2")), op(MathOp.PLUS), x, op(MathOp.PLUS), n("1"))))))
         assertEquals(listOf(MathIssue.SYNTAX_ERROR), calc(i()).issues)
+    }
+
+    @Test
+    fun partialFractions() {
+        // ½ln|x − 1| − ½ln|x + 1|
+        assertResult(" − (ln(abs(x + 1)))/(2) + (ln(abs(x − 1)))/(2) + C", calc(i(frac(ms(n("1")), ms(x, pow(n("2")), op(MathOp.MINUS), n("1"))))))
+        // With a polynomial part: x²/2 + ½ln|x + 1| + ½ln|x − 1|
+        assertResult("((x)^(2))/(2) + (ln(abs(x + 1)))/(2) + (ln(abs(x − 1)))/(2) + C", calc(i(frac(ms(x, pow(n("3"))), ms(x, pow(n("2")), op(MathOp.MINUS), n("1"))))))
     }
 
     @Test

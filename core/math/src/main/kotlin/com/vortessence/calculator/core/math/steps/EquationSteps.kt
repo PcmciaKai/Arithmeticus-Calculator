@@ -177,7 +177,13 @@ internal object EquationSteps {
                 notes = candidates.map { it.note }, showChange = false
             )
         )
-        return candidates.filter { it.ok }.map { it.branch }
+        val kept = candidates.filter { it.ok }.map { it.branch }
+        // What is left, so that the last line is the result
+        if (rejected.isNotEmpty() && kept.isNotEmpty()) {
+            val remaining: Expression = if (kept.size == 1) kept.single() else Alternatives(kept, inline = true)
+            solution.apply(Match(StepRule.COLLECT_SOLUTION, mapOf(emptyList<Int>() to remaining), solution.current, remaining, showChange = false, boxReplacements = false))
+        }
+        return kept
     }
 
     private const val TRUE = "true"

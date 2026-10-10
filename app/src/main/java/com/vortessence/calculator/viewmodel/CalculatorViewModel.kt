@@ -115,6 +115,9 @@ class CalculatorViewModel @JvmOverloads constructor(
     private var plotJob: Job? = null
     private var stepsJob: Job? = null
 
+    /** The steps worked out for the live result, to show them at once when the sheet is opened. */
+    private var cachedSteps: CachedSteps? = null
+
     init {
         loadSettings()
         observeLiveResult()
@@ -142,8 +145,13 @@ class CalculatorViewModel @JvmOverloads constructor(
                     }
                     // Finding out whether there are steps can take as long as the calculation: the
                     // result is shown first, the "Steps" pill follows
-                    if (res.isSuccess && MathEngine.hasSteps(input.expression, context)) {
-                        _uiState.update { if (it.expression == input.expression) it.copy(hasSteps = true) else it }
+                    if (res.isSuccess) {
+                        // The steps are kept for the sheet: working them out is what tells whether there are any
+                        val solution = MathEngine.steps(input.expression, context)
+                        cachedSteps = CachedSteps(input, solution)
+                        if (solution != null) {
+                            _uiState.update { if (it.expression == input.expression) it.copy(hasSteps = true) else it }
+                        }
                     }
                 }
         }
@@ -151,6 +159,8 @@ class CalculatorViewModel @JvmOverloads constructor(
 
     /** The expression and all calculation settings; a change of any of them updates the live result. */
     private data class LiveInput(val expression: MathString, val settings: Settings)
+
+    private class CachedSteps(val input: LiveInput, val solution: Solution?)
 
     private data class Settings(
         val angleUnit: AngleUnit,
@@ -540,6 +550,12 @@ class CalculatorViewModel @JvmOverloads constructor(
     fun showSteps() {
         val state = _uiState.value
         val input = state.expression
+        val cached = cachedSteps?.takeIf { it.solution != null && it.input == LiveInput(input, state.mathContext()) }
+        if (cached != null) {
+            stepsJob?.cancel()
+            _uiState.update { it.copy(steps = StepsState(input, cached.solution, isLoading = false)) }
+            return
+        }
         _uiState.update { it.copy(steps = StepsState(input)) }
         stepsJob?.cancel()
         stepsJob = viewModelScope.launch {

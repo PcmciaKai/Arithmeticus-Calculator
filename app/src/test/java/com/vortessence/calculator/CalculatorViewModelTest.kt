@@ -436,6 +436,23 @@ class CalculatorViewModelTest {
     }
 
     @Test
+    fun theSheetOpensWithTheStepsThatWereWorkedOutForThePill() = runBlocking {
+        val vm = newViewModel()
+        vm.onKeyAction(KeyAction.Variable("x"))
+        vm.onKeyAction(KeyAction.Operator("+"))
+        vm.onKeyAction(KeyAction.Variable("x"))
+        vm.awaitLiveResult()
+        vm.awaitSteps()
+
+        // No loading: the solution is there as soon as the sheet is opened
+        vm.showSteps()
+        val state = vm.uiState.value.steps
+        assertNotNull(state)
+        assertFalse(state!!.isLoading)
+        assertNotNull(state.solution)
+    }
+
+    @Test
     fun simplificationOffersStepByStepSolution() = runBlocking {
         val vm = newViewModel()
         // x + x = 2x has a step; 2x is already as simple as it gets

@@ -260,8 +260,10 @@ class EquationStepsTest {
         val rules = solution.steps.map { it.rule }
         assertEquals(StepRule.SQUARE_BOTH_SIDES, rules[1])
         assertEquals("²", solution.steps.first().operation.toString())
-        assertEquals(StepRule.CHECK_SOLUTIONS, rules.last())
-        assertEquals("sqrt(0 + 1) ≠ 0 − 1", solution.steps.last().notes.first().toString())
+        // The check crosses x = 0 out, the last line is what is left
+        assertEquals(listOf(StepRule.CHECK_SOLUTIONS, StepRule.COLLECT_SOLUTION), rules.takeLast(2))
+        assertEquals("sqrt(0 + 1) ≠ 0 − 1", solution.steps[solution.steps.size - 2].notes.first().toString())
+        assertEquals("x = 3", solution.steps.last().expression.toString())
         assertEquals("x = 3", solution.result.toString())
     }
 
@@ -272,7 +274,8 @@ class EquationStepsTest {
         val rules = solution.steps.map { it.rule }
         assertEquals(StepRule.ZERO_FRACTION, rules[1])
         assertEquals("x − 1 ≠ 0", solution.steps[1].notes.single().toString())
-        assertEquals(StepRule.CHECK_SOLUTIONS, rules.last())
+        assertEquals(listOf(StepRule.CHECK_SOLUTIONS, StepRule.COLLECT_SOLUTION), rules.takeLast(2))
+        assertEquals("x =  − 1", solution.steps.last().expression.toString())
         assertEquals("x =  − 1", solution.result.toString())
     }
 

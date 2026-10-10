@@ -91,10 +91,10 @@ internal class Integrator(private val context: MathContext) {
                     val rest = integrate(Multiplications.of(*factors.toTypedArray()), v, depth + 1) ?: return null
                     Multiplications(constants + rest)
                 } else {
-                    expanded(e, v, depth) ?: bySubstitution(e, v, depth) ?: byParts(e, v, depth)
+                    expanded(e, v, depth) ?: bySubstitution(e, v, depth) ?: partialFractions(e, v, depth) ?: byParts(e, v, depth)
                 }
             }
-            else -> basic(e, v) ?: expanded(e, v, depth) ?: bySubstitution(e, v, depth) ?: byParts(e, v, depth)
+            else -> basic(e, v) ?: expanded(e, v, depth) ?: bySubstitution(e, v, depth) ?: partialFractions(e, v, depth) ?: byParts(e, v, depth)
         }
     }
 
@@ -229,6 +229,33 @@ internal class Integrator(private val context: MathContext) {
      * Substitution ("derivative divides"): for each inner expression u of [f], if f / u'
      * depends on x only through u, then ∫ f dx = ∫ g(w) dw with w = u.
      */
+    /**
+     * P(x)/Q(x) with Q splitting into linear factors: a polynomial plus fractions A/(x − r)ᵏ, each
+     * integrated on its own (1/(x² − 1) = ½/(x − 1) − ½/(x + 1)).
+     */
+    internal fun partialFractions(f: Expression, v: Variable, depth: Int): Expression? {
+        val split = splitRational(f, v) ?: return null
+        val decomposition = split.first
+        val integrand = decomposition.toExpression(v)
+        return integrate(integrand, v, depth + 1)
+    }
+
+    /** The decomposition of [f] if it is a rational function with a denominator of degree 2 or more that splits. */
+    internal fun splitRational(f: Expression, v: Variable): Pair<PartialFractions.Decomposition, Pair<Expression, Expression>>? {
+        val factors = if (f is Multiplications) f.operands else listOf(f)
+        val denominators = factors.filter { it is Power && it.base.containsVariable(v) && (it.exponent as? Value)?.rational?.let { r -> r.isNegative && !r.isFractional } == true }
+        if (denominators.isEmpty()) return null
+        val denominator = Multiplications.of(*denominators.map { d ->
+            val positive = ((d as Power).exponent as Value).negate()
+            if (positive == Value.ONE) d.base else Power(d.base, positive)
+        }.toTypedArray())
+        val numerator = Multiplications.of(*factors.filterNot { it in denominators }.toTypedArray())
+        val q = PartialFractions.polynomial(denominator, v, context) ?: return null
+        val p = PartialFractions.polynomial(numerator, v, context) ?: return null
+        val decomposition = PartialFractions.decompose(p, q) ?: return null
+        return decomposition to (numerator to denominator)
+    }
+
     private fun bySubstitution(f: Expression, v: Variable, depth: Int): Expression? {
         val w = Variable("_w$depth")
         for (u in substitutionCandidates(f, v)) {

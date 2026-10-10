@@ -140,4 +140,31 @@ class IntegralStepsTest {
         assertNull(solution(integral(e, pow(x, pow(n("2"))))))
         assertNull(solution(integral("0", "1", e, pow(x, pow(n("2"))))))
     }
+
+    private fun frac(a: MathString, b: MathString) = FractionNode(a, b)
+
+    @Test
+    fun partialFractionsForADenominatorThatSplits() {
+        // ∫ 1/(x² − 1) dx = ½ln|x − 1| − ½ln|x + 1|
+        val solution = solution(integral(frac(ms(n("1")), ms(x, pow(n("2")), minus, n("1")))))!!
+        assertEquals(StepRule.PARTIAL_FRACTIONS, solution.steps[1].rule)
+        // x² − 1 = (x + 1)(x − 1), the setup, A and B
+        assertEquals(4, solution.steps[1].notes.size)
+        assertTrue(StepRule.INTEGRAL_RECIPROCAL in solution.steps.map { it.rule })
+        assertEquals(" − (ln(abs(x + 1)))/(2) + (ln(abs(x − 1)))/(2) + C", solution.result.toString())
+    }
+
+    @Test
+    fun partialFractionsWithADivisionAndARepeatedFactor() {
+        // x³/(x² − 1): the polynomial part first, then the split of x/(x² − 1)
+        val division = solution(integral(frac(ms(x, pow(n("3"))), ms(x, pow(n("2")), minus, n("1")))))!!
+        // The division, the factors, the setup, A and B
+        assertEquals(5, division.steps[1].notes.size)
+        // 1/(x(x + 1)²): A/(x + 1) + B/(x + 1)² + C/x
+        val repeated = solution(integral(frac(ms(n("1")), ms(x, par(x, plus, n("1")), pow(n("2"))))))!!
+        assertEquals(StepRule.PARTIAL_FRACTIONS, repeated.steps[1].rule)
+        assertEquals("A =  − 1", repeated.steps[1].notes[repeated.steps[1].notes.size - 3].toString())
+        // A substitution is still preferred where one fits: ∫ x/(x² − 1) dx
+        assertEquals(StepRule.SUBSTITUTION, solution(integral(frac(ms(x), ms(x, pow(n("2")), minus, n("1")))))!!.steps[1].rule)
+    }
 }

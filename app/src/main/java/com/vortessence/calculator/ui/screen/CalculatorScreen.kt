@@ -27,10 +27,12 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.vortessence.calculator.R
 import com.vortessence.calculator.core.math.CalculationResult
 import com.vortessence.calculator.core.math.context.MathIssue
 import com.vortessence.calculator.core.math.type.MathString
@@ -321,7 +323,7 @@ private fun LiveResultView(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            if (hasSteps) AnswerPill("Steps", selected = false, onClick = onShowSteps)
+            if (hasSteps) AnswerPill(stringResource(R.string.steps_title), selected = false, onClick = onShowSteps)
             if (forms.size > 1) {
                 forms.forEach { option ->
                     AnswerPill(option.label, shownForm == option) { onFormChange(option) }

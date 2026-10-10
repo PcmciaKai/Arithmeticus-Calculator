@@ -4,12 +4,19 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -20,6 +27,8 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.vortessence.calculator.R
 import com.vortessence.calculator.core.math.steps.SolutionStep
 import com.vortessence.calculator.core.math.steps.StepChange
 import com.vortessence.calculator.core.math.steps.StepRule
@@ -47,33 +56,123 @@ fun StepsSheet(state: StepsState, onDismiss: () -> Unit) {
                 .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("Steps", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.steps_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             val solution = state.solution
             when {
                 state.isLoading -> Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
                 solution == null -> Text(
-                    "There are no steps for this calculation.",
+                    stringResource(R.string.steps_none),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                else -> LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 560.dp)
-                ) {
-                    itemsIndexed(solution.steps) { index, step ->
-                        if (index > 0) StepArrow(step, highlightColor(index))
-                        if (index == solution.steps.lastIndex && index > 0) {
-                            ResultLine(step.expression)
-                        } else {
-                            ExpressionLine(step, highlightColor(index + 1))
+                else -> {
+                    val rows = remember(solution) { stepRows(solution.steps) }
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 560.dp)
+                    ) {
+                        items(rows, key = { it.from }) { row ->
+                            if (row.to == row.from) StepItem(solution.steps, row.from)
+                            else CalculationGroup(solution.steps, row.from, row.to)
                         }
                     }
                 }
             }
         }
     }
+}
+
+/** A step, or with [to] after [from] a run of calculation steps that can be folded away. */
+private class StepRow(val from: Int, val to: Int)
+
+/** Runs of at least this many plain calculations (adding, multiplying … numbers) are folded. */
+private const val MIN_FOLDED_STEPS = 3
+
+private val CALCULATION_RULES = setOf(
+    StepRule.NUMBER_POWER, StepRule.ROOT_OF_NUMBER, StepRule.DIVIDE_BY_FRACTION,
+    StepRule.MULTIPLY_NUMBERS, StepRule.DIVIDE_NUMBERS, StepRule.REDUCE_FRACTION,
+    StepRule.ADD_NUMBERS, StepRule.SUBTRACT_NUMBERS, StepRule.ADD_AND_SUBTRACT_NUMBERS
+)
+
+/** The steps in rows; the problem and the result stay as they are, long runs of calculations become one row. */
+private fun stepRows(steps: List<SolutionStep>): List<StepRow> {
+    val rows = mutableListOf<StepRow>()
+    var i = 0
+    while (i < steps.size) {
+        var end = i
+        if (i > 0 && steps[i].rule in CALCULATION_RULES) {
+            while (end + 1 < steps.lastIndex && steps[end + 1].rule in CALCULATION_RULES) end++
+        }
+        if (end - i + 1 >= MIN_FOLDED_STEPS) {
+            rows.add(StepRow(i, end))
+            i = end + 1
+        } else {
+            rows.add(StepRow(i, i))
+            i++
+        }
+    }
+    return rows
+}
+
+/** One step: its arrow (not for the problem) and the expression it leads to, the result framed. */
+@Composable
+private fun StepItem(steps: List<SolutionStep>, index: Int) {
+    val step = steps[index]
+    if (index > 0) StepArrow(step, highlightColor(index))
+    if (index == steps.lastIndex && index > 0) {
+        ResultLine(step.expression)
+    } else {
+        ExpressionLine(step, highlightColor(index + 1))
+    }
+}
+
+/** A run of calculations, folded to one arrow with the expression it ends in; a tap shows every step. */
+@Composable
+private fun CalculationGroup(steps: List<SolutionStep>, from: Int, to: Int) {
+    var expanded by rememberSaveable(from) { mutableStateOf(false) }
+    val count = to - from + 1
+    if (expanded) {
+        FoldToggle(stringResource(R.string.steps_hide_calculations, count), expanded = true) { expanded = false }
+        for (index in from..to) StepItem(steps, index)
+    } else {
+        FoldedArrow(highlightColor(from)) { FoldToggle(stringResource(R.string.steps_show_calculations, count), expanded = false) { expanded = true } }
+        ExpressionLine(steps[to], highlightColor(to + 1))
+    }
+}
+
+@Composable
+private fun FoldToggle(label: String, expanded: Boolean, onClick: () -> Unit) {
+    val color = MaterialTheme.colorScheme.onSurfaceVariant
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        color = color.copy(alpha = 0.10f)
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 12.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(label, fontSize = 14.sp, color = color)
+            Icon(
+                if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                contentDescription = null,
+                tint = color
+            )
+        }
+    }
+}
+
+/** The arrow of a folded run, with [content] beside it. */
+@Composable
+private fun FoldedArrow(color: Color, content: @Composable () -> Unit) {
+    Column(
+        modifier = Modifier
+            .padding(vertical = 4.dp)
+            .arrowBehind(color)
+            .padding(start = 36.dp, top = 8.dp, bottom = 12.dp)
+    ) { content() }
 }
 
 /** A downward arrow in [color], next to what the step does. */
@@ -84,26 +183,29 @@ private fun StepArrow(step: SolutionStep, color: Color) {
     Column(
         modifier = Modifier
             .padding(vertical = 4.dp)
-            .drawBehind {
-                val x = 12.dp.toPx()
-                val stroke = 2.dp.toPx()
-                val head = 6.dp.toPx()
-                val bottom = size.height - stroke
-                drawLine(color, Offset(x, 0f), Offset(x, bottom), stroke, StrokeCap.Round)
-                drawLine(color, Offset(x - head, bottom - head), Offset(x, bottom), stroke, StrokeCap.Round)
-                drawLine(color, Offset(x + head, bottom - head), Offset(x, bottom), stroke, StrokeCap.Round)
-            }
+            .arrowBehind(color)
             .padding(start = 36.dp, top = 8.dp, bottom = 12.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        step.rule?.let { RuleText(it.description, it.formula) }
+        step.rule?.let { RuleText(stringResource(it.descriptionRes), it.formula) }
         if (step.chainRule) {
-            if (step.rule?.isIntegral == true) RuleText("Linear argument", "\\int{f(ax + b)}{x} = \\frac{F(ax + b)}{a}")
-            else RuleText("Chain rule", "(f(g))′ = f′(g)·g′")
+            if (step.rule?.isIntegral == true) RuleText(stringResource(R.string.steps_linear_argument), "\\int{f(ax + b)}{x} = \\frac{F(ax + b)}{a}")
+            else RuleText(stringResource(R.string.steps_chain_rule), "(f(g))′ = f′(g)·g′")
         }
         step.notes.forEach { NoteLine(it) }
         step.change?.let { ChangeLine(it) }
     }
+}
+
+/** A downward arrow in [color] along the left edge, behind the content. */
+private fun Modifier.arrowBehind(color: Color): Modifier = drawBehind {
+    val x = 12.dp.toPx()
+    val stroke = 2.dp.toPx()
+    val head = 6.dp.toPx()
+    val bottom = size.height - stroke
+    drawLine(color, Offset(x, 0f), Offset(x, bottom), stroke, StrokeCap.Round)
+    drawLine(color, Offset(x - head, bottom - head), Offset(x, bottom), stroke, StrokeCap.Round)
+    drawLine(color, Offset(x + head, bottom - head), Offset(x, bottom), stroke, StrokeCap.Round)
 }
 
 @Composable
@@ -157,7 +259,7 @@ private fun ResultLine(math: MathString) {
         border = BorderStroke(1.5.dp, color.copy(alpha = 0.6f))
     ) {
         Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
-            Text("Result", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = color)
+            Text(stringResource(R.string.steps_result), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = color)
             // The frame is enough, without the box of the last step inside it
             ScrollingMath(withoutHighlights(math), fontSize = 24.sp)
         }
@@ -206,104 +308,105 @@ private fun ScrollingMath(math: MathString, fontSize: androidx.compose.ui.unit.T
 private val StepRule.isIntegral: Boolean
     get() = name.startsWith("INTEGRAL_")
 
-private val StepRule.description: String
+private val StepRule.descriptionRes: Int
     get() = when (this) {
-        StepRule.CONSTANT -> "The derivative of a constant is zero"
-        StepRule.VARIABLE -> "The derivative of the variable is one"
-        StepRule.SUM -> "Differentiate term by term"
-        StepRule.CONSTANT_FACTOR -> "Factor out the constant"
-        StepRule.PRODUCT -> "Apply the product rule"
-        StepRule.QUOTIENT -> "Apply the quotient rule"
-        StepRule.POWER -> "Apply the power rule"
-        StepRule.EXPONENTIAL -> "Differentiate the exponential function"
-        StepRule.GENERAL_POWER -> "Write the power with base e"
-        StepRule.LOGARITHM -> "Differentiate the logarithm"
-        StepRule.CHANGE_OF_BASE -> "Change the base of the logarithm"
-        StepRule.SINE -> "Differentiate the sine"
-        StepRule.COSINE -> "Differentiate the cosine"
-        StepRule.TANGENT -> "Differentiate the tangent"
-        StepRule.ARCSINE -> "Differentiate the arcsine"
-        StepRule.ARCCOSINE -> "Differentiate the arccosine"
-        StepRule.ARCTANGENT -> "Differentiate the arctangent"
-        StepRule.ABSOLUTE_VALUE -> "Differentiate the absolute value"
-        StepRule.FUNDAMENTAL_THEOREM -> "Apply the fundamental theorem of calculus"
-        StepRule.IMAGINARY_ROOT -> "Take the root of a negative number"
-        StepRule.MULTIPLY_NUMBERS -> "Multiply numbers"
-        StepRule.DIVIDE_NUMBERS -> "Divide numbers"
-        StepRule.REDUCE_FRACTION -> "Reduce the fraction"
-        StepRule.NUMBER_POWER -> "Calculate the power"
-        StepRule.DIVIDE_BY_FRACTION -> "Divide by the fraction"
-        StepRule.REWRITE_AS_POWER -> "Write as a power"
-        StepRule.CHAIN_RULE -> "Apply the chain rule"
-        StepRule.POWER_AS_ROOT -> "Write the power as a root"
-        StepRule.POWER_AS_FRACTION -> "Write the power as a fraction"
-        StepRule.POWER_OF_POWER -> "Multiply the exponents"
-        StepRule.POWER_OF_PRODUCT -> "Raise each factor to the power"
-        StepRule.EXPAND -> "Multiply out"
-        StepRule.EXPAND_POWER -> "Multiply out the power"
-        StepRule.COMBINE_FRACTIONS -> "Combine the fractions"
-        StepRule.ADD_NUMBERS -> "Add numbers"
-        StepRule.SUBTRACT_NUMBERS -> "Subtract numbers"
-        StepRule.ADD_AND_SUBTRACT_NUMBERS -> "Add and subtract numbers"
-        StepRule.SUBTRACT_SAME -> "Subtract"
-        StepRule.COMBINE_POWERS -> "Add the exponents"
-        StepRule.CANCEL -> "Cancel"
-        StepRule.DISTRIBUTE -> "Multiply out"
-        StepRule.COMBINE_LIKE_TERMS -> "Combine like terms"
-        StepRule.INTEGRAL_CONSTANT -> "Integrate the constant"
-        StepRule.INTEGRAL_SUM -> "Integrate term by term"
-        StepRule.INTEGRAL_CONSTANT_FACTOR -> "Factor out the constant"
-        StepRule.INTEGRAL_POWER -> "Apply the power rule"
-        StepRule.INTEGRAL_RECIPROCAL -> "Integrate 1/x"
-        StepRule.INTEGRAL_EXPONENTIAL -> "Integrate the exponential function"
-        StepRule.INTEGRAL_SINE -> "Integrate the sine"
-        StepRule.INTEGRAL_COSINE -> "Integrate the cosine"
-        StepRule.INTEGRAL_TANGENT -> "Integrate the tangent"
-        StepRule.INTEGRAL_LOGARITHM -> "Integrate the logarithm"
-        StepRule.INTEGRAL_TABLE -> "Use a standard integral"
-        StepRule.EXPAND_INTEGRAND -> "Multiply out the integrand"
-        StepRule.SUBSTITUTION -> "Substitute"
-        StepRule.BACK_SUBSTITUTION -> "Substitute back"
-        StepRule.BY_PARTS -> "Integrate by parts"
-        StepRule.ANTIDERIVATIVE -> "Find an antiderivative F"
-        StepRule.BOUNDS -> "Insert the bounds"
-        StepRule.ADD_TO_BOTH_SIDES -> "Add to both sides"
-        StepRule.SUBTRACT_FROM_BOTH_SIDES -> "Subtract from both sides"
-        StepRule.MULTIPLY_BOTH_SIDES -> "Multiply both sides"
-        StepRule.DIVIDE_BOTH_SIDES -> "Divide both sides"
-        StepRule.SWAP_SIDES -> "Swap the sides"
-        StepRule.SQUARE_ROOT_BOTH_SIDES -> "Take the square root of both sides"
-        StepRule.FACTOR_OUT -> "Factor out x"
-        StepRule.FACTOR_BY_ROOT -> "Split off a factor: if P(r) = 0, then (x − r) is a factor"
-        StepRule.NTH_ROOT_BOTH_SIDES -> "Take the root of both sides"
-        StepRule.LOGARITHM_BOTH_SIDES -> "Take the logarithm of both sides"
-        StepRule.SQUARE_BOTH_SIDES -> "Square both sides"
-        StepRule.TRIG_GENERAL_SOLUTION -> "Solve with the period of the function"
-        StepRule.LIMIT_SUBSTITUTE -> "Write in the point"
-        StepRule.LHOPITAL -> "0/0: apply l'Hôpital's rule"
-        StepRule.ZERO_FRACTION -> "A fraction is zero if its numerator is zero"
-        StepRule.ABSOLUTE_VALUE_CASES -> "Split into the two cases of the absolute value"
-        StepRule.EXPONENTIATE_BOTH_SIDES -> "Raise the base to the power of both sides"
-        StepRule.CHECK_SOLUTIONS -> "Check the solutions in the original equation"
-        StepRule.SUBSTITUTE_POWER -> "Substitute"
-        StepRule.BACK_SUBSTITUTE_POWER -> "Substitute back"
-        StepRule.ONE_SIDE -> "No rule solves this exactly: everything to one side, f(x) = 0"
-        StepRule.NEWTON_METHOD -> "Newton's method"
-        StepRule.NO_REAL_SOLUTION -> "No real solution: a square is never negative"
-        StepRule.ZERO_PRODUCT -> "A product is zero if one of its factors is zero"
-        StepRule.QUADRATIC_FORMULA -> "Apply the quadratic formula"
-        StepRule.ROOT_OF_NUMBER -> "Calculate the root"
-        StepRule.SOLVE_FOR -> "Solve one of the equations for a variable"
-        StepRule.SUBSTITUTE_SOLUTION -> "Write it into the other equations"
-        StepRule.MULTIPLY_EQUATIONS -> "Multiply the equations so that a variable has the same coefficient"
-        StepRule.ADD_EQUATIONS -> "Add the equations"
-        StepRule.SUBTRACT_EQUATIONS -> "Subtract the equations"
-        StepRule.INSERT_VALUE -> "Insert the value"
-        StepRule.COLLECT_SOLUTION -> "The solution of the system"
-        StepRule.IDENTITY -> "Both sides are equal for every value"
-        StepRule.SIMPLIFY -> "Simplify"
-        StepRule.SUBSTITUTE -> "Insert the point"
-        StepRule.EVALUATE -> "Calculate"
+        StepRule.CONSTANT -> R.string.step_constant
+        StepRule.VARIABLE -> R.string.step_variable
+        StepRule.SUM -> R.string.step_sum
+        StepRule.CONSTANT_FACTOR -> R.string.step_constant_factor
+        StepRule.PRODUCT -> R.string.step_product
+        StepRule.QUOTIENT -> R.string.step_quotient
+        StepRule.POWER -> R.string.step_power
+        StepRule.EXPONENTIAL -> R.string.step_exponential
+        StepRule.GENERAL_POWER -> R.string.step_general_power
+        StepRule.LOGARITHM -> R.string.step_logarithm
+        StepRule.CHANGE_OF_BASE -> R.string.step_change_of_base
+        StepRule.SINE -> R.string.step_sine
+        StepRule.COSINE -> R.string.step_cosine
+        StepRule.TANGENT -> R.string.step_tangent
+        StepRule.ARCSINE -> R.string.step_arcsine
+        StepRule.ARCCOSINE -> R.string.step_arccosine
+        StepRule.ARCTANGENT -> R.string.step_arctangent
+        StepRule.ABSOLUTE_VALUE -> R.string.step_absolute_value
+        StepRule.FUNDAMENTAL_THEOREM -> R.string.step_fundamental_theorem
+        StepRule.IMAGINARY_ROOT -> R.string.step_imaginary_root
+        StepRule.MULTIPLY_NUMBERS -> R.string.step_multiply_numbers
+        StepRule.DIVIDE_NUMBERS -> R.string.step_divide_numbers
+        StepRule.REDUCE_FRACTION -> R.string.step_reduce_fraction
+        StepRule.NUMBER_POWER -> R.string.step_number_power
+        StepRule.DIVIDE_BY_FRACTION -> R.string.step_divide_by_fraction
+        StepRule.REWRITE_AS_POWER -> R.string.step_rewrite_as_power
+        StepRule.CHAIN_RULE -> R.string.step_chain_rule
+        StepRule.POWER_AS_ROOT -> R.string.step_power_as_root
+        StepRule.POWER_AS_FRACTION -> R.string.step_power_as_fraction
+        StepRule.POWER_OF_POWER -> R.string.step_power_of_power
+        StepRule.POWER_OF_PRODUCT -> R.string.step_power_of_product
+        StepRule.EXPAND -> R.string.step_expand
+        StepRule.EXPAND_POWER -> R.string.step_expand_power
+        StepRule.COMBINE_FRACTIONS -> R.string.step_combine_fractions
+        StepRule.ADD_NUMBERS -> R.string.step_add_numbers
+        StepRule.SUBTRACT_NUMBERS -> R.string.step_subtract_numbers
+        StepRule.ADD_AND_SUBTRACT_NUMBERS -> R.string.step_add_and_subtract_numbers
+        StepRule.SUBTRACT_SAME -> R.string.step_subtract_same
+        StepRule.COMBINE_POWERS -> R.string.step_combine_powers
+        StepRule.CANCEL -> R.string.step_cancel
+        StepRule.DISTRIBUTE -> R.string.step_distribute
+        StepRule.COMBINE_LIKE_TERMS -> R.string.step_combine_like_terms
+        StepRule.INTEGRAL_CONSTANT -> R.string.step_integral_constant
+        StepRule.INTEGRAL_SUM -> R.string.step_integral_sum
+        StepRule.INTEGRAL_CONSTANT_FACTOR -> R.string.step_integral_constant_factor
+        StepRule.INTEGRAL_POWER -> R.string.step_integral_power
+        StepRule.INTEGRAL_RECIPROCAL -> R.string.step_integral_reciprocal
+        StepRule.INTEGRAL_EXPONENTIAL -> R.string.step_integral_exponential
+        StepRule.INTEGRAL_SINE -> R.string.step_integral_sine
+        StepRule.INTEGRAL_COSINE -> R.string.step_integral_cosine
+        StepRule.INTEGRAL_TANGENT -> R.string.step_integral_tangent
+        StepRule.INTEGRAL_LOGARITHM -> R.string.step_integral_logarithm
+        StepRule.INTEGRAL_TABLE -> R.string.step_integral_table
+        StepRule.EXPAND_INTEGRAND -> R.string.step_expand_integrand
+        StepRule.SUBSTITUTION -> R.string.step_substitution
+        StepRule.BACK_SUBSTITUTION -> R.string.step_back_substitution
+        StepRule.BY_PARTS -> R.string.step_by_parts
+        StepRule.PARTIAL_FRACTIONS -> R.string.step_partial_fractions
+        StepRule.ANTIDERIVATIVE -> R.string.step_antiderivative
+        StepRule.BOUNDS -> R.string.step_bounds
+        StepRule.ADD_TO_BOTH_SIDES -> R.string.step_add_to_both_sides
+        StepRule.SUBTRACT_FROM_BOTH_SIDES -> R.string.step_subtract_from_both_sides
+        StepRule.MULTIPLY_BOTH_SIDES -> R.string.step_multiply_both_sides
+        StepRule.DIVIDE_BOTH_SIDES -> R.string.step_divide_both_sides
+        StepRule.SWAP_SIDES -> R.string.step_swap_sides
+        StepRule.SQUARE_ROOT_BOTH_SIDES -> R.string.step_square_root_both_sides
+        StepRule.FACTOR_OUT -> R.string.step_factor_out
+        StepRule.FACTOR_BY_ROOT -> R.string.step_factor_by_root
+        StepRule.NTH_ROOT_BOTH_SIDES -> R.string.step_nth_root_both_sides
+        StepRule.LOGARITHM_BOTH_SIDES -> R.string.step_logarithm_both_sides
+        StepRule.SQUARE_BOTH_SIDES -> R.string.step_square_both_sides
+        StepRule.TRIG_GENERAL_SOLUTION -> R.string.step_trig_general_solution
+        StepRule.LIMIT_SUBSTITUTE -> R.string.step_limit_substitute
+        StepRule.LHOPITAL -> R.string.step_lhopital
+        StepRule.ZERO_FRACTION -> R.string.step_zero_fraction
+        StepRule.ABSOLUTE_VALUE_CASES -> R.string.step_absolute_value_cases
+        StepRule.EXPONENTIATE_BOTH_SIDES -> R.string.step_exponentiate_both_sides
+        StepRule.CHECK_SOLUTIONS -> R.string.step_check_solutions
+        StepRule.SUBSTITUTE_POWER -> R.string.step_substitute_power
+        StepRule.BACK_SUBSTITUTE_POWER -> R.string.step_back_substitute_power
+        StepRule.ONE_SIDE -> R.string.step_one_side
+        StepRule.NEWTON_METHOD -> R.string.step_newton_method
+        StepRule.NO_REAL_SOLUTION -> R.string.step_no_real_solution
+        StepRule.ZERO_PRODUCT -> R.string.step_zero_product
+        StepRule.QUADRATIC_FORMULA -> R.string.step_quadratic_formula
+        StepRule.ROOT_OF_NUMBER -> R.string.step_root_of_number
+        StepRule.SOLVE_FOR -> R.string.step_solve_for
+        StepRule.SUBSTITUTE_SOLUTION -> R.string.step_substitute_solution
+        StepRule.MULTIPLY_EQUATIONS -> R.string.step_multiply_equations
+        StepRule.ADD_EQUATIONS -> R.string.step_add_equations
+        StepRule.SUBTRACT_EQUATIONS -> R.string.step_subtract_equations
+        StepRule.INSERT_VALUE -> R.string.step_insert_value
+        StepRule.COLLECT_SOLUTION -> R.string.step_collect_solution
+        StepRule.IDENTITY -> R.string.step_identity
+        StepRule.SIMPLIFY -> R.string.step_simplify
+        StepRule.SUBSTITUTE -> R.string.step_substitute
+        StepRule.EVALUATE -> R.string.step_evaluate
     }
 
 /**
@@ -358,6 +461,7 @@ internal val StepRule.formula: String?
         StepRule.INTEGRAL_LOGARITHM -> "\\int{ln(x)}{x} = x·ln(x) − x"
         StepRule.SUBSTITUTION -> "\\int{f(g(x))·g′(x)}{x} = \\int{f(u)}{u}"
         StepRule.BY_PARTS -> "\\int{u}{v} = u·v − \\int{v}{u}"
+        StepRule.PARTIAL_FRACTIONS -> "\\frac{P}{(x − a)(x − b)} = \\frac{A}{x − a} + \\frac{B}{x − b}"
         StepRule.ANTIDERIVATIVE -> "\\intab{a}{b}{f}{x} = \\eval{F}{a}{b}"
         StepRule.BOUNDS -> "\\eval{F}{a}{b} = F(b) − F(a)"
         StepRule.ADD_TO_BOTH_SIDES -> "a = b\\text{  ⇔  }a + c = b + c"
@@ -367,7 +471,6 @@ internal val StepRule.formula: String?
         StepRule.SWAP_SIDES -> "a = b\\text{  ⇔  }b = a"
         StepRule.SQUARE_ROOT_BOTH_SIDES -> "u^2 = c\\text{  ⇔  }u = \\sqrt{c}\\text{  or  }u = −\\sqrt{c}"
         StepRule.SQUARE_BOTH_SIDES -> "a = b\\text{  ⇒  }a^2 = b^2"
-        StepRule.TRIG_GENERAL_SOLUTION -> "sin(u) = c\\text{  ⇔  }u = asin(c) + 2kπ\\text{  or  }u = π − asin(c) + 2kπ"
         StepRule.LHOPITAL -> "\\text{lim }\\frac{f}{g} = \\text{lim }\\frac{f′}{g′}"
         StepRule.ZERO_FRACTION -> "\\frac{a}{b} = 0\\text{  ⇔  }a = 0\\text{  (and  }b ≠ 0)"
         StepRule.ABSOLUTE_VALUE_CASES -> "|a| = b\\text{  ⇔  }a = b\\text{  or  }a = −b"
@@ -379,7 +482,7 @@ internal val StepRule.formula: String?
         StepRule.ZERO_PRODUCT -> "a·b = 0\\text{  ⇔  }a = 0\\text{  or  }b = 0"
         StepRule.QUADRATIC_FORMULA -> "x = \\frac{−b ± \\sqrt{D}}{2a}\\text{  with  }D = b^2 − 4ac"
         StepRule.ROOT_OF_NUMBER, StepRule.IDENTITY, StepRule.SOLVE_FOR, StepRule.SUBSTITUTE_SOLUTION,
-        StepRule.MULTIPLY_EQUATIONS, StepRule.ADD_EQUATIONS, StepRule.SUBTRACT_EQUATIONS, StepRule.INSERT_VALUE, StepRule.COLLECT_SOLUTION, StepRule.FACTOR_BY_ROOT, StepRule.NO_REAL_SOLUTION, StepRule.ONE_SIDE, StepRule.SUBSTITUTE_POWER, StepRule.BACK_SUBSTITUTE_POWER, StepRule.CHECK_SOLUTIONS, StepRule.LIMIT_SUBSTITUTE,
+        StepRule.MULTIPLY_EQUATIONS, StepRule.ADD_EQUATIONS, StepRule.SUBTRACT_EQUATIONS, StepRule.INSERT_VALUE, StepRule.COLLECT_SOLUTION, StepRule.FACTOR_BY_ROOT, StepRule.NO_REAL_SOLUTION, StepRule.ONE_SIDE, StepRule.TRIG_GENERAL_SOLUTION, StepRule.SUBSTITUTE_POWER, StepRule.BACK_SUBSTITUTE_POWER, StepRule.CHECK_SOLUTIONS, StepRule.LIMIT_SUBSTITUTE,
         StepRule.INTEGRAL_TABLE, StepRule.EXPAND_INTEGRAND, StepRule.BACK_SUBSTITUTION,
         StepRule.MULTIPLY_NUMBERS, StepRule.DIVIDE_NUMBERS, StepRule.REDUCE_FRACTION, StepRule.NUMBER_POWER,
         StepRule.ADD_NUMBERS, StepRule.SUBTRACT_NUMBERS, StepRule.ADD_AND_SUBTRACT_NUMBERS, StepRule.COMBINE_LIKE_TERMS,

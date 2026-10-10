@@ -168,7 +168,7 @@ internal object IntegralSteps {
                 }
             }
             rewriteAsPower()?.let { return it }
-            return table(f) ?: expand() ?: substitution() ?: byParts()
+            return table(f) ?: rationalFunction() ?: expand() ?: substitution() ?: byParts()
         }
 
         /**
@@ -309,6 +309,61 @@ internal object IntegralSteps {
                 )
             }
             return null
+        }
+
+        /** A fraction of polynomials: a substitution if one fits (x/(x² − 1) → ln), otherwise partial fractions. */
+        private fun rationalFunction(): Match? {
+            if (integrator.splitRational(f, v) == null) return null
+            return substitution() ?: partialFractions()
+        }
+
+        /**
+         * P/Q with Q = a(x − r₁)(x − r₂)…: split into A/(x − r₁) + B/(x − r₂) + … (and a polynomial
+         * if the degree of P is not lower), the numbers A, B … found by the calculator.
+         */
+        private fun partialFractions(): Match? {
+            val (decomposition, parts) = integrator.splitRational(f, v) ?: return null
+            val (numerator, denominator) = parts
+            val x = v
+            fun linear(r: com.vortessence.calculator.core.math.numbers.Rational): Expression =
+                if (r.isZero) x else Additions(x, Value(-r))
+            fun powered(base: Expression, k: Int): Expression = if (k == 1) base else Power(base, Value(k.toLong()))
+
+            // Q = a·(x − r₁)(x − r₂)…
+            val factored = Multiplications.of(
+                *(listOfNotNull(Value(decomposition.leading).takeIf { it != Value.ONE }) +
+                    decomposition.roots.map { (r, m) -> powered(linear(r), m) }).toTypedArray()
+            )
+            val remainder = polynomialExpression(decomposition.remainder, x)
+            val fraction = if (decomposition.quotient.isEmpty()) f else product(remainder, Power(denominator, Value.MINUS_ONE))
+
+            // A/(x − r₁) + B/(x − r₂) + …, with letters A, B … for the numbers
+            val letters = decomposition.roots.flatMap { (r, m) -> (1..m).map { r to it } }
+                .mapIndexed { i, (r, k) -> Triple(Variable(('A' + i).toString()), r, k) }
+            val setup = Additions(letters.map { (letter, r, k) -> product(letter, Power(powered(linear(r), k), Value.MINUS_ONE)) })
+
+            val notes = buildList {
+                if (decomposition.quotient.isNotEmpty()) {
+                    add(Note(f, Additions(polynomialExpression(decomposition.quotient, x), product(remainder, Power(denominator, Value.MINUS_ONE)))))
+                }
+                // Already factored as it is: nothing to say
+                if (writtenForm(denominator) != writtenForm(factored)) add(Note(denominator, factored))
+                add(Note(fraction, setup))
+                for ((letter, r, k) in letters) {
+                    val value = decomposition.terms.firstOrNull { it.root == r && it.power == k }?.coefficient
+                    add(Note(letter, Value(value ?: com.vortessence.calculator.core.math.numbers.Rational.ZERO)))
+                }
+            }
+            val result = integral(decomposition.toExpression(x))
+            return Match(StepRule.PARTIAL_FRACTIONS, mapOf(path to result), before, result, notes = notes)
+        }
+
+        /** c₀ + c₁x + c₂x² … */
+        private fun polynomialExpression(c: List<com.vortessence.calculator.core.math.numbers.Rational>, x: Variable): Expression {
+            val terms = c.mapIndexedNotNull { k, coefficient ->
+                if (coefficient.isZero) null else product(Value(coefficient), if (k == 0) Value.ONE else if (k == 1) x else Power(x, Value(k.toLong())))
+            }
+            return if (terms.isEmpty()) Value.ZERO else if (terms.size == 1) terms.single() else Additions(terms)
         }
 
         /**

@@ -109,6 +109,8 @@ enum class StepRule {
     SUBSTITUTION,
     /** u replaced by what it stands for again */
     BACK_SUBSTITUTION,
+    /** P/((x − a)(x − b)) = A/(x − a) + B/(x − b) */
+    PARTIAL_FRACTIONS,
     /** ∫ u dv = u·v − ∫ v du */
     BY_PARTS,
     /** ∫ₐᵇ f dx = [F]ₐᵇ with an antiderivative F */
