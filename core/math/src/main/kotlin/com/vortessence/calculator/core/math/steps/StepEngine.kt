@@ -25,10 +25,10 @@ internal class ExpressionStep(
 
 /**
  * An operation on both sides of an equation, shown next to it as in "3x + 5 = 2x − 1 | − 2x":
- * adding, subtracting, multiplying or dividing by [operand], or taking the square root.
+ * adding, subtracting, multiplying or dividing by [operand], or taking the square root (or the n-th root, with n as the operand), or the logarithm to the base [operand].
  */
 internal class BothSides(val kind: Kind, val operand: Expression? = null) {
-    enum class Kind { ADD, SUBTRACT, MULTIPLY, DIVIDE, SQUARE_ROOT }
+    enum class Kind { ADD, SUBTRACT, MULTIPLY, DIVIDE, SQUARE_ROOT, ROOT, LOGARITHM }
 }
 
 /**

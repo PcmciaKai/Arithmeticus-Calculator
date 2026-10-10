@@ -44,6 +44,8 @@ enum class StepRule {
     POWER_AS_FRACTION,
     /** (∫_a^b f(t) dt)' = f(b)·b' − f(a)·a' */
     FUNDAMENTAL_THEOREM,
+    /** √(−4) = i·√4 */
+    IMAGINARY_ROOT,
     /** 2·3 = 6 */
     MULTIPLY_NUMBERS,
     /** 4/2 = 2 */
@@ -141,6 +143,18 @@ enum class StepRule {
     INSERT_VALUE,
     /** A root r of a polynomial splits off the factor (x − r) */
     FACTOR_BY_ROOT,
+    /** Only even powers: u = x² */
+    SUBSTITUTE_POWER,
+    /** u = x² written back */
+    BACK_SUBSTITUTE_POWER,
+    /** Everything to one side: f(x) = 0 */
+    ONE_SIDE,
+    /** x → x − f(x)/f′(x), repeated */
+    NEWTON_METHOD,
+    /** bᶠ = c ⇔ f = log_b(c) */
+    LOGARITHM_BOTH_SIDES,
+    /** uⁿ = c ⇔ u = ⁿ√c */
+    NTH_ROOT_BOTH_SIDES,
     /** The discriminant is negative */
     NO_REAL_SOLUTION,
     /** a·b = 0 ⇔ a = 0 or b = 0 */

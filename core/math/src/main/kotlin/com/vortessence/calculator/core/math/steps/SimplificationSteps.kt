@@ -3,6 +3,7 @@ package com.vortessence.calculator.core.math.steps
 import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.expressions.Additions
 import com.vortessence.calculator.core.math.expressions.Expression
+import com.vortessence.calculator.core.math.expressions.ImaginaryUnit
 import com.vortessence.calculator.core.math.expressions.Multiplications
 import com.vortessence.calculator.core.math.expressions.Power
 import com.vortessence.calculator.core.math.expressions.Value
@@ -34,6 +35,7 @@ internal object SimplificationSteps {
         val products = pathsOf(e) { it is Multiplications }.map { factors(at(e, it), it) }
         val sums = pathsOf(e) { it is Additions }.map { terms(at(e, it), it) }
         return products.firstNotNullOfOrNull { divideByNegativeNumber(it, context) }
+            ?: powers.firstNotNullOfOrNull { imaginaryRoot(at(e, it), it, context) }
             ?: powers.firstNotNullOfOrNull { numberPower(at(e, it), it, context) }
             ?: products.firstNotNullOfOrNull { multiplyNumbers(it, context) }
             ?: powers.firstNotNullOfOrNull { powerOfPower(at(e, it), it, context) }
@@ -119,6 +121,16 @@ internal object SimplificationSteps {
         val parts = numbers + divisor
         val product = Multiplications(parts.map { it.expression })
         return merge(StepRule.DIVIDE_NUMBERS, parts, product, canonical(product, context), Value.ONE)
+    }
+
+    /** √(−4) = i·√4, with complex numbers. */
+    private fun imaginaryRoot(e: Expression, path: Path, context: MathContext): Match? {
+        if (!context.complexNumbers) return null
+        val power = unmarked(e) as? Power ?: return null
+        val base = power.base as? Value ?: return null
+        if (base.rational == null || !base.isNegative || power.exponent != Value(1L, 2L)) return null
+        val result = Multiplications(ImaginaryUnit, Power(base.negate(), power.exponent))
+        return Match(StepRule.IMAGINARY_ROOT, mapOf(path to result), power, result)
     }
 
     /** 2·3 = 6. A factor −1 is the sign and stays in front: −2·3x = −6x. */

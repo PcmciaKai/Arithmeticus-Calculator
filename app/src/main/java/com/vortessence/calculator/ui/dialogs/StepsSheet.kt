@@ -227,6 +227,7 @@ private val StepRule.description: String
         StepRule.ARCTANGENT -> "Differentiate the arctangent"
         StepRule.ABSOLUTE_VALUE -> "Differentiate the absolute value"
         StepRule.FUNDAMENTAL_THEOREM -> "Apply the fundamental theorem of calculus"
+        StepRule.IMAGINARY_ROOT -> "Take the root of a negative number"
         StepRule.MULTIPLY_NUMBERS -> "Multiply numbers"
         StepRule.DIVIDE_NUMBERS -> "Divide numbers"
         StepRule.REDUCE_FRACTION -> "Reduce the fraction"
@@ -274,6 +275,12 @@ private val StepRule.description: String
         StepRule.SQUARE_ROOT_BOTH_SIDES -> "Take the square root of both sides"
         StepRule.FACTOR_OUT -> "Factor out x"
         StepRule.FACTOR_BY_ROOT -> "Split off a factor: if P(r) = 0, then (x − r) is a factor"
+        StepRule.NTH_ROOT_BOTH_SIDES -> "Take the root of both sides"
+        StepRule.LOGARITHM_BOTH_SIDES -> "Take the logarithm of both sides"
+        StepRule.SUBSTITUTE_POWER -> "Only even powers: substitute"
+        StepRule.BACK_SUBSTITUTE_POWER -> "Substitute back"
+        StepRule.ONE_SIDE -> "No rule solves this exactly: everything to one side, f(x) = 0"
+        StepRule.NEWTON_METHOD -> "Newton's method"
         StepRule.NO_REAL_SOLUTION -> "No real solution: a square is never negative"
         StepRule.ZERO_PRODUCT -> "A product is zero if one of its factors is zero"
         StepRule.QUADRATIC_FORMULA -> "Apply the quadratic formula"
@@ -328,6 +335,7 @@ internal val StepRule.formula: String?
         StepRule.EXPAND_POWER -> "(a + b)^2 = a^2 + 2ab + b^2"
         StepRule.COMBINE_FRACTIONS -> "\\frac{a}{c} + \\frac{b}{c} = \\frac{a + b}{c}"
         StepRule.CANCEL -> "\\frac{x}{x} = 1"
+        StepRule.IMAGINARY_ROOT -> "\\sqrt{−a} = i·\\sqrt{a}"
         StepRule.SUBTRACT_SAME -> "a − a = 0"
         StepRule.DISTRIBUTE -> "c·(a + b) = c·a + c·b"
         StepRule.INTEGRAL_CONSTANT -> "\\int{c}{x} = c·x"
@@ -350,11 +358,14 @@ internal val StepRule.formula: String?
         StepRule.DIVIDE_BOTH_SIDES -> "a = b\\text{  ⇔  }\\frac{a}{c} = \\frac{b}{c}"
         StepRule.SWAP_SIDES -> "a = b\\text{  ⇔  }b = a"
         StepRule.SQUARE_ROOT_BOTH_SIDES -> "u^2 = c\\text{  ⇔  }u = \\sqrt{c}\\text{  or  }u = −\\sqrt{c}"
+        StepRule.NEWTON_METHOD -> "x → x − \\frac{f(x)}{f′(x)}\\text{  until it settles}"
+        StepRule.LOGARITHM_BOTH_SIDES -> "b^f = c\\text{  ⇔  }f = \\log{b}{c}"
+        StepRule.NTH_ROOT_BOTH_SIDES -> "u^n = c\\text{  ⇔  }u = \\sqrt[n]{c}"
         StepRule.FACTOR_OUT -> "ax^2 + bx = x·(ax + b)"
         StepRule.ZERO_PRODUCT -> "a·b = 0\\text{  ⇔  }a = 0\\text{  or  }b = 0"
         StepRule.QUADRATIC_FORMULA -> "x = \\frac{−b ± \\sqrt{D}}{2a}\\text{  with  }D = b^2 − 4ac"
         StepRule.ROOT_OF_NUMBER, StepRule.IDENTITY, StepRule.SOLVE_FOR, StepRule.SUBSTITUTE_SOLUTION,
-        StepRule.MULTIPLY_EQUATIONS, StepRule.ADD_EQUATIONS, StepRule.SUBTRACT_EQUATIONS, StepRule.INSERT_VALUE, StepRule.COLLECT_SOLUTION, StepRule.FACTOR_BY_ROOT, StepRule.NO_REAL_SOLUTION,
+        StepRule.MULTIPLY_EQUATIONS, StepRule.ADD_EQUATIONS, StepRule.SUBTRACT_EQUATIONS, StepRule.INSERT_VALUE, StepRule.COLLECT_SOLUTION, StepRule.FACTOR_BY_ROOT, StepRule.NO_REAL_SOLUTION, StepRule.ONE_SIDE, StepRule.SUBSTITUTE_POWER, StepRule.BACK_SUBSTITUTE_POWER,
         StepRule.INTEGRAL_TABLE, StepRule.EXPAND_INTEGRAND, StepRule.BACK_SUBSTITUTION,
         StepRule.MULTIPLY_NUMBERS, StepRule.DIVIDE_NUMBERS, StepRule.REDUCE_FRACTION, StepRule.NUMBER_POWER,
         StepRule.ADD_NUMBERS, StepRule.SUBTRACT_NUMBERS, StepRule.ADD_AND_SUBTRACT_NUMBERS, StepRule.COMBINE_LIKE_TERMS,

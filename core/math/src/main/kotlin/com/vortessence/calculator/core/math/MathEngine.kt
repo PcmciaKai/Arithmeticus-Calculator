@@ -6,6 +6,7 @@ import com.vortessence.calculator.core.math.expressions.Additions
 import com.vortessence.calculator.core.math.expressions.Antiderivative
 import com.vortessence.calculator.core.math.expressions.Integral
 import com.vortessence.calculator.core.math.expressions.Derivative
+import com.vortessence.calculator.core.math.expressions.Constant
 import com.vortessence.calculator.core.math.expressions.EquationSystem
 import com.vortessence.calculator.core.math.expressions.Equals
 import com.vortessence.calculator.core.math.expressions.Expression
@@ -25,6 +26,7 @@ import com.vortessence.calculator.core.math.expressions.toPreferredUnits
 import com.vortessence.calculator.core.math.solvers.Function1D
 import com.vortessence.calculator.core.math.solvers.ImplicitCurve
 import com.vortessence.calculator.core.math.solvers.ImplicitPlotter
+import com.vortessence.calculator.core.math.numbers.Rational
 import com.vortessence.calculator.core.math.solvers.LinearSystemSolver
 import com.vortessence.calculator.core.math.solvers.NumericIntegrator
 import com.vortessence.calculator.core.math.solvers.NumericRootFinder
@@ -262,6 +264,25 @@ object MathEngine {
             BothSides.Kind.MULTIPLY -> result.insert(result.length, TextNode("· "))
             BothSides.Kind.DIVIDE -> result.insert(result.length, OperatorNode(MathOp.DIVIDE))
             BothSides.Kind.SQUARE_ROOT -> result.insert(result.length, TextNode("√"))
+            // ln, log, or log with the base as small lowered digits: log₂
+            BothSides.Kind.LOGARITHM -> {
+                val base = operation.operand
+                val text = when {
+                    base == Constant.E -> "ln"
+                    base is Value && base.rational == Rational.of(10L) -> "log"
+                    base is Value && base.rational?.isFractional == false ->
+                        "log" + base.rational.toDouble().toInt().toString().map { SUBSCRIPT_DIGITS[it - '0'] }.joinToString("")
+                    else -> "log"
+                }
+                result.insert(result.length, TextNode(text))
+                return result
+            }
+            // ³√ : the degree as small raised digits
+            BothSides.Kind.ROOT -> {
+                val degree = (operation.operand as? Value)?.rational?.toDouble()?.toInt()?.toString().orEmpty()
+                result.insert(result.length, TextNode(degree.map { SUPERSCRIPT_DIGITS[it - '0'] }.joinToString("") + "√"))
+                return result
+            }
         }
         val operand = operation.operand ?: return result
         val written = writer.write(operand)
@@ -607,6 +628,10 @@ object MathEngine {
         ensureActive()
         area
     }
+
+    private const val SUBSCRIPT_DIGITS = "₀₁₂₃₄₅₆₇₈₉"
+
+    private const val SUPERSCRIPT_DIGITS = "⁰¹²³⁴⁵⁶⁷⁸⁹"
 
     private val PREFERRED_VARIABLES = listOf(Variable("x"), Variable("y"), Variable("z"))
 }
