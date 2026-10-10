@@ -121,10 +121,10 @@ internal class Solver(val context: MathContext) {
      * it is shown, and if the rules do not get there, takes the rest as one last step. False if
      * it took too many steps.
      */
-    fun simplifyToward(target: Expression, maxSteps: Int): Boolean {
+    fun simplifyToward(target: Expression, maxSteps: Int, arithmetic: Boolean = false): Boolean {
         while (true) {
             if (context.shouldStop || size > maxSteps) return false
-            val match = SimplificationSteps.match(current, target, context) ?: break
+            val match = SimplificationSteps.match(current, target, context, arithmetic) ?: break
             apply(match)
         }
         // What the rules did not do, e.g. factoring
@@ -178,7 +178,7 @@ internal fun normalize(e: Expression): Expression = when (e) {
     is Additions -> {
         val terms = e.operands.map { normalize(it) }
             .flatMap { if (it is Additions) it.operands else listOf(it) }
-            .filterNot { it.isZero }
+            .filterNot { it.isZero && !isKept(it) }
         when (terms.size) {
             0 -> Value.ZERO
             1 -> terms.single()

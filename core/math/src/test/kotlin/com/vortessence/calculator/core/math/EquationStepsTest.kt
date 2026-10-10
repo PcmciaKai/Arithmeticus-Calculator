@@ -307,4 +307,99 @@ class EquationStepsTest {
         // |c| > 1: no solution
         assertNull(solution(ms(f("sin", x), eq, n("2"))))
     }
+
+    @Test
+    fun polynomialsInASineOrCosineBySubstitution() {
+        // 2sin²x − sin x − 1 = 0: u = sin x, u = 1 or u = −1/2, then the general solutions
+        val solution = solution(ms(n("2"), f("sin", x), pow(n("2")), minus, f("sin", x), minus, n("1"), eq, n("0")))!!
+        val rules = solution.steps.map { it.rule }
+        assertEquals(StepRule.SUBSTITUTE_POWER, rules[1])
+        assertEquals("u = sin(x)", solution.steps[1].notes.single().toString())
+        assertTrue(StepRule.BACK_SUBSTITUTE_POWER in rules)
+        assertEquals(2, rules.count { it == StepRule.TRIG_GENERAL_SOLUTION })
+        assertEquals("x = (π)/(2) + 2πk, x =  − (π)/(6) + 2πk, x = (7π)/(6) + 2πk, k ∈ ℤ", solution.result.toString())
+        // sin²x = 1/4 needs no substitution: the square root first, sin x = ±1/2
+        val square = solution(ms(f("sin", x), pow(n("2")), eq, FractionNode(ms(n("1")), ms(n("4")))))!!
+        assertEquals(StepRule.SQUARE_ROOT_BOTH_SIDES, square.steps[1].rule)
+        assertEquals(2, square.steps.count { it.rule == StepRule.TRIG_GENERAL_SOLUTION })
+    }
+
+    private fun calculated(input: MathString) = runBlocking { MathEngine.calculate(input, MathContext()) }
+
+    @Test
+    fun rootsWhereTheFunctionOnlyTouchesZeroAreFound() {
+        // sin²x + sin x = 2: sin x = 1 at π/2 + 2kπ, no sign change there
+        val input = ms(f("sin", x), pow(n("2")), plus, f("sin", x), eq, n("2"))
+        val result = calculated(input)
+        assertTrue(result.issues.isEmpty())
+        assertEquals("x =  − 4.712388978, x = 1.570796327, x = 7.853981634", result.result.toString())
+        // And the steps for it: u = sin x, u = 1 (u = −2 has no real solution)
+        val solution = solution(input)!!
+        assertTrue(StepRule.NO_REAL_SOLUTION in solution.steps.map { it.rule })
+        assertEquals("x = (π)/(2) + 2πk, k ∈ ℤ", solution.result.toString())
+        // cos x = 1 is touched at 2kπ too, with the same precision
+        assertEquals("x =  − 6.283185307, x = 0, x = 6.283185307", calculated(ms(f("cos", x), eq, n("1"))).result.toString())
+        // A function that only comes close to 0 has no root
+        assertEquals(listOf(com.vortessence.calculator.core.math.context.MathIssue.NO_REAL_SOLUTION),
+            calculated(ms(f("cos", x), pow(n("2")), plus, n("1"), eq, n("0"))).issues)
+    }
+
+    @Test
+    fun sineEqualsCosineByDividingByTheCosine() {
+        // sin x = cos x: everything to the left, ÷ cos x, sin/cos = tan, tan x = 1
+        val solution = solution(ms(f("sin", x), eq, f("cos", x)))!!
+        val rules = solution.steps.map { it.rule }
+        assertEquals(StepRule.SUBTRACT_FROM_BOTH_SIDES, rules[1])
+        val divide = solution.steps.first { it.rule == StepRule.DIVIDE_BOTH_SIDES }
+        assertEquals(listOf("cos(x) ≠ 0"), divide.notes.map { it.toString() })
+        assertTrue(StepRule.TANGENT_AS_QUOTIENT in rules)
+        // The last line is the result with the k in it
+        assertEquals(listOf(StepRule.TRIG_GENERAL_SOLUTION, StepRule.COLLECT_SOLUTION), rules.takeLast(2))
+        assertEquals("x = (π)/(4) + πk, k ∈ ℤ", solution.steps.last().expression.toString())
+        assertEquals("x = (π)/(4) + πk, k ∈ ℤ", solution.result.toString())
+        // With coefficients and another argument: 2sin x = 3cos x gives atan(3/2), sin 2x = cos 2x the half
+        assertEquals("x = atan((3)/(2)) + πk, k ∈ ℤ", solution(ms(n("2"), f("sin", x), eq, n("3"), f("cos", x)))!!.result.toString())
+        assertEquals("x = (π)/(8) + (πk)/(2), k ∈ ℤ", solution(ms(f("sin", n("2"), x), eq, f("cos", n("2"), x)))!!.result.toString())
+        // sin x + cos x = 0, with the cosine on the right of a minus
+        assertEquals("x =  − (π)/(4) + πk, k ∈ ℤ", solution(ms(f("sin", x), plus, f("cos", x), eq, n("0")))!!.result.toString())
+    }
+
+    @Test
+    fun sineAndCosineCombineIntoOneSine() {
+        // sin x + cos x = 1: √2·sin(x + π/4) = 1
+        val solution = solution(ms(f("sin", x), plus, f("cos", x), eq, n("1")))!!
+        assertEquals(StepRule.AMPLITUDE_FORM, solution.steps[1].rule)
+        assertEquals("x = 2πk, x = (π)/(2) + 2πk, k ∈ ℤ", solution.result.toString())
+        // The terms are collected first: cos x = 1 − sin x
+        val moved = solution(ms(f("cos", x), eq, n("1"), minus, f("sin", x)))!!
+        assertEquals(solution.result.toString(), moved.result.toString())
+        // Other coefficients: sin x + 2cos x = 1 has no exact angle, but the equation is still reduced
+        val other = solution(ms(f("sin", x), plus, n("2"), f("cos", x), eq, n("1")))!!
+        assertEquals(StepRule.AMPLITUDE_FORM, other.steps[1].rule)
+        assertEquals("sqrt(5)sin(x + atan(2)) = 1", other.steps[1].expression.toString().replace("{", "").replace("}", "").replace("[", "").replace("]", ""))
+        // c = 0 is the homogeneous case
+        assertTrue(solution(ms(f("sin", x), plus, f("cos", x), eq, n("0")))!!.steps.none { it.rule == StepRule.AMPLITUDE_FORM })
+    }
+
+    @Test
+    fun doubleAngleIsWrittenWithTheSingleAngle() {
+        // sin 2x = cos x: 2sin x cos x = cos x, cos x (2sin x − 1) = 0
+        val sine = solution(ms(f("sin", n("2"), x), eq, f("cos", x)))!!
+        assertEquals(
+            listOf(StepRule.DOUBLE_ANGLE, StepRule.SUBTRACT_FROM_BOTH_SIDES, StepRule.COMBINE_LIKE_TERMS, StepRule.FACTOR_COMMON, StepRule.ZERO_PRODUCT),
+            sine.steps.drop(1).take(5).map { it.rule }
+        )
+        assertEquals(
+            "x = (π)/(2) + 2πk, x =  − (π)/(2) + 2πk, x = (π)/(6) + 2πk, x = (5π)/(6) + 2πk, k ∈ ℤ",
+            sine.result.toString()
+        )
+        // cos 2x = sin x: 1 − 2sin²x = sin x, a quadratic in sin x
+        val cosine = solution(ms(f("cos", n("2"), x), eq, f("sin", x)))!!
+        assertEquals(StepRule.DOUBLE_ANGLE, cosine.steps[1].rule)
+        assertTrue(cosine.steps.any { it.rule == StepRule.SUBSTITUTE_POWER })
+        assertEquals(
+            "x =  − (π)/(2) + 2πk, x = (π)/(6) + 2πk, x = (5π)/(6) + 2πk, k ∈ ℤ",
+            cosine.result.toString()
+        )
+    }
 }

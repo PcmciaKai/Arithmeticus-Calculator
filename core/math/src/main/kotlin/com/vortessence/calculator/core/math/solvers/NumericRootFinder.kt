@@ -26,6 +26,9 @@ object NumericRootFinder {
         val dedupeDistance = max(1e-4, stepSize / 10.0)
         var x0 = minX
         var y0 = function.evaluateAt(x0)
+        // The sample before the last one, to find where |f| has a minimum of 0 without a sign change
+        var xBefore = Double.NaN
+        var yBefore = Double.NaN
 
         fun addRoot(root: Double) {
             if (roots.none { abs(it - root) < dedupeDistance }) roots.add(root)
@@ -35,6 +38,17 @@ object NumericRootFinder {
             if (i % 100 == 0 && context?.shouldStop == true) break
             val x1 = minX + i * stepSize
             val y1 = function.evaluateAt(x1)
+
+            // A root where f only touches 0 (sin²x + sin x − 2 at π/2): |f| has a minimum there
+            if (yBefore.isFinite() && y0.isFinite() && y1.isFinite() && yBefore * y0 > 0.0 && y0 * y1 > 0.0 &&
+                abs(y0) < abs(yBefore) && abs(y0) <= abs(y1)
+            ) {
+                val touch = minimizeAbs(function, xBefore, x1)?.let { refineByDerivative(function, xBefore, x1, it) }
+                val scale = max(1.0, max(abs(yBefore), abs(y1)))
+                if (touch != null && abs(function.evaluateAt(touch)) <= 1e-12 * scale) addRoot(touch)
+            }
+            xBefore = x0
+            yBefore = y0
 
             if (y0.isFinite() && y1.isFinite()) {
                 if (abs(y0) < 1e-12) {
@@ -183,6 +197,41 @@ object NumericRootFinder {
             lastD = d
         }
         return points
+    }
+
+    /**
+     * Where the derivative changes sign in [a, b], which is much sharper than where |f| is smallest
+     * (|f| is flat there, and rounding blurs it to about 1e-8); [approximate] if it does not.
+     */
+    private fun refineByDerivative(function: Function1D, aIn: Double, bIn: Double, approximate: Double): Double {
+        var a = aIn
+        var b = bIn
+        var da = function.derivativeAt(a)
+        val db = function.derivativeAt(b)
+        if (!da.isFinite() || !db.isFinite() || da * db >= 0.0) return approximate
+        repeat(80) {
+            val mid = (a + b) / 2.0
+            val dMid = function.derivativeAt(mid)
+            if (!dMid.isFinite()) return approximate
+            if (da * dMid < 0.0) b = mid else { a = mid; da = dMid }
+        }
+        val refined = (a + b) / 2.0
+        return if (abs(function.evaluateAt(refined)) <= abs(function.evaluateAt(approximate)) * 4 + 1e-15) refined else approximate
+    }
+
+    /** The x in [a, b] where |f| is smallest (ternary search; |f| has one minimum in the interval), or null. */
+    private fun minimizeAbs(function: Function1D, aIn: Double, bIn: Double): Double? {
+        var a = aIn
+        var b = bIn
+        repeat(100) {
+            val m1 = a + (b - a) / 3.0
+            val m2 = b - (b - a) / 3.0
+            val f1 = abs(function.evaluateAt(m1))
+            val f2 = abs(function.evaluateAt(m2))
+            if (!f1.isFinite() || !f2.isFinite()) return null
+            if (f1 < f2) b = m2 else a = m1
+        }
+        return (a + b) / 2.0
     }
 
     private fun bisection(function: Function1D, aIn: Double, bIn: Double, maxIter: Int = 60): Double? {

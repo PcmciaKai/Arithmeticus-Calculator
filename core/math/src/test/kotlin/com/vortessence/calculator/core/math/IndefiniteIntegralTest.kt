@@ -100,8 +100,8 @@ class IndefiniteIntegralTest {
     fun noClosedForm() {
         assertNotFound(calc(i(e, pow(x, pow(n("2"))))))
         assertNotFound(calc(i(frac(ms(f("sin", x)), ms(x)))))
-        // A denominator that does not split into linear factors (completing the square is not done)
-        assertNotFound(calc(i(frac(ms(n("1")), ms(x, pow(n("2")), op(MathOp.PLUS), x, op(MathOp.PLUS), n("1"))))))
+        // A cubic denominator without rational roots
+        assertNotFound(calc(i(frac(ms(n("1")), ms(x, pow(n("3")), op(MathOp.PLUS), x, op(MathOp.PLUS), n("1"))))))
         assertEquals(listOf(MathIssue.SYNTAX_ERROR), calc(i()).issues)
     }
 
@@ -111,6 +111,16 @@ class IndefiniteIntegralTest {
         assertResult(" − (ln(abs(x + 1)))/(2) + (ln(abs(x − 1)))/(2) + C", calc(i(frac(ms(n("1")), ms(x, pow(n("2")), op(MathOp.MINUS), n("1"))))))
         // With a polynomial part: x²/2 + ½ln|x + 1| + ½ln|x − 1|
         assertResult("((x)^(2))/(2) + (ln(abs(x + 1)))/(2) + (ln(abs(x − 1)))/(2) + C", calc(i(frac(ms(x, pow(n("3"))), ms(x, pow(n("2")), op(MathOp.MINUS), n("1"))))))
+    }
+
+    @Test
+    fun quadraticDenominatorsWithoutRealRoots() {
+        // Completing the square: (x + 1)² + 4
+        assertResult("(atan((x)/(2) + (1)/(2)))/(2) + C", calc(i(frac(ms(n("1")), ms(x, pow(n("2")), op(MathOp.PLUS), n("2"), x, op(MathOp.PLUS), n("5"))))))
+        // The numerator is the derivative of the denominator
+        assertResult("ln(abs((x)^(2) + 2x + 5)) + C", calc(i(frac(ms(n("2"), x, op(MathOp.PLUS), n("2")), ms(x, pow(n("2")), op(MathOp.PLUS), n("2"), x, op(MathOp.PLUS), n("5"))))))
+        // Both, and a root that is not a whole number
+        assertResult("(ln(abs((x)^(2) + x + 1)))/(2) − (sqrt(3)atan((2sqrt(3)(x + (1)/(2)))/(3)))/(3) + C", calc(i(frac(ms(x), ms(x, pow(n("2")), op(MathOp.PLUS), x, op(MathOp.PLUS), n("1"))))))
     }
 
     @Test

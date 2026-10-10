@@ -23,6 +23,14 @@
     <string name="step_fundamental_theorem">Apply the fundamental theorem of calculus</string>
     <string name="step_imaginary_root">Take the root of a negative number</string>
     <string name="step_multiply_numbers">Multiply numbers</string>
+    <string name="step_extend_fractions">Give the fractions a common denominator</string>
+    <string name="step_factor_common">Factor out the common factor</string>
+    <string name="step_double_angle">Write the double angle with the single angle</string>
+    <string name="step_amplitude_form">Combine sine and cosine into one sine, with R = √(a² + b²) and tan φ = b/a (π added if a &lt; 0)</string>
+    <string name="step_percent_as_fraction">Write the percent as a fraction: a percent is hundredths</string>
+    <string name="step_improper_fraction">Write the mixed number as an improper fraction</string>
+    <string name="step_multiply_fractions">Multiply the numerators and the denominators</string>
+    <string name="step_simplify_root">Take the largest square factor out of the root</string>
     <string name="step_divide_numbers">Divide numbers</string>
     <string name="step_reduce_fraction">Reduce the fraction</string>
     <string name="step_number_power">Calculate the power</string>
@@ -41,6 +49,8 @@
     <string name="step_add_and_subtract_numbers">Add and subtract numbers</string>
     <string name="step_subtract_same">Subtract</string>
     <string name="step_combine_powers">Add the exponents</string>
+    <string name="step_cancel_common_factor">Factor and cancel the common factor</string>
+    <string name="step_tangent_as_quotient">Sine over cosine is the tangent</string>
     <string name="step_cancel">Cancel</string>
     <string name="step_distribute">Multiply out</string>
     <string name="step_combine_like_terms">Combine like terms</string>
@@ -58,6 +68,8 @@
     <string name="step_expand_integrand">Multiply out the integrand</string>
     <string name="step_substitution">Substitute</string>
     <string name="step_back_substitution">Substitute back</string>
+    <string name="step_split_numerator">Split the numerator into the derivative of the denominator and a constant</string>
+    <string name="step_complete_square">Complete the square in the denominator</string>
     <string name="step_partial_fractions">Split into partial fractions</string>
     <string name="step_by_parts">Integrate by parts</string>
     <string name="step_antiderivative">Find an antiderivative F</string>
@@ -74,8 +86,13 @@
     <string name="step_logarithm_both_sides">Take the logarithm of both sides</string>
     <string name="step_square_both_sides">Square both sides</string>
     <string name="step_trig_general_solution">The function repeats: add whole periods, 2π for sine and cosine, π for tangent</string>
+    <string name="step_divide_by_highest_power">Divide numerator and denominator by the highest power of the denominator</string>
+    <string name="step_limit_vanish">Terms with the variable in a denominator vanish</string>
+    <string name="step_limit_constant">The limit of a constant is the constant</string>
+    <string name="step_limit_grows">The highest power grows without bound</string>
+    <string name="step_limit_reciprocal">A denominator that grows without bound: the quotient goes to 0</string>
     <string name="step_limit_substitute">Write in the point</string>
-    <string name="step_lhopital">0/0: apply l\'Hôpital\'s rule</string>
+    <string name="step_lhopital">It is 0/0 or ∞/∞: apply l\'Hôpital\'s rule</string>
     <string name="step_zero_fraction">A fraction is zero if its numerator is zero</string>
     <string name="step_absolute_value_cases">Split into the two cases of the absolute value</string>
     <string name="step_exponentiate_both_sides">Raise the base to the power of both sides</string>
@@ -107,4 +124,8 @@
     <string name="steps_linear_argument">Linear argument</string>
     <string name="steps_show_calculations">%1$d calculations</string>
     <string name="steps_hide_calculations">Hide the %1$d calculations</string>
+
+    <!-- Hint under "200 + 10%", which is 200.1 here: what a pocket calculator means, 10% of 200 (%1$s = 10, %2$s = 200, %3$s = 220) -->
+    <string name="percent_hint_plus">%1$s%% is read as %1$s/100. Tap for %2$s + %1$s%% of %2$s = %3$s</string>
+    <string name="percent_hint_minus">%1$s%% is read as %1$s/100. Tap for %2$s − %1$s%% of %2$s = %3$s</string>
 </resources>

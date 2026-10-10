@@ -39,6 +39,8 @@ data class CalculatorUiState(
     val hasSteps: Boolean = false,
     /** The step-by-step solution being shown, or null if it is closed. */
     val steps: StepsState? = null,
+    /** For "a + b%": the pocket-calculator reading, b% of a, with its result; null for other lines. */
+    val percentHint: PercentHint? = null,
     /** Committed calculations, newest first. */
     val history: List<HistoryEntry> = emptyList(),
     /**
@@ -80,6 +82,19 @@ data class CalculatorUiState(
  * The step-by-step solution of [input]; [solution] is null while it is worked out, or if
  * there is none after all ([isLoading] false).
  */
+/**
+ * "200 + 10%" is 200.1 here; [expression] is "200 + 200 × 10%", which has [result] (220), what a
+ * pocket calculator would show.
+ */
+data class PercentHint(
+    val expression: MathString,
+    val result: CalculationResult,
+    /** What the percent is of (200), the percent itself (10) and whether it is taken away. */
+    val base: String,
+    val percent: String,
+    val subtracts: Boolean
+)
+
 data class StepsState(val input: MathString, val solution: Solution? = null, val isLoading: Boolean = true)
 
 /**
@@ -134,14 +149,17 @@ class CalculatorViewModel @JvmOverloads constructor(
                 .distinctUntilChanged()
                 .collectLatest { input ->
                     if (input.expression.isEmpty) {
-                        _uiState.update { it.copy(result = null, showResultError = false, hasSteps = false) }
+                        _uiState.update { it.copy(result = null, showResultError = false, hasSteps = false, percentHint = null) }
                         return@collectLatest
                     }
                     if (liveResultDelayMillis > 0) delay(liveResultDelayMillis)
                     val context = input.settings.toMathContext()
                     val res = MathEngine.calculate(input.expression, context)
                     _uiState.update {
-                        if (it.expression == input.expression) it.copy(result = res, showResultError = false, hasSteps = false) else it
+                        if (it.expression == input.expression) it.copy(result = res, showResultError = false, hasSteps = false, percentHint = null) else it
+                    }
+                    percentHint(input.expression, res, context)?.let { hint ->
+                        _uiState.update { if (it.expression == input.expression) it.copy(percentHint = hint) else it }
                     }
                     // Finding out whether there are steps can take as long as the calculation: the
                     // result is shown first, the "Steps" pill follows
@@ -544,6 +562,26 @@ class CalculatorViewModel @JvmOverloads constructor(
     fun insertUnit(symbol: String) {
         insertNode(UnitNode(symbol))
         dismissUnitsDialog()
+    }
+
+    /** The alternative reading of "a + b%" with its result, if the line is of that kind and has one. */
+    private suspend fun percentHint(expression: MathString, result: CalculationResult, context: MathContext): PercentHint? {
+        if (!result.isSuccess) return null
+        val alternative = MathEngine.percentOfFirstAlternative(expression) ?: return null
+        val alternativeResult = MathEngine.calculate(alternative.expression, context)
+        if (!alternativeResult.isSuccess) return null
+        return PercentHint(
+            alternative.expression, alternativeResult,
+            base = MathText.toPlainText(alternative.base), percent = MathText.toPlainText(alternative.percent), subtracts = alternative.subtracts
+        )
+    }
+
+    /** Replaces the line by the pocket-calculator reading of its percent: 200 + 10% becomes 200 + 200 × 10%. */
+    fun applyPercentHint() {
+        val hint = _uiState.value.percentHint ?: return
+        _uiState.update {
+            it.copy(expression = hint.expression.copy(), cursorPath = listOf(hint.expression.length), selectionRange = null, percentHint = null)
+        }
     }
 
     /** Opens the step-by-step solution of the line being typed. */

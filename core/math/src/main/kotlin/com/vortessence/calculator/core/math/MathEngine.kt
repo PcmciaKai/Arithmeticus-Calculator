@@ -16,6 +16,7 @@ import com.vortessence.calculator.core.math.expressions.containsImaginaryUnit
 import com.vortessence.calculator.core.math.expressions.numericComplex
 import com.vortessence.calculator.core.math.expressions.polarForm
 import com.vortessence.calculator.core.math.expressions.MatrixExpression
+import com.vortessence.calculator.core.math.expressions.Percent
 import com.vortessence.calculator.core.math.expressions.Value
 import com.vortessence.calculator.core.math.expressions.Variable
 import com.vortessence.calculator.core.math.expressions.UnitConversion
@@ -32,6 +33,7 @@ import com.vortessence.calculator.core.math.solvers.LinearSystemSolver
 import com.vortessence.calculator.core.math.solvers.NumericIntegrator
 import com.vortessence.calculator.core.math.solvers.NumericRootFinder
 import com.vortessence.calculator.core.math.solvers.PlotCurve
+import com.vortessence.calculator.core.math.steps.ArithmeticSteps
 import com.vortessence.calculator.core.math.steps.BothSides
 import com.vortessence.calculator.core.math.steps.DerivativeSteps
 import com.vortessence.calculator.core.math.steps.EquationSteps
@@ -44,10 +46,13 @@ import com.vortessence.calculator.core.math.steps.displayForm
 import com.vortessence.calculator.core.math.steps.Solution
 import com.vortessence.calculator.core.math.steps.SolutionStep
 import com.vortessence.calculator.core.math.steps.StepChange
+import com.vortessence.calculator.core.math.type.LineBreakNode
+import com.vortessence.calculator.core.math.type.MathNode
 import com.vortessence.calculator.core.math.type.MathOp
 import com.vortessence.calculator.core.math.type.MathParser
 import com.vortessence.calculator.core.math.type.MathString
 import com.vortessence.calculator.core.math.type.MathWriter
+import com.vortessence.calculator.core.math.type.isPostfix
 import com.vortessence.calculator.core.math.type.NumberNode
 import com.vortessence.calculator.core.math.type.OperatorNode
 import com.vortessence.calculator.core.math.type.ParenthesesNode
@@ -219,15 +224,17 @@ object MathEngine {
             MathContext.withContext(execContext) steps@{
                 // "a := …" defines a variable, there is nothing to solve
                 if (splitDefinition(input) != null) return@steps null
-                val parsed = parse(input, execContext)
+                val asTyped = parse(input, execContext)
                 if (execContext.shouldStop) return@steps null
+                // The other kinds of steps work on 15·(1/100); only plain arithmetic shows how 15% becomes 15/100
+                val parsed = Percent.withoutPercents(asTyped)
                 val solution = when (parsed) {
                     is Derivative -> DerivativeSteps.steps(parsed, execContext)
                     is Antiderivative, is Integral -> IntegralSteps.steps(parsed, execContext)
                     is Limit -> LimitSteps.steps(parsed, execContext)
                     is EquationSystem -> SystemSteps.steps(parsed, execContext)
                     is Equals -> parsed.variables().takeIf { it.isNotEmpty() }?.let { EquationSteps.steps(parsed, pickVariable(it), execContext) }
-                    else -> ExpressionSteps.steps(parsed, execContext)
+                    else -> ExpressionSteps.steps(parsed, execContext) ?: ArithmeticSteps.steps(asTyped, execContext)
                 }
                 if (solution == null || execContext.shouldStop || execContext.issues.isNotEmpty()) return@steps null
                 val display = displayWriter(execContext)
@@ -262,6 +269,50 @@ object MathEngine {
         ensureActive()
         steps
     }
+
+    /**
+     * For a line that ends in "a + b%" or "a − b%", the line for what a pocket calculator means by
+     * it: b% *of a*, written out as "a + a × b%" (here a + b% is a plus b/100: 200 + 10% = 200.1,
+     * the alternative is 220). Null for any other line.
+     */
+    fun percentOfFirstAlternative(input: MathString): PercentAlternative? {
+        val nodes = input.nodes
+        if (nodes.any { it is LineBreakNode } || nodes.size < 4) return null
+        val last = nodes.last()
+        if ((last as? OperatorNode)?.op != MathOp.PERCENT) return null
+        // The number in front of the %: digits and a decimal point
+        var start = nodes.size - 1
+        while (start > 0 && nodes[start - 1] is NumberNode) start--
+        if (start == nodes.size - 1 || start < 2) return null
+        val operator = nodes[start - 1] as? OperatorNode ?: return null
+        if (operator.op != MathOp.PLUS && operator.op != MathOp.MINUS) return null
+        val left = nodes.subList(0, start - 1)
+        // The part in front must be complete: not ending in an operator
+        val leftLast = left.last()
+        if (leftLast is OperatorNode && !leftLast.op.isPostfix) return null
+        val percentNumber = nodes.subList(start, nodes.size - 1).map { it.copy() }
+        fun leftCopy(): List<MathNode> {
+            val copy = left.map { it.copy() }
+            val simple = copy.all { it is NumberNode }
+            return if (simple) copy else listOf(ParenthesesNode(MathString(copy)))
+        }
+        val result = mutableListOf<MathNode>()
+        result.addAll(leftCopy())
+        result.add(OperatorNode(operator.op))
+        result.addAll(leftCopy())
+        result.add(OperatorNode(MathOp.MULTIPLY))
+        result.addAll(percentNumber)
+        result.add(OperatorNode(MathOp.PERCENT))
+        return PercentAlternative(
+            MathString(result),
+            base = MathString(left.map { it.copy() }),
+            percent = MathString(percentNumber.map { it.copy() }),
+            subtracts = operator.op == MathOp.MINUS
+        )
+    }
+
+    /** "a + b%" read as "a + a × b%": that line, and the parts for telling about it. */
+    class PercentAlternative(val expression: MathString, val base: MathString, val percent: MathString, val subtracts: Boolean)
 
     /** The decimals typed in [input], e.g. 0.5 as the fraction 1/2 (what they are parsed to). */
     private fun typedDecimals(input: MathString): Set<Rational> {

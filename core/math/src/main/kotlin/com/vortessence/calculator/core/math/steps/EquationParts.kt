@@ -60,3 +60,31 @@ internal class WrittenOut(val factors: List<Expression>) : Expression() {
 
     override fun toString(): String = factors.joinToString(" · ")
 }
+
+/**
+ * A fraction written as it is, 3/6 or (1 + 2)/6, which is not reduced or calculated until a step
+ * does it (a number 1/2 would stand for the reduced value).
+ */
+internal class LiteralFraction(val numerator: Expression, val denominator: Expression) : Expression() {
+
+    override val children: List<Expression> get() = listOf(numerator, denominator)
+
+    override fun copyWithChildren(children: List<Expression>): Expression = LiteralFraction(children[0], children[1])
+
+    override fun canonicalize(context: MathContext): Expression =
+        com.vortessence.calculator.core.math.expressions.Multiplications.of(
+            numerator, com.vortessence.calculator.core.math.expressions.Power(denominator, com.vortessence.calculator.core.math.expressions.Value.MINUS_ONE)
+        ).canonicalize(context)
+
+    override fun evaluateNumerically(bindings: Map<Variable, Double>): Double =
+        numerator.evaluateNumerically(bindings) / denominator.evaluateNumerically(bindings)
+
+    override val isNegative: Boolean get() = numerator.isNegative != denominator.isNegative
+    override val isZero: Boolean get() = numerator.isZero
+
+    override fun equals(other: Any?): Boolean = other is LiteralFraction && numerator == other.numerator && denominator == other.denominator
+
+    override fun hashCode(): Int = numerator.hashCode() * 31 + denominator.hashCode() + 7
+
+    override fun toString(): String = "($numerator)/($denominator)"
+}

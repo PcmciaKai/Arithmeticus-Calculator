@@ -4,7 +4,13 @@ import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.expressions.Additions
 import com.vortessence.calculator.core.math.expressions.Expression
 import com.vortessence.calculator.core.math.expressions.ImaginaryUnit
+import com.vortessence.calculator.core.math.expressions.MixedNumber
+import com.vortessence.calculator.core.math.expressions.Percent
 import com.vortessence.calculator.core.math.expressions.Multiplications
+import com.vortessence.calculator.core.math.expressions.TrigType
+import com.vortessence.calculator.core.math.expressions.TrigonometricFunction
+import com.vortessence.calculator.core.math.expressions.PartialFractions
+import com.vortessence.calculator.core.math.expressions.SymbolicCancel
 import com.vortessence.calculator.core.math.expressions.Power
 import com.vortessence.calculator.core.math.expressions.Value
 import com.vortessence.calculator.core.math.numbers.BigInt
@@ -22,6 +28,9 @@ import com.vortessence.calculator.core.math.numbers.Rational
  * Multiplying out only happens where the result, [match]'s target, does not keep the sum: the
  * calculator leaves (x + 1)² as it is, but (x + 1)² − x² is 2x + 1.
  * Highlighted parts count as what they contain, e.g. the 2 in 2·[2x].
+ *
+ * With [match]'s `arithmetic` flag (plain arithmetic, see [ArithmeticSteps]) fractions are worked out
+ * as by hand (common denominator, numerators times numerators, reducing) and roots simplified (√12 = 2√3).
  */
 internal object SimplificationSteps {
 
@@ -29,18 +38,21 @@ internal object SimplificationSteps {
     private const val MAX_EXPANDED_POWER = 4
 
     /** The first simplification of [e] toward [target] that applies, in the order of the rules above. */
-    fun match(e: Expression, target: Expression, context: MathContext): Match? {
+    fun match(e: Expression, target: Expression, context: MathContext, arithmetic: Boolean = false): Match? {
         val keeps = { sum: Expression -> target.containsExpressionMatching { it == sum } }
         val powers = pathsOf(e) { it is Power }
         val products = pathsOf(e) { it is Multiplications }.map { factors(at(e, it), it) }
         val sums = pathsOf(e) { it is Additions }.map { terms(at(e, it), it) }
+        if (arithmetic) arithmeticMatch(powers.map { at(e, it) to it }, products, sums, e, context)?.let { return it }
         return products.firstNotNullOfOrNull { divideByNegativeNumber(it, context) }
             ?: powers.firstNotNullOfOrNull { imaginaryRoot(at(e, it), it, context) }
             ?: powers.firstNotNullOfOrNull { numberPower(at(e, it), it, context) }
             ?: products.firstNotNullOfOrNull { multiplyNumbers(it, context) }
             ?: powers.firstNotNullOfOrNull { powerOfPower(at(e, it), it, context) }
             ?: powers.firstNotNullOfOrNull { powerOfProduct(at(e, it), it) }
+            ?: products.firstNotNullOfOrNull { tangentFromQuotient(it) }
             ?: products.firstNotNullOfOrNull { combinePowers(it, context) }
+            ?: products.firstNotNullOfOrNull { cancelCommonFactor(it, context) }
             ?: sums.firstNotNullOfOrNull { subtractSameSum(it, context) }
             ?: sums.firstNotNullOfOrNull { combineLikeTerms(it, context) }
             ?: sums.firstNotNullOfOrNull { addNumbers(it, context) }
@@ -131,6 +143,257 @@ internal object SimplificationSteps {
         if (base.rational == null || !base.isNegative || power.exponent != Value(1L, 2L)) return null
         val result = Multiplications(ImaginaryUnit, Power(base.negate(), power.exponent))
         return Match(StepRule.IMAGINARY_ROOT, mapOf(path to result), power, result)
+    }
+
+    /**
+     * (x² − 1)/(x − 1) = (x − 1)(x + 1)/(x − 1) = x + 1: a sum in the numerator and a sum in the
+     * denominator that are polynomials with a common factor. The factorisations are shown.
+     */
+    private fun cancelCommonFactor(factors: List<Part>, context: MathContext): Match? {
+        for (numerator in factors) {
+            val n = numerator.expression as? Additions ?: continue
+            for (denominator in factors) {
+                val power = denominator.expression as? Power ?: continue
+                val d = power.base as? Additions ?: continue
+                val k = (power.exponent as? Value)?.rational?.takeIf { !it.isFractional && it.isNegative && it.numerator.value.bitLength() < 4 } ?: continue
+                val variables = n.variables()
+                if (variables.size != 1 || variables != d.variables()) {
+                    symbolicCancel(numerator, denominator, n, d, k.numerator.value.toInt().let { -it }, context)?.let { return it }
+                    continue
+                }
+                val v = variables.single()
+                val p = PartialFractions.polynomial(n, v, context) ?: continue
+                val q = PartialFractions.polynomial(d, v, context) ?: continue
+                val g = PartialFractions.gcd(p, q)
+                if (g.size < 2) continue
+                val common = PartialFractions.toExpression(g, v)
+                val newNumerator = PartialFractions.toExpression(PartialFractions.divide(p, g).first, v)
+                val newDenominator = PartialFractions.toExpression(PartialFractions.divide(q, g).first, v)
+                fun product(a: Expression, b: Expression) = if (a is Value) Multiplications(a, b) else Multiplications(b, a)
+                val exponent = -k.numerator.value.toInt()
+                // One of the factors of the denominator is cancelled, the others stay
+                val denominatorResult: Expression = Multiplications.of(
+                    *listOfNotNull(
+                        Power(newDenominator, Value.MINUS_ONE).takeIf { newDenominator != Value.ONE },
+                        if (exponent > 1) Power(d, Value(1L - exponent)) else null
+                    ).toTypedArray()
+                )
+                // x − 1 = 1·(x − 1) says nothing
+                val notes = listOfNotNull(
+                    Note(n, product(newNumerator, common)),
+                    Note(d, product(newDenominator, common)).takeIf { newDenominator != Value.ONE }
+                )
+                return Match(
+                    StepRule.CANCEL_COMMON_FACTOR,
+                    mapOf(numerator.path to newNumerator, denominator.path to denominatorResult),
+                    Multiplications(n, power),
+                    Multiplications(newNumerator, denominatorResult),
+                    notes = notes
+                )
+            }
+        }
+        return null
+    }
+
+    /** (x² − y²)/(x − y) = (x − y)(x + y)/(x − y) = x + y: letters in the sums, a linear factor in common. */
+    private fun symbolicCancel(numerator: Part, denominator: Part, n: Additions, d: Additions, exponent: Int, context: MathContext): Match? {
+        val cancelled = (n.variables() intersect d.variables())
+            .firstNotNullOfOrNull { SymbolicCancel.cancelLinear(n, d, it, context) } ?: return null
+        val one = Value.ONE
+        val denominatorResult: Expression = Multiplications.of(
+            *listOfNotNull(
+                Power(cancelled.leading, Value.MINUS_ONE).takeIf { cancelled.leading != one },
+                if (exponent > 1) Power(d, Value(1L - exponent)) else null
+            ).toTypedArray()
+        )
+        val notes = listOfNotNull(
+            Note(n, Multiplications(cancelled.quotient, cancelled.factor)),
+            Note(d, Multiplications(cancelled.leading, cancelled.factor)).takeIf { cancelled.leading != one }
+        )
+        return Match(
+            StepRule.CANCEL_COMMON_FACTOR,
+            mapOf(numerator.path to cancelled.quotient, denominator.path to denominatorResult),
+            Multiplications(n, Power(d, Value(-exponent.toLong()))),
+            Multiplications(cancelled.quotient, denominatorResult),
+            notes = notes
+        )
+    }
+
+    // ----- plain arithmetic: fractions and roots -----
+
+    /** A number or a fraction of whole numbers as (numerator, denominator), or null. */
+    private fun fractionParts(e: Expression): Pair<BigInt, BigInt>? = when {
+        e is Value && e.rational != null -> e.rational.numerator to e.rational.denominator
+        e is LiteralFraction -> {
+            val n = (e.numerator as? Value)?.rational?.takeIf { !it.isFractional }
+            val d = (e.denominator as? Value)?.rational?.takeIf { !it.isFractional }
+            if (n != null && d != null && !d.isZero) n.numerator to d.numerator else null
+        }
+        else -> null
+    }
+
+    private fun isFraction(e: Expression) = e is LiteralFraction || (e is Value && e.rational?.isFractional == true)
+
+    private fun lcm(a: BigInt, b: BigInt): BigInt = a * b / a.gcd(b)
+
+    private fun arithmeticMatch(
+        powers: List<Pair<Expression, Path>>,
+        products: List<List<Part>>,
+        sums: List<List<Part>>,
+        e: Expression,
+        context: MathContext
+    ): Match? {
+        // 15% = 15/100 = 3/20
+        pathsOf(e) { it is Percent && it.operand is Value }.firstOrNull()?.let { path ->
+            val percent = at(e, path) as Percent
+            val number = (percent.operand as Value).rational ?: return@let null
+            val value = Value(number / Rational.of(100L))
+            // 10% = 10/100 = 1/10 says more than 7% = 7/100 does
+            val notes = if (number.isFractional || value.rational?.denominator == BigInt(100L)) emptyList() else listOf(Note(percent, LiteralFraction(percent.operand, Value(100L))))
+            return Match(StepRule.PERCENT_AS_FRACTION, mapOf(path to value), percent, value, notes = notes)
+        }
+        // 2 1/3 = (2·3 + 1)/3
+        pathsOf(e) { it is MixedNumber }.firstOrNull()?.let { path ->
+            val mixed = at(e, path) as MixedNumber
+            val improper = LiteralFraction(Value(Rational.of(mixed.whole * mixed.denominator + mixed.numerator)), Value(Rational.of(mixed.denominator)))
+            val written = LiteralFraction(
+                Additions(WrittenOut(listOf(Value(Rational.of(mixed.whole)), Value(Rational.of(mixed.denominator)))), Value(Rational.of(mixed.numerator))),
+                Value(Rational.of(mixed.denominator))
+            )
+            return Match(StepRule.IMPROPER_FRACTION, mapOf(path to improper), mixed, improper, notes = listOf(Note(written, improper)))
+        }
+        // 1/(a/b) = b/a
+        for ((power, path) in powers) {
+            val p = unmarked(power) as? Power ?: continue
+            val inner = p.base as? LiteralFraction ?: continue
+            if (p.exponent != Value.MINUS_ONE) continue
+            val flipped = LiteralFraction(inner.denominator, inner.numerator)
+            return Match(StepRule.DIVIDE_BY_FRACTION, mapOf(path to flipped), p, flipped)
+        }
+        // √12 = 2√3
+        powers.firstNotNullOfOrNull { (power, path) -> simplifyRoot(unmarked(power), path) }?.let { return it }
+        products.firstNotNullOfOrNull { multiplyFractions(it) }?.let { return it }
+        sums.firstNotNullOfOrNull { extendFractions(it) }?.let { return it }
+        sums.firstNotNullOfOrNull { combineLiteralFractions(it) }?.let { return it }
+        return pathsOf(e) { it is LiteralFraction }.firstNotNullOfOrNull { finishFraction(at(e, it), it) }
+    }
+
+    /** √12 = √(4·3) = 2√3, ∛54 = 3∛2: the largest power that divides the radicand comes out. */
+    private fun simplifyRoot(e: Expression, path: Path): Match? {
+        val power = e as? Power ?: return null
+        val n = (power.base as? Value)?.rational?.takeIf { !it.isFractional && !it.isNegative } ?: return null
+        val exponent = (power.exponent as? Value)?.rational ?: return null
+        if (exponent.numerator != BigInt.ONE) return null
+        val degree = exponent.denominator.value.toInt().takeIf { it in 2..3 && exponent.denominator.value.bitLength() < 4 } ?: return null
+        if (n.numerator.value.bitLength() > 40) return null
+        val value = n.numerator.value.toLong()
+        var k = 1L
+        var candidate = 2L
+        while (Math.pow(candidate.toDouble(), degree.toDouble()) <= value) {
+            var p = 1L
+            repeat(degree) { p *= candidate }
+            if (value % p == 0L) k = candidate
+            candidate++
+        }
+        if (k == 1L) return null
+        var power2 = 1L
+        repeat(degree) { power2 *= k }
+        val rest = value / power2
+        // A perfect power is calculated by the root rule
+        if (rest == 1L) return null
+        val result = Multiplications(Value(k), Power(Value(rest), power.exponent))
+        return Match(
+            StepRule.SIMPLIFY_ROOT, mapOf(path to result), power, result,
+            notes = listOf(Note(Value(value), WrittenOut(listOf(Value(power2), Value(rest)))))
+        )
+    }
+
+    /** a/b·c/d = (a·c)/(b·d), also with whole numbers. */
+    private fun multiplyFractions(factors: List<Part>): Match? {
+        if (factors.size < 2 || factors.any { fractionParts(it.expression) == null }) return null
+        if (factors.none { isFraction(it.expression) }) return null
+        val parts = factors.map { fractionParts(it.expression)!! }
+        val numerators = parts.map { Value(Rational.of(it.first)) }
+        val denominators = parts.filter { it.second != BigInt.ONE }.map { Value(Rational.of(it.second)) }
+        val result = LiteralFraction(Multiplications.of(*numerators.toTypedArray()), Multiplications.of(*denominators.toTypedArray()))
+        return merge(StepRule.MULTIPLY_FRACTIONS, factors, Multiplications(factors.map { it.expression }), result, Value.ONE)
+    }
+
+    /** 1/2 + 1/3 = 3/6 + 2/6: the fractions get the same denominator, the least common multiple. */
+    private fun extendFractions(terms: List<Part>): Match? {
+        val numbers = terms.filter { fractionParts(it.expression) != null }
+        if (numbers.size < 2 || numbers.none { isFraction(it.expression) }) return null
+        val parts = numbers.map { fractionParts(it.expression)!! }
+        val common = parts.map { it.second }.reduce { a, b -> lcm(a, b) }
+        // Only those that are not written with it yet
+        val changed = numbers.zip(parts).filter { (term, part) -> !(term.expression is LiteralFraction && part.second == common) }
+        if (changed.isEmpty()) return null
+        val replacements = changed.associate { (term, part) ->
+            val factor = common / part.second
+            term.path to LiteralFraction(Value(Rational.of(part.first * factor)), Value(Rational.of(common)))
+        }
+        val notes = buildList {
+            if (parts.map { it.second }.distinct().size > 1) {
+                add(Note(TextExpression("lcm(${parts.map { it.second }.distinct().joinToString(", ")})"), Value(Rational.of(common))))
+            }
+            for ((term, part) in changed) {
+                val factor = common / part.second
+                if (factor == BigInt.ONE) continue
+                add(Note(
+                    LiteralFraction(WrittenOut(listOf(Value(Rational.of(part.first)), Value(Rational.of(factor)))), WrittenOut(listOf(Value(Rational.of(part.second)), Value(Rational.of(factor))))),
+                    replacements.getValue(term.path)
+                ))
+            }
+        }
+        return Match(
+            StepRule.EXTEND_FRACTIONS, replacements,
+            Additions(numbers.map { it.expression }), Additions(numbers.map { replacements[it.path] ?: it.expression }),
+            notes = notes
+        )
+    }
+
+    /** 3/6 + 2/6 = (3 + 2)/6 */
+    private fun combineLiteralFractions(terms: List<Part>): Match? {
+        val fractions = terms.filter { it.expression is LiteralFraction && (it.expression as LiteralFraction).denominator is Value }
+        val group = fractions.groupBy { (it.expression as LiteralFraction).denominator }.values.firstOrNull { it.size >= 2 } ?: return null
+        val denominator = (group.first().expression as LiteralFraction).denominator
+        val combined = LiteralFraction(Additions(group.map { (it.expression as LiteralFraction).numerator }), denominator)
+        return merge(StepRule.COMBINE_FRACTIONS, group, Additions(group.map { it.expression }), combined, Value.ZERO)
+    }
+
+    /** 6/4 = 3/2 (reduced), 6/3 = 2 (calculated); a fraction that is reduced already becomes a plain number. */
+    private fun finishFraction(e: Expression, path: Path): Match? {
+        val fraction = unmarked(e) as? LiteralFraction ?: return null
+        val (n, d) = fractionParts(fraction) ?: return null
+        if (d.isZero) return null
+        val value = Rational.of(n, d)
+        val g = n.abs().gcd(d.abs())
+        return when {
+            !value.isFractional -> Match(StepRule.DIVIDE_NUMBERS, mapOf(path to Value(value)), fraction, Value(value))
+            g != BigInt.ONE -> {
+                val reduced = LiteralFraction(Value(Rational.of(n / g)), Value(Rational.of(d / g)))
+                Match(StepRule.REDUCE_FRACTION, mapOf(path to reduced), fraction, reduced)
+            }
+            // The same as it is written: the number 5/6 is that fraction
+            else -> Match(StepRule.REDUCE_FRACTION, mapOf(path to Value(value)), fraction, Value(value))
+        }
+    }
+
+    /** sin(x)/cos(x) = tan(x) */
+    private fun tangentFromQuotient(factors: List<Part>): Match? {
+        for (numerator in factors) {
+            val sine = numerator.expression as? TrigonometricFunction ?: continue
+            if (sine.type != TrigType.SIN) continue
+            for (denominator in factors) {
+                val power = denominator.expression as? Power ?: continue
+                if (power.exponent != Value.MINUS_ONE) continue
+                val cosine = power.base as? TrigonometricFunction ?: continue
+                if (cosine.type != TrigType.COS || cosine.operand != sine.operand) continue
+                val tangent = TrigonometricFunction(TrigType.TAN, sine.operand, sine.angleUnit)
+                return merge(StepRule.TANGENT_AS_QUOTIENT, listOf(numerator, denominator), Multiplications(sine, power), tangent, Value.ONE)
+            }
+        }
+        return null
     }
 
     /** 2·3 = 6. A factor −1 is the sign and stays in front: −2·3x = −6x. */

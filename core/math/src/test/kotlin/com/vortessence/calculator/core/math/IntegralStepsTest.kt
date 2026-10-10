@@ -167,4 +167,22 @@ class IntegralStepsTest {
         // A substitution is still preferred where one fits: ∫ x/(x² − 1) dx
         assertEquals(StepRule.SUBSTITUTION, solution(integral(frac(ms(x), ms(x, pow(n("2")), minus, n("1")))))!!.steps[1].rule)
     }
+
+    @Test
+    fun quadraticDenominatorWithoutRealRoots() {
+        // ∫ 1/(x² + 2x + 5) dx: complete the square, u = x + 1, atan
+        val completed = solution(integral(frac(ms(n("1")), ms(x, pow(n("2")), plus, n("2"), x, plus, n("5")))))!!
+        assertEquals(
+            listOf(StepRule.COMPLETE_SQUARE, StepRule.SUBSTITUTION, StepRule.INTEGRAL_TABLE, StepRule.BACK_SUBSTITUTION),
+            completed.steps.drop(1).map { it.rule }.take(4)
+        )
+        assertEquals("(x)^(2) + 2x + 5 = ((x + 1))^(2) + 4", completed.steps[1].notes.single().toString())
+        // ∫ x/(x² + x + 1) dx: the derivative of the denominator is split off first
+        val split = solution(integral(frac(ms(x), ms(x, pow(n("2")), plus, x, plus, n("1")))))!!
+        assertEquals(StepRule.SPLIT_NUMERATOR, split.steps[1].rule)
+        assertTrue(StepRule.COMPLETE_SQUARE in split.steps.map { it.rule })
+        assertTrue(StepRule.INTEGRAL_RECIPROCAL in split.steps.map { it.rule })
+        // The numerator is the derivative: u = x² + 2x + 5 straight away
+        assertEquals(StepRule.SUBSTITUTION, solution(integral(frac(ms(n("2"), x, plus, n("2")), ms(x, pow(n("2")), plus, n("2"), x, plus, n("5")))))!!.steps[1].rule)
+    }
 }

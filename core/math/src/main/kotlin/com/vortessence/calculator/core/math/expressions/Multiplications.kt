@@ -134,6 +134,10 @@ class Multiplications(val operands: List<Expression>) : Expression() {
         if (finalTerms.isEmpty()) return Value.ONE
         if (finalTerms.size == 1) return finalTerms[0]
 
+        // Factors that polynomials share are cancelled before anything is multiplied out:
+        // (x² − 1)/(x − 1) = x + 1
+        cancelCommonFactors(finalTerms, context)?.let { return Multiplications(it).canonicalize(context) }
+
         // Check if we should distribute over additions: a * (b + c). Complex numbers are always
         // multiplied out, so they take the form a + b·i: 2i·(1 + i) = −2 + 2i
         val additionTerm = finalTerms.firstOrNull { it is Additions } as? Additions
@@ -144,6 +148,55 @@ class Multiplications(val operands: List<Expression>) : Expression() {
         }
 
         return Multiplications(finalTerms)
+    }
+
+    /**
+     * A sum in the numerator and a sum to a negative power in the denominator, both polynomials in
+     * the same variable with a common factor: the factor is cancelled. Null if there is none.
+     */
+    private fun cancelCommonFactors(terms: List<Expression>, context: MathContext): List<Expression>? {
+        fun denominatorPower(e: Expression): Int? {
+            val power = e as? Power ?: return null
+            if (power.base !is Additions) return null
+            val n = (power.exponent as? Value)?.rational ?: return null
+            if (n.isFractional || !n.isNegative || n.numerator.value.bitLength() > 4) return null
+            return -n.numerator.value.toInt()
+        }
+        if (terms.none { it is Additions } || terms.none { denominatorPower(it) != null }) return null
+        val result = terms.toMutableList()
+        val extra = mutableListOf<Expression>()
+        var changed = false
+        for (ni in terms.indices) {
+            for (di in terms.indices) {
+                val numerator = result[ni] as? Additions ?: continue
+                val k = denominatorPower(result[di]) ?: continue
+                val denominator = (result[di] as Power).base as Additions
+                val variables = numerator.variables()
+                if (variables.size != 1 || variables != denominator.variables()) {
+                    // Letters in it: a linear factor of the denominator that the numerator has too, (x² − y²)/(x − y)
+                    val shared = variables intersect denominator.variables()
+                    val cancelled = shared.firstNotNullOfOrNull { SymbolicCancel.cancelLinear(numerator, denominator, it, context) } ?: continue
+                    result[ni] = cancelled.quotient
+                    // One of the k factors of the denominator is reduced, the others stay
+                    extra.add(Power(cancelled.leading, Value.MINUS_ONE))
+                    result[di] = if (k == 1) Value.ONE else Power(denominator, Value((1 - k).toLong()))
+                    changed = true
+                    continue
+                }
+                val v = variables.single()
+                val p = PartialFractions.polynomial(numerator, v, context) ?: continue
+                val q = PartialFractions.polynomial(denominator, v, context) ?: continue
+                val g = PartialFractions.gcd(p, q)
+                if (g.size < 2) continue
+                result[ni] = PartialFractions.toExpression(PartialFractions.divide(p, g).first, v)
+                val reducedDenominator = PartialFractions.toExpression(PartialFractions.divide(q, g).first, v)
+                // One of the k factors of the denominator is reduced, the others stay
+                extra.add(Power(reducedDenominator, Value.MINUS_ONE))
+                result[di] = if (k == 1) Value.ONE else Power(denominator, Value((1 - k).toLong()))
+                changed = true
+            }
+        }
+        return if (changed) result + extra else null
     }
 
     /**

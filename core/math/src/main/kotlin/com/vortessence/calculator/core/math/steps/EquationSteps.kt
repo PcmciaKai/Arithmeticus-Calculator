@@ -64,7 +64,8 @@ internal object EquationSteps {
         val target: Expression = Alternatives(solutions.map { Equals(v, it) })
 
         val solution = Solver(context)
-        solution.start(normalize(equation))
+        // Typed sin(x) has no angle unit yet, the sin(x) the rules make has: the same function, so both get it
+        solution.start(normalize(withAngleUnits(equation, context.angleUnit)))
         // The variable standing for a power of v (or of e: u = eˣ) while an equation in it is solved
         var stand: Variable? = null
         var standFor: Expression = v
@@ -232,7 +233,15 @@ internal object EquationSteps {
         }
         val values = branches.map { normalize(unmarked(it.right)) }.distinctBy { writtenForm(it) }
         val equations = values.map { Equals(v, it) }
-        return solution.finish(Alternatives(equations + TextExpression("${k.identifier} ∈ ℤ"), inline = true))
+        val result = Alternatives(equations + TextExpression("${k.identifier} ∈ ℤ"), inline = true)
+        // The last line, which is framed as the result, says what k is
+        solution.apply(Match(StepRule.COLLECT_SOLUTION, mapOf(emptyList<Int>() to result), solution.current, result, showChange = false, boxReplacements = false))
+        return solution.finish(result)
+    }
+
+    /** [e] with the angle unit written into every trigonometric function that has none. */
+    private fun withAngleUnits(e: Expression, unit: AngleUnit): Expression = e.transform {
+        if (it is TrigonometricFunction && it.angleUnit == null) TrigonometricFunction(it.type, withAngleUnits(it.operand, unit), unit) else it
     }
 
     /** The cases of [e], also those nested in other cases. */
@@ -317,8 +326,13 @@ internal object EquationSteps {
             logarithmic()?.let { return it }
             radical()?.let { return it }
             absoluteValue()?.let { return it }
+            homogeneousTrigonometric()?.let { return it }
+            amplitudeForm()?.let { return it }
+            doubleAngle()?.let { return it }
+            commonTrigonometricFactor()?.let { return it }
             trigonometric()?.let { return it }
             exponentialSubstitution()?.let { return it }
+            trigonometricSubstitution()?.let { return it }
             val coefficients = polynomial() ?: return null
             return when (coefficients.keys.maxOrNull()) {
                 // x + 1 = 1 + x: the variable drops out
@@ -636,11 +650,177 @@ internal object EquationSteps {
             return Match(StepRule.TRIG_GENERAL_SOLUTION, mapOf(path to result), equation, result, notes = notes, showChange = false)
         }
 
+        /**
+         * 2sin²x − sin x − 1 = 0: a polynomial in sin(x) (or cos(x), tan(x)) of degree 2 or more,
+         * so u = sin(x) gives an equation in u that is solved first.
+         */
+        private fun trigonometricSubstitution(): Match? {
+            if (!allowSubstitution || context.complexNumbers || context.angleUnit != AngleUnit.RADIANS) return null
+            val functions = LinkedHashSet<TrigonometricFunction>()
+            fun collect(e: Expression) {
+                if (e is TrigonometricFunction && e.type in listOf(TrigType.SIN, TrigType.COS, TrigType.TAN) && e.operand.containsVariable(v)) functions.add(e) else e.children.forEach { collect(it) }
+            }
+            collect(left)
+            collect(right)
+            val function = functions.singleOrNull() ?: return null
+            // Everything outside the function must be a polynomial in it, with powers of 2 or more somewhere
+            val u = standInVariable(equation)
+            val inU = (if (right.isZero) left else Additions(left, Multiplications(Value.MINUS_ONE, right))).transform { if (it == function) u else it }
+            if (inU.containsVariable(v)) return null
+            val coefficients = Moves(Equals(inU, Value.ZERO).let { Marked(it, 0, false) }, emptyList(), u, context).polynomial() ?: return null
+            if ((coefficients.keys.maxOrNull() ?: 0) < 2) return null
+            if (!right.isZero) return addToBothSides(negated(right))
+            val result = Equals(canonical(inU) ?: return null, Value.ZERO)
+            return Match(
+                StepRule.SUBSTITUTE_POWER, mapOf(path to result), equation, result,
+                notes = listOf(Note(u, function)), showChange = false
+            )
+        }
+
+        /**
+         * a·sin(u) = b·cos(u): everything to the left, then divided by cos(u), which gives
+         * a·tan(u) − b = 0. (cos(u) = 0 cannot be a solution: sin(u) would be 0 too.)
+         */
+        private fun homogeneousTrigonometric(): Match? {
+            if (context.angleUnit != AngleUnit.RADIANS || context.complexNumbers) return null
+            var argument: Expression? = null
+            var hasSine = false
+            var hasCosine = false
+            for (term in terms(left) + terms(right)) {
+                if (term.isZero) continue
+                val factors = if (term is Multiplications) term.operands else listOf(term)
+                val trig = factors.singleOrNull { it is TrigonometricFunction } as? TrigonometricFunction ?: return null
+                if (trig.type != TrigType.SIN && trig.type != TrigType.COS) return null
+                if (factors.any { it !== trig && it.containsVariable(v) }) return null
+                if (argument != null && trig.operand != argument) return null
+                argument = trig.operand
+                if (trig.type == TrigType.SIN) hasSine = true else hasCosine = true
+            }
+            if (!hasSine || !hasCosine || argument == null || !argument.containsVariable(v)) return null
+            if (!right.isZero) return addToBothSides(negated(right))
+            val cosine = TrigonometricFunction(TrigType.COS, argument, AngleUnit.RADIANS)
+            return multiplyBothSides(cosine, divide = true, notes = listOf(Note(cosine, Value.ZERO, relation = "≠")))
+        }
+
+        /**
+         * sin(2u) = 2sin(u)cos(u) and cos(2u) = cos²(u) − sin²(u), when the equation has sin(u) or cos(u)
+         * as well. cos(2u) is written as 1 − 2sin²(u) or 2cos²(u) − 1 if only one of the two is there.
+         */
+        private fun doubleAngle(): Match? {
+            if (context.angleUnit != AngleUnit.RADIANS || context.complexNumbers) return null
+            fun isTrig(e: Expression) = e is TrigonometricFunction && e.type in listOf(TrigType.SIN, TrigType.COS) && (e.angleUnit ?: AngleUnit.RADIANS) == AngleUnit.RADIANS
+            fun halfOf(e: Expression): Expression? {
+                val double = (e as? TrigonometricFunction)?.takeIf { isTrig(it) }?.operand as? Multiplications ?: return null
+                val ops = double.operands
+                if (ops.size < 2 || ops.first() != Value.TWO) return null
+                val half = if (ops.size == 2) ops[1] else Multiplications(ops.drop(1))
+                return half.takeIf { it.containsVariable(v) }
+            }
+            val doubles = pathsOf(equation) { halfOf(it) != null }
+            if (doubles.isEmpty()) return null
+            val half = halfOf(at(equation, doubles.first())) ?: return null
+            val singles = pathsOf(equation) { isTrig(it) && (it as TrigonometricFunction).operand == half }.map { (at(equation, it) as TrigonometricFunction).type }.toSet()
+            if (singles.isEmpty()) return null
+            val sin = TrigonometricFunction(TrigType.SIN, half, AngleUnit.RADIANS)
+            val cos = TrigonometricFunction(TrigType.COS, half, AngleUnit.RADIANS)
+            val cosOfDouble: Expression = when (singles) {
+                setOf(TrigType.SIN) -> Additions(Value.ONE, Multiplications(Value.MINUS_ONE, Value.TWO, Power(sin, Value.TWO)))
+                setOf(TrigType.COS) -> Additions(Multiplications(Value.TWO, Power(cos, Value.TWO)), Value.MINUS_ONE)
+                else -> Additions(Power(cos, Value.TWO), Multiplications(Value.MINUS_ONE, Power(sin, Value.TWO)))
+            }
+            val result = equation.transform {
+                val inner = halfOf(it)
+                when {
+                    inner != half -> it
+                    (it as TrigonometricFunction).type == TrigType.SIN -> Multiplications(Value.TWO, sin, cos)
+                    else -> cosOfDouble
+                }
+            }
+            return Match(StepRule.DOUBLE_ANGLE, mapOf(path to result), equation, result, showChange = false)
+        }
+
+        /**
+         * sin(x)cos(x) = cos(x): everything to the left, then the factor the terms share, cos(x), taken out
+         * so that each factor can be set to 0.
+         */
+        private fun commonTrigonometricFactor(): Match? {
+            if (context.angleUnit != AngleUnit.RADIANS || context.complexNumbers) return null
+            val all = terms(left) + terms(right).filterNot { it.isZero }
+            if (terms(right).count { !it.isZero } + terms(left).size < 2) return null
+            fun factorsOf(term: Expression) = if (term is Multiplications) term.operands else listOf(term)
+            val common = factorsOf(all.first()).filter {
+                it is TrigonometricFunction && it.type in listOf(TrigType.SIN, TrigType.COS) && it.operand.containsVariable(v)
+            }.firstOrNull { f -> all.all { t -> factorsOf(t).count { it == f } == 1 } } ?: return null
+            // Only where something else is left besides the factor, in each term but at most one
+            if (all.count { factorsOf(it).size == 1 } > 1) return null
+            if (!right.isZero) return addToBothSides(negated(right))
+            val inner = terms(left).map { canonical(Multiplications(it, Power(common, Value.MINUS_ONE))) ?: return null }
+            val factored = Multiplications(common, Additions(inner))
+            return Match(StepRule.FACTOR_COMMON, mapOf(path + 0 to factored), left, factored)
+        }
+
+        /**
+         * a·sin(u) + b·cos(u) = c with numbers a, b and c ≠ 0: the sine and cosine terms to the left,
+         * the numbers to the right, then a·sin(u) + b·cos(u) = R·sin(u + φ) with R = √(a² + b²) and
+         * φ = atan(b/a) (plus π for a < 0). That is a sine equation, sin(u + φ) = c/R.
+         */
+        private fun amplitudeForm(): Match? {
+            if (context.angleUnit != AngleUnit.RADIANS || context.complexNumbers) return null
+            var argument: Expression? = null
+            var sine: com.vortessence.calculator.core.math.numbers.Rational? = null
+            var cosine: com.vortessence.calculator.core.math.numbers.Rational? = null
+            var hasConstant = false
+            fun trigTerm(term: Expression): Boolean {
+                val factors = if (term is Multiplications) term.operands else listOf(term)
+                val trig = factors.singleOrNull { it is TrigonometricFunction } as? TrigonometricFunction ?: return false
+                if (trig.type != TrigType.SIN && trig.type != TrigType.COS) return false
+                val coefficient = factors.filter { it !== trig }.fold(Value.ONE as Expression) { p, f -> Multiplications.of(p, f) }
+                val number = ((canonical(coefficient) ?: return false) as? Value)?.rational ?: return false
+                if (argument != null && trig.operand != argument) return false
+                argument = trig.operand
+                if (trig.type == TrigType.SIN) sine = (sine ?: com.vortessence.calculator.core.math.numbers.Rational.ZERO) + number
+                else cosine = (cosine ?: com.vortessence.calculator.core.math.numbers.Rational.ZERO) + number
+                return true
+            }
+            for (term in terms(left) + terms(right)) {
+                when {
+                    term.isZero -> {}
+                    !term.containsVariable(v) -> hasConstant = true
+                    !trigTerm(term) -> return null
+                }
+            }
+            val a = sine ?: return null
+            val b = cosine ?: return null
+            val u = argument ?: return null
+            if (!hasConstant || a.isZero || b.isZero || !u.containsVariable(v)) return null
+            // The sine and cosine terms to the left, the numbers to the right
+            val rightTrig = terms(right).filter { it.containsVariable(v) }
+            if (rightTrig.isNotEmpty()) return addToBothSides(negated(sum(rightTrig)))
+            val leftConstants = terms(left).filterNot { it.containsVariable(v) && !it.isZero }.filter { !it.isZero }
+            if (leftConstants.isNotEmpty()) return addToBothSides(negated(sum(leftConstants)))
+            // One sine and one cosine term: simplification has combined the rest
+            val leftTrig = terms(left)
+            if (leftTrig.size != 2) return null
+            val radius = canonical(Power(Value(a * a + b * b), Value(com.vortessence.calculator.core.math.numbers.Rational.HALF))) ?: return null
+            val ratio = Value(b / a)
+            val atan = TrigonometricFunction(TrigType.ATAN, ratio, AngleUnit.RADIANS)
+            val exactAngle = canonical(atan)?.takeIf { e -> !(e is Value && e.rational == null) } ?: atan
+            val phase: Expression = if (a.isNegative) Additions(exactAngle, Constant.PI) else exactAngle
+            val rewritten = Multiplications(radius, TrigonometricFunction(TrigType.SIN, Additions(u, phase), AngleUnit.RADIANS))
+            val result = Equals(rewritten, right)
+            return Match(
+                StepRule.AMPLITUDE_FORM, mapOf(path to result), equation, result,
+                notes = listOf(Note(Variable("a"), Value(a)), Note(Variable("b"), Value(b)), Note(Variable("R"), radius), Note(Variable("φ"), phase)),
+                showChange = false
+            )
+        }
+
         /** a/b = 0 ⇔ a = 0, where b ≠ 0 (the solutions are checked afterwards). */
         private fun zeroFraction(): Match? {
             if (!right.isZero) return null
             val factors = (left as? Multiplications)?.operands ?: return null
-            fun isDenominator(e: Expression) = e is Power && (e.exponent as? Value)?.isNegative == true && e.base.containsVariable(v)
+            // (sin x − cos x)/cos x = 0 comes from dividing by cos x: that is simplified, not undone
+            fun isDenominator(e: Expression) = e is Power && (e.exponent as? Value)?.isNegative == true && e.base.containsVariable(v) && e.base !is TrigonometricFunction
             val denominators = factors.filter { isDenominator(it) }
             if (denominators.isEmpty()) return null
             val numerator = Multiplications.of(*factors.filterNot { isDenominator(it) }.toTypedArray())

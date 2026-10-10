@@ -114,18 +114,44 @@ internal object PartialFractions {
 
     // ----- polynomials with rational coefficients -----
 
-    private fun trim(p: List<Rational>): List<Rational> = p.dropLastWhile { it.isZero }
+    /** The monic greatest common divisor of [a] and [b] (a constant 1 if they have no common factor). */
+    fun gcd(a: List<Rational>, b: List<Rational>): List<Rational> {
+        var x = trim(a)
+        var y = trim(b)
+        while (y.isNotEmpty()) {
+            val remainder = divide(x, y).second
+            x = y
+            y = trim(remainder)
+        }
+        if (x.isEmpty()) return listOf(Rational.ONE)
+        val lead = x.last()
+        return x.map { it / lead }
+    }
 
-    private fun value(p: List<Rational>, x: Rational): Rational = p.foldRight(Rational.ZERO) { c, acc -> acc * x + c }
+    /** c₀ + c₁x + c₂x² … as an expression in [v], written from the highest power down. */
+    fun toExpression(c: List<Rational>, v: Variable): Expression {
+        // Highest power first, as it is written: x² − 1
+        val terms = c.indices.reversed().mapNotNull { k ->
+            val coefficient = c[k]
+            if (coefficient.isZero) null
+            else if (k == 0) Value(coefficient)
+            else Multiplications.of(Value(coefficient), if (k == 1) v else Power(v, Value(k.toLong())))
+        }
+        return if (terms.isEmpty()) Value.ZERO else if (terms.size == 1) terms.single() else Additions(terms)
+    }
 
-    private fun multiply(a: List<Rational>, b: List<Rational>): List<Rational> {
+    internal fun trim(p: List<Rational>): List<Rational> = p.dropLastWhile { it.isZero }
+
+    internal fun value(p: List<Rational>, x: Rational): Rational = p.foldRight(Rational.ZERO) { c, acc -> acc * x + c }
+
+    internal fun multiply(a: List<Rational>, b: List<Rational>): List<Rational> {
         val result = MutableList(a.size + b.size - 1) { Rational.ZERO }
         for (i in a.indices) for (j in b.indices) result[i + j] = result[i + j] + a[i] * b[j]
         return result
     }
 
     /** p / (x − r), for a root r. */
-    private fun divideByLinear(p: List<Rational>, r: Rational): List<Rational> {
+    internal fun divideByLinear(p: List<Rational>, r: Rational): List<Rational> {
         val result = MutableList(p.size - 1) { Rational.ZERO }
         var carry = Rational.ZERO
         for (k in p.size - 1 downTo 1) {
@@ -136,7 +162,7 @@ internal object PartialFractions {
     }
 
     /** Polynomial long division: (quotient, remainder). */
-    private fun divide(numerator: List<Rational>, denominator: List<Rational>): Pair<List<Rational>, List<Rational>> {
+    internal fun divide(numerator: List<Rational>, denominator: List<Rational>): Pair<List<Rational>, List<Rational>> {
         var remainder = trim(numerator).toMutableList()
         val d = denominator.size - 1
         if (remainder.size - 1 < d) return emptyList<Rational>() to remainder

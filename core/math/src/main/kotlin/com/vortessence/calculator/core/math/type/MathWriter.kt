@@ -6,6 +6,9 @@ import com.vortessence.calculator.core.math.numbers.Rational
 import com.vortessence.calculator.core.math.steps.Alternatives
 import com.vortessence.calculator.core.math.steps.BackSubstitution
 import com.vortessence.calculator.core.math.steps.TextExpression
+import com.vortessence.calculator.core.math.expressions.MixedNumber
+import com.vortessence.calculator.core.math.expressions.Percent
+import com.vortessence.calculator.core.math.steps.LiteralFraction
 import com.vortessence.calculator.core.math.steps.WrittenOut
 import com.vortessence.calculator.core.math.steps.EvaluateBetween
 import com.vortessence.calculator.core.math.steps.LiteralPower
@@ -144,6 +147,28 @@ class MathWriter(
                 result.appendAll(writeExpr(equation))
             }
             is TextExpression -> result.append(TextNode(expr.text))
+            is Percent -> {
+                // 12.5%, not 25/2 %
+                val rational = (expr.operand as? Value)?.rational
+                val decimal = rational?.takeIf { it.isFractional }?.let { r ->
+                    runCatching { BigDecimal(r.numerator.abs().value).divide(BigDecimal(r.denominator.value)).toPlainString() }.getOrNull()?.let { text -> (if (r.isNegative) "-" else "") + text }
+                }
+                val nodes = if (decimal != null) MathString(listOf(NumberNode(decimal.removePrefix("-")))).also { if (decimal.startsWith("-")) it.insert(0, OperatorNode(MathOp.MINUS)) } else writeExpr(expr.operand)
+                result.appendAll(if (expr.operand is Additions || expr.operand is Multiplications) MathString(listOf(ParenthesesNode(nodes))) else nodes)
+                result.append(OperatorNode(MathOp.PERCENT))
+            }
+            is MixedNumber -> result.append(MixedFractionNode(
+                MathString(listOf(NumberNode(expr.whole.toString()))),
+                MathString(listOf(NumberNode(expr.numerator.toString()))),
+                MathString(listOf(NumberNode(expr.denominator.toString())))
+            ))
+            is LiteralFraction -> {
+                // −3/6: the sign in front of the fraction
+                val negative = expr.numerator.isNegative && !expr.denominator.isNegative
+                if (negative) result.append(OperatorNode(MathOp.MINUS))
+                val numerator = if (negative) negatedForDisplay(expr.numerator) else expr.numerator
+                result.append(FractionNode(writeExpr(numerator), writeExpr(expr.denominator)))
+            }
             is WrittenOut -> expr.factors.forEachIndexed { i, factor ->
                 if (i > 0) result.append(OperatorNode(MathOp.MULTIPLY))
                 val nodes = writeExpr(factor)
@@ -478,7 +503,7 @@ class MathWriter(
         factor is Marked -> (factor.inner as? Multiplications)?.operands?.minOf { factorRank(it) } ?: factorRank(factor.inner)
         factor is LiteralPower -> factorRank(factor.inner)
         factor is Derivative -> 6
-        factor is Value -> 0
+        factor is Value || factor is Percent || factor is MixedNumber -> 0
         // Powers of numbers in solution steps: 2³x³
         factor is Power && factor.base is Value && factor.exponent is Value && (factor.exponent as Value).rational?.isFractional == false -> 0
         factor is Constant -> 1
@@ -555,6 +580,7 @@ class MathWriter(
      */
     private fun negatedForDisplay(expr: Expression): Expression {
         if (expr is Value) return expr.negate()
+        if (expr is LiteralFraction && expr.numerator.isNegative) return LiteralFraction(negatedForDisplay(expr.numerator), expr.denominator)
         // The sign goes in front of the highlighting: x − [sin(x)]
         if (expr is Marked) return Marked(negatedForDisplay(expr.inner), expr.colorIndex, expr.boxed)
         if (expr is Multiplications) {

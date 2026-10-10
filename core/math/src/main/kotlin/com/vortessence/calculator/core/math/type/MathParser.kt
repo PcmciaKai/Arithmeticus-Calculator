@@ -273,7 +273,7 @@ class MathParser {
             MathContext.current().stopWithError(MathIssue.DIVISION_BY_ZERO)
             return Value.ZERO
         }
-        return Value(Rational.of(BigInt(whole)) + Rational.of(BigInt(numerator), BigInt(denominator)))
+        return MixedNumber(BigInt(whole), BigInt(numerator), BigInt(denominator))
     }
 
     /**
@@ -415,7 +415,7 @@ class MathParser {
                     expr = Factorial(expr)
                 } else if (nextToken is Token.OpToken && nextToken.op == MathOp.PERCENT) {
                     pos++
-                    expr = Multiplications.of(expr, Value(1L, 100L))
+                    expr = Percent(expr)
                 } else {
                     break
                 }

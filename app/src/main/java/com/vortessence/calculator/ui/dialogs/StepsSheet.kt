@@ -332,6 +332,11 @@ private val StepRule.descriptionRes: Int
         StepRule.IMAGINARY_ROOT -> R.string.step_imaginary_root
         StepRule.MULTIPLY_NUMBERS -> R.string.step_multiply_numbers
         StepRule.DIVIDE_NUMBERS -> R.string.step_divide_numbers
+        StepRule.EXTEND_FRACTIONS -> R.string.step_extend_fractions
+        StepRule.IMPROPER_FRACTION -> R.string.step_improper_fraction
+        StepRule.PERCENT_AS_FRACTION -> R.string.step_percent_as_fraction
+        StepRule.MULTIPLY_FRACTIONS -> R.string.step_multiply_fractions
+        StepRule.SIMPLIFY_ROOT -> R.string.step_simplify_root
         StepRule.REDUCE_FRACTION -> R.string.step_reduce_fraction
         StepRule.NUMBER_POWER -> R.string.step_number_power
         StepRule.DIVIDE_BY_FRACTION -> R.string.step_divide_by_fraction
@@ -350,6 +355,8 @@ private val StepRule.descriptionRes: Int
         StepRule.SUBTRACT_SAME -> R.string.step_subtract_same
         StepRule.COMBINE_POWERS -> R.string.step_combine_powers
         StepRule.CANCEL -> R.string.step_cancel
+        StepRule.TANGENT_AS_QUOTIENT -> R.string.step_tangent_as_quotient
+        StepRule.CANCEL_COMMON_FACTOR -> R.string.step_cancel_common_factor
         StepRule.DISTRIBUTE -> R.string.step_distribute
         StepRule.COMBINE_LIKE_TERMS -> R.string.step_combine_like_terms
         StepRule.INTEGRAL_CONSTANT -> R.string.step_integral_constant
@@ -368,6 +375,8 @@ private val StepRule.descriptionRes: Int
         StepRule.BACK_SUBSTITUTION -> R.string.step_back_substitution
         StepRule.BY_PARTS -> R.string.step_by_parts
         StepRule.PARTIAL_FRACTIONS -> R.string.step_partial_fractions
+        StepRule.SPLIT_NUMERATOR -> R.string.step_split_numerator
+        StepRule.COMPLETE_SQUARE -> R.string.step_complete_square
         StepRule.ANTIDERIVATIVE -> R.string.step_antiderivative
         StepRule.BOUNDS -> R.string.step_bounds
         StepRule.ADD_TO_BOTH_SIDES -> R.string.step_add_to_both_sides
@@ -382,7 +391,15 @@ private val StepRule.descriptionRes: Int
         StepRule.LOGARITHM_BOTH_SIDES -> R.string.step_logarithm_both_sides
         StepRule.SQUARE_BOTH_SIDES -> R.string.step_square_both_sides
         StepRule.TRIG_GENERAL_SOLUTION -> R.string.step_trig_general_solution
+        StepRule.AMPLITUDE_FORM -> R.string.step_amplitude_form
+        StepRule.DOUBLE_ANGLE -> R.string.step_double_angle
+        StepRule.FACTOR_COMMON -> R.string.step_factor_common
         StepRule.LIMIT_SUBSTITUTE -> R.string.step_limit_substitute
+        StepRule.DIVIDE_BY_HIGHEST_POWER -> R.string.step_divide_by_highest_power
+        StepRule.LIMIT_VANISH -> R.string.step_limit_vanish
+        StepRule.LIMIT_CONSTANT -> R.string.step_limit_constant
+        StepRule.LIMIT_GROWS -> R.string.step_limit_grows
+        StepRule.LIMIT_RECIPROCAL -> R.string.step_limit_reciprocal
         StepRule.LHOPITAL -> R.string.step_lhopital
         StepRule.ZERO_FRACTION -> R.string.step_zero_fraction
         StepRule.ABSOLUTE_VALUE_CASES -> R.string.step_absolute_value_cases
@@ -436,6 +453,14 @@ internal val StepRule.formula: String?
         StepRule.FUNDAMENTAL_THEOREM -> "(\\intab{a}{x}{f(t)}{t})′ = f(x)"
         StepRule.COMBINE_POWERS -> "x^a·x^b = x^{a + b}"
         StepRule.DIVIDE_BY_FRACTION -> "\\frac{1}{\\frac{a}{b}} = \\frac{b}{a}"
+        StepRule.EXTEND_FRACTIONS -> "\\frac{a}{b} = \\frac{a·c}{b·c}"
+        StepRule.FACTOR_COMMON -> "a·c + b·c = c·(a + b)"
+        StepRule.DOUBLE_ANGLE -> "sin(2u) = 2·sin(u)·cos(u)\\text{,  }cos(2u) = cos^2(u) − sin^2(u)"
+        StepRule.AMPLITUDE_FORM -> "a·sin(u) + b·cos(u) = R·sin(u + φ)"
+        StepRule.PERCENT_AS_FRACTION -> "p% = \\frac{p}{100}"
+        StepRule.IMPROPER_FRACTION -> "w\\frac{a}{b} = \\frac{w·b + a}{b}"
+        StepRule.MULTIPLY_FRACTIONS -> "\\frac{a}{b}·\\frac{c}{d} = \\frac{a·c}{b·d}"
+        StepRule.SIMPLIFY_ROOT -> "\\sqrt{a²·b} = a·\\sqrt{b}"
         StepRule.REWRITE_AS_POWER -> "\\sqrt[n]{x} = x^{\\frac{1}{n}}, \\frac{1}{x^n} = x^{−n}"
         StepRule.CHAIN_RULE -> "(f(g(x)))′ = f′(u)·g′(x)\\text{  with  }u = g(x)"
         StepRule.POWER_AS_ROOT -> "x^{\\frac{1}{n}} = \\sqrt[n]{x}"
@@ -446,6 +471,8 @@ internal val StepRule.formula: String?
         StepRule.EXPAND_POWER -> "(a + b)^2 = a^2 + 2ab + b^2"
         StepRule.COMBINE_FRACTIONS -> "\\frac{a}{c} + \\frac{b}{c} = \\frac{a + b}{c}"
         StepRule.CANCEL -> "\\frac{x}{x} = 1"
+        StepRule.TANGENT_AS_QUOTIENT -> "\\frac{sin(x)}{cos(x)} = tan(x)"
+        StepRule.CANCEL_COMMON_FACTOR -> "\\frac{a·c}{b·c} = \\frac{a}{b}"
         StepRule.IMAGINARY_ROOT -> "\\sqrt{−a} = i·\\sqrt{a}"
         StepRule.SUBTRACT_SAME -> "a − a = 0"
         StepRule.DISTRIBUTE -> "c·(a + b) = c·a + c·b"
@@ -461,6 +488,8 @@ internal val StepRule.formula: String?
         StepRule.INTEGRAL_LOGARITHM -> "\\int{ln(x)}{x} = x·ln(x) − x"
         StepRule.SUBSTITUTION -> "\\int{f(g(x))·g′(x)}{x} = \\int{f(u)}{u}"
         StepRule.BY_PARTS -> "\\int{u}{v} = u·v − \\int{v}{u}"
+        StepRule.SPLIT_NUMERATOR -> "\\frac{px + q}{D} = \\frac{p}{2a}·\\frac{D′}{D} + \\frac{q − \\frac{pb}{2a}}{D}"
+        StepRule.COMPLETE_SQUARE -> "ax^2 + bx + c = a((x + \\frac{b}{2a})^2 + k)"
         StepRule.PARTIAL_FRACTIONS -> "\\frac{P}{(x − a)(x − b)} = \\frac{A}{x − a} + \\frac{B}{x − b}"
         StepRule.ANTIDERIVATIVE -> "\\intab{a}{b}{f}{x} = \\eval{F}{a}{b}"
         StepRule.BOUNDS -> "\\eval{F}{a}{b} = F(b) − F(a)"
@@ -471,6 +500,7 @@ internal val StepRule.formula: String?
         StepRule.SWAP_SIDES -> "a = b\\text{  ⇔  }b = a"
         StepRule.SQUARE_ROOT_BOTH_SIDES -> "u^2 = c\\text{  ⇔  }u = \\sqrt{c}\\text{  or  }u = −\\sqrt{c}"
         StepRule.SQUARE_BOTH_SIDES -> "a = b\\text{  ⇒  }a^2 = b^2"
+        StepRule.LIMIT_VANISH -> "\\frac{c}{x^n} → 0\\text{  for  }x → ±∞"
         StepRule.LHOPITAL -> "\\text{lim }\\frac{f}{g} = \\text{lim }\\frac{f′}{g′}"
         StepRule.ZERO_FRACTION -> "\\frac{a}{b} = 0\\text{  ⇔  }a = 0\\text{  (and  }b ≠ 0)"
         StepRule.ABSOLUTE_VALUE_CASES -> "|a| = b\\text{  ⇔  }a = b\\text{  or  }a = −b"
@@ -482,7 +512,7 @@ internal val StepRule.formula: String?
         StepRule.ZERO_PRODUCT -> "a·b = 0\\text{  ⇔  }a = 0\\text{  or  }b = 0"
         StepRule.QUADRATIC_FORMULA -> "x = \\frac{−b ± \\sqrt{D}}{2a}\\text{  with  }D = b^2 − 4ac"
         StepRule.ROOT_OF_NUMBER, StepRule.IDENTITY, StepRule.SOLVE_FOR, StepRule.SUBSTITUTE_SOLUTION,
-        StepRule.MULTIPLY_EQUATIONS, StepRule.ADD_EQUATIONS, StepRule.SUBTRACT_EQUATIONS, StepRule.INSERT_VALUE, StepRule.COLLECT_SOLUTION, StepRule.FACTOR_BY_ROOT, StepRule.NO_REAL_SOLUTION, StepRule.ONE_SIDE, StepRule.TRIG_GENERAL_SOLUTION, StepRule.SUBSTITUTE_POWER, StepRule.BACK_SUBSTITUTE_POWER, StepRule.CHECK_SOLUTIONS, StepRule.LIMIT_SUBSTITUTE,
+        StepRule.MULTIPLY_EQUATIONS, StepRule.ADD_EQUATIONS, StepRule.SUBTRACT_EQUATIONS, StepRule.INSERT_VALUE, StepRule.COLLECT_SOLUTION, StepRule.FACTOR_BY_ROOT, StepRule.NO_REAL_SOLUTION, StepRule.ONE_SIDE, StepRule.TRIG_GENERAL_SOLUTION, StepRule.SUBSTITUTE_POWER, StepRule.BACK_SUBSTITUTE_POWER, StepRule.CHECK_SOLUTIONS, StepRule.LIMIT_SUBSTITUTE, StepRule.DIVIDE_BY_HIGHEST_POWER, StepRule.LIMIT_CONSTANT, StepRule.LIMIT_GROWS, StepRule.LIMIT_RECIPROCAL,
         StepRule.INTEGRAL_TABLE, StepRule.EXPAND_INTEGRAND, StepRule.BACK_SUBSTITUTION,
         StepRule.MULTIPLY_NUMBERS, StepRule.DIVIDE_NUMBERS, StepRule.REDUCE_FRACTION, StepRule.NUMBER_POWER,
         StepRule.ADD_NUMBERS, StepRule.SUBTRACT_NUMBERS, StepRule.ADD_AND_SUBTRACT_NUMBERS, StepRule.COMBINE_LIKE_TERMS,

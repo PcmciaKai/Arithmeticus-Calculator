@@ -50,6 +50,16 @@ enum class StepRule {
     MULTIPLY_NUMBERS,
     /** 4/2 = 2 */
     DIVIDE_NUMBERS,
+    /** 1/2 + 1/3 = 3/6 + 2/6: a common denominator */
+    EXTEND_FRACTIONS,
+    /** 2 1/3 = (2·3 + 1)/3 = 7/3 */
+    IMPROPER_FRACTION,
+    /** 15% = 15/100 = 3/20 */
+    PERCENT_AS_FRACTION,
+    /** a/b·c/d = (a·c)/(b·d) */
+    MULTIPLY_FRACTIONS,
+    /** √12 = 2√3 */
+    SIMPLIFY_ROOT,
     /** 4/6 = 2/3 */
     REDUCE_FRACTION,
     /** 2³ = 8 */
@@ -78,6 +88,10 @@ enum class StepRule {
     COMBINE_POWERS,
     /** x·x⁻¹ = 1 */
     CANCEL,
+    /** sin(x)/cos(x) = tan(x) */
+    TANGENT_AS_QUOTIENT,
+    /** (x² − 1)/(x − 1) = (x − 1)(x + 1)/(x − 1) = x + 1 */
+    CANCEL_COMMON_FACTOR,
     /** c·(a + b) = c·a + c·b */
     DISTRIBUTE,
     /** 2x + 3x = 5x */
@@ -111,6 +125,10 @@ enum class StepRule {
     BACK_SUBSTITUTION,
     /** P/((x − a)(x − b)) = A/(x − a) + B/(x − b) */
     PARTIAL_FRACTIONS,
+    /** (px + q)/D = (p/2a)·D′/D + (q − pb/2a)/D */
+    SPLIT_NUMERATOR,
+    /** ax² + bx + c = a((x + h)² + k) */
+    COMPLETE_SQUARE,
     /** ∫ u dv = u·v − ∫ v du */
     BY_PARTS,
     /** ∫ₐᵇ f dx = [F]ₐᵇ with an antiderivative F */
@@ -147,8 +165,24 @@ enum class StepRule {
     FACTOR_BY_ROOT,
     /** √f = g ⇔ f = g² (with a check) */
     SQUARE_BOTH_SIDES,
+    /** a·c + b·c = c·(a + b) */
+    FACTOR_COMMON,
+    /** sin(2u) = 2sin(u)cos(u), cos(2u) = cos²(u) − sin²(u) */
+    DOUBLE_ANGLE,
+    /** a·sin(u) + b·cos(u) = R·sin(u + φ) */
+    AMPLITUDE_FORM,
     /** sin(u) = c ⇔ u = asin(c) + 2kπ or … */
     TRIG_GENERAL_SOLUTION,
+    /** lim (a₂x² + a₁x)/(b₂x² + b₁x) = lim (a₂ + a₁/x)/(b₂ + b₁/x) */
+    DIVIDE_BY_HIGHEST_POWER,
+    /** c/xⁿ → 0 */
+    LIMIT_VANISH,
+    /** lim c = c */
+    LIMIT_CONSTANT,
+    /** The highest power grows without bound */
+    LIMIT_GROWS,
+    /** c/g with g growing without bound → 0 */
+    LIMIT_RECIPROCAL,
     /** lim f(x) = f(a) where f is defined at a */
     LIMIT_SUBSTITUTE,
     /** 0/0: lim f/g = lim f′/g′ */

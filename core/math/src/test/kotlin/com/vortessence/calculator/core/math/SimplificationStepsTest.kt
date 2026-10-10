@@ -109,4 +109,47 @@ class SimplificationStepsTest {
         // Nor do definitions (equations have steps of their own, see EquationStepsTest)
         assertNull(solution(ms(VariableNode("a"), op(MathOp.DEFINE), x, plus, x)))
     }
+
+    private fun result(input: MathString) = runBlocking { MathEngine.calculate(input, MathContext()) }.result.toString()
+
+    @Test
+    fun theResultCancelsCommonFactorsWhateverTheNesting() {
+        // (x² − 1)/(x − 1) and (x + 1)(x − 1)/(x − 1) are both x + 1, in the result and in the steps
+        val a = ms(fr(ms(x, pow(n("2")), minus, n("1")), ms(x, minus, n("1"))))
+        val b = ms(fr(ms(par(x, plus, n("1")), par(x, minus, n("1"))), ms(x, minus, n("1"))))
+        for (input in listOf(a, b)) {
+            assertEquals("x + 1", result(input))
+            assertEquals("x + 1", solution(input)!!.result.toString())
+        }
+        // Other numerators and denominators: (2x + 2)/(x + 1) = 2, (x² − 1)/(x − 1)² = (x + 1)/(x − 1)
+        assertEquals("2", result(ms(fr(ms(n("2"), x, plus, n("2")), ms(x, plus, n("1"))))))
+        assertEquals("(x + 1)/(x − 1)", result(ms(fr(ms(x, pow(n("2")), minus, n("1")), ms(par(x, minus, n("1")), pow(n("2")))))))
+        // Nothing in common: stays as it is
+        assertEquals("((x)^(2) + 1)/(x − 1)", result(ms(fr(ms(x, pow(n("2")), plus, n("1")), ms(x, minus, n("1"))))))
+    }
+
+    @Test
+    fun factoringAndCancellingIsOneStepWithTheFactorisation() {
+        // (x² − 5x + 6)/(x − 2): x² − 5x + 6 = (x − 2)(x − 3), cancel (x − 2)
+        val solution = solution(ms(fr(ms(x, pow(n("2")), minus, n("5"), x, plus, n("6")), ms(x, minus, n("2")))))!!
+        assertEquals(listOf(StepRule.CANCEL_COMMON_FACTOR), solution.steps.drop(1).map { it.rule })
+        assertEquals(listOf("(x)^(2) − 5x + 6 = (x − 2)(x − 3)"), solution.steps[1].notes.map { it.toString() })
+        assertEquals("x − 3", solution.result.toString())
+    }
+
+    @Test
+    fun commonFactorsWithLettersInThem() {
+        // (x² − y²)/(x − y) = x + y, in the result and with the factorisation in the steps
+        val input = ms(fr(ms(x, pow(n("2")), minus, y, pow(n("2"))), ms(x, minus, y)))
+        assertEquals("x + y", result(input))
+        val solution = solution(input)!!
+        assertEquals(listOf(StepRule.CANCEL_COMMON_FACTOR), solution.steps.drop(1).map { it.rule })
+        assertEquals(listOf("(x)^(2) − (y)^(2) = (x + y)(x − y)"), solution.steps[1].notes.map { it.toString() })
+        assertEquals("x + y", solution.result.toString())
+        // x³ − y³ and a factor that is not 1 in the denominator
+        assertEquals("(x)^(2) + xy + (y)^(2)", result(ms(fr(ms(x, pow(n("3")), minus, y, pow(n("3"))), ms(x, minus, y)))))
+        assertEquals("(x)/(2) + (y)/(2)", result(ms(fr(ms(x, pow(n("2")), minus, y, pow(n("2"))), ms(n("2"), x, minus, n("2"), y)))))
+        // Nothing in common: x² + y² has no factor x − y
+        assertEquals("((x)^(2) + (y)^(2))/(x − y)", result(ms(fr(ms(x, pow(n("2")), plus, y, pow(n("2"))), ms(x, minus, y)))))
+    }
 }

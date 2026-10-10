@@ -311,10 +311,80 @@ internal object IntegralSteps {
             return null
         }
 
-        /** A fraction of polynomials: a substitution if one fits (x/(x² − 1) → ln), otherwise partial fractions. */
+        /**
+         * A fraction of polynomials: a substitution if one fits (x/(x² − 1) → ln), otherwise partial
+         * fractions, or for a quadratic denominator without real roots a split numerator and the
+         * completed square.
+         */
         private fun rationalFunction(): Match? {
-            if (integrator.splitRational(f, v) == null) return null
-            return substitution() ?: partialFractions()
+            completedSquareSubstitution()?.let { return it }
+            val rational = integrator.splitRational(f, v) != null
+            val quadratic = integrator.splitQuadratic(f, v)
+            if (!rational && quadratic == null) return null
+            return substitution() ?: if (rational) partialFractions() else irreducibleQuadratic(quadratic!!)
+        }
+
+        /** The name of a new variable for a substitution: u, or the next letter not in the integrand. */
+        private fun newVariable(): Variable? =
+            listOf("u", "t", "w", "z").map { Variable(it) }.firstOrNull { it != v && it !in f.variables() }
+
+        /**
+         * (px + q)/(ax² + bx + c) without real roots. If the numerator is a multiple of the
+         * derivative 2ax + b: u = ax² + bx + c. If not, but it has an x: split off that part.
+         * Otherwise (a constant): complete the square, ax² + bx + c = a((x + h)² + k).
+         */
+        private fun irreducibleQuadratic(fraction: Integrator.QuadraticFraction): Match? {
+            val derivative = fraction.derivative(v)
+            val denominator = fraction.denominator
+            when {
+                // ∫ m·D′/D dx = m·∫ du/u
+                fraction.p.isZero.not() && fraction.constantPart.isZero -> {
+                    val u = newVariable() ?: return null
+                    val substituted = integral(product(Value(fraction.derivativePart), Power(u, Value.MINUS_ONE))).let { Antiderivative(it.integrand, u) }
+                    return Match(
+                        StepRule.SUBSTITUTION,
+                        mapOf(path to BackSubstitution(substituted, u, denominator)),
+                        before,
+                        substituted,
+                        notes = listOf(Note(u, denominator), Note(Variable("d${u.identifier}"), derivative, v))
+                    )
+                }
+                // (px + q)/D = (p/2a)·(2ax + b)/D + (q − pb/2a)/D
+                fraction.p.isZero.not() -> {
+                    val first = product(Value(fraction.derivativePart), derivative, Power(denominator, Value.MINUS_ONE))
+                    val second = product(Value(fraction.constantPart), Power(denominator, Value.MINUS_ONE))
+                    val result = Additions(integral(first), integral(second))
+                    return Match(StepRule.SPLIT_NUMERATOR, mapOf(path to result), before, result, notes = listOf(Note(f, Additions(first, second))))
+                }
+                else -> {
+                    val completed = fraction.completedSquare(v)
+                    val result = integral(product(Value(fraction.constantPart / fraction.a), Power(completed, Value.MINUS_ONE)))
+                    return Match(
+                        StepRule.COMPLETE_SQUARE, mapOf(path to result), before, result,
+                        notes = listOf(Note(denominator, product(Value(fraction.a), completed)))
+                    )
+                }
+            }
+        }
+
+        /** 1/((x + h)² + k): u = x + h, then 1/(u² + k) is a table integral (atan). */
+        private fun completedSquareSubstitution(): Match? {
+            val power = f as? Power ?: return null
+            if (power.exponent != Value.MINUS_ONE) return null
+            val sum = power.base as? Additions ?: return null
+            if (sum.operands.size != 2) return null
+            val square = sum.operands.firstOrNull { it is Power && it.exponent == Value.TWO } as? Power ?: return null
+            val k = (sum.operands.firstOrNull { it is Value } as? Value)?.takeIf { !it.isNegative && !it.isZero } ?: return null
+            if (integrator.linearSlope(square.base, v) != Value.ONE) return null
+            val u = newVariable() ?: return null
+            val substituted = Antiderivative(Power(Additions(Power(u, Value.TWO), k), Value.MINUS_ONE), u)
+            return Match(
+                StepRule.SUBSTITUTION,
+                mapOf(path to BackSubstitution(substituted, u, square.base)),
+                before,
+                substituted,
+                notes = listOf(Note(u, square.base), Note(Variable("d${u.identifier}"), Value.ONE, v))
+            )
         }
 
         /**

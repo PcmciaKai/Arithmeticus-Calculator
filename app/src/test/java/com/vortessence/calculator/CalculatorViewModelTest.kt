@@ -471,6 +471,41 @@ class CalculatorViewModelTest {
         assertFalse(vm.uiState.value.hasSteps)
     }
 
+    @Test
+    fun aPlusPercentOffersThePocketCalculatorReading() = runBlocking {
+        val vm = newViewModel()
+        // 200 + 10% is 200.1; the hint offers 200 + 200 × 10% = 220
+        listOf("2", "0", "0").forEach { vm.onKeyAction(KeyAction.Number(it)) }
+        vm.onKeyAction(KeyAction.Operator("+"))
+        listOf("1", "0").forEach { vm.onKeyAction(KeyAction.Number(it)) }
+        vm.onKeyAction(KeyAction.Operator("%"))
+        vm.awaitLiveResult()
+        var attempts = 0
+        while (vm.uiState.value.percentHint == null && attempts < 100) {
+            delay(20)
+            attempts++
+        }
+        val hint = vm.uiState.value.percentHint
+        assertNotNull(hint)
+        assertEquals("200", hint!!.base)
+        assertEquals("10", hint.percent)
+        assertEquals("220", hint.result.result.toString())
+
+        // Tapping it replaces the line, and the hint is gone
+        vm.applyPercentHint()
+        vm.awaitLiveResult()
+        assertNull(vm.uiState.value.percentHint)
+        assertEquals("220", vm.uiState.value.result!!.result.toString())
+
+        // A line that is no a ± b% has none
+        vm.onKeyAction(KeyAction.Clear)
+        listOf("5", "0").forEach { vm.onKeyAction(KeyAction.Number(it)) }
+        vm.onKeyAction(KeyAction.Operator("%"))
+        vm.awaitLiveResult()
+        delay(100)
+        assertNull(vm.uiState.value.percentHint)
+    }
+
     /** Waits (a while) until the "Steps" pill is offered. */
     private suspend fun CalculatorViewModel.awaitSteps() {
         var attempts = 0

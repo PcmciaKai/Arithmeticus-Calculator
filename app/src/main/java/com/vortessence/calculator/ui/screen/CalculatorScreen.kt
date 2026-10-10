@@ -36,6 +36,7 @@ import com.vortessence.calculator.R
 import com.vortessence.calculator.core.math.CalculationResult
 import com.vortessence.calculator.core.math.context.MathIssue
 import com.vortessence.calculator.core.math.type.MathString
+import com.vortessence.calculator.core.math.type.MathText
 import com.vortessence.calculator.core.math.type.ResultForm
 import com.vortessence.calculator.core.math.type.ResultFormatter
 import com.vortessence.calculator.ui.dialogs.ConstantsDialog
@@ -56,6 +57,7 @@ import com.vortessence.calculator.ui.theme.AccentRed
 import com.vortessence.calculator.ui.theme.CalculatorTheme
 import com.vortessence.calculator.viewmodel.CalculatorUiState
 import com.vortessence.calculator.viewmodel.CalculatorViewModel
+import com.vortessence.calculator.viewmodel.PercentHint
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -202,7 +204,9 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
                         onFormChange = { viewModel.setResultForm(it) },
                         onCopy = ::copyWithFeedback,
                         hasSteps = uiState.hasSteps,
-                        onShowSteps = { viewModel.showSteps() }
+                        onShowSteps = { viewModel.showSteps() },
+                        percentHint = uiState.percentHint,
+                        onApplyPercentHint = { viewModel.applyPercentHint() }
                     )
                 }
             }
@@ -292,8 +296,11 @@ private fun LiveResultView(
     onCopy: (MathString) -> Unit,
     hasSteps: Boolean,
     onShowSteps: () -> Unit,
+    percentHint: PercentHint? = null,
+    onApplyPercentHint: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    Column(horizontalAlignment = Alignment.End) {
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -350,6 +357,23 @@ private fun LiveResultView(
                 )
             }
         }
+    }
+    // 200 + 10% is read as 200 + 0.1: say so, and offer what a pocket calculator would mean
+    if (percentHint != null && result?.isSuccess == true) {
+        Text(
+            text = stringResource(
+                if (percentHint.subtracts) R.string.percent_hint_minus else R.string.percent_hint_plus,
+                percentHint.percent,
+                percentHint.base,
+                percentHint.result.answer?.let { MathText.toPlainText(it) } ?: MathText.toPlainText(percentHint.result.result)
+            ),
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier
+                .padding(top = 2.dp)
+                .clickable(onClick = onApplyPercentHint)
+        )
+    }
     }
 }
 

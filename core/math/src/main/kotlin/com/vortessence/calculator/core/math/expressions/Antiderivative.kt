@@ -91,10 +91,10 @@ internal class Integrator(private val context: MathContext) {
                     val rest = integrate(Multiplications.of(*factors.toTypedArray()), v, depth + 1) ?: return null
                     Multiplications(constants + rest)
                 } else {
-                    expanded(e, v, depth) ?: bySubstitution(e, v, depth) ?: partialFractions(e, v, depth) ?: byParts(e, v, depth)
+                    expanded(e, v, depth) ?: bySubstitution(e, v, depth) ?: partialFractions(e, v, depth) ?: irreducibleQuadratic(e, v, depth) ?: byParts(e, v, depth)
                 }
             }
-            else -> basic(e, v) ?: expanded(e, v, depth) ?: bySubstitution(e, v, depth) ?: partialFractions(e, v, depth) ?: byParts(e, v, depth)
+            else -> basic(e, v) ?: expanded(e, v, depth) ?: bySubstitution(e, v, depth) ?: partialFractions(e, v, depth) ?: irreducibleQuadratic(e, v, depth) ?: byParts(e, v, depth)
         }
     }
 
@@ -254,6 +254,91 @@ internal class Integrator(private val context: MathContext) {
         val p = PartialFractions.polynomial(numerator, v, context) ?: return null
         val decomposition = PartialFractions.decompose(p, q) ?: return null
         return decomposition to (numerator to denominator)
+    }
+
+    /**
+     * (px + q)/(ax² + bx + c) with no real roots: the part of the numerator that is the derivative
+     * of the denominator gives a logarithm, the rest atan after completing the square.
+     */
+    private fun irreducibleQuadratic(f: Expression, v: Variable, depth: Int): Expression? {
+        val fraction = splitQuadratic(f, v) ?: return null
+        val parts = mutableListOf<Expression>()
+        // (p/2a)·ln|D| for the derivative of the denominator in the numerator
+        if (!fraction.p.isZero) parts.add(Multiplications.of(Value(fraction.derivativePart), lnAbs(fraction.denominator)))
+        if (!fraction.constantPart.isZero) {
+            // ∫ c/((x + h)² + k) dx = c/√k·atan((x + h)/√k): directly, as canonicalizing would multiply (x + h)² out
+            val k = (fraction.a * fraction.c * 4L - fraction.b * fraction.b) / (fraction.a * fraction.a * 4L)
+            val root = Power(Value(k), Value(com.vortessence.calculator.core.math.numbers.Rational.HALF))
+            val argument = Multiplications(fraction.shifted(v), inverse(root))
+            parts.add(
+                Multiplications.of(
+                    Value(fraction.constantPart / fraction.a), inverse(root),
+                    TrigonometricFunction(TrigType.ATAN, argument, AngleUnit.RADIANS)
+                )
+            )
+        }
+        return if (parts.size == 1) parts.single() else Additions(parts)
+    }
+
+    /** A fraction with a quadratic denominator without real roots, a, b, c, p and q as in (px + q)/(ax² + bx + c). */
+    internal class QuadraticFraction(
+        val a: com.vortessence.calculator.core.math.numbers.Rational,
+        val b: com.vortessence.calculator.core.math.numbers.Rational,
+        val c: com.vortessence.calculator.core.math.numbers.Rational,
+        val p: com.vortessence.calculator.core.math.numbers.Rational,
+        val q: com.vortessence.calculator.core.math.numbers.Rational,
+        val denominator: Expression
+    ) {
+        /** x + b/(2a) */
+        fun shifted(v: Variable): Expression {
+            val h = b / (a * 2L)
+            return if (h.isZero) v else Additions(v, Value(h))
+        }
+
+        /** (x + h)² + k, with ax² + bx + c = a((x + h)² + k) */
+        fun completedSquare(v: Variable): Expression {
+            val k = (a * c * 4L - b * b) / (a * a * 4L)
+            return Additions(Power(shifted(v), Value.TWO), Value(k))
+        }
+
+        /** The numerator's part that is the derivative 2ax + b of the denominator, times p/(2a) (0 if p = 0). */
+        val derivativePart: com.vortessence.calculator.core.math.numbers.Rational get() = p / (a * 2L)
+
+        /** What is left of the numerator, as a constant: q − pb/(2a). */
+        val constantPart: com.vortessence.calculator.core.math.numbers.Rational get() = q - p * b / (a * 2L)
+
+        fun derivative(v: Variable): Expression = PartialFractions.toExpression(listOf(b, a * 2L), v)
+
+        /** p/(2a)·(2ax + b)/D + (q − pb/(2a))/a · 1/((x + h)² + k) */
+        fun rewritten(v: Variable): Expression {
+            val terms = mutableListOf<Expression>()
+            if (!p.isZero) {
+                terms.add(Multiplications.of(Value(derivativePart), derivative(v), Power(denominator, Value.MINUS_ONE)))
+            }
+            if (!constantPart.isZero) {
+                terms.add(Multiplications.of(Value(constantPart / a), Power(completedSquare(v), Value.MINUS_ONE)))
+            }
+            return if (terms.size == 1) terms.single() else Additions(terms)
+        }
+    }
+
+    internal fun splitQuadratic(f: Expression, v: Variable): QuadraticFraction? {
+        val factors = if (f is Multiplications) f.operands else listOf(f)
+        val denominators = factors.filter { it is Power && it.base is Additions && (it.exponent as? Value)?.rational?.let { r -> r == com.vortessence.calculator.core.math.numbers.Rational.MINUS_ONE } == true }
+        if (denominators.size != 1) return null
+        val denominator = (denominators.single() as Power).base
+        val numerator = Multiplications.of(*factors.filter { it !== denominators.single() }.toTypedArray())
+        val d = PartialFractions.polynomial(denominator, v, context) ?: return null
+        val n = PartialFractions.polynomial(numerator, v, context) ?: return null
+        if (d.size != 3 || n.size > 2 || n.isEmpty()) return null
+        val (c, b, a) = d
+        // Real roots are the business of the partial fractions
+        if (b * b - a * c * 4L >= com.vortessence.calculator.core.math.numbers.Rational.ZERO) return null
+        val q = n[0]
+        val p = n.getOrElse(1) { com.vortessence.calculator.core.math.numbers.Rational.ZERO }
+        // 1/(p + qx²) is in the table
+        if (p.isZero && b.isZero) return null
+        return QuadraticFraction(a, b, c, p, q, denominator)
     }
 
     private fun bySubstitution(f: Expression, v: Variable, depth: Int): Expression? {
