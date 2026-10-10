@@ -1,6 +1,7 @@
 package com.vortessence.calculator.core.math.steps
 
 import com.vortessence.calculator.core.math.context.MathContext
+import com.vortessence.calculator.core.math.expressions.AbsoluteValue
 import com.vortessence.calculator.core.math.expressions.Additions
 import com.vortessence.calculator.core.math.expressions.Expression
 import com.vortessence.calculator.core.math.expressions.ImaginaryUnit
@@ -13,6 +14,7 @@ import com.vortessence.calculator.core.math.expressions.PartialFractions
 import com.vortessence.calculator.core.math.expressions.SymbolicCancel
 import com.vortessence.calculator.core.math.expressions.Power
 import com.vortessence.calculator.core.math.expressions.Value
+import com.vortessence.calculator.core.math.expressions.Variable
 import com.vortessence.calculator.core.math.numbers.BigInt
 import com.vortessence.calculator.core.math.numbers.Rational
 
@@ -154,11 +156,14 @@ internal object SimplificationSteps {
             val n = numerator.expression as? Additions ?: continue
             for (denominator in factors) {
                 val power = denominator.expression as? Power ?: continue
-                val d = power.base as? Additions ?: continue
+                // (x² + x)/x is cancelled too: a single x is a denominator of one term
+                val d = power.base.takeIf { it is Additions || it is Variable } ?: continue
+                // (x + 1 − 1)/x: the numerator is simplified before anything is cancelled
+                if (d is Variable && canonical(n, context) != n) continue
                 val k = (power.exponent as? Value)?.rational?.takeIf { !it.isFractional && it.isNegative && it.numerator.value.bitLength() < 4 } ?: continue
                 val variables = n.variables()
                 if (variables.size != 1 || variables != d.variables()) {
-                    symbolicCancel(numerator, denominator, n, d, k.numerator.value.toInt().let { -it }, context)?.let { return it }
+                    if (d is Additions) symbolicCancel(numerator, denominator, n, d, k.numerator.value.toInt().let { -it }, context)?.let { return it }
                     continue
                 }
                 val v = variables.single()
@@ -443,12 +448,13 @@ internal object SimplificationSteps {
         return null
     }
 
-    /** (x²)³ = x⁶, √(x²) = x */
+    /** (x²)³ = x⁶, √(x²) = |x| */
     private fun powerOfPower(e: Expression, path: Path, context: MathContext): Match? {
         val power = unmarked(e) as? Power ?: return null
-        val inner = power.base as? Power ?: return null
-        val result = canonical(Power(inner.base, Multiplications(inner.exponent, power.exponent)), context)
-        return Match(StepRule.POWER_OF_POWER, mapOf(path to result), power, result)
+        if (power.base !is Power) return null
+        val result = canonical(power, context)
+        // √(x²) = |x|: the sign of x is lost, so it is not the same rule
+        return Match(if (result is AbsoluteValue) StepRule.ROOT_OF_SQUARE else StepRule.POWER_OF_POWER, mapOf(path to result), power, result)
     }
 
     /** (2x)³ = 2³x³, also in a denominator: 1/(3x) = 1/3·1/x */
@@ -495,6 +501,18 @@ internal object SimplificationSteps {
         val multiplied = factors.filterNot { isNumber(it.expression) }
         val sums = multiplied.filter { it.expression is Additions }
         if (sums.isEmpty() || multiplied.size < 2 || sums.any { keeps(it.expression) }) return null
+        // (1 + x/(x + 1))·(x + 1): the sum is multiplied into the terms of the other, so that x + 1 cancels
+        // against 1/(x + 1) rather than being multiplied out first
+        if (multiplied.size == 2) {
+            for ((sum, other) in listOf(multiplied[0] to multiplied[1], multiplied[1] to multiplied[0])) {
+                val outer = other.expression as? Additions ?: continue
+                fun cancelsWith(term: Expression) = (if (term is Multiplications) term.operands else listOf(term))
+                    .any { it is Power && it.base == sum.expression && (it.exponent as? Value)?.isNegative == true }
+                if (outer.operands.none { cancelsWith(it) }) continue
+                val distributed = Additions(outer.operands.map { canonical(Multiplications(it, sum.expression), context) })
+                return merge(StepRule.DISTRIBUTE, multiplied, Multiplications(multiplied.map { it.expression }), distributed, Value.ONE)
+            }
+        }
         val termLists = multiplied.map { (it.expression as? Additions)?.operands ?: listOf(it.expression) }
         val combinations = termLists.fold(listOf(emptyList<Expression>())) { acc, terms -> acc.flatMap { c -> terms.map { c + it } } }
         val expanded = Additions(combinations.map { canonical(Multiplications(it), context) })

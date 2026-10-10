@@ -1,6 +1,7 @@
 package com.vortessence.calculator.core.math.steps
 
 import com.vortessence.calculator.core.math.context.MathContext
+import com.vortessence.calculator.core.math.context.MathIssue
 import com.vortessence.calculator.core.math.context.AngleUnit
 import com.vortessence.calculator.core.math.expressions.AbsoluteValue
 import com.vortessence.calculator.core.math.expressions.Constant
@@ -53,13 +54,24 @@ internal object EquationSteps {
         ) return null
         val scratch = context.copy()
         val solutions = equation.solveForVariable(v, scratch).toList()
+        // x² = −4 and x + 1 = x: the steps show why there is no solution (the calculator stopped with that issue)
+        val noSolution = when (scratch.issues.singleOrNull()) {
+            MathIssue.NO_REAL_SOLUTION -> NO_REAL_SOLUTION
+            MathIssue.CONTRADICTION -> NO_SOLUTION
+            else -> null
+        }
+        if (noSolution != null) return algebraic(equation, v, emptyList(), context, noSolution)
         if (scratch.shouldStop || scratch.issues.isNotEmpty() || solutions.isEmpty()) return null
         return algebraic(equation, v, solutions, context)
             // What no rule solves, e.g. sin(x) = x/2, the calculator solved by approximation
             ?: NewtonSteps.steps(equation, v, solutions, context)
     }
 
-    private fun algebraic(equation: Equals, v: Variable, solutions: List<Expression>, context: MathContext): ExpressionSolution? {
+    private fun algebraic(
+        equation: Equals, v: Variable, solutions: List<Expression>, context: MathContext,
+        /** For an equation without a solution: what the last line says. */
+        expectedNone: String? = null
+    ): ExpressionSolution? {
         val isIdentity = solutions == listOf(v)
         val target: Expression = Alternatives(solutions.map { Equals(v, it) })
 
@@ -82,7 +94,7 @@ internal object EquationSteps {
                     // Sums that are in the calculated solutions as they are are not multiplied out
                     SimplificationSteps.match(at(e, path), target, context)?.let { prefixed(it, path) }
                 } else {
-                    Moves(e, path, variable, context, allowSubstitution = stand == null).match() ?: return null
+                    Moves(e, path, variable, context, allowSubstitution = stand == null).match() ?: run { println("DBGSTUCK " + e); return null }
                 }
             } ?: stand?.let { backSubstitute(e, it, standFor) } ?: break
             solution.apply(match)
@@ -97,6 +109,7 @@ internal object EquationSteps {
                 else -> {}
             }
         }
+        if (expectedNone != null) return noSolutionResult(solution, equation, v, expectedNone, context)
         if (isIdentity) {
             if (unmarked(solution.current) != TextExpression(TRUE)) return null
             return solution.finish(TextExpression(TRUE))
@@ -127,6 +140,21 @@ internal object EquationSteps {
         // In the order of the calculated solutions, each once (a double root was found twice)
         val ordered = solutions.map { values[matched.indexOf(it)] }
         return solution.finish(if (ordered.size == 1) Equals(v, ordered.single()) else Alternatives(ordered.map { Equals(v, it) }, inline = true))
+    }
+
+    /**
+     * The end of the steps of an equation without a solution: either a step said so (a square equal to −4), or the
+     * only candidates were crossed out by the check (x = 2 with a denominator x − 2).
+     */
+    private fun noSolutionResult(solution: Solver, equation: Equals, v: Variable, text: String, context: MathContext): ExpressionSolution? {
+        val current = unmarked(solution.current)
+        if (current is TextExpression && (current.text == NO_REAL_SOLUTION || current.text == NO_SOLUTION)) return solution.finish(current)
+        val branches = alternativesOf(current).filter { it !is TextExpression }.map { it as? Equals ?: return null }
+        if (branches.isEmpty() || pathsOf(solution.current) { it is Equals }.size != branches.size) return null
+        if (checkSolutions(solution, equation, v, branches, context)?.isEmpty() != true) return null
+        val none = TextExpression(text)
+        solution.apply(Match(StepRule.COLLECT_SOLUTION, mapOf(emptyList<Int>() to none), solution.current, none, showChange = false, boxReplacements = false))
+        return solution.finish(none)
     }
 
     /**
@@ -190,6 +218,8 @@ internal object EquationSteps {
     private const val TRUE = "true"
 
     private const val NO_REAL_SOLUTION = "no real solution"
+
+    private const val NO_SOLUTION = "no solution"
 
     /**
      * Solves the equation at [path] of the current expression of [solution] for [v], step by
@@ -352,7 +382,12 @@ internal object EquationSteps {
         private fun identity(): Match? {
             if (path.isNotEmpty()) return null
             val difference = canonical(Additions(left, Multiplications(Value.MINUS_ONE, right))) ?: return null
-            if (!difference.isZero) return null
+            // 1 = 0: the sides can never be equal
+            if (!difference.isZero) {
+                if (difference.variables().isNotEmpty()) return null
+                val none = TextExpression(NO_SOLUTION)
+                return Match(StepRule.CONTRADICTION, mapOf(path to none), equation, none, showChange = false)
+            }
             val result = TextExpression(TRUE)
             return Match(StepRule.IDENTITY, mapOf(path to result), equation, result, showChange = false)
         }
@@ -421,8 +456,8 @@ internal object EquationSteps {
             val value = canonical(right) ?: return null
             val even = n % 2 == 0
             if (even && value.isNegative && (!context.complexNumbers || n > 2)) {
-                // An even power is never negative; only one case among several can be left out
-                if (path.isEmpty()) return null
+                // An even power is never negative
+                if (path.isEmpty() && context.complexNumbers) return null
                 val none = TextExpression(NO_REAL_SOLUTION)
                 return Match(StepRule.NO_REAL_SOLUTION, mapOf(path to none), equation, none, showChange = false)
             }
@@ -473,7 +508,7 @@ internal object EquationSteps {
             // A power of a positive number is positive
             val value = canonical(right)
             if (value is Value && value.rational != null && (value.isNegative || value.isZero)) {
-                if (path.isEmpty()) return null
+                if (path.isEmpty() && context.complexNumbers) return null
                 val none = TextExpression(NO_REAL_SOLUTION)
                 return Match(StepRule.NO_REAL_SOLUTION, mapOf(path to none), equation, none, showChange = false)
             }
@@ -512,7 +547,8 @@ internal object EquationSteps {
 
         /** A match that says there is no real solution, or null for the whole problem (nothing else to show). */
         private fun noRealSolution(): Match? {
-            if (path.isEmpty()) return null
+            // With complex numbers the whole problem has solutions
+            if (path.isEmpty() && context.complexNumbers) return null
             val none = TextExpression(NO_REAL_SOLUTION)
             return Match(StepRule.NO_REAL_SOLUTION, mapOf(path to none), equation, none, showChange = false)
         }
@@ -548,6 +584,13 @@ internal object EquationSteps {
         /** |f| = g ⇔ f = g or f = −g. */
         private fun absoluteValue(): Match? {
             val isAbsolute = { e: Expression -> e is AbsoluteValue && e.operand.containsVariable(v) }
+            // |a| = |b| ⇔ a = b or a = −b, without solving each case against the sign of the other side
+            val bothSides = left as? AbsoluteValue
+            val other = right as? AbsoluteValue
+            if (bothSides != null && other != null && (isAbsolute(bothSides) || isAbsolute(other))) {
+                val result = Alternatives(listOf(Equals(bothSides.operand, other.operand), Equals(bothSides.operand, Multiplications(Value.MINUS_ONE, other.operand))))
+                return Match(StepRule.ABSOLUTE_VALUES_EQUAL, mapOf(path to result), equation, result, showChange = false)
+            }
             isolate(isAbsolute)?.let { return it }
             val absolute = left as? AbsoluteValue ?: return null
             if (!isAbsolute(absolute)) return null
@@ -1031,9 +1074,9 @@ internal object EquationSteps {
                 .filter { (name, value) -> value != name }
                 .map { (name, value) -> Note(name, value) } +
                 Note(Variable("D"), if (writtenForm(writtenOut) == writtenForm(d)) d else Equals(writtenOut, d))
-            // A negative discriminant: no real solution, which only matters as one of several cases
+            // A negative discriminant: no real solution
             if (numbers && d.isNegative && !context.complexNumbers) {
-                if (path.isEmpty()) return null
+                if (path.isEmpty() && context.complexNumbers) return null
                 val none = TextExpression(NO_REAL_SOLUTION)
                 return Match(StepRule.NO_REAL_SOLUTION, mapOf(path to none), equation, none, notes = notes, showChange = false)
             }

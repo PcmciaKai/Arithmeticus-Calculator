@@ -185,4 +185,11 @@ class IntegralStepsTest {
         // The numerator is the derivative: u = x² + 2x + 5 straight away
         assertEquals(StepRule.SUBSTITUTION, solution(integral(frac(ms(n("2"), x, plus, n("2")), ms(x, pow(n("2")), plus, n("2"), x, plus, n("5")))))!!.steps[1].rule)
     }
+
+    @Test
+    fun theAbsoluteValueOfANumberIsTheNumber() {
+        // ∫₁ᵉ 1/x dx = ln|e| − ln|1| = 1
+        val input = ms(IntegralNode(ms(n("1")), ms(ConstantNode("e")), ms(FractionNode(ms(n("1")), ms(VariableNode("x")))), "x"))
+        assertEquals("1", runBlocking { MathEngine.steps(input, MathContext()) }!!.result.toString())
+    }
 }

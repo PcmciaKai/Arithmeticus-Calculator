@@ -22,7 +22,13 @@ class AbsoluteValue(val operand: Expression) : Expression() {
                 this
             }
             // The modulus of a complex number: |a + bi| = √(a² + b²)
-            else -> if (cOperand.containsImaginaryUnit()) modulus(cOperand, context) else AbsoluteValue(cOperand)
+            else -> when {
+                cOperand.containsImaginaryUnit() -> modulus(cOperand, context)
+                // |e| = e, |−π| = π: a number without variables has a known sign
+                cOperand.variables().isEmpty() && cOperand.evaluateNumerically().let { it.isFinite() && it > 0 } -> cOperand
+                cOperand.variables().isEmpty() && cOperand.evaluateNumerically().let { it.isFinite() && it < 0 } -> cOperand.negate().canonicalize(context)
+                else -> AbsoluteValue(cOperand)
+            }
         }
     }
 

@@ -45,6 +45,24 @@ class Equals(
      * every value) and an empty set (with an issue reported) if there is no solution.
      */
     fun solveForVariable(variable: Variable, context: MathContext = MathContext.current()): Set<Expression> {
+        val solutions = solveCandidates(variable, context)
+        if (context.shouldStop || solutions == setOf(variable) || context.complexNumbers) return solutions
+        // Simplifying cancels factors: (x² − 4)/(x − 2) = 4 became x + 2 = 4, but x = 2 is no solution of the
+        // equation as it was typed, where the denominator is 0
+        if (variables() != setOf(variable)) return solutions
+        val defined = solutions.filter { solution ->
+            if (solution.containsImaginaryUnit()) return@filter true
+            val bindings = mapOf(variable to solution.evaluateNumerically())
+            left.evaluateNumerically(bindings).isFinite() && right.evaluateNumerically(bindings).isFinite()
+        }.toSet()
+        if (defined.isEmpty() && solutions.isNotEmpty()) {
+            context.stopWithError(MathIssue.NO_REAL_SOLUTION)
+            return emptySet()
+        }
+        return defined
+    }
+
+    private fun solveCandidates(variable: Variable, context: MathContext): Set<Expression> {
         val diff = Additions(left, right.negate()).canonicalize(context)
         if (context.shouldStop) return emptySet()
         // Multiplied out, (x+1)² = x² + 2x + 1 is recognized as an identity and (x+1)² = 4 as a

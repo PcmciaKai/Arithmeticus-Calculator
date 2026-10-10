@@ -68,6 +68,8 @@ enum class StepRule {
     DIVIDE_BY_FRACTION,
     /** (xᵃ)ᵇ = xᵃᵇ */
     POWER_OF_POWER,
+    /** √(x²) = |x| */
+    ROOT_OF_SQUARE,
     /** (a·b)ⁿ = aⁿ·bⁿ */
     POWER_OF_PRODUCT,
     /** (a + b)(c + d) = ac + ad + bc + bd */
@@ -187,10 +189,14 @@ enum class StepRule {
     LIMIT_SUBSTITUTE,
     /** 0/0: lim f/g = lim f′/g′ */
     LHOPITAL,
+    /** f·g = f/(1/g) */
+    LIMIT_PRODUCT_AS_QUOTIENT,
     /** a/b = 0 ⇔ a = 0 */
     ZERO_FRACTION,
     /** |f| = g ⇔ f = g or f = −g */
     ABSOLUTE_VALUE_CASES,
+    /** |a| = |b| ⇔ a = b or a = −b */
+    ABSOLUTE_VALUES_EQUAL,
     /** log_b(f) = c ⇔ f = bᶜ */
     EXPONENTIATE_BOTH_SIDES,
     /** The solutions tried in the original equation */
@@ -209,6 +215,8 @@ enum class StepRule {
     NTH_ROOT_BOTH_SIDES,
     /** The discriminant is negative */
     NO_REAL_SOLUTION,
+    /** 1 = 0: the two sides can never be equal */
+    CONTRADICTION,
     /** a·b = 0 ⇔ a = 0 or b = 0 */
     ZERO_PRODUCT,
     /** ax² + bx + c = 0 ⇔ x = (−b ± √(b² − 4ac))/(2a) */

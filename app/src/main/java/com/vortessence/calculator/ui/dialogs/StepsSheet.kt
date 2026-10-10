@@ -345,6 +345,7 @@ private val StepRule.descriptionRes: Int
         StepRule.POWER_AS_ROOT -> R.string.step_power_as_root
         StepRule.POWER_AS_FRACTION -> R.string.step_power_as_fraction
         StepRule.POWER_OF_POWER -> R.string.step_power_of_power
+        StepRule.ROOT_OF_SQUARE -> R.string.step_root_of_square
         StepRule.POWER_OF_PRODUCT -> R.string.step_power_of_product
         StepRule.EXPAND -> R.string.step_expand
         StepRule.EXPAND_POWER -> R.string.step_expand_power
@@ -401,8 +402,10 @@ private val StepRule.descriptionRes: Int
         StepRule.LIMIT_GROWS -> R.string.step_limit_grows
         StepRule.LIMIT_RECIPROCAL -> R.string.step_limit_reciprocal
         StepRule.LHOPITAL -> R.string.step_lhopital
+        StepRule.LIMIT_PRODUCT_AS_QUOTIENT -> R.string.step_limit_product_as_quotient
         StepRule.ZERO_FRACTION -> R.string.step_zero_fraction
         StepRule.ABSOLUTE_VALUE_CASES -> R.string.step_absolute_value_cases
+        StepRule.ABSOLUTE_VALUES_EQUAL -> R.string.step_absolute_values_equal
         StepRule.EXPONENTIATE_BOTH_SIDES -> R.string.step_exponentiate_both_sides
         StepRule.CHECK_SOLUTIONS -> R.string.step_check_solutions
         StepRule.SUBSTITUTE_POWER -> R.string.step_substitute_power
@@ -410,6 +413,7 @@ private val StepRule.descriptionRes: Int
         StepRule.ONE_SIDE -> R.string.step_one_side
         StepRule.NEWTON_METHOD -> R.string.step_newton_method
         StepRule.NO_REAL_SOLUTION -> R.string.step_no_real_solution
+        StepRule.CONTRADICTION -> R.string.step_contradiction
         StepRule.ZERO_PRODUCT -> R.string.step_zero_product
         StepRule.QUADRATIC_FORMULA -> R.string.step_quadratic_formula
         StepRule.ROOT_OF_NUMBER -> R.string.step_root_of_number
@@ -466,6 +470,7 @@ internal val StepRule.formula: String?
         StepRule.POWER_AS_ROOT -> "x^{\\frac{1}{n}} = \\sqrt[n]{x}"
         StepRule.POWER_AS_FRACTION -> "x^{−n} = \\frac{1}{x^n}"
         StepRule.POWER_OF_POWER -> "(x^a)^b = x^{a·b}"
+        StepRule.ROOT_OF_SQUARE -> "\\sqrt{x^2} = |x|"
         StepRule.POWER_OF_PRODUCT -> "(a·b)^n = a^n·b^n"
         StepRule.EXPAND -> "(a + b)·c = a·c + b·c"
         StepRule.EXPAND_POWER -> "(a + b)^2 = a^2 + 2ab + b^2"
@@ -501,8 +506,10 @@ internal val StepRule.formula: String?
         StepRule.SQUARE_ROOT_BOTH_SIDES -> "u^2 = c\\text{  ⇔  }u = \\sqrt{c}\\text{  or  }u = −\\sqrt{c}"
         StepRule.SQUARE_BOTH_SIDES -> "a = b\\text{  ⇒  }a^2 = b^2"
         StepRule.LIMIT_VANISH -> "\\frac{c}{x^n} → 0\\text{  for  }x → ±∞"
+        StepRule.LIMIT_PRODUCT_AS_QUOTIENT -> "f·g = \\frac{f}{\\frac{1}{g}}"
         StepRule.LHOPITAL -> "\\text{lim }\\frac{f}{g} = \\text{lim }\\frac{f′}{g′}"
         StepRule.ZERO_FRACTION -> "\\frac{a}{b} = 0\\text{  ⇔  }a = 0\\text{  (and  }b ≠ 0)"
+        StepRule.ABSOLUTE_VALUES_EQUAL -> "|a| = |b|\\text{  ⇔  }a = b\\text{  or  }a = −b"
         StepRule.ABSOLUTE_VALUE_CASES -> "|a| = b\\text{  ⇔  }a = b\\text{  or  }a = −b"
         StepRule.EXPONENTIATE_BOTH_SIDES -> "\\log{b}{f} = c\\text{  ⇔  }f = b^c"
         StepRule.NEWTON_METHOD -> "x → x − \\frac{f(x)}{f′(x)}\\text{  until it settles}"
@@ -512,7 +519,7 @@ internal val StepRule.formula: String?
         StepRule.ZERO_PRODUCT -> "a·b = 0\\text{  ⇔  }a = 0\\text{  or  }b = 0"
         StepRule.QUADRATIC_FORMULA -> "x = \\frac{−b ± \\sqrt{D}}{2a}\\text{  with  }D = b^2 − 4ac"
         StepRule.ROOT_OF_NUMBER, StepRule.IDENTITY, StepRule.SOLVE_FOR, StepRule.SUBSTITUTE_SOLUTION,
-        StepRule.MULTIPLY_EQUATIONS, StepRule.ADD_EQUATIONS, StepRule.SUBTRACT_EQUATIONS, StepRule.INSERT_VALUE, StepRule.COLLECT_SOLUTION, StepRule.FACTOR_BY_ROOT, StepRule.NO_REAL_SOLUTION, StepRule.ONE_SIDE, StepRule.TRIG_GENERAL_SOLUTION, StepRule.SUBSTITUTE_POWER, StepRule.BACK_SUBSTITUTE_POWER, StepRule.CHECK_SOLUTIONS, StepRule.LIMIT_SUBSTITUTE, StepRule.DIVIDE_BY_HIGHEST_POWER, StepRule.LIMIT_CONSTANT, StepRule.LIMIT_GROWS, StepRule.LIMIT_RECIPROCAL,
+        StepRule.MULTIPLY_EQUATIONS, StepRule.ADD_EQUATIONS, StepRule.SUBTRACT_EQUATIONS, StepRule.INSERT_VALUE, StepRule.COLLECT_SOLUTION, StepRule.FACTOR_BY_ROOT, StepRule.NO_REAL_SOLUTION, StepRule.CONTRADICTION, StepRule.ONE_SIDE, StepRule.TRIG_GENERAL_SOLUTION, StepRule.SUBSTITUTE_POWER, StepRule.BACK_SUBSTITUTE_POWER, StepRule.CHECK_SOLUTIONS, StepRule.LIMIT_SUBSTITUTE, StepRule.DIVIDE_BY_HIGHEST_POWER, StepRule.LIMIT_CONSTANT, StepRule.LIMIT_GROWS, StepRule.LIMIT_RECIPROCAL,
         StepRule.INTEGRAL_TABLE, StepRule.EXPAND_INTEGRAND, StepRule.BACK_SUBSTITUTION,
         StepRule.MULTIPLY_NUMBERS, StepRule.DIVIDE_NUMBERS, StepRule.REDUCE_FRACTION, StepRule.NUMBER_POWER,
         StepRule.ADD_NUMBERS, StepRule.SUBTRACT_NUMBERS, StepRule.ADD_AND_SUBTRACT_NUMBERS, StepRule.COMBINE_LIKE_TERMS,

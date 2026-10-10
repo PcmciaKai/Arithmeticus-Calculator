@@ -100,4 +100,12 @@ class LimitStepsTest {
         // No rule for 1^∞: no steps
         assertNull(solution(limInf(ParenthesesNode(ms(n("1"), plus, frac(ms(n("1")), ms(x)))), pow(x))))
     }
+
+    @Test
+    fun aProductWithAnUndefinedFactorIsNotSubstituted() {
+        // x·ln(x) at 0: 0·ln(0) is not a value, so the limit is not found by substituting
+        val solution = solution(lim("0", x, f("ln", x)))!!
+        assertEquals(StepRule.LIMIT_PRODUCT_AS_QUOTIENT, solution.steps[1].rule)
+        assertEquals("0", solution.result.toString())
+    }
 }

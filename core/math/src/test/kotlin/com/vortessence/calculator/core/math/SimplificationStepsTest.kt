@@ -152,4 +152,12 @@ class SimplificationStepsTest {
         // Nothing in common: x² + y² has no factor x − y
         assertEquals("((x)^(2) + (y)^(2))/(x − y)", result(ms(fr(ms(x, pow(n("2")), plus, y, pow(n("2"))), ms(x, minus, y)))))
     }
+
+    @Test
+    fun aSingleVariableInTheDenominatorIsCancelled() {
+        // (x² + x)/x = x + 1 by the common factor x, not by multiplying anything out
+        val solution = solution(ms(fr(ms(x, pow(n("2")), plus, x), ms(x))))!!
+        assertEquals(listOf(StepRule.CANCEL_COMMON_FACTOR), solution.steps.drop(1).map { it.rule })
+        assertEquals("x + 1", solution.result.toString())
+    }
 }

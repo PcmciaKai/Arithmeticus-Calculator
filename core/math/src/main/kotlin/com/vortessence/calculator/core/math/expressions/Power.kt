@@ -61,7 +61,16 @@ class Power(
         // (x^a)^b = x^(a * b)
         if (cBase is Power) {
             val newExp = Multiplications.of(cBase.exponent, cExp).canonicalize(context)
-            return Power(cBase.base, newExp).canonicalize(context)
+            // (x²)^(1/2) = |x|, not x: with an even inner and a fractional outer exponent the sign of the base is lost
+            val inner = (cBase.exponent as? Value)?.rational
+            val outer = (cExp as? Value)?.rational
+            val signLost = inner != null && !inner.isFractional && inner.numerator.isEven && outer != null && outer.isFractional
+            return Power(if (signLost) AbsoluteValue(cBase.base) else cBase.base, newExp).canonicalize(context)
+        }
+
+        // |x|ⁿ = xⁿ for an even whole number n
+        if (cBase is AbsoluteValue && cExp is Value && cExp.rational?.let { !it.isFractional && it.numerator.isEven } == true) {
+            return Power(cBase.operand, cExp).canonicalize(context)
         }
 
         // (a * b)^n = a^n * b^n

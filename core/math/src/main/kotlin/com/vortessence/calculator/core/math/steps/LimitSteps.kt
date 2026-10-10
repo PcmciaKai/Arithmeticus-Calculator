@@ -65,7 +65,9 @@ internal object LimitSteps {
                 return solution.finish(target)
             }
             if (round == MAX_LHOPITAL) return null
-            if (!lHopital(solution, body, v, point, context)) return null
+            // 0·∞ is written as a quotient first: x·ln(x) = ln(x)/(1/x)
+            val quotient = if (splitFraction(body, v) == null) productAsQuotient(solution, body, v, point, context) else null
+            if (!lHopital(solution, body, v, point, context, explicit = quotient)) return null
         }
         return null
     }
@@ -199,8 +201,11 @@ internal object LimitSteps {
     }
 
     /** lim f/g with f(a) = g(a) = 0 becomes lim f′/g′, the derivatives then worked out. */
-    private fun lHopital(solution: Solver, body: Expression, v: Variable, point: Expression, context: MathContext, atInfinity: Boolean = false): Boolean {
-        val (numerator, denominator) = splitFraction(body, v) ?: return false
+    private fun lHopital(
+        solution: Solver, body: Expression, v: Variable, point: Expression, context: MathContext,
+        atInfinity: Boolean = false, explicit: Pair<Expression, Expression>? = null
+    ): Boolean {
+        val (numerator, denominator) = explicit ?: splitFraction(body, v) ?: return false
         val quotient = Multiplications(Derivative(numerator, v), Power(Derivative(denominator, v), Value.MINUS_ONE))
         val notes = if (atInfinity) {
             // Both parts go to 0, or both grow without bound
@@ -210,10 +215,16 @@ internal object LimitSteps {
                 Note(TextExpression("g(x)"), TextExpression(describe(numericLimit(denominator, v, positive))), relation = "→")
             )
         } else {
-            val atNumerator = canonical(numerator.substituteVariables(mapOf(v to point)), context) ?: return false
-            val atDenominator = canonical(denominator.substituteVariables(mapOf(v to point)), context) ?: return false
-            if (!atNumerator.isZero || !atDenominator.isZero) return false
-            listOf(
+            // No value at the point (ln(0)) is null here
+            val atNumerator = canonical(numerator.substituteVariables(mapOf(v to point)), context)
+            val atDenominator = canonical(denominator.substituteVariables(mapOf(v to point)), context)
+            // 0/0, or both growing without bound: ln(x)/(1/x) at 0
+            val bothZero = atNumerator?.isZero == true && atDenominator?.isZero == true
+            if (!bothZero && !(blowsUp(numerator, v, point) && blowsUp(denominator, v, point))) return false
+            if (!bothZero) listOf(
+                Note(TextExpression("f(x)"), TextExpression("±∞"), relation = "→"),
+                Note(TextExpression("g(x)"), TextExpression("±∞"), relation = "→")
+            ) else listOf(
                 Note(numerator.substituteVariables(mapOf(v to point)), Value.ZERO),
                 Note(denominator.substituteVariables(mapOf(v to point)), Value.ZERO)
             )
@@ -233,10 +244,49 @@ internal object LimitSteps {
         return true
     }
 
+    /** Whether [e] grows without bound (in size) as x approaches [point]; only to decide which rule applies. */
+    private fun blowsUp(e: Expression, v: Variable, point: Expression): Boolean {
+        val at = point.evaluateNumerically()
+        if (!at.isFinite()) return false
+        for (side in listOf(1.0, -1.0)) {
+            val a = e.evaluateNumerically(mapOf(v to at + side * 1e-4))
+            val b = e.evaluateNumerically(mapOf(v to at + side * 1e-8))
+            val c = e.evaluateNumerically(mapOf(v to at + side * 1e-12))
+            if (a.isFinite() && b.isFinite() && c.isFinite() && abs(c) > 10 && abs(c) > abs(b) && abs(b) > abs(a)) return true
+        }
+        return false
+    }
+
+    /**
+     * f·g where one factor goes to 0 and the other grows without bound: written as f/(1/g) so that the
+     * quotient is ∞/∞. Returns the numerator and the denominator, or null if the product is not of that kind.
+     */
+    private fun productAsQuotient(solution: Solver, body: Expression, v: Variable, point: Expression, context: MathContext): Pair<Expression, Expression>? {
+        val factors = (body as? Multiplications)?.operands ?: return null
+        val vanishing = mutableListOf<Expression>()
+        val growing = mutableListOf<Expression>()
+        for (factor in factors) {
+            when {
+                !factor.containsVariable(v) -> growing.add(factor)
+                canonical(factor.substituteVariables(mapOf(v to point)), context)?.isZero == true -> vanishing.add(factor)
+                blowsUp(factor, v, point) -> growing.add(factor)
+                else -> return null
+            }
+        }
+        if (vanishing.isEmpty() || growing.none { it.containsVariable(v) }) return null
+        val numerator = Multiplications.of(*growing.toTypedArray())
+        val denominator = canonical(Power(Multiplications.of(*vanishing.toTypedArray()), Value.MINUS_ONE), context) ?: return null
+        val written = LiteralFraction(numerator, denominator)
+        solution.apply(Match(StepRule.LIMIT_PRODUCT_AS_QUOTIENT, mapOf(listOf(0) to written), solution.current, written, showChange = false))
+        return numerator to denominator
+    }
+
     private fun describe(limit: Double): String = if (limit == 0.0) "0" else if (limit > 0) "∞" else "−∞"
 
     /** Whether [e] has a finite value at [v] = [point] (a division by 0 is no value). */
     private fun defined(e: Expression, v: Variable, point: Expression, context: MathContext): Boolean {
+        // Each part on its own: 0·ln(0) simplifies to 0, but ln(0) is not defined
+        if (e.children.any { it.containsVariable(v) && !defined(it, v, point, context) }) return false
         val scratch = context.copy()
         val result = e.substituteVariables(mapOf(v to point)).canonicalize(scratch)
         if (scratch.shouldStop || scratch.issues.isNotEmpty()) return false

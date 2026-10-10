@@ -25,6 +25,7 @@
     <string name="step_multiply_numbers">Multiply numbers</string>
     <string name="step_extend_fractions">Give the fractions a common denominator</string>
     <string name="step_factor_common">Factor out the common factor</string>
+    <string name="step_root_of_square">The root of a square is the absolute value</string>
     <string name="step_double_angle">Write the double angle with the single angle</string>
     <string name="step_amplitude_form">Combine sine and cosine into one sine, with R = √(a² + b²) and tan φ = b/a (π added if a &lt; 0)</string>
     <string name="step_percent_as_fraction">Write the percent as a fraction: a percent is hundredths</string>
@@ -92,8 +93,10 @@
     <string name="step_limit_grows">The highest power grows without bound</string>
     <string name="step_limit_reciprocal">A denominator that grows without bound: the quotient goes to 0</string>
     <string name="step_limit_substitute">Write in the point</string>
+    <string name="step_limit_product_as_quotient">It is 0·∞: write the product as a quotient first</string>
     <string name="step_lhopital">It is 0/0 or ∞/∞: apply l\'Hôpital\'s rule</string>
     <string name="step_zero_fraction">A fraction is zero if its numerator is zero</string>
+    <string name="step_absolute_values_equal">Two absolute values are equal: the insides are equal or opposite</string>
     <string name="step_absolute_value_cases">Split into the two cases of the absolute value</string>
     <string name="step_exponentiate_both_sides">Raise the base to the power of both sides</string>
     <string name="step_check_solutions">Check the solutions in the original equation</string>
@@ -101,7 +104,8 @@
     <string name="step_back_substitute_power">Substitute back</string>
     <string name="step_one_side">No rule solves this exactly: everything to one side, f(x) = 0</string>
     <string name="step_newton_method">Newton\'s method</string>
-    <string name="step_no_real_solution">No real solution: a square is never negative</string>
+    <string name="step_no_real_solution">There is no real solution: this can never be true</string>
+    <string name="step_contradiction">The two sides are never equal: there is no solution</string>
     <string name="step_zero_product">A product is zero if one of its factors is zero</string>
     <string name="step_quadratic_formula">Apply the quadratic formula</string>
     <string name="step_root_of_number">Calculate the root</string>

@@ -118,8 +118,8 @@ class EquationStepsTest {
         // sin(x) = x/2: Newton's method once for each of the three solutions
         val sine = solution(ms(FunctionNode("sin", ms(x)), eq, FractionNode(ms(x), ms(n("2")))))!!
         assertEquals(3, sine.steps.count { it.rule == StepRule.NEWTON_METHOD })
-        // No solution: nothing to show
-        assertNull(solution(ms(x, eq, x, plus, n("1"))))
+        // No solution: the steps end at 0 = 1
+        assertEquals("no solution", solution(ms(x, eq, x, plus, n("1")))!!.result.toString())
     }
 
     @Test
@@ -180,8 +180,8 @@ class EquationStepsTest {
         val solution = solution(ms(x, pow(n("2")), plus, n("2"), x, plus, n("5"), eq, n("0")), complex)!!
         assertTrue(StepRule.IMAGINARY_ROOT in solution.steps.map { it.rule })
         assertEquals("x =  − 1 + 2i, x =  − 1 − 2i", solution.result.toString())
-        // Without complex numbers the equation has no solution, hence no steps
-        assertNull(solution(ms(x, pow(n("2")), plus, n("2"), x, plus, n("5"), eq, n("0"))))
+        // Without complex numbers the equation has no solution: the discriminant is negative
+        assertEquals("no real solution", solution(ms(x, pow(n("2")), plus, n("2"), x, plus, n("5"), eq, n("0")))!!.result.toString())
     }
 
     @Test
@@ -289,7 +289,7 @@ class EquationStepsTest {
         val withVariable = solution(ms(f("abs", n("2"), x, plus, n("1")), eq, x, plus, n("4")))!!
         assertEquals(StepRule.CHECK_SOLUTIONS, withVariable.steps.last().rule)
         // No solution for a negative number
-        assertNull(solution(ms(f("abs", x), eq, OperatorNode(MathOp.MINUS), n("2"))))
+        assertEquals("no real solution", solution(ms(f("abs", x), eq, OperatorNode(MathOp.MINUS), n("2")))!!.result.toString())
     }
 
     @Test
@@ -305,7 +305,7 @@ class EquationStepsTest {
         val double = solution(ms(f("sin", n("2"), x), eq, FractionNode(ms(n("1")), ms(n("2")))))!!
         assertEquals("x = (π)/(12) + πk, x = (5π)/(12) + πk, k ∈ ℤ", double.result.toString())
         // |c| > 1: no solution
-        assertNull(solution(ms(f("sin", x), eq, n("2"))))
+        assertEquals("no real solution", solution(ms(f("sin", x), eq, n("2")))!!.result.toString())
     }
 
     @Test
@@ -401,5 +401,69 @@ class EquationStepsTest {
             "x =  − (π)/(2) + 2πk, x = (π)/(6) + 2πk, x = (5π)/(6) + 2πk, k ∈ ℤ",
             cosine.result.toString()
         )
+    }
+
+    private fun rootNode(vararg a: MathNode) = RadicalNode(null, ms(*a))
+
+    @Test
+    fun theRootOfASquareIsTheAbsoluteValue() {
+        val simple = solution(ms(rootNode(x, pow(n("2")))))!!
+        assertEquals(StepRule.ROOT_OF_SQUARE, simple.steps[1].rule)
+        assertEquals("abs(x)", simple.result.toString())
+        // √(x²) = 2 has the solutions 2 and −2
+        val equation = solution(ms(rootNode(x, pow(n("2"))), eq, n("2")))!!
+        assertEquals("x =  − 2, x = 2", equation.result.toString())
+    }
+
+    @Test
+    fun aValueThatMakesADenominatorZeroIsNoSolution() {
+        // (x² − 4)/(x − 2) = 4 is x + 2 = 4 once the factor is cancelled, but x = 2 is not allowed
+        val input = ms(FractionNode(ms(x, pow(n("2")), minus, n("4")), ms(x, minus, n("2"))), eq, n("4"))
+        val result = runBlocking { MathEngine.calculate(input) }
+        assertFalse(result.isSuccess)
+        // The steps cancel the factor, find x = 2 and cross it out
+        val steps = solution(input)!!
+        assertTrue(steps.steps.any { it.rule == StepRule.CHECK_SOLUTIONS })
+        assertEquals("no real solution", steps.result.toString())
+    }
+
+    @Test
+    fun twoAbsoluteValuesAreEqualWhenTheInsidesAreEqualOrOpposite() {
+        // |2x − 1| = |x + 2|: 2x − 1 = x + 2 or 2x − 1 = −(x + 2)
+        val solution = solution(ms(f("abs", n("2"), x, minus, n("1")), eq, f("abs", x, plus, n("2"))))!!
+        assertEquals(StepRule.ABSOLUTE_VALUES_EQUAL, solution.steps[1].rule)
+        assertEquals("x =  − (1)/(3), x = 3", solution.result.toString())
+        assertTrue(solution.steps.size < 25)
+    }
+
+    @Test
+    fun denominatorsOfSeveralTermsAreClearedOneAfterTheOther() {
+        // 1/x + 1/(x + 1) = 1 has the exact solutions (1 ± √5)/2, not an approximation
+        val input = ms(FractionNode(ms(n("1")), ms(x)), plus, FractionNode(ms(n("1")), ms(x, plus, n("1"))), eq, n("1"))
+        val solution = solution(input)!!
+        assertTrue(solution.steps.none { it.rule == StepRule.NEWTON_METHOD })
+        assertEquals(2, solution.result.toString().split(", ").size)
+        assertTrue(solution.result.toString().contains("sqrt(5)"))
+    }
+
+    @Test
+    fun equationsWithoutASolutionShowWhy() {
+        fun last(input: MathString) = solution(input)!!.let { it.steps.map { s -> s.rule } to it.result.toString() }
+        // x² = −4
+        assertEquals("no real solution", solution(ms(x, pow(n("2")), eq, minus, n("4")))!!.result.toString())
+        // x + 1 = x
+        val contradiction = solution(ms(x, plus, n("1"), eq, x))!!
+        assertEquals("no solution", contradiction.result.toString())
+        assertEquals(StepRule.CONTRADICTION, contradiction.steps.last().rule)
+        // √x = −2
+        assertEquals("no real solution", solution(ms(rootNode(x), eq, minus, n("2")))!!.result.toString())
+        // (x + 1)/(x − 2) = 3/(x − 2): x = 2 comes out, but it is crossed out by the check
+        val fractions = ms(
+            FractionNode(ms(x, plus, n("1")), ms(x, minus, n("2"))), eq, FractionNode(ms(n("3")), ms(x, minus, n("2")))
+        )
+        val crossedOut = solution(fractions)!!
+        assertTrue(crossedOut.steps.any { it.rule == StepRule.CHECK_SOLUTIONS })
+        assertEquals("no real solution", crossedOut.result.toString())
+        last(ms(x, pow(n("2")), eq, minus, n("4")))
     }
 }
