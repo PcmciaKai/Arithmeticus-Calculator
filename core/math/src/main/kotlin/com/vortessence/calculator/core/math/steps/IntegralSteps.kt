@@ -238,7 +238,7 @@ internal object IntegralSteps {
                     val u = g.base
                     // sin², cos² and the quadratic forms come from the calculator's table, simplified
                     val a = integrator.linearSlope(u, v)
-                        ?: return integrator.basic(g, v)?.let { canonical(it) }?.let { it to StepRule.INTEGRAL_TABLE }
+                        ?: return integrator.basic(canonical(g) ?: g, v)?.let { canonical(it) }?.let { it to StepRule.INTEGRAL_TABLE }
                     if (g.exponent == Value.MINUS_ONE) return divide(lnAbs(u), a) to StepRule.INTEGRAL_RECIPROCAL
                     val next = if (g.exponent is Value) canonical(Additions(g.exponent, Value.ONE)) ?: return null else Additions(g.exponent, Value.ONE)
                     val divisor = if (next is Value && a is Value) canonical(Multiplications(next, a)) ?: return null else product(next, a)

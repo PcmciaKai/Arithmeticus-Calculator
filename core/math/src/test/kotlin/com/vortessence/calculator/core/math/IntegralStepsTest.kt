@@ -39,6 +39,12 @@ class IntegralStepsTest {
     }
 
     @Test
+    fun standardIntegralOfTheTypedFunction() {
+        // The typed sin(x) has no angle unit yet; the calculator's table needs the calculated one
+        assertEquals(listOf(StepRule.INTEGRAL_TABLE), rules(integral(f("sin", x), pow(n("2")))))
+    }
+
+    @Test
     fun linearArgument() {
         val steps = solution(integral(f("sin", n("3"), x)))!!.steps
         assertEquals(StepRule.INTEGRAL_SINE, steps[1].rule)

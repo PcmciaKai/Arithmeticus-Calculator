@@ -50,6 +50,7 @@ import com.vortessence.calculator.core.math.type.OperatorNode
 import com.vortessence.calculator.core.math.type.ParenthesesNode
 import com.vortessence.calculator.core.math.type.TextNode
 import com.vortessence.calculator.core.math.type.VariableNode
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.ensureActive
@@ -244,9 +245,10 @@ object MathEngine {
                 }
                 Solution(steps, result)
             }
-        } catch (e: ArithmeticException) {
-            null
-        } catch (e: IllegalArgumentException) {
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: RuntimeException) {
+            // A rule that does not fit the expression (e.g. a cast or an index) means no steps, not a crash
             null
         } catch (e: StackOverflowError) {
             null
