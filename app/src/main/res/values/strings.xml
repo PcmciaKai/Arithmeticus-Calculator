@@ -24,6 +24,26 @@
     <string name="step_imaginary_root">Take the root of a negative number</string>
     <string name="step_multiply_numbers">Multiply numbers</string>
     <string name="step_extend_fractions">Give the fractions a common denominator</string>
+    <string name="step_tangent_as_fraction">Write the tangent as sine over cosine</string>
+    <string name="step_exact_trigonometric_value">The exact value of a special angle (unit circle)</string>
+    <string name="step_logarithm_of_power">The logarithm of a power of its base is the exponent</string>
+    <string name="step_exponential_of_logarithm">A power of the base with its logarithm as the exponent is the number</string>
+    <string name="step_root_of_fraction">The root of a fraction: the root of the numerator over the root of the denominator</string>
+    <string name="step_polynomial_division">Divide the polynomials: the quotient and a fraction with a lower degree</string>
+    <string name="step_cyclic_by_parts">Integrate by parts twice: the same integral comes back, solve for it</string>
+    <string name="step_half_angle">Write the square of the sine or cosine with the double angle</string>
+    <string name="step_rationalize">Remove the root from the denominator: multiply numerator and denominator by it</string>
+    <string name="step_divide_by_negative">Divide both sides by a negative number: the inequality sign turns around</string>
+    <string name="step_multiply_by_negative">Multiply both sides by a negative number: the inequality sign turns around</string>
+    <string name="step_inequality_swap">Swap the sides: the inequality sign turns around</string>
+    <string name="step_inequality_one_side">Everything to the left: compare with 0</string>
+    <string name="step_inequality_zeros">The sign can only change where the left side is 0</string>
+    <string name="step_inequality_breaks">…or where it is not defined: a denominator is 0, or a root or logarithm begins</string>
+    <string name="step_inequality_critical">These points divide the line into intervals; the sign is the same inside each one</string>
+    <string name="step_inequality_result">Test one value in each interval (and each point): where the inequality holds is the solution</string>
+    <string name="step_log_combine">Combine the logarithms: the sum is the logarithm of the product, the difference of the quotient</string>
+    <string name="step_log_equal">Equal logarithms of the same base: the insides are equal</string>
+    <string name="step_pythagorean">Write the squared sine with the cosine (or the other way round)</string>
     <string name="step_factor_common">Factor out the common factor</string>
     <string name="step_root_of_square">The root of a square is the absolute value</string>
     <string name="step_double_angle">Write the double angle with the single angle</string>
@@ -93,6 +113,7 @@
     <string name="step_limit_grows">The highest power grows without bound</string>
     <string name="step_limit_reciprocal">A denominator that grows without bound: the quotient goes to 0</string>
     <string name="step_limit_substitute">Write in the point</string>
+    <string name="step_limit_reciprocal_substitution">Substitute u = 1/x: then u goes to 0</string>
     <string name="step_limit_product_as_quotient">It is 0·∞: write the product as a quotient first</string>
     <string name="step_lhopital">It is 0/0 or ∞/∞: apply l\'Hôpital\'s rule</string>
     <string name="step_zero_fraction">A fraction is zero if its numerator is zero</string>

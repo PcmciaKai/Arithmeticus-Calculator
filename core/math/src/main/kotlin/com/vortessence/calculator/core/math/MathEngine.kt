@@ -9,6 +9,8 @@ import com.vortessence.calculator.core.math.expressions.Derivative
 import com.vortessence.calculator.core.math.expressions.Constant
 import com.vortessence.calculator.core.math.expressions.EquationSystem
 import com.vortessence.calculator.core.math.expressions.Equals
+import com.vortessence.calculator.core.math.expressions.Inequality
+import com.vortessence.calculator.core.math.expressions.InequalitySolver
 import com.vortessence.calculator.core.math.expressions.Expression
 import com.vortessence.calculator.core.math.expressions.Limit
 import com.vortessence.calculator.core.math.expressions.Series
@@ -37,6 +39,7 @@ import com.vortessence.calculator.core.math.steps.ArithmeticSteps
 import com.vortessence.calculator.core.math.steps.BothSides
 import com.vortessence.calculator.core.math.steps.DerivativeSteps
 import com.vortessence.calculator.core.math.steps.EquationSteps
+import com.vortessence.calculator.core.math.steps.InequalitySteps
 import com.vortessence.calculator.core.math.steps.SystemSteps
 import com.vortessence.calculator.core.math.steps.ExpressionSteps
 import com.vortessence.calculator.core.math.steps.IntegralSteps
@@ -150,11 +153,12 @@ object MathEngine {
         val parsed = parse(definition?.value ?: input, ctx)
         if (ctx.shouldStop) return failure(input, ctx, expression = parsed)
 
-        if (definition != null && (parsed is Equals || parsed is EquationSystem)) {
+        if (definition != null && (parsed is Equals || parsed is EquationSystem || parsed is Inequality)) {
             // A variable stands for a value, not for an equation
             return failure(input, ctx, MathIssue.SYNTAX_ERROR, parsed)
         }
         if (parsed is Equals) return evaluateEquation(input, parsed, ctx)
+        if (parsed is Inequality) return evaluateInequality(input, parsed, ctx)
         if (parsed is EquationSystem) return evaluateSystem(input, parsed, ctx)
 
         val canonical = parsed.canonicalize(ctx)
@@ -233,6 +237,7 @@ object MathEngine {
                     is Antiderivative, is Integral -> IntegralSteps.steps(parsed, execContext)
                     is Limit -> LimitSteps.steps(parsed, execContext)
                     is EquationSystem -> SystemSteps.steps(parsed, execContext)
+                    is Inequality -> InequalitySteps.steps(parsed, execContext)
                     is Equals -> parsed.variables().takeIf { it.isNotEmpty() }?.let { EquationSteps.steps(parsed, pickVariable(it), execContext) }
                     else -> ExpressionSteps.steps(parsed, execContext) ?: ArithmeticSteps.steps(asTyped, execContext)
                 }
@@ -506,6 +511,29 @@ object MathEngine {
             issues = ctx.issues,
             answer = answerWriter.write(solutions.first()),
             unit = solutions.first().partWithUnit()?.let { display.writeUnit(it) },
+            decimalPlaces = ctx.decimalPlaces
+        )
+    }
+
+    /** An inequality such as x² − 4 > 0 gives where it holds: "x < −2 or x > 2". */
+    private fun evaluateInequality(input: MathString, inequality: Inequality, ctx: MathContext): CalculationResult {
+        if (inequality.containsExpressionMatching { it is MatrixExpression }) {
+            return failure(input, ctx, MathIssue.MATRIX_UNSUPPORTED, inequality)
+        }
+        if (inequality.variables().isEmpty()) {
+            val truth = inequality.truthValue(ctx) ?: return failure(input, ctx, MathIssue.UNDEFINED, inequality)
+            return truthResult(input, inequality, truth, ctx)
+        }
+        val analysis = InequalitySolver.analyze(inequality, ctx.copy())
+        if (analysis == null || ctx.shouldStop) return failure(input, ctx, MathIssue.CANT_SOLVE_GENERIC, inequality)
+        if (analysis.pieces.isEmpty()) return failure(input, ctx, MathIssue.NO_REAL_SOLUTION, inequality)
+        return CalculationResult(
+            input = input,
+            result = displayWriter(ctx).write(analysis.toExpression()),
+            expression = inequality,
+            numericValue = Double.NaN,
+            issues = ctx.issues,
+            answer = null,
             decimalPlaces = ctx.decimalPlaces
         )
     }

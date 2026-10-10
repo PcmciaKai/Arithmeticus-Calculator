@@ -40,8 +40,9 @@ class IntegralStepsTest {
 
     @Test
     fun standardIntegralOfTheTypedFunction() {
-        // The typed sin(x) has no angle unit yet; the calculator's table needs the calculated one
-        assertEquals(listOf(StepRule.INTEGRAL_TABLE), rules(integral(f("sin", x), pow(n("2")))))
+        // The typed sin(x) has no angle unit yet; the rules need the calculated one
+        assertEquals(StepRule.HALF_ANGLE, rules(integral(f("sin", x), pow(n("2"))))!!.first())
+        assertEquals(StepRule.INTEGRAL_SINE, rules(integral(f("sin", x)))!!.first())
     }
 
     @Test
@@ -191,5 +192,28 @@ class IntegralStepsTest {
         // ∫₁ᵉ 1/x dx = ln|e| − ln|1| = 1
         val input = ms(IntegralNode(ms(n("1")), ms(ConstantNode("e")), ms(FractionNode(ms(n("1")), ms(VariableNode("x")))), "x"))
         assertEquals("1", runBlocking { MathEngine.steps(input, MathContext()) }!!.result.toString())
+    }
+
+    @Test
+    fun squaredSinesAndCosinesByTheDoubleAngle() {
+        val x = VariableNode("x")
+        val steps = runBlocking { MathEngine.steps(ms(AntiderivativeNode(ms(FunctionNode("sin", ms(x)), ExponentNode(null, ms(n("2")))))), MathContext()) }!!
+        assertEquals(StepRule.HALF_ANGLE, steps.steps[1].rule)
+        assertEquals("(x)/(2) − (sin(x)cos(x))/(2) + C", steps.result.toString())
+    }
+
+    @Test
+    fun polynomialDivisionAndCyclicParts() {
+        val x = VariableNode("x")
+        val e = ConstantNode("e")
+        // ∫ x³/(x² + 1) dx = x²/2 − ln(x² + 1)/2
+        val fraction = runBlocking { MathEngine.steps(ms(AntiderivativeNode(ms(FractionNode(ms(x, ExponentNode(null, ms(n("3")))), ms(x, ExponentNode(null, ms(n("2"))), OperatorNode(MathOp.PLUS), n("1")))))), MathContext()) }!!
+        assertEquals(StepRule.POLYNOMIAL_DIVISION, fraction.steps[1].rule)
+        assertEquals("((x)^(2))/(2) − (ln(abs((x)^(2) + 1)))/(2) + C", fraction.result.toString())
+        // ∫ eˣ sin(x) dx = eˣ(sin x − cos x)/2
+        val cyclic = runBlocking { MathEngine.steps(ms(AntiderivativeNode(ms(e, ExponentNode(null, ms(x)), FunctionNode("sin", ms(x))))), MathContext()) }!!
+        assertEquals(StepRule.CYCLIC_BY_PARTS, cyclic.steps[1].rule)
+        assertEquals("I = ((e)^(x)(sin(x) − cos(x)))/(2)", cyclic.steps[1].notes.last().toString())
+        assertEquals("((e)^(x)(sin(x) − cos(x)))/(2) + C", cyclic.result.toString())
     }
 }

@@ -108,4 +108,13 @@ class LimitStepsTest {
         assertEquals(StepRule.LIMIT_PRODUCT_AS_QUOTIENT, solution.steps[1].rule)
         assertEquals("0", solution.result.toString())
     }
+
+    @Test
+    fun reciprocalSubstitutionAtInfinity() {
+        // x·sin(1/x) as x → ∞: u = 1/x, sin(u)/u as u → 0, l'Hôpital: 1
+        val input = limInf(x, f("sin", frac(ms(n("1")), ms(x))))
+        val solution = solution(input)!!
+        assertEquals(StepRule.LIMIT_RECIPROCAL_SUBSTITUTION, solution.steps[1].rule)
+        assertEquals("1", solution.result.toString())
+    }
 }

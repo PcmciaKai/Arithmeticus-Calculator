@@ -148,4 +148,17 @@ class ArithmeticStepsTest {
         assertNull(alternative(ms(n("2"), plus, n("3"), times, n("1"), n("0"), pct)))
         assertNull(alternative(ms(n("2"), plus, n("1"), n("0"), pct, plus, n("1"))))
     }
+
+    @Test
+    fun noRootInTheDenominator() {
+        // 1/√2 = √2/2
+        val solution = solution(ms(FractionNode(ms(n("1")), ms(RadicalNode(null, ms(n("2")))))))
+        assertNotNull(solution)
+        assertTrue(solution!!.steps.any { it.rule == StepRule.RATIONALIZE })
+        assertEquals("(sqrt(2))/(2)", solution.result.toString())
+        // √(4/9) = 2/3
+        val root = solution(ms(RadicalNode(null, ms(frac("4", "9")))))!!
+        assertEquals(StepRule.ROOT_OF_FRACTION, root.steps[1].rule)
+        assertEquals("(2)/(3)", root.result.toString())
+    }
 }

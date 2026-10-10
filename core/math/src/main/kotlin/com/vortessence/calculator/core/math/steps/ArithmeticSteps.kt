@@ -26,7 +26,7 @@ internal object ArithmeticSteps {
     /** The rules that make plain arithmetic worth showing. */
     private val WORKED_OUT = setOf(
         StepRule.EXTEND_FRACTIONS, StepRule.MULTIPLY_FRACTIONS, StepRule.DIVIDE_BY_FRACTION,
-        StepRule.SIMPLIFY_ROOT, StepRule.REDUCE_FRACTION, StepRule.COMBINE_FRACTIONS, StepRule.IMPROPER_FRACTION, StepRule.PERCENT_AS_FRACTION
+        StepRule.SIMPLIFY_ROOT, StepRule.REDUCE_FRACTION, StepRule.COMBINE_FRACTIONS, StepRule.IMPROPER_FRACTION, StepRule.PERCENT_AS_FRACTION, StepRule.RATIONALIZE, StepRule.ROOT_OF_FRACTION
     )
 
     fun steps(e: Expression, context: MathContext): ExpressionSolution? {

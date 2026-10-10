@@ -15,7 +15,8 @@ import com.vortessence.calculator.core.math.expressions.Variable
 
 /**
  * The steps of simplifying an algebraic expression, e.g. (x + 1)² − x² = x² + 2x + 1 − x² = 2x + 1
- * ([SimplificationSteps]). Only for expressions with variables: plain arithmetic has no steps.
+ * ([SimplificationSteps]). Only for expressions with variables (plain arithmetic has no steps), or with
+ * functions that have an exact value, e.g. sin(π/6) = 1/2.
  */
 internal object ExpressionSteps {
 
@@ -47,12 +48,14 @@ internal object ExpressionSteps {
      * in degrees, trigonometric functions are left out: their results are converted to radians.
      */
     private fun isSupported(e: Expression, context: MathContext): Boolean {
-        if (e.variables().isEmpty()) return false
+        // Without variables only for what has an exact value: sin(π/6), log(100)
+        if (e.variables().isEmpty() && !e.containsExpressionMatching { it is TrigonometricFunction || it is Logarithm }) return false
+        val withVariables = e.variables().isNotEmpty()
         return !e.containsExpressionMatching { part ->
             when (part) {
                 is Value, is Variable, is Additions, is Multiplications, is Power, is Logarithm, is AbsoluteValue -> false
                 is Constant -> part.unit != null
-                is TrigonometricFunction -> (part.angleUnit ?: context.angleUnit) == AngleUnit.DEGREES
+                is TrigonometricFunction -> withVariables && (part.angleUnit ?: context.angleUnit) == AngleUnit.DEGREES
                 else -> true
             }
         }

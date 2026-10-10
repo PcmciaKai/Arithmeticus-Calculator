@@ -115,6 +115,18 @@ class MathWriter(
                 result.append(OperatorNode(MathOp.EQUALS))
                 result.appendAll(write(expr.right))
             }
+            is Inequality -> {
+                result.appendAll(write(expr.left))
+                result.append(OperatorNode(expr.relation.op))
+                result.appendAll(write(expr.right))
+            }
+            is Between -> {
+                result.appendAll(write(expr.lower))
+                result.append(OperatorNode(expr.lowerRelation.op))
+                result.appendAll(write(expr.variable))
+                result.append(OperatorNode(expr.upperRelation.op))
+                result.appendAll(write(expr.upper))
+            }
             is EquationSystem -> {
                 for ((idx, line) in expr.lines.withIndex()) {
                     if (idx > 0) result.append(LineBreakNode)
@@ -143,7 +155,7 @@ class MathWriter(
             is BackSubstitution -> result.appendAll(writeExpr(expr.inner))
             // Solution steps of equations
             is Alternatives -> expr.equations.forEachIndexed { i, equation ->
-                if (i > 0) result.append(if (expr.inline) TextNode(", ") else LineBreakNode)
+                if (i > 0) result.append(if (expr.inline) TextNode(expr.separator) else LineBreakNode)
                 result.appendAll(writeExpr(equation))
             }
             is TextExpression -> result.append(TextNode(expr.text))
@@ -213,9 +225,9 @@ class MathWriter(
             }
             is Modulo -> {
                 // mod binds like ×, so sums (and, on the right, products) need parentheses
-                result.appendAll(parenthesizedIf(expr.dividend) { it is Additions || it is Equals })
+                result.appendAll(parenthesizedIf(expr.dividend) { it is Additions || it is Equals || it is Inequality })
                 result.append(OperatorNode(MathOp.MODULO))
-                result.appendAll(parenthesizedIf(expr.divisor) { it is Additions || it is Multiplications || it is Modulo || it is Equals })
+                result.appendAll(parenthesizedIf(expr.divisor) { it is Additions || it is Multiplications || it is Modulo || it is Equals || it is Inequality })
             }
             is MatrixExpression -> {
                 result.append(MatrixNode(
@@ -353,7 +365,7 @@ class MathWriter(
     private fun needsParenthesesAsBase(base: Expression): Boolean = when (base) {
         is Marked -> needsParenthesesAsBase(base.inner)
         is LiteralPower -> true
-        is Additions, is Multiplications, is Power, is Equals, is Modulo -> true
+        is Additions, is Multiplications, is Power, is Equals, is Inequality, is Modulo -> true
         is Value -> base.isNegative || base.rational?.isFractional == true || base.rational == null
         else -> false
     }
@@ -481,7 +493,7 @@ class MathWriter(
         val ordered = factors.sortedWith(compareBy({ factorRank(it) }, { variableName(it) }))
         for ((idx, op) in ordered.withIndex()) {
             var nodes = writeExpr(op)
-            if (op is Additions || op is Equals || op is Modulo) {
+            if (op is Additions || op is Equals || op is Inequality || op is Modulo) {
                 nodes = MathString(listOf(ParenthesesNode(nodes)))
             } else if (isHighlightedSum(op)) {
                 // The parentheses of a highlighted sum are highlighted with it: 2·(x + 1)

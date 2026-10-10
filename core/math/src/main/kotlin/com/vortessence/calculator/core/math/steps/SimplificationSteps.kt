@@ -5,6 +5,7 @@ import com.vortessence.calculator.core.math.expressions.AbsoluteValue
 import com.vortessence.calculator.core.math.expressions.Additions
 import com.vortessence.calculator.core.math.expressions.Expression
 import com.vortessence.calculator.core.math.expressions.ImaginaryUnit
+import com.vortessence.calculator.core.math.expressions.Logarithm
 import com.vortessence.calculator.core.math.expressions.MixedNumber
 import com.vortessence.calculator.core.math.expressions.Percent
 import com.vortessence.calculator.core.math.expressions.Multiplications
@@ -40,7 +41,7 @@ internal object SimplificationSteps {
     private const val MAX_EXPANDED_POWER = 4
 
     /** The first simplification of [e] toward [target] that applies, in the order of the rules above. */
-    fun match(e: Expression, target: Expression, context: MathContext, arithmetic: Boolean = false): Match? {
+    fun match(e: Expression, target: Expression, context: MathContext, arithmetic: Boolean = false, tangents: Boolean = true): Match? {
         val keeps = { sum: Expression -> target.containsExpressionMatching { it == sum } }
         val powers = pathsOf(e) { it is Power }
         val products = pathsOf(e) { it is Multiplications }.map { factors(at(e, it), it) }
@@ -52,7 +53,10 @@ internal object SimplificationSteps {
             ?: products.firstNotNullOfOrNull { multiplyNumbers(it, context) }
             ?: powers.firstNotNullOfOrNull { powerOfPower(at(e, it), it, context) }
             ?: powers.firstNotNullOfOrNull { powerOfProduct(at(e, it), it) }
-            ?: products.firstNotNullOfOrNull { tangentFromQuotient(it) }
+            ?: pathsOf(e) { it is TrigonometricFunction }.firstNotNullOfOrNull { exactTrigonometricValue(at(e, it), it, context) }
+            ?: pathsOf(e) { it is Logarithm }.firstNotNullOfOrNull { logarithmOfPower(at(e, it), it, context) }
+            ?: powers.firstNotNullOfOrNull { exponentialOfLogarithm(at(e, it), it) }
+            ?: products.firstNotNullOfOrNull { if (tangents) tangentFromQuotient(it) else null }
             ?: products.firstNotNullOfOrNull { combinePowers(it, context) }
             ?: products.firstNotNullOfOrNull { cancelCommonFactor(it, context) }
             ?: sums.firstNotNullOfOrNull { subtractSameSum(it, context) }
@@ -275,12 +279,46 @@ internal object SimplificationSteps {
             val flipped = LiteralFraction(inner.denominator, inner.numerator)
             return Match(StepRule.DIVIDE_BY_FRACTION, mapOf(path to flipped), p, flipped)
         }
+        // √(4/9) = √4/√9 = 2/3
+        powers.firstNotNullOfOrNull { (power, path) -> rootOfFraction(unmarked(power), path) }?.let { return it }
+        // 1/√2 = √2/2: no root in a denominator
+        powers.firstNotNullOfOrNull { (power, path) -> rationalize(unmarked(power), path) }?.let { return it }
         // √12 = 2√3
         powers.firstNotNullOfOrNull { (power, path) -> simplifyRoot(unmarked(power), path) }?.let { return it }
         products.firstNotNullOfOrNull { multiplyFractions(it) }?.let { return it }
         sums.firstNotNullOfOrNull { extendFractions(it) }?.let { return it }
         sums.firstNotNullOfOrNull { combineLiteralFractions(it) }?.let { return it }
         return pathsOf(e) { it is LiteralFraction }.firstNotNullOfOrNull { finishFraction(at(e, it), it) }
+    }
+
+    /** √(4/9) = √4/√9: a fraction of two squares, each root then is a number. */
+    private fun rootOfFraction(e: Expression, path: Path): Match? {
+        val power = e as? Power ?: return null
+        val fraction = (power.base as? Value)?.rational?.takeIf { it.isFractional && !it.isNegative } ?: return null
+        if ((power.exponent as? Value)?.rational != Rational.HALF) return null
+        fun isSquare(n: BigInt): Boolean = n.value.bitLength() < 60 && n.value.toLong().let { v -> Math.sqrt(v.toDouble()).let { r -> Math.rint(r).toLong().let { it * it == v } } }
+        if (!isSquare(fraction.numerator) || !isSquare(fraction.denominator)) return null
+        val result = LiteralFraction(Power(Value(fraction.numerator), Value.HALF), Power(Value(fraction.denominator), Value.HALF))
+        return Match(StepRule.ROOT_OF_FRACTION, mapOf(path to result), power, result)
+    }
+
+    /** 1/√2 = √2/(√2·√2) = √2/2, also 1/∛2: a root of a whole number in a denominator. */
+    private fun rationalize(e: Expression, path: Path): Match? {
+        val power = e as? Power ?: return null
+        // 1/√2 typed as (√2)⁻¹, or already as 2^(−1/2)
+        val n: Rational = when {
+            power.exponent == Value.MINUS_ONE && power.base is Power &&
+                ((power.base as Power).exponent as? Value)?.rational == Rational.HALF -> ((power.base as Power).base as? Value)?.rational
+            (power.exponent as? Value)?.rational == Rational.of(-1L, 2L) -> (power.base as? Value)?.rational
+            else -> null
+        }?.takeIf { !it.isFractional && !it.isNegative && it != Rational.ONE } ?: return null
+        // A perfect square (1/√4) is a number: the roots rule has it
+        if (Math.sqrt(n.toDouble()).let { Math.rint(it) * Math.rint(it) == n.toDouble() }) return null
+        val root = Power(Value(n), Value.HALF)
+        // √2 times √2 stays written out, like the products of the fraction rules
+        val written = LiteralFraction(Multiplications(Value.ONE, root), WrittenOut(listOf(root, root)))
+        val result = LiteralFraction(root, Value(n))
+        return Match(StepRule.RATIONALIZE, mapOf(path to result), power, result, notes = listOf(Note(LiteralFraction(Value.ONE, root), written)))
     }
 
     /** √12 = √(4·3) = 2√3, ∛54 = 3∛2: the largest power that divides the radicand comes out. */
@@ -455,6 +493,41 @@ internal object SimplificationSteps {
         val result = canonical(power, context)
         // √(x²) = |x|: the sign of x is lost, so it is not the same rule
         return Match(if (result is AbsoluteValue) StepRule.ROOT_OF_SQUARE else StepRule.POWER_OF_POWER, mapOf(path to result), power, result)
+    }
+
+    /** sin(π/6) = 1/2, cos(π) = −1, tan(π/4) = 1: the exact values of the special angles. */
+    private fun exactTrigonometricValue(e: Expression, path: Path, context: MathContext): Match? {
+        val function = unmarked(e) as? TrigonometricFunction ?: return null
+        if (function.operand.variables().isNotEmpty()) return null
+        // sin(π/2 + π/2): the angle is simplified first
+        if (canonical(function.operand, context) != function.operand) return null
+        val value = canonical(function, context)
+        if (value == function || value.containsExpressionMatching { it is TrigonometricFunction }) return null
+        // A decimal is no exact value
+        if (value is Value && value.rational == null) return null
+        return Match(StepRule.EXACT_TRIGONOMETRIC_VALUE, mapOf(path to value), function, value)
+    }
+
+    /** log(100) = log(10²) = 2, ln(eˣ) = x. */
+    private fun logarithmOfPower(e: Expression, path: Path, context: MathContext): Match? {
+        val log = unmarked(e) as? Logarithm ?: return null
+        if (canonical(log.operand, context) != log.operand) return null
+        val value = canonical(log, context)
+        if (value is Logarithm) return null
+        val operand = log.operand
+        // 100 = 10²
+        val notes = if (operand is Value && value is Value && operand.rational != null && value.rational?.isFractional == false && operand != Value.ONE) {
+            listOf(Note(operand, Power(log.base, value)))
+        } else emptyList()
+        return Match(StepRule.LOGARITHM_OF_POWER, mapOf(path to value), log, value, notes = notes)
+    }
+
+    /** e^(ln x) = x, 10^(log x) = x. */
+    private fun exponentialOfLogarithm(e: Expression, path: Path): Match? {
+        val power = unmarked(e) as? Power ?: return null
+        val log = power.exponent as? Logarithm ?: return null
+        if (log.base != power.base) return null
+        return Match(StepRule.EXPONENTIAL_OF_LOGARITHM, mapOf(path to log.operand), power, log.operand)
     }
 
     /** (2x)³ = 2³x³, also in a denominator: 1/(3x) = 1/3·1/x */

@@ -168,7 +168,22 @@ internal object IntegralSteps {
                 }
             }
             rewriteAsPower()?.let { return it }
-            return table(f) ?: rationalFunction() ?: expand() ?: substitution() ?: byParts()
+            halfAngle()?.let { return it }
+            return table(f) ?: rationalFunction() ?: expand() ?: substitution() ?: byParts() ?: cyclicByParts()
+        }
+
+        /** sin²(u) = (1 − cos(2u))/2 and cos²(u) = (1 + cos(2u))/2, for a linear angle u. */
+        private fun halfAngle(): Match? {
+            val power = f as? Power ?: return null
+            if (power.exponent != Value.TWO) return null
+            val trig = power.base as? TrigonometricFunction ?: return null
+            if (trig.type != TrigType.SIN && trig.type != TrigType.COS) return null
+            if ((trig.angleUnit ?: context.angleUnit) != AngleUnit.RADIANS || integrator.linearSlope(trig.operand, v) == null) return null
+            val double = canonical(Multiplications(Value.TWO, trig.operand)) ?: return null
+            val cosine = trig(TrigType.COS, double)
+            val sign = if (trig.type == TrigType.SIN) Value.MINUS_ONE else Value.ONE
+            val written = product(Value.HALF, Additions(Value.ONE, product(sign, cosine)))
+            return rewrite(StepRule.HALF_ANGLE, integral(written))
         }
 
         /**
@@ -318,10 +333,51 @@ internal object IntegralSteps {
          */
         private fun rationalFunction(): Match? {
             completedSquareSubstitution()?.let { return it }
+            polynomialDivision()?.let { return it }
             val rational = integrator.splitRational(f, v) != null
             val quadratic = integrator.splitQuadratic(f, v)
             if (!rational && quadratic == null) return null
             return substitution() ?: if (rational) partialFractions() else irreducibleQuadratic(quadratic!!)
+        }
+
+        /** x³/(x² + 1) = x − x/(x² + 1): the polynomial part is divided off first, the rest has a lower degree. */
+        private fun polynomialDivision(): Match? {
+            val division = integrator.splitByDivision(f, v) ?: return null
+            val quotient = polynomialExpression(division.quotient, v)
+            val remainder = polynomialExpression(division.remainder, v)
+            val fraction = product(remainder, Power(division.denominator, Value.MINUS_ONE))
+            val result = Additions(integral(quotient), integral(fraction))
+            return Match(
+                StepRule.POLYNOMIAL_DIVISION, mapOf(path to result), before, result,
+                notes = listOf(Note(f, Additions(quotient, fraction)))
+            )
+        }
+
+        /**
+         * ∫ eᵖˣ sin(qx) dx: by parts twice the same integral comes back, I = … − (q²/p²)·I, which is solved for I.
+         */
+        private fun cyclicByParts(): Match? {
+            val parts = integrator.cyclicParts(f, v) ?: return null
+            val p = parts.p as? Value ?: return null
+            val q = parts.q as? Value ?: return null
+            val w = parts.trig.operand
+            val sine = trig(TrigType.SIN, w)
+            val cosine = trig(TrigType.COS, w)
+            val bracket = if (parts.trig.type == TrigType.SIN) {
+                Additions(product(p, sine), product(Value.MINUS_ONE, q, cosine))
+            } else {
+                Additions(product(p, cosine), product(q, sine))
+            }
+            val pSquared = canonical(Power(p, Value.TWO)) ?: return null
+            val ratio = canonical(Multiplications(Power(q, Value.TWO), Power(p, Value(-2L)))) ?: return null
+            val i = Variable("I")
+            val over = if (pSquared == Value.ONE) product(parts.exponential, bracket) else product(parts.exponential, bracket, Power(pSquared, Value.MINUS_ONE))
+            val twice = Additions(over, product(Value.MINUS_ONE, ratio, i))
+            val result = parts.antiderivative
+            return rewrite(
+                StepRule.CYCLIC_BY_PARTS, result,
+                notes = listOf(Note(i, Antiderivative(f, v)), Note(i, twice), Note(i, result))
+            )
         }
 
         /** The name of a new variable for a substitution: u, or the next letter not in the integrand. */

@@ -1,6 +1,7 @@
 package com.vortessence.calculator.core.math.steps
 
 import com.vortessence.calculator.core.math.context.MathContext
+import com.vortessence.calculator.core.math.context.MathIssue
 import com.vortessence.calculator.core.math.expressions.Additions
 import com.vortessence.calculator.core.math.expressions.Antiderivative
 import com.vortessence.calculator.core.math.expressions.Derivative
@@ -44,8 +45,13 @@ internal object SystemSteps {
         val variables = PREFERRED_VARIABLES.filter { it in found } + (found - PREFERRED_VARIABLES.toSet()).sortedBy { it.identifier }
         if (variables.size < 2 || variables.size != equations.size) return null
         val scratch = context.copy()
-        val calculated = LinearSystemSolver.solve(equations, variables, scratch) ?: return null
-        if (scratch.shouldStop || scratch.issues.isNotEmpty() || calculated.keys != variables.toSet()) return null
+        val calculated = LinearSystemSolver.solve(equations, variables, scratch)
+        // Two equations that contradict each other, or say the same: one is written into the other
+        if (variables.size == 2 && equations.size == 2) {
+            if (calculated == null && scratch.issues.singleOrNull() == MathIssue.CONTRADICTION) return Run(equations, variables, context).solveSingular(null)
+            if (calculated != null && scratch.issues.isEmpty() && calculated.size == 1) return Run(equations, variables, context).solveSingular(calculated)
+        }
+        if (calculated == null || scratch.shouldStop || scratch.issues.isNotEmpty() || calculated.keys != variables.toSet()) return null
 
         val run = Run(equations, variables, context)
         val known = run.solve() ?: return null
@@ -80,6 +86,40 @@ internal object SystemSteps {
                 solution.apply(Match(StepRule.COLLECT_SOLUTION, mapOf(root to all), solution.current, all, showChange = false, boxReplacements = false))
             }
             return known
+        }
+
+        /**
+         * Two equations in two variables that are dependent (the calculator found one variable in terms of the
+         * other, [calculated]) or contradict each other (null): one is solved for a variable and written into
+         * the other, which then reads 2 = 2 or 2 = 3.
+         */
+        fun solveSingular(calculated: Map<Variable, Expression>?): ExpressionSolution? {
+            solution.start(normalize(EquationSystem(equations)))
+            val wanted = calculated?.keys?.single()
+            val all = lines.indices.toList()
+            val pick = (if (wanted != null) all.map { Pick(it, wanted, 0.0) }.filter { coefficient(lines[it.line], wanted)?.isZero == false } else emptyList())
+                .firstOrNull() ?: choose(all, variables) ?: return null
+            if (!isolate(pick.line, pick.variable)) return null
+            val other = all.single { it != pick.line }
+            if (!substituteInto(pick.line, pick.variable, listOf(other))) return null
+            val left = (lines[other].left as? Value)?.real?.value ?: return null
+            val right = (lines[other].right as? Value)?.real?.value ?: return null
+            if (!left.isFinite() || !right.isFinite()) return null
+            if (abs(left - right) > 1e-9 * maxOf(1.0, abs(left), abs(right))) {
+                if (calculated != null) return null
+                val none = TextExpression("no solution")
+                solution.apply(Match(StepRule.CONTRADICTION, mapOf(root to none), solution.current, none, showChange = false, boxReplacements = false))
+                return solution.finish(none)
+            }
+            if (calculated == null) return null
+            // x = 2 − y, for any y: what the calculator found
+            val free = variables.single { it != pick.variable }
+            val expression = lines[pick.line]
+            val zeros = mapOf(free to 0.37)
+            if (abs(expression.right.evaluateNumerically(zeros) - calculated.getValue(pick.variable).evaluateNumerically(zeros)) > 1e-9) return null
+            val result = Alternatives(listOf(expression, TextExpression("${free.identifier} ∈ ℝ")), inline = true)
+            solution.apply(Match(StepRule.COLLECT_SOLUTION, mapOf(root to result), solution.current, result, showChange = false, boxReplacements = false))
+            return solution.finish(result)
         }
 
         // ----- substitution -----

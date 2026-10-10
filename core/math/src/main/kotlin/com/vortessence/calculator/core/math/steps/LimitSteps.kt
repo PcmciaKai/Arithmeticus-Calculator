@@ -6,6 +6,8 @@ import com.vortessence.calculator.core.math.expressions.Derivative
 import com.vortessence.calculator.core.math.expressions.Differentiator
 import com.vortessence.calculator.core.math.expressions.Expression
 import com.vortessence.calculator.core.math.expressions.Limit
+import com.vortessence.calculator.core.math.expressions.Logarithm
+import com.vortessence.calculator.core.math.expressions.TrigonometricFunction
 import com.vortessence.calculator.core.math.expressions.MatrixExpression
 import com.vortessence.calculator.core.math.expressions.Multiplications
 import com.vortessence.calculator.core.math.expressions.PartialFractions
@@ -44,7 +46,47 @@ internal object LimitSteps {
         val point = limit.point.canonicalize(context.copy())
         val solution = Solver(context)
         solution.start(normalize(limit))
-        if ((point as? Value)?.real?.isInfinite == true) return atInfinity(solution, v, point.real.value > 0, target, expected, context)
+        if ((point as? Value)?.real?.isInfinite == true) {
+            // x·sin(1/x) as x → ∞: u = 1/x goes to 0, where sin(u)/u is a limit of the finite kind
+            val u = reciprocalSubstitution(solution, limit, point.real.value > 0, expected, context)
+            return if (u != null) finitePoint(solution, u, Value.ZERO, target, expected, context)
+            else atInfinity(solution, v, point.real.value > 0, target, expected, context)
+        }
+        return finitePoint(solution, v, point, target, expected, context)
+    }
+
+    /** x·sin(1/x), x(e^(1/x) − 1) as x → ±∞: [limit] with u = 1/x and u → 0, the new variable; null if that is no help. */
+    private fun reciprocalSubstitution(solution: Solver, limit: Limit, positive: Boolean, expected: Double, context: MathContext): Variable? {
+        val v = limit.variable
+        val body = canonical(limit.body, context) ?: return null
+        fun isReciprocal(e: Expression) = e is Power && e.base == v && e.exponent == Value.MINUS_ONE
+        // A function of 1/x, with x also outside of it
+        val hasReciprocalArgument = body.containsExpressionMatching { f ->
+            (f is TrigonometricFunction || f is Logarithm || (f is Power && f.exponent.containsVariable(v))) && f.children.any { isReciprocal(it) }
+        }
+        if (!hasReciprocalArgument || !body.containsExpressionMatching { it == v }) return null
+        // Not when x only occurs as 1/x: then the limit is just the value at 0
+        val u = listOf("u", "t", "w").map { Variable(it) }.firstOrNull { it != v && it !in body.variables() } ?: return null
+        val substituted = body.transform { if (it == v) Power(u, Value.MINUS_ONE) else it }
+        val new = Limit(canonicalBody(substituted, context) ?: return null, u, Value.ZERO)
+        val scratch = context.copy()
+        val value = new.canonicalize(scratch).evaluateNumerically()
+        if (scratch.shouldStop || scratch.issues.isNotEmpty() || abs(value - expected) > 1e-7 * max(1.0, abs(expected))) return null
+        val sign = if (positive) "+" else "−"
+        solution.apply(
+            Match(
+                StepRule.LIMIT_RECIPROCAL_SUBSTITUTION, mapOf(emptyList<Int>() to new), solution.current, new,
+                notes = listOf(Note(u, Power(v, Value.MINUS_ONE)), Note(TextExpression("${v.identifier} → ${if (positive) "" else "−"}∞"), TextExpression("${u.identifier} → 0$sign"))),
+                showChange = false, boxReplacements = false
+            )
+        )
+        return u
+    }
+
+    private fun canonicalBody(e: Expression, context: MathContext): Expression? = canonical(e, context)
+
+    /** The limit for x → [point], a number: substituted, or after cancelling and l'Hôpital's rule. */
+    private fun finitePoint(solution: Solver, v: Variable, point: Expression, target: Expression, expected: Double, context: MathContext): ExpressionSolution? {
         repeat(MAX_LHOPITAL + 1) { round ->
             if (context.shouldStop || solution.size > MAX_STEPS) return null
             // A common factor of numerator and denominator is cancelled first: (x² − 4)/(x − 2) = x + 2

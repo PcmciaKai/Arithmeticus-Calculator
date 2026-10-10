@@ -160,4 +160,24 @@ class SimplificationStepsTest {
         assertEquals(listOf(StepRule.CANCEL_COMMON_FACTOR), solution.steps.drop(1).map { it.rule })
         assertEquals("x + 1", solution.result.toString())
     }
+
+    private fun f(name: String, vararg a: MathNode) = FunctionNode(name, ms(*a))
+
+    @Test
+    fun exactValuesOfFunctions() {
+        val pi = ConstantNode("π")
+        // sin(π/6) = 1/2
+        val sine = solution(ms(f("sin", fr(ms(pi), ms(n("6"))))))!!
+        assertEquals(listOf(StepRule.EXACT_TRIGONOMETRIC_VALUE), sine.steps.drop(1).map { it.rule })
+        assertEquals("(1)/(2)", sine.result.toString())
+        // cos(π) + 1: the angle's value, then the sum
+        assertEquals("0", solution(ms(f("cos", pi), plus, n("1")))!!.result.toString())
+        // log(100) = 2 with 100 = 10²
+        val log = solution(ms(f("log", n("1"), n("0"), n("0"))))!!
+        assertEquals(listOf(StepRule.LOGARITHM_OF_POWER), log.steps.drop(1).map { it.rule })
+        assertEquals(listOf("100 = (10)^(2)"), log.steps[1].notes.map { it.toString() })
+        // ln(eˣ) = x and e^ln(x) = x
+        assertEquals(StepRule.LOGARITHM_OF_POWER, solution(ms(f("ln", ConstantNode("e"), pow(x))))!!.steps[1].rule)
+        assertEquals(StepRule.EXPONENTIAL_OF_LOGARITHM, solution(ms(ConstantNode("e"), pow(f("ln", x))))!!.steps[1].rule)
+    }
 }

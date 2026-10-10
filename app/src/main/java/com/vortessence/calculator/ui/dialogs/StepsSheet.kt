@@ -384,6 +384,14 @@ private val StepRule.descriptionRes: Int
         StepRule.SUBTRACT_FROM_BOTH_SIDES -> R.string.step_subtract_from_both_sides
         StepRule.MULTIPLY_BOTH_SIDES -> R.string.step_multiply_both_sides
         StepRule.DIVIDE_BOTH_SIDES -> R.string.step_divide_both_sides
+        StepRule.DIVIDE_BY_NEGATIVE -> R.string.step_divide_by_negative
+        StepRule.MULTIPLY_BY_NEGATIVE -> R.string.step_multiply_by_negative
+        StepRule.INEQUALITY_SWAP -> R.string.step_inequality_swap
+        StepRule.INEQUALITY_ONE_SIDE -> R.string.step_inequality_one_side
+        StepRule.INEQUALITY_ZEROS -> R.string.step_inequality_zeros
+        StepRule.INEQUALITY_BREAKS -> R.string.step_inequality_breaks
+        StepRule.INEQUALITY_CRITICAL -> R.string.step_inequality_critical
+        StepRule.INEQUALITY_RESULT -> R.string.step_inequality_result
         StepRule.SWAP_SIDES -> R.string.step_swap_sides
         StepRule.SQUARE_ROOT_BOTH_SIDES -> R.string.step_square_root_both_sides
         StepRule.FACTOR_OUT -> R.string.step_factor_out
@@ -395,6 +403,18 @@ private val StepRule.descriptionRes: Int
         StepRule.AMPLITUDE_FORM -> R.string.step_amplitude_form
         StepRule.DOUBLE_ANGLE -> R.string.step_double_angle
         StepRule.FACTOR_COMMON -> R.string.step_factor_common
+        StepRule.TANGENT_AS_FRACTION -> R.string.step_tangent_as_fraction
+        StepRule.PYTHAGOREAN -> R.string.step_pythagorean
+        StepRule.LOG_COMBINE -> R.string.step_log_combine
+        StepRule.RATIONALIZE -> R.string.step_rationalize
+        StepRule.HALF_ANGLE -> R.string.step_half_angle
+        StepRule.POLYNOMIAL_DIVISION -> R.string.step_polynomial_division
+        StepRule.CYCLIC_BY_PARTS -> R.string.step_cyclic_by_parts
+        StepRule.ROOT_OF_FRACTION -> R.string.step_root_of_fraction
+        StepRule.EXACT_TRIGONOMETRIC_VALUE -> R.string.step_exact_trigonometric_value
+        StepRule.LOGARITHM_OF_POWER -> R.string.step_logarithm_of_power
+        StepRule.EXPONENTIAL_OF_LOGARITHM -> R.string.step_exponential_of_logarithm
+        StepRule.LOG_EQUAL -> R.string.step_log_equal
         StepRule.LIMIT_SUBSTITUTE -> R.string.step_limit_substitute
         StepRule.DIVIDE_BY_HIGHEST_POWER -> R.string.step_divide_by_highest_power
         StepRule.LIMIT_VANISH -> R.string.step_limit_vanish
@@ -403,6 +423,7 @@ private val StepRule.descriptionRes: Int
         StepRule.LIMIT_RECIPROCAL -> R.string.step_limit_reciprocal
         StepRule.LHOPITAL -> R.string.step_lhopital
         StepRule.LIMIT_PRODUCT_AS_QUOTIENT -> R.string.step_limit_product_as_quotient
+        StepRule.LIMIT_RECIPROCAL_SUBSTITUTION -> R.string.step_limit_reciprocal_substitution
         StepRule.ZERO_FRACTION -> R.string.step_zero_fraction
         StepRule.ABSOLUTE_VALUE_CASES -> R.string.step_absolute_value_cases
         StepRule.ABSOLUTE_VALUES_EQUAL -> R.string.step_absolute_values_equal
@@ -458,6 +479,18 @@ internal val StepRule.formula: String?
         StepRule.COMBINE_POWERS -> "x^a·x^b = x^{a + b}"
         StepRule.DIVIDE_BY_FRACTION -> "\\frac{1}{\\frac{a}{b}} = \\frac{b}{a}"
         StepRule.EXTEND_FRACTIONS -> "\\frac{a}{b} = \\frac{a·c}{b·c}"
+        StepRule.TANGENT_AS_FRACTION -> "tan(u) = \\frac{sin(u)}{cos(u)}"
+        StepRule.EXACT_TRIGONOMETRIC_VALUE -> "sin(\\frac{π}{6}) = \\frac{1}{2}\\text{,  }cos(\\frac{π}{3}) = \\frac{1}{2}\\text{,  }tan(\\frac{π}{4}) = 1"
+        StepRule.LOGARITHM_OF_POWER -> "\\log{b}{b^n} = n"
+        StepRule.EXPONENTIAL_OF_LOGARITHM -> "b^{\\log{b}{x}} = x"
+        StepRule.ROOT_OF_FRACTION -> "\\sqrt{\\frac{a}{b}} = \\frac{\\sqrt{a}}{\\sqrt{b}}"
+        StepRule.POLYNOMIAL_DIVISION -> "\\frac{P}{Q} = S + \\frac{R}{Q}\\text{  with  }P = S·Q + R"
+        StepRule.CYCLIC_BY_PARTS -> "I = \\int{e^{px}sin(qx)}{x}\\text{:  by parts twice, then solve for }I"
+        StepRule.HALF_ANGLE -> "sin^2(u) = \\frac{1 − cos(2u)}{2}\\text{,  }cos^2(u) = \\frac{1 + cos(2u)}{2}"
+        StepRule.RATIONALIZE -> "\\frac{1}{\\sqrt{a}} = \\frac{\\sqrt{a}}{\\sqrt{a}\\sqrt{a}} = \\frac{\\sqrt{a}}{a}"
+        StepRule.LOG_COMBINE -> "\\log{b}{x} + \\log{b}{y} = \\log{b}{xy}\\text{,  }\\log{b}{x} − \\log{b}{y} = \\log{b}{\\frac{x}{y}}"
+        StepRule.LOG_EQUAL -> "\\log{b}{x} = \\log{b}{y}\\text{  ⇔  }x = y"
+        StepRule.PYTHAGOREAN -> "sin^2(u) + cos^2(u) = 1"
         StepRule.FACTOR_COMMON -> "a·c + b·c = c·(a + b)"
         StepRule.DOUBLE_ANGLE -> "sin(2u) = 2·sin(u)·cos(u)\\text{,  }cos(2u) = cos^2(u) − sin^2(u)"
         StepRule.AMPLITUDE_FORM -> "a·sin(u) + b·cos(u) = R·sin(u + φ)"
@@ -502,10 +535,15 @@ internal val StepRule.formula: String?
         StepRule.SUBTRACT_FROM_BOTH_SIDES -> "a = b\\text{  ⇔  }a − c = b − c"
         StepRule.MULTIPLY_BOTH_SIDES -> "a = b\\text{  ⇔  }a·c = b·c"
         StepRule.DIVIDE_BOTH_SIDES -> "a = b\\text{  ⇔  }\\frac{a}{c} = \\frac{b}{c}"
+        StepRule.DIVIDE_BY_NEGATIVE -> "a < b\\text{  ⇔  }\\frac{a}{c} > \\frac{b}{c}\\text{  for  }c < 0"
+        StepRule.MULTIPLY_BY_NEGATIVE -> "a < b\\text{  ⇔  }a·c > b·c\\text{  for  }c < 0"
+        StepRule.INEQUALITY_SWAP -> "a < b\\text{  ⇔  }b > a"
+        StepRule.INEQUALITY_ONE_SIDE -> "f < g\\text{  ⇔  }f − g < 0"
         StepRule.SWAP_SIDES -> "a = b\\text{  ⇔  }b = a"
         StepRule.SQUARE_ROOT_BOTH_SIDES -> "u^2 = c\\text{  ⇔  }u = \\sqrt{c}\\text{  or  }u = −\\sqrt{c}"
         StepRule.SQUARE_BOTH_SIDES -> "a = b\\text{  ⇒  }a^2 = b^2"
         StepRule.LIMIT_VANISH -> "\\frac{c}{x^n} → 0\\text{  for  }x → ±∞"
+        StepRule.LIMIT_RECIPROCAL_SUBSTITUTION -> "u = \\frac{1}{x}\\text{:  }x → ∞\\text{  is  }u → 0"
         StepRule.LIMIT_PRODUCT_AS_QUOTIENT -> "f·g = \\frac{f}{\\frac{1}{g}}"
         StepRule.LHOPITAL -> "\\text{lim }\\frac{f}{g} = \\text{lim }\\frac{f′}{g′}"
         StepRule.ZERO_FRACTION -> "\\frac{a}{b} = 0\\text{  ⇔  }a = 0\\text{  (and  }b ≠ 0)"
@@ -519,7 +557,7 @@ internal val StepRule.formula: String?
         StepRule.ZERO_PRODUCT -> "a·b = 0\\text{  ⇔  }a = 0\\text{  or  }b = 0"
         StepRule.QUADRATIC_FORMULA -> "x = \\frac{−b ± \\sqrt{D}}{2a}\\text{  with  }D = b^2 − 4ac"
         StepRule.ROOT_OF_NUMBER, StepRule.IDENTITY, StepRule.SOLVE_FOR, StepRule.SUBSTITUTE_SOLUTION,
-        StepRule.MULTIPLY_EQUATIONS, StepRule.ADD_EQUATIONS, StepRule.SUBTRACT_EQUATIONS, StepRule.INSERT_VALUE, StepRule.COLLECT_SOLUTION, StepRule.FACTOR_BY_ROOT, StepRule.NO_REAL_SOLUTION, StepRule.CONTRADICTION, StepRule.ONE_SIDE, StepRule.TRIG_GENERAL_SOLUTION, StepRule.SUBSTITUTE_POWER, StepRule.BACK_SUBSTITUTE_POWER, StepRule.CHECK_SOLUTIONS, StepRule.LIMIT_SUBSTITUTE, StepRule.DIVIDE_BY_HIGHEST_POWER, StepRule.LIMIT_CONSTANT, StepRule.LIMIT_GROWS, StepRule.LIMIT_RECIPROCAL,
+        StepRule.MULTIPLY_EQUATIONS, StepRule.ADD_EQUATIONS, StepRule.SUBTRACT_EQUATIONS, StepRule.INSERT_VALUE, StepRule.COLLECT_SOLUTION, StepRule.FACTOR_BY_ROOT, StepRule.NO_REAL_SOLUTION, StepRule.CONTRADICTION, StepRule.INEQUALITY_ZEROS, StepRule.INEQUALITY_BREAKS, StepRule.INEQUALITY_CRITICAL, StepRule.INEQUALITY_RESULT, StepRule.ONE_SIDE, StepRule.TRIG_GENERAL_SOLUTION, StepRule.SUBSTITUTE_POWER, StepRule.BACK_SUBSTITUTE_POWER, StepRule.CHECK_SOLUTIONS, StepRule.LIMIT_SUBSTITUTE, StepRule.DIVIDE_BY_HIGHEST_POWER, StepRule.LIMIT_CONSTANT, StepRule.LIMIT_GROWS, StepRule.LIMIT_RECIPROCAL,
         StepRule.INTEGRAL_TABLE, StepRule.EXPAND_INTEGRAND, StepRule.BACK_SUBSTITUTION,
         StepRule.MULTIPLY_NUMBERS, StepRule.DIVIDE_NUMBERS, StepRule.REDUCE_FRACTION, StepRule.NUMBER_POWER,
         StepRule.ADD_NUMBERS, StepRule.SUBTRACT_NUMBERS, StepRule.ADD_AND_SUBTRACT_NUMBERS, StepRule.COMBINE_LIKE_TERMS,

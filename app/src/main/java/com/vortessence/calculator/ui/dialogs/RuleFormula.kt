@@ -52,6 +52,10 @@ private class FormulaParser(private val source: String) {
                 c == '+' -> operator(nodes, MathOp.PLUS)
                 c == '-' || c == '−' -> operator(nodes, MathOp.MINUS)
                 c == '=' -> operator(nodes, MathOp.EQUALS)
+                c == '<' -> operator(nodes, MathOp.LESS)
+                c == '>' -> operator(nodes, MathOp.GREATER)
+                c == '≤' -> operator(nodes, MathOp.LESS_EQUAL)
+                c == '≥' -> operator(nodes, MathOp.GREATER_EQUAL)
                 c == ',' -> {
                     pos++
                     nodes.add(TextNode(",   "))

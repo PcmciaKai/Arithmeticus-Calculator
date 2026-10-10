@@ -167,6 +167,48 @@ enum class StepRule {
     FACTOR_BY_ROOT,
     /** √f = g ⇔ f = g² (with a check) */
     SQUARE_BOTH_SIDES,
+    /** −3x < 6 ⇔ x > −2: both sides divided by a negative number, the relation turns around */
+    DIVIDE_BY_NEGATIVE,
+    /** both sides multiplied by a negative number, the relation turns around */
+    MULTIPLY_BY_NEGATIVE,
+    /** a < b ⇔ b > a */
+    INEQUALITY_SWAP,
+    /** f < g ⇔ f − g < 0 */
+    INEQUALITY_ONE_SIDE,
+    /** the sign of f can only change where f = 0 */
+    INEQUALITY_ZEROS,
+    /** …or where it is not defined: a denominator is 0, a root or logarithm begins */
+    INEQUALITY_BREAKS,
+    /** the points in order, they divide the line into intervals */
+    INEQUALITY_CRITICAL,
+    /** one test value in each interval, the solution */
+    INEQUALITY_RESULT,
+    /** x·sin(1/x) as x → ∞: u = 1/x, u → 0 */
+    LIMIT_RECIPROCAL_SUBSTITUTION,
+    /** x³/(x² + 1) = x − x/(x² + 1) */
+    POLYNOMIAL_DIVISION,
+    /** ∫ eˣ sin x: by parts twice, the integral comes back */
+    CYCLIC_BY_PARTS,
+    /** sin²(u) = (1 − cos 2u)/2 */
+    HALF_ANGLE,
+    /** √(4/9) = √4/√9 */
+    ROOT_OF_FRACTION,
+    /** 1/√2 = √2/2 */
+    RATIONALIZE,
+    /** sin(π/6) = 1/2 */
+    EXACT_TRIGONOMETRIC_VALUE,
+    /** log(100) = 2, ln(eˣ) = x */
+    LOGARITHM_OF_POWER,
+    /** e^ln(x) = x */
+    EXPONENTIAL_OF_LOGARITHM,
+    /** ln(a) + ln(b) = ln(ab) */
+    LOG_COMBINE,
+    /** ln(a) = ln(b) ⇔ a = b */
+    LOG_EQUAL,
+    /** tan(u) = sin(u)/cos(u) */
+    TANGENT_AS_FRACTION,
+    /** sin²(u) = 1 − cos²(u) */
+    PYTHAGOREAN,
     /** a·c + b·c = c·(a + b) */
     FACTOR_COMMON,
     /** sin(2u) = 2sin(u)cos(u), cos(2u) = cos²(u) − sin²(u) */

@@ -79,16 +79,20 @@ class SystemStepsTest {
     }
 
     @Test
-    fun noStepsWithoutAUniqueSolution() {
-        // Parallel lines, and the same line twice
-        assertNull(solution(system(
+    fun parallelLinesAndTheSameLineTwice() {
+        // x + y = 1 and x + y = 2: one written into the other gives 1 = 2
+        val parallel = solution(system(
             listOf(v("x"), plus, v("y"), eq, n("1")),
             listOf(v("x"), plus, v("y"), eq, n("2"))
-        )))
-        assertNull(solution(system(
+        ))!!
+        assertEquals("no solution", parallel.result.toString())
+        assertEquals(StepRule.CONTRADICTION, parallel.steps.last().rule)
+        // x + y = 1 and 2x + 2y = 2: 1 = 1, so every x with y = 1 − x
+        val same = solution(system(
             listOf(v("x"), plus, v("y"), eq, n("1")),
             listOf(n("2"), v("x"), plus, n("2"), v("y"), eq, n("2"))
-        )))
+        ))!!
+        assertEquals("x = 1 − y, y ∈ ℝ", same.result.toString())
     }
 
     @Test

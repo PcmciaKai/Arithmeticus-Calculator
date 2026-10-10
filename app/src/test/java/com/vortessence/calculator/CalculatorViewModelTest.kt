@@ -506,6 +506,34 @@ class CalculatorViewModelTest {
         assertNull(vm.uiState.value.percentHint)
     }
 
+    @Test
+    fun anInequalityIsTypedWithTheKeyOfTheEqualsSignAndSolved() = runBlocking {
+        val vm = newViewModel()
+        // x² − 4 > 0
+        vm.onKeyAction(KeyAction.Variable("x"))
+        vm.onKeyAction(KeyAction.Square)
+        vm.onKeyAction(KeyAction.Operator("−"))
+        vm.onKeyAction(KeyAction.Number("4"))
+        vm.onKeyAction(KeyAction.Operator(">"))
+        vm.onKeyAction(KeyAction.Number("0"))
+        vm.awaitLiveResult()
+        val result = vm.uiState.value.result!!
+        assertTrue(result.issues.toString(), result.isSuccess)
+        assertEquals("x < −2 or x > 2", result.result.toString().replace(Regex("\\s+"), " ").replace("− ", "−").trim())
+        vm.awaitSteps()
+        assertTrue(vm.uiState.value.hasSteps)
+        assertTrue(vm.uiState.value.expression.nodes.any { it is OperatorNode && it.op == MathOp.GREATER })
+
+        // The other signs
+        for ((symbol, op) in listOf("<" to MathOp.LESS, "≤" to MathOp.LESS_EQUAL, "≥" to MathOp.GREATER_EQUAL)) {
+            vm.onKeyAction(KeyAction.Clear)
+            vm.onKeyAction(KeyAction.Variable("x"))
+            vm.onKeyAction(KeyAction.Operator(symbol))
+            vm.onKeyAction(KeyAction.Number("1"))
+            assertTrue(symbol, vm.uiState.value.expression.nodes.any { it is OperatorNode && it.op == op })
+        }
+    }
+
     /** Waits (a while) until the "Steps" pill is offered. */
     private suspend fun CalculatorViewModel.awaitSteps() {
         var attempts = 0

@@ -91,10 +91,10 @@ internal class Integrator(private val context: MathContext) {
                     val rest = integrate(Multiplications.of(*factors.toTypedArray()), v, depth + 1) ?: return null
                     Multiplications(constants + rest)
                 } else {
-                    expanded(e, v, depth) ?: bySubstitution(e, v, depth) ?: partialFractions(e, v, depth) ?: irreducibleQuadratic(e, v, depth) ?: byParts(e, v, depth)
+                    expanded(e, v, depth) ?: bySubstitution(e, v, depth) ?: partialFractions(e, v, depth) ?: irreducibleQuadratic(e, v, depth) ?: dividedPolynomial(e, v, depth) ?: byParts(e, v, depth) ?: cyclicByParts(e, v)
                 }
             }
-            else -> basic(e, v) ?: expanded(e, v, depth) ?: bySubstitution(e, v, depth) ?: partialFractions(e, v, depth) ?: irreducibleQuadratic(e, v, depth) ?: byParts(e, v, depth)
+            else -> basic(e, v) ?: expanded(e, v, depth) ?: bySubstitution(e, v, depth) ?: partialFractions(e, v, depth) ?: irreducibleQuadratic(e, v, depth) ?: dividedPolynomial(e, v, depth) ?: byParts(e, v, depth)
         }
     }
 
@@ -339,6 +339,61 @@ internal class Integrator(private val context: MathContext) {
         // 1/(p + qx²) is in the table
         if (p.isZero && b.isZero) return null
         return QuadraticFraction(a, b, c, p, q, denominator)
+    }
+
+    /** The quotient and the remainder of P(x)/(ax² + bx + c) with no real roots, when P has degree 2 or more. */
+    internal class DividedFraction(val quotient: List<com.vortessence.calculator.core.math.numbers.Rational>, val remainder: List<com.vortessence.calculator.core.math.numbers.Rational>, val denominator: Expression, val numerator: Expression)
+
+    internal fun splitByDivision(f: Expression, v: Variable): DividedFraction? {
+        val factors = if (f is Multiplications) f.operands else listOf(f)
+        val denominators = factors.filter { it is Power && it.base is Additions && (it.exponent as? Value)?.rational?.let { r -> r == com.vortessence.calculator.core.math.numbers.Rational.MINUS_ONE } == true }
+        if (denominators.size != 1) return null
+        val denominator = (denominators.single() as Power).base
+        val numerator = Multiplications.of(*factors.filter { it !== denominators.single() }.toTypedArray())
+        val d = PartialFractions.polynomial(denominator, v, context) ?: return null
+        val n = PartialFractions.polynomial(numerator, v, context) ?: return null
+        if (d.size != 3 || n.size < 3) return null
+        val (c, b, a) = d
+        if (b * b - a * c * 4L >= com.vortessence.calculator.core.math.numbers.Rational.ZERO) return null
+        val (quotient, remainder) = PartialFractions.divide(n, d)
+        return DividedFraction(quotient, remainder, denominator, numerator)
+    }
+
+    /** x³/(x² + 1) = x − x/(x² + 1): the polynomial part first, then a fraction with a lower degree. */
+    private fun dividedPolynomial(f: Expression, v: Variable, depth: Int): Expression? {
+        val division = splitByDivision(f, v) ?: return null
+        val parts = listOf(PartialFractions.toExpression(division.quotient, v), Multiplications.of(PartialFractions.toExpression(division.remainder, v), inverse(division.denominator)))
+        return integrate(Additions(parts), v, depth + 1)
+    }
+
+    /**
+     * eᵖˣ·sin(qx) and eᵖˣ·cos(qx), by parts twice (the integral comes back): the closed form
+     * e^u·(p·sin w − q·cos w)/(p² + q²), and e^u·(p·cos w + q·sin w)/(p² + q²), for u and w linear.
+     */
+    internal fun cyclicByParts(f: Expression, v: Variable): Expression? = cyclicParts(f, v)?.antiderivative
+
+    internal class CyclicParts(val exponential: Expression, val trig: TrigonometricFunction, val p: Expression, val q: Expression, val antiderivative: Expression)
+
+    internal fun cyclicParts(f: Expression, v: Variable): CyclicParts? {
+        val factors = if (f is Multiplications) f.operands else return null
+        if (factors.size != 2) return null
+        val exponential = factors.firstOrNull { it is Power && !it.base.containsVariable(v) && it.exponent.containsVariable(v) } as? Power ?: return null
+        val trig = factors.firstOrNull { it is TrigonometricFunction && (it.type == TrigType.SIN || it.type == TrigType.COS) && it.operand.containsVariable(v) } as? TrigonometricFunction ?: return null
+        if ((trig.angleUnit ?: context.angleUnit) != AngleUnit.RADIANS) return null
+        val a = linearSlope(exponential.exponent, v) ?: return null
+        val q = linearSlope(trig.operand, v) ?: return null
+        val p = if (exponential.base == Constant.E) a else canonical(Multiplications(a, Logarithm.ln(exponential.base))) ?: return null
+        val denominator = canonical(Additions(Power(p, Value.TWO), Power(q, Value.TWO))) ?: return null
+        if (denominator.isZero) return null
+        val sine = trig(TrigType.SIN, trig.operand)
+        val cosine = trig(TrigType.COS, trig.operand)
+        val bracket = if (trig.type == TrigType.SIN) {
+            Additions(Multiplications.of(p, sine), Multiplications.of(Value.MINUS_ONE, q, cosine))
+        } else {
+            Additions(Multiplications.of(p, cosine), Multiplications.of(q, sine))
+        }
+        val result = Multiplications.of(exponential, bracket, inverse(denominator))
+        return CyclicParts(exponential, trig, p, q, result)
     }
 
     private fun bySubstitution(f: Expression, v: Variable, depth: Int): Expression? {

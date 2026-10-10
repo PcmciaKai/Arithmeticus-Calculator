@@ -21,7 +21,12 @@ enum class MathOp(val symbol: String, val precedence: Int) {
     /** Unit conversion, e.g. "5 km → mi". Binds weakest of all operators. */
     CONVERT("→", -1),
     /** Definition of a variable, "a := 2x²". Only valid right after the variable at the start of a line. */
-    DEFINE(":=", -2)
+    DEFINE(":=", -2),
+    /** Inequalities, e.g. "x² − 4 > 0": like "=" they split a line into two sides. */
+    LESS("<", 0),
+    GREATER(">", 0),
+    LESS_EQUAL("≤", 0),
+    GREATER_EQUAL("≥", 0)
 }
 
 /**
@@ -41,6 +46,9 @@ data class OperatorNode(val op: MathOp) : MathNode() {
 
 /** Factorial and percent follow their operand: 5!, 20%. */
 val MathOp.isPostfix: Boolean get() = this == MathOp.FACTORIAL || this == MathOp.PERCENT
+
+/** <, >, ≤ and ≥: the signs of an inequality. */
+val MathOp.isInequality: Boolean get() = this == MathOp.LESS || this == MathOp.GREATER || this == MathOp.LESS_EQUAL || this == MathOp.GREATER_EQUAL
 
 data class VariableNode(val name: String) : MathNode() {
     override fun copy(): MathNode = VariableNode(name)

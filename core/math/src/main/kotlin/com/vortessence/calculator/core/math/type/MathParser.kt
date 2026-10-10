@@ -365,8 +365,13 @@ class MathParser {
                     MathOp.MULTIPLY -> Multiplications.of(left, right)
                     MathOp.DIVIDE -> Multiplications.of(left, Power.of(right, Value.MINUS_ONE))
                     MathOp.EQUALS -> {
-                        if (left is Equals || right is Equals) syntaxError()
+                        if (left is Equals || right is Equals || left is Inequality || right is Inequality) syntaxError()
                         Equals(left, right)
+                    }
+                    MathOp.LESS, MathOp.GREATER, MathOp.LESS_EQUAL, MathOp.GREATER_EQUAL -> {
+                        // One relation per line: 1 < x < 3 is not an inequality of this kind
+                        if (left is Equals || right is Equals || left is Inequality || right is Inequality) syntaxError()
+                        Inequality(left, right, Relation.of(op)!!)
                     }
                     MathOp.FACTORIAL, MathOp.PERCENT -> left
                     MathOp.MODULO -> Modulo(left, right)

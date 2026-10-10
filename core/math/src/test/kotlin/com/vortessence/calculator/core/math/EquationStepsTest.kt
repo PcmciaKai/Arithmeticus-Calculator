@@ -192,7 +192,8 @@ class EquationStepsTest {
         assertEquals("x = ln(5)", natural.result.toString())
         // 2ˣ + 1 = 9: the 1 first, then log₂
         val base2 = solution(ms(n("2"), pow(x), plus, n("1"), eq, n("9")))!!
-        assertEquals(StepRule.LOGARITHM_BOTH_SIDES, base2.steps.map { it.rule }.last { it != StepRule.SIMPLIFY })
+        // The logarithm of both sides, then log₂(2ˣ) = x
+        assertEquals(listOf(StepRule.LOGARITHM_BOTH_SIDES, StepRule.LOGARITHM_OF_POWER), base2.steps.map { it.rule }.filter { it == StepRule.LOGARITHM_BOTH_SIDES || it == StepRule.LOGARITHM_OF_POWER })
         assertEquals("x = 3", base2.result.toString())
     }
 
@@ -317,7 +318,7 @@ class EquationStepsTest {
         assertEquals("u = sin(x)", solution.steps[1].notes.single().toString())
         assertTrue(StepRule.BACK_SUBSTITUTE_POWER in rules)
         assertEquals(2, rules.count { it == StepRule.TRIG_GENERAL_SOLUTION })
-        assertEquals("x = (π)/(2) + 2πk, x =  − (π)/(6) + 2πk, x = (7π)/(6) + 2πk, k ∈ ℤ", solution.result.toString())
+        assertEquals("x = (π)/(2) + (2πk)/(3), k ∈ ℤ", solution.result.toString())
         // sin²x = 1/4 needs no substitution: the square root first, sin x = ±1/2
         val square = solution(ms(f("sin", x), pow(n("2")), eq, FractionNode(ms(n("1")), ms(n("4")))))!!
         assertEquals(StepRule.SQUARE_ROOT_BOTH_SIDES, square.steps[1].rule)
@@ -390,7 +391,7 @@ class EquationStepsTest {
             sine.steps.drop(1).take(5).map { it.rule }
         )
         assertEquals(
-            "x = (π)/(2) + 2πk, x =  − (π)/(2) + 2πk, x = (π)/(6) + 2πk, x = (5π)/(6) + 2πk, k ∈ ℤ",
+            "x = (π)/(2) + 2πk, x = (π)/(6) + (2πk)/(3), k ∈ ℤ",
             sine.result.toString()
         )
         // cos 2x = sin x: 1 − 2sin²x = sin x, a quadratic in sin x
@@ -398,7 +399,7 @@ class EquationStepsTest {
         assertEquals(StepRule.DOUBLE_ANGLE, cosine.steps[1].rule)
         assertTrue(cosine.steps.any { it.rule == StepRule.SUBSTITUTE_POWER })
         assertEquals(
-            "x =  − (π)/(2) + 2πk, x = (π)/(6) + 2πk, x = (5π)/(6) + 2πk, k ∈ ℤ",
+            "x = (π)/(6) + (2πk)/(3), k ∈ ℤ",
             cosine.result.toString()
         )
     }
@@ -465,5 +466,61 @@ class EquationStepsTest {
         assertTrue(crossedOut.steps.any { it.rule == StepRule.CHECK_SOLUTIONS })
         assertEquals("no real solution", crossedOut.result.toString())
         last(ms(x, pow(n("2")), eq, minus, n("4")))
+    }
+
+    @Test
+    fun generalSolutionsThatAreEvenlySpreadAreOneFamily() {
+        // cos x = 0: π/2 + 2πk and −π/2 + 2πk are π/2 + πk
+        assertEquals("x = (π)/(2) + πk, k ∈ ℤ", solution(ms(f("cos", x), eq, n("0")))!!.result.toString())
+        // sin x cos x = 0: every multiple of π/2
+        assertEquals("x = (πk)/(2), k ∈ ℤ", solution(ms(f("sin", x), f("cos", x), eq, n("0")))!!.result.toString())
+        // sin x = 1/2: the two solutions are not evenly spread
+        assertEquals("x = (π)/(6) + 2πk, x = (5π)/(6) + 2πk, k ∈ ℤ", solution(ms(f("sin", x), eq, FractionNode(ms(n("1")), ms(n("2")))))!!.result.toString())
+    }
+
+    @Test
+    fun amplitudeFormWithRootsInTheCoefficients() {
+        // sin x + √3·cos x = 1: R = 2, φ = π/3, sin(x + π/3) = 1/2
+        val input = ms(f("sin", x), plus, rootNode(n("3")), f("cos", x), eq, n("1"))
+        val solution = solution(input)!!
+        assertEquals(StepRule.AMPLITUDE_FORM, solution.steps[1].rule)
+        assertEquals("x =  − (π)/(6) + 2πk, x = (π)/(2) + 2πk, k ∈ ℤ", solution.result.toString())
+    }
+
+    @Test
+    fun tangentsAndSquaredSinesAgainstCosines() {
+        // sin²x − cos²x = 0: 1 − 2cos²x = 0, cos x = ±√2/2: π/4 + πk/2
+        val squares = solution(ms(f("sin", x), pow(n("2")), minus, f("cos", x), pow(n("2")), eq, n("0")))!!
+        assertTrue(squares.steps.any { it.rule == StepRule.PYTHAGOREAN })
+        assertEquals("x = (π)/(4) + (πk)/(2), k ∈ ℤ", squares.result.toString())
+        // tan x = sin x: sin x = sin x cos x, sin x (1 − cos x) = 0: x = πk
+        val tangent = solution(ms(f("tan", x), eq, f("sin", x)))!!
+        assertEquals(StepRule.TANGENT_AS_FRACTION, tangent.steps[1].rule)
+        assertEquals("x = πk, k ∈ ℤ", tangent.result.toString())
+    }
+
+    @Test
+    fun trigonometricEquationsInDegrees() {
+        val degrees = MathContext(angleUnit = com.vortessence.calculator.core.math.context.AngleUnit.DEGREES)
+        // sin x = 1/2: 30° and 150°, every 360°
+        val sine = solution(ms(f("sin", x), eq, FractionNode(ms(n("1")), ms(n("2")))), degrees)!!
+        assertEquals("x = 30 + 360k, x = 150 + 360k, k ∈ ℤ", sine.result.toString())
+        assertEquals("x = 90 + 180k, k ∈ ℤ", solution(ms(f("cos", x), eq, n("0")), degrees)!!.result.toString())
+        assertEquals("x = 45 + 180k, k ∈ ℤ", solution(ms(f("tan", x), eq, n("1")), degrees)!!.result.toString())
+        // sin x + cos x = 1: 0° and 90°
+        assertEquals("x = 360k, x = 90 + 360k, k ∈ ℤ", solution(ms(f("sin", x), plus, f("cos", x), eq, n("1")), degrees)!!.result.toString())
+        // 2sin²x − sin x − 1 = 0
+        val polynomial = solution(ms(n("2"), f("sin", x), pow(n("2")), minus, f("sin", x), minus, n("1"), eq, n("0")), degrees)!!
+        assertEquals("x = 90 + 120k, k ∈ ℤ", polynomial.result.toString())
+    }
+
+    @Test
+    fun logarithmsAreCombinedBeforeTheEquationIsSolved() {
+        // ln x + ln(x − 1) = ln 6: ln(x(x − 1)) = ln 6, x(x − 1) = 6, x = 3 or x = −2, and ln(−2) is no value
+        val input = ms(f("ln", x), plus, f("ln", x, minus, n("1")), eq, f("ln", n("6")))
+        val solution = solution(input)!!
+        assertEquals(listOf(StepRule.LOG_COMBINE, StepRule.LOG_EQUAL), solution.steps.drop(1).take(2).map { it.rule })
+        assertTrue(solution.steps.any { it.rule == StepRule.CHECK_SOLUTIONS })
+        assertEquals("x = 3", solution.result.toString())
     }
 }

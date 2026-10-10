@@ -259,6 +259,10 @@ class CalculatorViewModel @JvmOverloads constructor(
                         "×", "*" -> MathOp.MULTIPLY
                         "=" -> MathOp.EQUALS
                         ":=" -> MathOp.DEFINE
+                        "<" -> MathOp.LESS
+                        ">" -> MathOp.GREATER
+                        "≤", "<=" -> MathOp.LESS_EQUAL
+                        "≥", ">=" -> MathOp.GREATER_EQUAL
                         "!" -> MathOp.FACTORIAL
                         "%" -> MathOp.PERCENT
                         "mod" -> MathOp.MODULO
@@ -1307,6 +1311,6 @@ class CalculatorViewModel @JvmOverloads constructor(
     }
 
     private companion object {
-        val SOURCE_DELIMITERS = setOf(MathOp.EQUALS, MathOp.DEFINE, MathOp.CONVERT)
+        val SOURCE_DELIMITERS = setOf(MathOp.EQUALS, MathOp.DEFINE, MathOp.CONVERT, MathOp.LESS, MathOp.GREATER, MathOp.LESS_EQUAL, MathOp.GREATER_EQUAL)
     }
 }

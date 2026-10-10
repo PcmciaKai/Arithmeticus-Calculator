@@ -494,7 +494,14 @@ fun CalculatorKeypad(
                         text = "=",
                         buttonWidth = buttonWidth,
                         isAccent = true,
-                        alternates = listOf(alt(":=", KeyAction.Operator(":=")))
+                        // Long press: a definition, and the signs of an inequality
+                        alternates = listOf(
+                            alt(":=", KeyAction.Operator(":=")),
+                            alt("<", KeyAction.Operator("<")),
+                            alt(">", KeyAction.Operator(">")),
+                            alt("≤", KeyAction.Operator("≤")),
+                            alt("≥", KeyAction.Operator("≥"))
+                        )
                     ) { onKeyAction(KeyAction.Operator("=")) }
                     KeyButton(
                         text = "x",

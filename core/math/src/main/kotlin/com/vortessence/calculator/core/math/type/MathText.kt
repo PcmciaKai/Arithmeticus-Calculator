@@ -129,6 +129,10 @@ object MathText {
         MathOp.MODULO -> " mod "
         MathOp.CONVERT -> " -> "
         MathOp.DEFINE -> " := "
+        MathOp.LESS -> " < "
+        MathOp.GREATER -> " > "
+        MathOp.LESS_EQUAL -> " <= "
+        MathOp.GREATER_EQUAL -> " >= "
     }
 
     /** [string] as plain text, in parentheses unless it is a single number, name or bracket. */
