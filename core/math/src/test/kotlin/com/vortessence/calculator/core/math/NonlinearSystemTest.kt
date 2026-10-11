@@ -76,8 +76,9 @@ class NonlinearSystemTest {
     @Test
     fun whatIsStillOutOfReach() {
         // Neither equation is linear in a variable
-        assertEquals(MathIssue.CANT_SOLVE_GENERIC, calc("x^2+y^2=25|x^2-y^2=7").issues.first())
-        assertNull(steps("x^2+y^2=25|x^2-y^2=7"))
+        // (x² + y² = 25 with x² − y² = 7 is solved with u = x², v = y², see QuadraticSystemTest)
+        assertEquals(MathIssue.CANT_SOLVE_GENERIC, calc("x^2+y^2=25|x^3+y^3=10").issues.first())
+        assertNull(steps("x^2+y^2=25|x^3+y^3=10"))
         // The linear systems are as before
         assertEquals("x = 1, y = 2", clean(calc("x+y=3|x-y=-1").result.toString()))
     }

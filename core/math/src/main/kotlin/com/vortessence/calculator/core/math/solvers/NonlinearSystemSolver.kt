@@ -33,6 +33,8 @@ object NonlinearSystemSolver {
 
     /** The solutions as values of the variables, sorted; empty if there is no real one; null (with an issue reported if one was found) if this cannot be solved. */
     fun solve(equations: List<Equals>, variables: List<Variable>, context: MathContext): List<Map<Variable, Expression>>? {
+        // x² + y² = 25 with x² − y² = 7, or x² + xy = 10 with y² + xy = 15: exact by their own methods, before substitution
+        QuadraticSystems.solve(equations, variables, context)?.let { return it }
         val plan = plan(equations, variables, context) ?: return null
         val scratch = context.copy()
         val roots = plan.substituted.solveForVariable(plan.remaining, scratch)

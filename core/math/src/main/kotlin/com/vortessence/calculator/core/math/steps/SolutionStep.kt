@@ -296,6 +296,8 @@ enum class StepRule {
     LIMIT_ABSOLUTE_VALUE,
     /** a/b = 0 ⇔ a = 0 */
     ZERO_FRACTION,
+    /** divide by x² and write t = y/x */
+    SUBSTITUTE_RATIO,
     /** several inequalities: each is solved on its own */
     INEQUALITY_SYSTEM_EACH,
     /** all of them must hold: what the solutions have in common */

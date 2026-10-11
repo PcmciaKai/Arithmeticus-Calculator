@@ -54,7 +54,7 @@ internal object SystemSteps {
             if (calculated != null && scratch.issues.isEmpty() && calculated.size == 1) return Run(equations, variables, context).solveSingular(calculated)
         }
         // x² + y² = 25 with x + y = 7: by substitution, solving an equation of one variable
-        if (calculated == null && scratch.issues.contains(MathIssue.CANT_SOLVE_GENERIC)) return NonlinearSystemSteps.steps(equations, variables, context)
+        if (calculated == null && scratch.issues.contains(MathIssue.CANT_SOLVE_GENERIC)) return QuadraticSystemSteps.steps(equations, variables, context) ?: NonlinearSystemSteps.steps(equations, variables, context)
         if (calculated == null || scratch.shouldStop || scratch.issues.isNotEmpty() || calculated.keys != variables.toSet()) return null
 
         val run = Run(equations, variables, context)
