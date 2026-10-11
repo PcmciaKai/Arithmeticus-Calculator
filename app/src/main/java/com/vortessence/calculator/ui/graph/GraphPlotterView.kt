@@ -56,6 +56,8 @@ import com.vortessence.calculator.core.math.PlotPoint
 import com.vortessence.calculator.core.math.PlotSegment
 import com.vortessence.calculator.core.math.solvers.Function1D
 import com.vortessence.calculator.core.math.solvers.ImplicitCurve
+import com.vortessence.calculator.core.math.solvers.InequalityPlot
+import com.vortessence.calculator.core.math.type.isInequality
 import com.vortessence.calculator.core.math.solvers.PlotCurve
 import com.vortessence.calculator.core.math.solvers.Surface3D
 import com.vortessence.calculator.core.math.type.MathOp
@@ -182,8 +184,11 @@ fun GraphPlotterView(
 
     // A function y = f(x) supports all tools; an implicit curve like x² + y² = 1 has no
     // integral and its cursor moves freely along the curve instead of left to right
-    val function = curve as? Function1D
-    val implicit = curve as? ImplicitCurve
+    // An inequality is shaded; its boundary (if it has one) is what the tools work on
+    val region = curve as? InequalityPlot
+    val base: PlotCurve? = if (region != null) region.primary else curve
+    val function = base as? Function1D
+    val implicit = base as? ImplicitCurve
 
     var scaleX by remember { mutableFloatStateOf(DEFAULT_SCALE) } // pixels per unit
     var scaleY by remember { mutableFloatStateOf(DEFAULT_SCALE) }
@@ -212,6 +217,8 @@ fun GraphPlotterView(
     var area by remember(function) { mutableStateOf<Double?>(null) }
     // Implicit curves are drawn from line segments computed in the background
     var segments by remember(curve) { mutableStateOf(emptyList<PlotSegment>()) }
+    // The cells where an inequality holds, over the visible area plus a margin
+    var shade by remember(curve) { mutableStateOf<ShadeGrid?>(null) }
     // Polar curves: Cartesian points of one full turn, independent of the viewport; NaN marks gaps
     var polarPoints by remember(function) { mutableStateOf(emptyList<PlotPoint>()) }
 
@@ -247,6 +254,7 @@ fun GraphPlotterView(
     val touchRadiusPx = with(density) { 28.dp.toPx() }
     val snapRadiusPx = with(density) { 14.dp.toPx() }
     val contourCellPx = with(density) { 4.dp.toPx() }
+    val shadeCellPx = with(density) { 2.5.dp.toPx() }
 
     // Implicit curves: segments for the visible area plus a margin, so that short pans do not
     // reveal gaps before the recomputation after the gesture settles
@@ -269,6 +277,18 @@ fun GraphPlotterView(
             logX = logX,
             logY = logY
         )
+    }
+
+    LaunchedEffect(region, visibleMinX, visibleMaxX, visibleMinY, visibleMaxY, logX, logY) {
+        if (region == null || canvasSize.width == 0 || logX || logY) {
+            shade = null
+            return@LaunchedEffect
+        }
+        if (shade != null) delay(100)
+        val (minX, maxX, minY, maxY) = rangeWithMargin()
+        val cols = (canvasSize.width * 1.5f / shadeCellPx).toInt().coerceIn(10, 700)
+        val rows = if (region.twoVariables) (canvasSize.height * 1.5f / shadeCellPx).toInt().coerceIn(10, 700) else 1
+        shade = withContext(Dispatchers.Default) { ShadeGrid(minX, maxX, minY, maxY, cols, rows, region.shade(minX, maxX, minY, maxY, cols, rows)) }
     }
 
     LaunchedEffect(implicit, segments, tool == GraphTool.TRACE) {
@@ -523,7 +543,7 @@ fun GraphPlotterView(
                     .pointerInput(curve) {
                         awaitEachGesture {
                             val down = awaitFirstDown(requireUnconsumed = false)
-                            val handle = if (curve != null) handleAt(down.position) else null
+                            val handle = if (base != null) handleAt(down.position) else null
                             if (handle != null) {
                                 // Dragging a handle follows the first finger only
                                 moveHandle(handle, down.position)
@@ -554,7 +574,7 @@ fun GraphPlotterView(
                                     event.changes.forEach { it.consume() }
                                 }
                             }
-                            if (!isTransforming && curve != null) onTap(down.position)
+                            if (!isTransforming && base != null) onTap(down.position)
                         }
                     }
             ) {
@@ -569,11 +589,13 @@ fun GraphPlotterView(
                     drawGrid(vp, gridColor, axisColor, labelColor, textMeasurer)
                 }
 
+                shade?.let { drawShade(it, vp, region?.twoVariables == true, curveColor.copy(alpha = 0.18f)) }
+
                 if (function != null && !polar) {
                     if (tool == GraphTool.INTEGRAL) {
                         drawIntegralArea(function, vp, lowerBound, upperBound, curveColor, AccentRed)
                     }
-                    drawCurve(function::evaluateAt, vp, curveColor)
+                    drawCurve(function::evaluateAt, vp, curveColor, dashed = region?.strict == true)
 
                     when (tool) {
                         GraphTool.TRACE -> {
@@ -620,7 +642,7 @@ fun GraphPlotterView(
                 )
             }
 
-            if (curve != null && tool != null && canvasSize.width > 0) {
+            if (base != null && tool != null && canvasSize.width > 0) {
                 // The implicit cursor needs a curve to sit on; before that only a hint is shown
                 val point = if (implicit != null) cursorPoint else PlotPoint(cursorX, function!!.evaluateAt(cursorX))
                 val slope = when {
@@ -650,7 +672,7 @@ fun GraphPlotterView(
                     tool = entry,
                     selected = tool == entry,
                     // The area under a curve is only defined for functions; polar mode has no tools
-                    enabled = !polar && if (entry == GraphTool.INTEGRAL) function != null else curve != null,
+                    enabled = !polar && if (entry == GraphTool.INTEGRAL) function != null else base != null,
                     onClick = { selectTool(entry) },
                     modifier = Modifier.weight(1f)
                 )
@@ -726,7 +748,7 @@ private fun GraphHeader(
         ) {
             // A plain f(x) is shown as y = f(x), rendered like a typed-in y = so both look the same
             val displayed = remember(expression, variable) {
-                val isEquation = expression.nodes.any { it is OperatorNode && it.op == MathOp.EQUALS }
+                val isEquation = expression.nodes.any { (it is OperatorNode && (it.op == MathOp.EQUALS || it.op.isInequality)) || it is com.vortessence.calculator.core.math.type.LineBreakNode }
                 if (isEquation) expression
                 else MathString(listOf(VariableNode(variable), OperatorNode(MathOp.EQUALS)) + expression.nodes)
             }
@@ -1021,6 +1043,29 @@ private fun DrawScope.drawTangentLine(vp: Viewport, point: PlotPoint, slope: Dou
     drawLine(color = color, start = center - step, end = center + step, strokeWidth = 2.dp.toPx())
 }
 
+/** The cells of a grid over a range (row by row from the top) where an inequality holds. */
+private class ShadeGrid(val minX: Double, val maxX: Double, val minY: Double, val maxY: Double, val cols: Int, val rows: Int, val cells: BooleanArray)
+
+/** The cells that hold, each run of them in a row as one rectangle; in one variable the full height. */
+private fun DrawScope.drawShade(grid: ShadeGrid, vp: Viewport, twoVariables: Boolean, color: Color) {
+    val dx = (grid.maxX - grid.minX) / grid.cols
+    val dy = (grid.maxY - grid.minY) / grid.rows
+    for (r in 0 until grid.rows) {
+        val top = if (twoVariables) vp.toScreenY(grid.maxY - r * dy) else 0f
+        val bottom = if (twoVariables) vp.toScreenY(grid.maxY - (r + 1) * dy) else size.height
+        var c = 0
+        while (c < grid.cols) {
+            if (!grid.cells[r * grid.cols + c]) { c++; continue }
+            val start = c
+            while (c < grid.cols && grid.cells[r * grid.cols + c]) c++
+            val left = vp.toScreenX(grid.minX + start * dx)
+            val right = vp.toScreenX(grid.minX + c * dx)
+            // A little over, so that neighbouring rectangles leave no seams
+            drawRect(color, topLeft = Offset(left, top), size = Size(right - left + 0.5f, bottom - top + 0.5f))
+        }
+    }
+}
+
 /** An implicit curve from its segments, as one path. */
 private fun DrawScope.drawSegments(segments: List<PlotSegment>, vp: Viewport, color: Color) {
     val path = Path()
@@ -1100,7 +1145,7 @@ private fun DrawScope.drawIntegralArea(
  * a log axis cannot show) and at discontinuities such as the poles of tan(x), which would
  * otherwise be drawn as vertical lines.
  */
-private fun DrawScope.drawCurve(evaluate: (Double) -> Double, vp: Viewport, color: Color, strokeWidth: Float = 3.5f) {
+private fun DrawScope.drawCurve(evaluate: (Double) -> Double, vp: Viewport, color: Color, strokeWidth: Float = 3.5f, dashed: Boolean = false) {
     val width = size.width
     val height = size.height
     val path = Path()
@@ -1131,7 +1176,7 @@ private fun DrawScope.drawCurve(evaluate: (Double) -> Double, vp: Viewport, colo
         }
         px += stepPx
     }
-    drawPath(path = path, color = color, style = Stroke(width = strokeWidth))
+    drawPath(path = path, color = color, style = Stroke(width = strokeWidth, pathEffect = if (dashed) PathEffect.dashPathEffect(floatArrayOf(22f, 14f)) else null))
 }
 
 /**

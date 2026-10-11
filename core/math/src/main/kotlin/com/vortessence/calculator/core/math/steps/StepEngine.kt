@@ -201,8 +201,8 @@ internal fun normalize(e: Expression): Expression = when (e) {
     }
     // Alternatives inside alternatives (a factor with two solutions among others) are one list
     is Alternatives -> Alternatives(
-        e.equations.map { normalize(it) }.flatMap { if (it is Alternatives) it.equations else listOf(it) },
-        e.inline
+        e.equations.map { normalize(it) }.flatMap { if (it is Alternatives && !it.group) it.equations else listOf(it) },
+        e.inline, e.separator, e.group
     )
     else -> if (e.children.isEmpty()) e else e.copyWithChildren(e.children.map { normalize(it) })
 }

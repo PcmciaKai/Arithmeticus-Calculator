@@ -110,6 +110,20 @@
     <string name="step_square_both_sides">Square both sides</string>
     <string name="step_trig_general_solution">The function repeats: add whole periods, 2π for sine and cosine, π for tangent</string>
     <string name="step_divide_by_highest_power">Divide numerator and denominator by the highest power of the denominator</string>
+    <string name="step_trig_inequality_isolate">Get the sine, cosine or tangent on its own</string>
+    <string name="step_trig_inequality_period">Inside one period the solution is a single interval, found from the inverse function; every period gives the same one again, 2kπ later (kπ for the tangent)</string>
+    <string name="step_trig_inequality_solve_x">Now the inside is x: subtract and divide on every part</string>
+    <string name="step_trig_inequality_bounded">Sine and cosine are always between −1 and 1</string>
+    <string name="step_absolute_value_split">The inside of |…| is positive or negative: |g| is g where g ≥ 0 and −g where g &lt; 0. Each case is an equation of its own</string>
+    <string name="step_absolute_value_case">Solve this case: its solutions only count where its condition holds</string>
+    <string name="step_inequality_system_each">Each inequality is solved on its own first</string>
+    <string name="step_inequality_system_intersect">All of them have to hold: only the values that are in every solution are left</string>
+    <string name="step_log_sum">Logarithms to the same base: a sum is the logarithm of the product, a difference the logarithm of the quotient, and n·log a is log(aⁿ)</string>
+    <string name="step_log_quotient">ln a / ln b is the logarithm of a to the base b (change of base)</string>
+    <string name="step_limit_conjugate">√a − b is ∞ − ∞ here: multiplying by the conjugate (the same with the other sign) turns it into a quotient</string>
+    <string name="step_limit_difference_of_squares">(a + b)(a − b) = a² − b²: the roots disappear from the numerator</string>
+    <string name="step_limit_exponent_infinite">If the exponent goes to ∞, eᵍ goes to ∞; if it goes to −∞, eᵍ goes to 0</string>
+    <string name="step_limit_absolute_value">Close to the point on this side the inside of |…| keeps its sign, so |g| = g (positive) or −g (negative)</string>
     <string name="step_limit_vanish">Terms that go to 0 vanish (a variable in a denominator, e^(−x)), and arctan of a growing number is ±π/2</string>
     <string name="step_limit_constant">The limit of a constant is the constant</string>
     <string name="step_limit_grows">The highest power grows without bound</string>

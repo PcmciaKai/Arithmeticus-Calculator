@@ -71,6 +71,9 @@ class Multiplications(val operands: List<Expression>) : Expression() {
         if (flattened.isEmpty()) return Value.ONE
         if (flattened.size == 1) return flattened[0]
 
+        // ln 8/ln 2 = 3
+        LogarithmRules.quotient(flattened)?.let { return Multiplications(it).canonicalize(context) }
+
         // Merge Value constants
         var valueProduct = Value.ONE
         val nonValueTerms = mutableListOf<Expression>()

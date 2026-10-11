@@ -78,6 +78,9 @@ class Additions(val operands: List<Expression>) : Expression() {
             used[i] = true
         }
 
+        // ln 6 − ln 2 = ln 3, log 25 + log 4 = 2
+        LogarithmRules.combine(merged, context)?.let { return Additions(it).canonicalize(context) }
+
         // sin²u + cos²u = 1 (also times the same factors)
         var pythagorean = false
         outer@ while (true) {

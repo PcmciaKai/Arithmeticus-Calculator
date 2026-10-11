@@ -6,6 +6,7 @@ import com.vortessence.calculator.core.math.expressions.Additions
 import com.vortessence.calculator.core.math.expressions.Expression
 import com.vortessence.calculator.core.math.expressions.ImaginaryUnit
 import com.vortessence.calculator.core.math.expressions.Logarithm
+import com.vortessence.calculator.core.math.expressions.LogarithmRules
 import com.vortessence.calculator.core.math.expressions.MixedNumber
 import com.vortessence.calculator.core.math.expressions.Percent
 import com.vortessence.calculator.core.math.expressions.Multiplications
@@ -63,6 +64,8 @@ internal object SimplificationSteps {
             ?: sums.firstNotNullOfOrNull { subtractSameSum(it, context) }
             ?: sums.firstNotNullOfOrNull { pythagoreanIdentity(it, context) }
             ?: sums.firstNotNullOfOrNull { combineLikeTerms(it, context) }
+            ?: sums.firstNotNullOfOrNull { logarithmSum(it, context) }
+            ?: products.firstNotNullOfOrNull { logarithmQuotient(it) }
             ?: sums.firstNotNullOfOrNull { addNumbers(it, context) }
             ?: sums.firstNotNullOfOrNull { combineFractions(it, context) }
             ?: products.firstNotNullOfOrNull { distribute(it, context, keeps) }
@@ -661,6 +664,42 @@ internal object SimplificationSteps {
         val exponent = ((power as? Power)?.exponent as? Value)?.rational
         val rule = if (exponent != null && exponent.isFractional) StepRule.POWER_AS_ROOT else StepRule.POWER_AS_FRACTION
         return Match(rule, mapOf(path to power), LiteralPower(power), power)
+    }
+
+    /** log 25 + log 4 = log(25·4), ln 6 − ln 2 = ln(6/2), 3 ln 2 − ln 4 = ln(2³/4): the same base, numbers inside, written as one logarithm. */
+    private fun logarithmSum(terms: List<Part>, context: MathContext): Match? {
+        val parsed = terms.map { LogarithmRules.term(it.expression) }
+        val base = parsed.filterNotNull().map { it.base }.firstOrNull { b -> parsed.count { it?.base == b } >= 2 } ?: return null
+        val parts = terms.filterIndexed { i, _ -> parsed[i]?.base == base }
+        val own = parsed.filter { it?.base == base }.map { it!! }
+        // Only what the calculator combines as well, with whole coefficients
+        if (own.any { it.coefficient.isFractional }) return null
+        if (LogarithmRules.combine(parts.map { it.expression }, context) == null) return null
+        val factors = own.map { t ->
+            val exponent = t.coefficient
+            if (exponent == Rational.ONE) Value(t.argument) as Expression else Power(Value(t.argument), Value(exponent))
+        }
+        val combined = Logarithm(base, if (factors.size == 1) factors.single() else Multiplications(factors))
+        return merge(StepRule.LOG_SUM, parts, Additions(parts.map { it.expression }), combined, Value.ZERO)
+    }
+
+    /** ln 8/ln 2 = log₂(8): a logarithm over another of the same base whose argument is a power of the other's. */
+    private fun logarithmQuotient(factors: List<Part>): Match? {
+        for (top in factors) {
+            val a = LogarithmRules.term(top.expression)?.takeIf { it.coefficient == Rational.ONE } ?: continue
+            for (bottom in factors) {
+                val power = bottom.expression as? Power ?: continue
+                if (power.exponent != Value.MINUS_ONE) continue
+                val b = LogarithmRules.term(power.base)?.takeIf { it.coefficient == Rational.ONE && it.base == a.base } ?: continue
+                if (LogarithmRules.quotient(listOf(top.expression, power)) == null) continue
+                val result = Logarithm(Value(b.argument), Value(a.argument))
+                return Match(
+                    StepRule.LOG_QUOTIENT, mapOf(top.path to result), Multiplications(top.expression, power), result,
+                    removals = mapOf(bottom.path to Value.ONE)
+                )
+            }
+        }
+        return null
     }
 
     /** 2 + 3 = 5 */

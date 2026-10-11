@@ -1,6 +1,7 @@
 package com.vortessence.calculator.core.math.steps
 
 import com.vortessence.calculator.core.math.context.MathContext
+import com.vortessence.calculator.core.math.expressions.AbsoluteValue
 import com.vortessence.calculator.core.math.expressions.Additions
 import com.vortessence.calculator.core.math.expressions.Constant
 import com.vortessence.calculator.core.math.expressions.Derivative
@@ -173,6 +174,8 @@ internal object LimitSteps {
 
     /** The limit for x → [point], a number: substituted, or after cancelling and l'Hôpital's rule. */
     private fun finitePoint(solution: Solver, v: Variable, point: Expression, target: Expression, expected: Double, context: MathContext, side: Int = 0): ExpressionSolution? {
+        // |x|/x for x → 0⁺: |x| is x there
+        absoluteValues(solution, v, point, side)
         repeat(MAX_LHOPITAL + 1) { round ->
             if (context.shouldStop || solution.size > MAX_STEPS) return null
             // A common factor of numerator and denominator is cancelled first: (x² − 4)/(x − 2) = x + 2
@@ -192,6 +195,8 @@ internal object LimitSteps {
                 if (!solution.simplifyToward(target, MAX_STEPS)) return null
                 return solution.finish(target)
             }
+            // e^(1/x) for x → 0⁺: the exponent goes to ∞
+            exponentToInfinity(solution, body, v, point, expected, side)?.let { return solution.finish(target) }
             // 1/x at 0: the denominator goes to 0, the numerator does not
             infiniteValue(solution, body, v, point, expected, side, context)?.let { return solution.finish(target) }
             if (round == MAX_LHOPITAL) return null
@@ -217,6 +222,8 @@ internal object LimitSteps {
                 solution.apply(Match(StepRule.LIMIT_CONSTANT, mapOf(root to body), solution.current, body, showChange = false))
                 return solution.finish(target)
             }
+            // √(x² + x) − x: multiplied by the conjugate
+            conjugateParts(body, v, positive, context)?.let { return conjugate(solution, it, v, positive, target, expected, context) }
             // A sum with terms that have a limit of their own, e^(−t) → 0 in 1 − e^(−t), atan(t) → π/2: those are replaced by it
             if (body is Additions && body.operands.any { it.containsVariable(v) }) {
                 fun known(term: Expression): Expression? {
@@ -324,6 +331,164 @@ internal object LimitSteps {
             return null
         }
         return null
+    }
+
+    // ----- |g| next to the point, e^g with g → ±∞ -----
+
+    /**
+     * |g| where g is 0 at the point and has one sign next to it on the side of the limit: g or −g (|x|/x for x → 0⁺ is x/x).
+     */
+    private fun absoluteValues(solution: Solver, v: Variable, point: Expression, side: Int) {
+        if (side == 0) return
+        val body = normalize(unmarked(at(solution.current, listOf(0))))
+        val all = pathsOf(body) { it is AbsoluteValue && it.operand.containsVariable(v) }
+        // Only the outermost: the paths of the inner ones change with the outer replaced
+        val paths = all.filter { path -> all.none { other -> other.size < path.size && path.subList(0, other.size) == other } }
+        if (paths.isEmpty()) return
+        val replacements = linkedMapOf<Path, Expression>()
+        var positive: Boolean? = null
+        var shown: Expression? = null
+        var after = body
+        for (path in paths) {
+            val operand = (at(body, path) as AbsoluteValue).operand
+            val near = nearPoint(operand, v, point, side)
+            if (near == 0.0 || near.isNaN()) return
+            replacements[listOf(0) + path] = Marked(if (near > 0) operand else operand.negate(), PENDING_COLOR, boxed = true, keep = true)
+            if (shown == null) { shown = operand; positive = near > 0 }
+        }
+        after = body.transform { e -> if (e is AbsoluteValue && e.operand.containsVariable(v)) (if (nearPoint(e.operand, v, point, side) > 0) e.operand else e.operand.negate()) else e }
+        val text = "${writtenForm(shown!!)} is ${if (positive == true) "positive" else "negative"} for ${v.identifier} → ${writtenForm(point)}${if (side > 0) "⁺" else "⁻"}"
+        solution.apply(Match(StepRule.LIMIT_ABSOLUTE_VALUE, replacements, body, after, notes = listOf(Note(TextExpression(text), TextExpression(""), relation = "")), showChange = false, boxReplacements = false))
+    }
+
+    /** a^g (a a constant above 0, not 1) where g goes to ±∞ next to the point: ∞ or 0. */
+    private fun exponentToInfinity(solution: Solver, body: Expression, v: Variable, point: Expression, expected: Double, side: Int): Boolean? {
+        val power = body as? Power ?: return null
+        if (power.base.containsVariable(v) || !power.exponent.containsVariable(v)) return null
+        val base = power.base.evaluateNumerically()
+        if (!(base > 0) || base == 1.0 || !base.isFinite()) return null
+        val sides = if (side == 0) listOf(1, -1) else listOf(side)
+        val signs = sides.map { s ->
+            val near = nearPoint(power.exponent, v, point, s)
+            val nearer = power.exponent.evaluateNumerically(mapOf(v to point.evaluateNumerically() + s * 1e-9))
+            if (abs(near) > 1e3 && abs(nearer) > abs(near) && (near > 0) == (nearer > 0)) Math.signum(near) else return null
+        }
+        if (signs.distinct().size != 1) return null
+        val grows = (signs.first() > 0) == (base > 1)
+        val result = if (grows) Value(Double.POSITIVE_INFINITY) else Value.ZERO
+        if ((result.real.isInfinite && !expected.isInfinite()) || (!result.real.isInfinite && abs(expected) > 1e-12)) return null
+        val goes = if (signs.first() > 0) "∞" else "−∞"
+        val where = "${v.identifier} → ${writtenForm(point)}${if (side > 0) "⁺" else if (side < 0) "⁻" else ""}"
+        val note = Note(power.exponent, TextExpression("$goes  as  $where"), relation = "→")
+        solution.apply(Match(StepRule.LIMIT_EXPONENT_INFINITE, mapOf(emptyList<Int>() to result), solution.current, result, notes = listOf(note), showChange = false))
+        return true
+    }
+
+    // ----- √a − b at ±∞ -----
+
+    /** A term of the sum: its sign (1 or −1) and what is left. */
+    private class Term(val sign: Int, val core: Expression, val original: Expression)
+
+    private class ConjugateParts(val first: Term, val second: Term, val degree: Int)
+
+    private fun term(e: Expression): Term {
+        val product = e as? Multiplications
+        return if (product != null && product.operands.size == 2 && product.operands[0] == Value.MINUS_ONE) Term(-1, product.operands[1], e) else Term(1, e, e)
+    }
+
+    private fun radicand(e: Expression): Expression? = (e as? Power)?.takeIf { (it.exponent as? Value)?.rational == com.vortessence.calculator.core.math.numbers.Rational.of(1L, 2L) }?.base
+
+    /** The two terms if the sum is √a ± b or √a ± √c with polynomials of the degrees 2k and k (or 2k and 2k), as at x → ±∞ they are ∞ − ∞. */
+    private fun conjugateParts(body: Expression, v: Variable, positive: Boolean, context: MathContext): ConjugateParts? {
+        val sum = body as? Additions ?: return null
+        if (sum.operands.size != 2) return null
+        val terms = sum.operands.map { term(it) }
+        if (terms.none { radicand(it.core) != null }) return null
+        var k = -1
+        for (t in terms) {
+            val inside = radicand(t.core)
+            val polynomial = PartialFractions.polynomial(inside ?: t.core, v, context) ?: return null
+            val degree = polynomial.size - 1
+            if (inside != null) {
+                if (degree < 2 || degree % 2 != 0) return null
+                if (k == -1) k = degree / 2 else if (k != degree / 2) return null
+            } else if (degree < 1) return null
+        }
+        // The polynomial term has the degree k as well
+        for (t in terms) {
+            if (radicand(t.core) == null && (PartialFractions.polynomial(t.core, v, context)!!.size - 1) != k) return null
+        }
+        return if (k >= 1) ConjugateParts(terms[0], terms[1], k) else null
+    }
+
+    private fun conjugate(
+        solution: Solver, parts: ConjugateParts, v: Variable, positive: Boolean, target: Expression, expected: Double, context: MathContext
+    ): ExpressionSolution? {
+        val body = normalize(unmarked(at(solution.current, listOf(0))))
+        val t1 = parts.first.original
+        val t2 = parts.second.original
+        val conjugate = Additions(t1, t2.negate())
+        // (t₁ + t₂)(t₁ − t₂)/(t₁ − t₂)
+        val product = Multiplications(Additions(t1, t2), conjugate)
+        val multiplied = LiteralFraction(product, conjugate)
+        solution.apply(Match(StepRule.LIMIT_CONJUGATE, mapOf(listOf(0) to multiplied), body, multiplied, showChange = false, boxReplacements = false))
+        // a² − b²: the numerator
+        // (the signs do not matter in a square: x², not (−x)²)
+        val squares = Additions(Power(parts.first.core, Value.TWO), Power(parts.second.core, Value.TWO).negate())
+        val numeratorPath = listOf(0, 0)
+        solution.apply(Match(StepRule.LIMIT_DIFFERENCE_OF_SQUARES, mapOf(numeratorPath to squares), product, squares, showChange = false, boxReplacements = false))
+        val scratch = context.copy()
+        val numerator = squares.canonicalize(scratch)
+        if (scratch.shouldStop) return null
+        while (true) {
+            if (context.shouldStop || solution.size > MAX_STEPS) return null
+            val match = SimplificationSteps.match(at(solution.current, numeratorPath), numerator, context) ?: break
+            solution.apply(EquationSteps.prefixed(match, numeratorPath))
+        }
+        if (writtenForm(at(solution.current, numeratorPath)) != writtenForm(numerator)) {
+            solution.apply(Match(StepRule.SIMPLIFY, mapOf(numeratorPath to numerator), normalize(unmarked(at(solution.current, numeratorPath))), numerator))
+        }
+        // Divided by the highest power x^k, the terms with x in a denominator vanish
+        val k = parts.degree
+        val n = PartialFractions.polynomial(numerator, v, context) ?: return null
+        if (n.size - 1 > k) return null
+        // √a/xᵏ is √(a/x²ᵏ) for x > 0 and −√(a/x²ᵏ) for x < 0 with k odd
+        val rootSign = if (!positive && k % 2 == 1) -1L else 1L
+        fun divide(t: Term): Expression {
+            val inside = radicand(t.core)
+            val divided = if (inside != null) {
+                val p = PartialFractions.polynomial(inside, v, context) ?: return Value.ZERO
+                val root = Power(dividedBy(p, 2 * k, v), Value.HALF)
+                if (rootSign < 0) Multiplications(Value.MINUS_ONE, root) else root
+            } else dividedBy(PartialFractions.polynomial(t.core, v, context) ?: return Value.ZERO, k, v)
+            return if (t.sign < 0) Multiplications(Value.MINUS_ONE, divided) else divided
+        }
+        // The terms of the denominator t₁ − t₂: t₁ and −t₂
+        val d1 = divide(parts.first)
+        val d2 = divide(Term(-parts.second.sign, parts.second.core, parts.second.original))
+        val denominator = Additions(d1, d2)
+        val divided = LiteralFraction(dividedBy(n, k, v), denominator)
+        val before = normalize(unmarked(at(solution.current, listOf(0))))
+        solution.apply(Match(StepRule.DIVIDE_BY_HIGHEST_POWER, mapOf(listOf(0) to divided), before, divided, showChange = false, boxReplacements = false))
+        val vanishing = pathsOf(at(solution.current, listOf(0))) { isVanishing(it, v) }
+            .let { all -> all.filter { path -> all.none { other -> other.size < path.size && path.subList(0, other.size) == other } } }
+            .map { listOf(0) + it }
+        if (vanishing.isEmpty()) return null
+        val zeroed = divided.transform { if (isVanishing(it, v)) Value.ZERO else it }
+        solution.apply(
+            Match(
+                StepRule.LIMIT_VANISH,
+                vanishing.associateWith { Marked(Value.ZERO, PENDING_COLOR, boxed = true, keep = true) },
+                divided, zeroed, showChange = false, boxReplacements = false
+            )
+        )
+        while (true) {
+            if (context.shouldStop || solution.size > MAX_STEPS) return null
+            solution.apply(EquationSteps.prefixed(SimplificationSteps.match(at(solution.current, listOf(0)), Value.ZERO, context) ?: break, listOf(0)))
+        }
+        val last = normalize(unmarked(at(solution.current, listOf(0)))).evaluateNumerically()
+        if (abs(last - expected) > 1e-7 * max(1.0, abs(expected))) return null
+        return solution.finish(target)
     }
 
     /** The polynomial [p] (constant term first) with every term divided by x^[degree]: c₂ + c₁·x⁻¹ + c₀·x⁻². */

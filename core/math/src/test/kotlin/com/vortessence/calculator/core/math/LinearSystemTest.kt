@@ -98,8 +98,9 @@ class LinearSystemTest {
     }
 
     @Test
-    fun nonLinearSystemsAreNotSolved() {
-        assertIssue("x*y=2\nx+y=3", MathIssue.CANT_SOLVE_GENERIC)
+    fun systemsWithoutAnEquationLinearInAVariableAreNotSolved() {
+        // (xy = 2 with x + y = 3 is solved by substitution, see NonlinearSystemTest)
+        assertIssue("x*x+y*y=25\nx*x-y*y=7", MathIssue.CANT_SOLVE_GENERIC)
     }
 
     @Test

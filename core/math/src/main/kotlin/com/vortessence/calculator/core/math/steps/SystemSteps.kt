@@ -36,6 +36,8 @@ internal object SystemSteps {
     private val PREFERRED_VARIABLES = listOf(Variable("x"), Variable("y"), Variable("z"))
 
     fun steps(system: EquationSystem, context: MathContext): ExpressionSolution? {
+        // x > 1 and x < 5: each solved, then what they have in common
+        if (system.lines.isNotEmpty() && system.lines.all { it is com.vortessence.calculator.core.math.expressions.Inequality }) return InequalitySystemSteps.steps(system, context)
         val equations = system.lines.map { it as? Equals ?: return null }
         if (system.containsExpressionMatching {
                 it is MatrixExpression || it is UnitExpression || it is Derivative || it is Antiderivative || it is Integral
@@ -51,6 +53,8 @@ internal object SystemSteps {
             if (calculated == null && scratch.issues.singleOrNull() == MathIssue.CONTRADICTION) return Run(equations, variables, context).solveSingular(null)
             if (calculated != null && scratch.issues.isEmpty() && calculated.size == 1) return Run(equations, variables, context).solveSingular(calculated)
         }
+        // x² + y² = 25 with x + y = 7: by substitution, solving an equation of one variable
+        if (calculated == null && scratch.issues.contains(MathIssue.CANT_SOLVE_GENERIC)) return NonlinearSystemSteps.steps(equations, variables, context)
         if (calculated == null || scratch.shouldStop || scratch.issues.isNotEmpty() || calculated.keys != variables.toSet()) return null
 
         val run = Run(equations, variables, context)

@@ -8,17 +8,23 @@ import com.vortessence.calculator.core.math.expressions.Variable
  * Equations that hold one or the other, e.g. x + 1 = 2 or x + 1 = −2 after taking the square
  * root: one per line, or with [inline] separated by commas ("x = 1, x = −3", as results are).
  */
-internal class Alternatives(val equations: List<Expression>, val inline: Boolean = false, val separator: String = ", ") : Expression() {
+internal class Alternatives(
+    val equations: List<Expression>,
+    val inline: Boolean = false,
+    val separator: String = ", ",
+    /** One solution of several equations (x = 3, y = 4) among others: not merged into the list around it. */
+    val group: Boolean = false
+) : Expression() {
 
     override val children: List<Expression> get() = equations
 
-    override fun copyWithChildren(children: List<Expression>): Expression = Alternatives(children, inline, separator)
+    override fun copyWithChildren(children: List<Expression>): Expression = Alternatives(children, inline, separator, group)
 
-    override fun canonicalize(context: MathContext): Expression = Alternatives(equations.map { it.canonicalize(context) }, inline, separator)
+    override fun canonicalize(context: MathContext): Expression = Alternatives(equations.map { it.canonicalize(context) }, inline, separator, group)
 
     override fun evaluateNumerically(bindings: Map<Variable, Double>): Double = Double.NaN
 
-    override fun equals(other: Any?): Boolean = other is Alternatives && equations == other.equations && inline == other.inline && separator == other.separator
+    override fun equals(other: Any?): Boolean = other is Alternatives && equations == other.equations && inline == other.inline && separator == other.separator && group == other.group
 
     override fun hashCode(): Int = equations.hashCode() * 31 + inline.hashCode()
 

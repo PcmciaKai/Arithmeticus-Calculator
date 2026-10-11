@@ -70,7 +70,7 @@ class InequalityStepsTest {
         assertEquals("x ∈ ℝ", clean(solution("x^2 + 1 > 0")!!.result.toString()))
         // Nothing to solve for, or not of this kind: no steps
         assertNull(solution("3 < 5"))
-        assertNull(solution("sin(x) > 0"))
+        assertNull(solution("sin(x) > cos(x)"))
         assertNull(solution("x + y > 1"))
     }
 

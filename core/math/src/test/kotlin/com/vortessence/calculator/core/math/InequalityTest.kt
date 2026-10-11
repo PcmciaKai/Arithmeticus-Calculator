@@ -74,9 +74,9 @@ class InequalityTest {
 
     @Test
     fun whatIsNotAnInequalityOfThisKind() {
-        // Two variables, a periodic function, two relations in a row
+        // Two variables, two periodic functions (sin(x) > 0 alone has a solution in every period, see TrigInequalityTest), two relations in a row
         assertFalse(calc("x + y > 1").isSuccess)
-        assertFalse(calc("sin(x) > 0").isSuccess)
+        assertFalse(calc("sin(x) > cos(x)").isSuccess)
         assertFalse(calc("1 < x < 3").isSuccess)
     }
 }

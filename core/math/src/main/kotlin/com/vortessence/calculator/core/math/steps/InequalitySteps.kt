@@ -6,6 +6,8 @@ import com.vortessence.calculator.core.math.expressions.Between
 import com.vortessence.calculator.core.math.expressions.Equals
 import com.vortessence.calculator.core.math.expressions.Expression
 import com.vortessence.calculator.core.math.expressions.Inequality
+import com.vortessence.calculator.core.math.expressions.TrigInequality
+import com.vortessence.calculator.core.math.expressions.TrigInequalitySolver
 import com.vortessence.calculator.core.math.expressions.InequalityAnalysis
 import com.vortessence.calculator.core.math.expressions.InequalitySolver
 import com.vortessence.calculator.core.math.expressions.Multiplications
@@ -34,8 +36,31 @@ internal object InequalitySteps {
     fun steps(inequality: Inequality, given: MathContext): ExpressionSolution? {
         // An inequality is about real numbers: also with complex numbers on, x² = −4 has no zero here
         val context = given.copy().also { it.complexNumbers = false }
-        val analysis = InequalitySolver.analyze(inequality, context.copy()) ?: return null
+        val analysis = InequalitySolver.analyze(inequality, context.copy()) ?: return trigonometric(inequality, context)
         return linear(inequality, analysis, context) ?: signAnalysis(inequality, analysis, context)
+    }
+
+    // ----- sin(x) > 1/2: one period, then every period -----
+
+    private fun trigonometric(inequality: Inequality, context: MathContext): ExpressionSolution? {
+        val trig = TrigInequalitySolver.solve(inequality, context.copy()) ?: return null
+        if (trig.kind == TrigInequality.Kind.NONE) return null
+        val lines = mutableListOf<ExpressionStep>(ExpressionStep(normalize(inequality), null))
+        // sin(u) > c: what is around the function moved away
+        val isolated = Inequality(trig.function, trig.constant, trig.relation)
+        if (!trig.typedIsolated) lines.add(ExpressionStep(isolated, StepRule.TRIG_INEQUALITY_ISOLATE))
+        if (trig.kind == TrigInequality.Kind.ALL) {
+            lines.add(ExpressionStep(trig.forX, StepRule.TRIG_INEQUALITY_BOUNDED))
+            return ExpressionSolution(lines, trig.forX)
+        }
+        val notes = buildList {
+            add(Note(trig.k, TextExpression("ℤ"), relation = "∈"))
+            if (writtenForm(trig.exact) != writtenForm(trig.inverse)) add(Note(trig.inverse, trig.exact))
+        }
+        lines.add(ExpressionStep(trig.forU, StepRule.TRIG_INEQUALITY_PERIOD, notes = notes))
+        // u = 2x + 1: solved for x
+        if (trig.inner != null) lines.add(ExpressionStep(trig.forX, StepRule.TRIG_INEQUALITY_SOLVE_X))
+        return ExpressionSolution(lines, trig.forX)
     }
 
     // ----- linear: the equation's steps -----

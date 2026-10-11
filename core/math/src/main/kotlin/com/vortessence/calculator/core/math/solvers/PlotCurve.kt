@@ -11,7 +11,8 @@ sealed interface PlotCurve {
     companion object {
         /** Builds a function if possible, otherwise a surface or an implicit curve; null if none fits. */
         fun fromExpression(expr: Expression, context: MathContext = MathContext()): PlotCurve? =
-            Function1D.fromExpression(expr, context)
+            InequalityPlot.fromExpression(expr, context)
+                ?: Function1D.fromExpression(expr, context)
                 ?: Surface3D.fromExpression(expr, context)
                 ?: ImplicitCurve.fromExpression(expr, context)
 

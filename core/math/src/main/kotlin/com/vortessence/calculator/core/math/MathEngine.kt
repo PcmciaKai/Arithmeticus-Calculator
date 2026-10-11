@@ -23,6 +23,9 @@ import com.vortessence.calculator.core.math.expressions.EigenSystem
 import com.vortessence.calculator.core.math.expressions.MatrixExpression
 import com.vortessence.calculator.core.math.expressions.Percent
 import com.vortessence.calculator.core.math.expressions.Value
+import com.vortessence.calculator.core.math.expressions.InequalitySystemSolver
+import com.vortessence.calculator.core.math.expressions.TrigInequality
+import com.vortessence.calculator.core.math.expressions.TrigInequalitySolver
 import com.vortessence.calculator.core.math.expressions.Variable
 import com.vortessence.calculator.core.math.expressions.UnitConversion
 import com.vortessence.calculator.core.math.expressions.Dimension
@@ -35,6 +38,7 @@ import com.vortessence.calculator.core.math.solvers.ImplicitPlotter
 import com.vortessence.calculator.core.math.numbers.BigInt
 import com.vortessence.calculator.core.math.numbers.Rational
 import com.vortessence.calculator.core.math.solvers.LinearSystemSolver
+import com.vortessence.calculator.core.math.solvers.NonlinearSystemSolver
 import com.vortessence.calculator.core.math.solvers.NumericIntegrator
 import com.vortessence.calculator.core.math.solvers.NumericRootFinder
 import com.vortessence.calculator.core.math.solvers.PlotCurve
@@ -46,6 +50,7 @@ import com.vortessence.calculator.core.math.steps.InequalitySteps
 import com.vortessence.calculator.core.math.steps.MatrixSteps
 import com.vortessence.calculator.core.math.steps.TextExpression
 import com.vortessence.calculator.core.math.steps.Alternatives
+import com.vortessence.calculator.core.math.steps.AbsoluteSplitSteps
 import com.vortessence.calculator.core.math.steps.Transform
 import com.vortessence.calculator.core.math.steps.Transforms
 import com.vortessence.calculator.core.math.steps.SystemSteps
@@ -274,7 +279,7 @@ object MathEngine {
                     is Limit -> LimitSteps.steps(parsed, execContext)
                     is EquationSystem -> SystemSteps.steps(parsed, execContext)
                     is Inequality -> InequalitySteps.steps(parsed, execContext)
-                    is Equals -> parsed.variables().takeIf { it.isNotEmpty() }?.let { EquationSteps.steps(parsed, pickVariable(it), execContext) }
+                    is Equals -> parsed.variables().takeIf { it.isNotEmpty() }?.let { vars -> pickVariable(vars).let { v -> EquationSteps.steps(parsed, v, execContext) ?: AbsoluteSplitSteps.steps(parsed, v, execContext) } }
                     else -> MatrixSteps.steps(parsed, execContext) ?: ExpressionSteps.steps(parsed, execContext) ?: ArithmeticSteps.steps(asTyped, execContext)
                 }
                 if (solution == null || execContext.shouldStop || execContext.issues.isNotEmpty()) return@steps null
@@ -608,6 +613,22 @@ object MathEngine {
             return truthResult(input, inequality, truth, ctx)
         }
         val analysis = InequalitySolver.analyze(inequality, ctx.copy().also { it.complexNumbers = false })
+        if (analysis == null && !ctx.shouldStop) {
+            // sin(x) > 1/2: the solution repeats in every period
+            val trig = TrigInequalitySolver.solve(inequality, ctx.copy().also { it.complexNumbers = false })
+            if (trig != null && !ctx.shouldStop) {
+                if (trig.kind == TrigInequality.Kind.NONE) return failure(input, ctx, MathIssue.NO_REAL_SOLUTION, inequality)
+                return CalculationResult(
+                    input = input,
+                    result = displayWriter(ctx).write(trig.forX),
+                    expression = inequality,
+                    numericValue = Double.NaN,
+                    issues = ctx.issues,
+                    answer = null,
+                    decimalPlaces = ctx.decimalPlaces
+                )
+            }
+        }
         if (analysis == null || ctx.shouldStop) return failure(input, ctx, MathIssue.CANT_SOLVE_GENERIC, inequality)
         if (analysis.pieces.isEmpty()) return failure(input, ctx, MathIssue.NO_REAL_SOLUTION, inequality)
         return CalculationResult(
@@ -625,7 +646,50 @@ object MathEngine {
      * A system of equations, one per line, e.g. −2x + y = −3 and 3x + 2y = 8 gives
      * "x = 2, y = 1". Only linear systems are solved.
      */
+    /** The solutions of two equations where one is linear in a variable, one per line: x = 3, y = 4. */
+    private fun evaluateNonlinearSystem(input: MathString, system: EquationSystem, equations: List<Equals>, variables: List<Variable>, ctx: MathContext): CalculationResult {
+        val solutions = NonlinearSystemSolver.solve(equations, variables, ctx)
+        if (ctx.shouldStop) return failure(input, ctx, expression = system)
+        if (solutions == null) return failure(input, ctx, MathIssue.CANT_SOLVE_GENERIC, system)
+        if (solutions.isEmpty()) return failure(input, ctx, MathIssue.NO_REAL_SOLUTION, system)
+        val display = displayWriter(ctx)
+        val result = MathString()
+        for ((i, solution) in solutions.withIndex()) {
+            if (i > 0) result.insert(result.length, LineBreakNode)
+            for ((j, v) in variables.withIndex()) {
+                if (j > 0) result.insert(result.length, TextNode(", "))
+                result.insertAll(result.length, display.write(Equals(v, solution.getValue(v).toPreferredUnits(ctx))).nodes)
+            }
+        }
+        return CalculationResult(
+            input = input,
+            result = result,
+            expression = system,
+            numericValue = Double.NaN,
+            issues = ctx.issues,
+            // (with several solutions there is no one to reuse)
+            answer = if (solutions.size == 1) answerWriter(ctx).write(solutions.single().getValue(variables[0])) else null,
+            decimalPlaces = ctx.decimalPlaces
+        )
+    }
+
     private fun evaluateSystem(input: MathString, system: EquationSystem, ctx: MathContext): CalculationResult {
+        // x > 1 and x < 5: the solutions of the inequalities have to hold together
+        if (system.lines.isNotEmpty() && system.lines.all { it is Inequality }) {
+            if (system.containsExpressionMatching { it is MatrixExpression }) return failure(input, ctx, MathIssue.MATRIX_UNSUPPORTED, system)
+            val solved = InequalitySystemSolver.solve(system.lines.map { it as Inequality }, ctx.copy().also { it.complexNumbers = false })
+            if (solved == null || ctx.shouldStop) return failure(input, ctx, MathIssue.CANT_SOLVE_GENERIC, system)
+            if (solved.pieces.isEmpty()) return failure(input, ctx, MathIssue.NO_REAL_SOLUTION, system)
+            return CalculationResult(
+                input = input,
+                result = displayWriter(ctx).write(solved.toExpression()),
+                expression = system,
+                numericValue = Double.NaN,
+                issues = ctx.issues,
+                answer = null,
+                decimalPlaces = ctx.decimalPlaces
+            )
+        }
         // A line without "=" is still being typed
         val equations = system.lines.map { it as? Equals ?: return failure(input, ctx, MathIssue.SYNTAX_ERROR, system) }
         if (system.containsExpressionMatching { it is MatrixExpression }) {
@@ -640,6 +704,11 @@ object MathEngine {
         // x, y, z first, then alphabetically, which is also the order of the solutions
         val orderedVars = PREFERRED_VARIABLES.filter { it in vars } +
             (vars - PREFERRED_VARIABLES.toSet()).sortedBy { it.identifier }
+        // Not linear (x² + y² = 25): by substitution, with several solutions
+        val probe = ctx.copy()
+        if (LinearSystemSolver.solve(equations, orderedVars, probe) == null && probe.issues.contains(MathIssue.CANT_SOLVE_GENERIC)) {
+            return evaluateNonlinearSystem(input, system, equations, orderedVars, ctx)
+        }
         val solution = LinearSystemSolver.solve(equations, orderedVars, ctx)
             ?: return failure(input, ctx, MathIssue.CANT_SOLVE_GENERIC, system)
         if (ctx.shouldStop) return failure(input, ctx, MathIssue.CANT_SOLVE_GENERIC, system)

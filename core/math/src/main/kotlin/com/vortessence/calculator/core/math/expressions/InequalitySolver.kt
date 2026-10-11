@@ -40,23 +40,25 @@ internal class InequalityAnalysis(
     val pieces: List<Interval>
 ) {
     /** The solution as a line of the steps and as the result: x < −2 or x > 2. */
-    fun toExpression(): Expression {
-        if (pieces.isEmpty()) return TextExpression("no real solution")
-        val v = variable
-        val parts = pieces.map { piece ->
-            when {
-                piece.lower == null && piece.upper == null -> TextExpression("${v.identifier} ∈ ℝ")
-                piece.lower == null -> Inequality(v, piece.upper!!, if (piece.upperClosed) Relation.LESS_EQUAL else Relation.LESS)
-                piece.upper == null -> Inequality(v, piece.lower, if (piece.lowerClosed) Relation.GREATER_EQUAL else Relation.GREATER)
-                piece.isPoint -> Equals(v, piece.lower)
-                else -> Between(
-                    piece.lower, if (piece.lowerClosed) Relation.LESS_EQUAL else Relation.LESS, v,
-                    if (piece.upperClosed) Relation.LESS_EQUAL else Relation.LESS, piece.upper
-                )
-            }
+    fun toExpression(): Expression = intervalsExpression(variable, pieces)
+}
+
+/** The intervals of a solution as a line: x < −2 or x > 2, 1 < x ≤ 3, x ∈ ℝ; "no real solution" for none. */
+internal fun intervalsExpression(v: Variable, pieces: List<Interval>): Expression {
+    if (pieces.isEmpty()) return TextExpression("no real solution")
+    val parts = pieces.map { piece ->
+        when {
+            piece.lower == null && piece.upper == null -> TextExpression("${v.identifier} ∈ ℝ")
+            piece.lower == null -> Inequality(v, piece.upper!!, if (piece.upperClosed) Relation.LESS_EQUAL else Relation.LESS)
+            piece.upper == null -> Inequality(v, piece.lower, if (piece.lowerClosed) Relation.GREATER_EQUAL else Relation.GREATER)
+            piece.isPoint -> Equals(v, piece.lower)
+            else -> Between(
+                piece.lower, if (piece.lowerClosed) Relation.LESS_EQUAL else Relation.LESS, v,
+                if (piece.upperClosed) Relation.LESS_EQUAL else Relation.LESS, piece.upper
+            )
         }
-        return if (parts.size == 1) parts.single() else Alternatives(parts, inline = true, separator = " or ")
     }
+    return if (parts.size == 1) parts.single() else Alternatives(parts, inline = true, separator = " or ")
 }
 
 internal object InequalitySolver {

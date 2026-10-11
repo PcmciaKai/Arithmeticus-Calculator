@@ -286,10 +286,38 @@ enum class StepRule {
     LHOPITAL,
     /** f·g = f/(1/g) */
     LIMIT_PRODUCT_AS_QUOTIENT,
+    /** √a − b = (a − b²)/(√a + b): multiplied by the conjugate */
+    LIMIT_CONJUGATE,
+    /** (a + b)(a − b) = a² − b² */
+    LIMIT_DIFFERENCE_OF_SQUARES,
+    /** eᵍ with g → ±∞: ∞ or 0 */
+    LIMIT_EXPONENT_INFINITE,
+    /** |g| = g or −g, where g is positive or negative next to the point */
+    LIMIT_ABSOLUTE_VALUE,
     /** a/b = 0 ⇔ a = 0 */
     ZERO_FRACTION,
+    /** several inequalities: each is solved on its own */
+    INEQUALITY_SYSTEM_EACH,
+    /** all of them must hold: what the solutions have in common */
+    INEQUALITY_SYSTEM_INTERSECT,
+    /** log a + log b = log(ab), log a − log b = log(a/b) */
+    LOG_SUM,
+    /** ln a/ln b = log_b(a) */
+    LOG_QUOTIENT,
     /** |f| = g ⇔ f = g or f = −g */
     ABSOLUTE_VALUE_CASES,
+    /** x·|x| = 4: by the sign of the inside, |x| = x or −x */
+    ABSOLUTE_VALUE_SPLIT,
+    /** one case of the split: the equation without |…| and where it counts */
+    ABSOLUTE_VALUE_CASE,
+    /** 2 sin x > 1 ⇔ sin x > 1/2 */
+    TRIG_INEQUALITY_ISOLATE,
+    /** sin u > c ⇔ asin c + 2kπ < u < π − asin c + 2kπ */
+    TRIG_INEQUALITY_PERIOD,
+    /** u = ax + b: solved for x */
+    TRIG_INEQUALITY_SOLVE_X,
+    /** sin and cos are between −1 and 1 */
+    TRIG_INEQUALITY_BOUNDED,
     /** |a| = |b| ⇔ a = b or a = −b */
     ABSOLUTE_VALUES_EQUAL,
     /** log_b(f) = c ⇔ f = bᶜ */
