@@ -23,7 +23,13 @@ import com.vortessence.calculator.core.math.type.SeparatorNode
 import com.vortessence.calculator.core.math.type.MathOp
 import com.vortessence.calculator.ui.keypad.KeyAction
 import com.vortessence.calculator.viewmodel.CalculatorViewModel
+import com.vortessence.calculator.viewmodel.CalculationSnapshot
+import com.vortessence.calculator.viewmodel.SavedEntry
+import com.vortessence.calculator.viewmodel.SavedSession
+import com.vortessence.calculator.viewmodel.SessionCodec
 import com.vortessence.calculator.viewmodel.SessionStore
+import com.vortessence.calculator.core.math.context.AngleUnit
+import com.vortessence.calculator.core.math.context.UnitSystem
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancelAndJoin
@@ -49,9 +55,22 @@ class CalculatorViewModelTest {
     private fun newViewModel(store: SessionStore? = null): CalculatorViewModel =
         CalculatorViewModel(Application(), liveResultDelayMillis = 0, sessionStore = store).also { viewModels.add(it) }
 
-    private class MemorySessionStore(var text: String? = null) : SessionStore {
+    private class MemorySessionStore(text: String? = null) : SessionStore {
+        // Saved from a background thread
+        @Volatile var text: String? = text
         override fun load() = text
         override fun save(text: String) { this.text = text }
+    }
+
+    /** Waits for a save in the background to arrive in [store]. */
+    private suspend fun awaitSaved(store: MemorySessionStore, condition: (String) -> Boolean = { true }) {
+        var attempts = 0
+        while (store.text?.let(condition) != true && attempts < 100) {
+            testDispatcher.scheduler.advanceUntilIdle()
+            delay(20)
+            attempts++
+        }
+        assertTrue("not saved", store.text?.let(condition) == true)
     }
 
     @Before
@@ -1562,12 +1581,74 @@ class CalculatorViewModelTest {
         val vm = newViewModel(store)
         vm.type("5")
         assertNull(store.text) // not on every key
-        testDispatcher.scheduler.advanceUntilIdle()
-        assertNotNull(store.text)
+        awaitSaved(store)
         vm.onKeyAction(KeyAction.Enter)
         vm.awaitCommit()
-        testDispatcher.scheduler.advanceUntilIdle()
-        assertTrue(store.text!!.contains("entry\t"))
+        awaitSaved(store) { it.contains("entry\t") }
+    }
+
+    private fun savedEntries(store: MemorySessionStore) = SessionCodec.decode(store.text!!)!!.entries
+
+    @Test
+    fun anEntryThatCannotBeCalculatedAgainIsKeptForTheNextStart() = runBlocking {
+        val broken = SavedEntry(
+            1, MathString(listOf(NumberNode("1"), OperatorNode(MathOp.PLUS))), // "1 +" has no result
+            com.vortessence.calculator.core.math.type.ResultForm.EXACT,
+            CalculationSnapshot(AngleUnit.RADIANS, UnitSystem.METRIC, null, null, emptyMap(), false)
+        )
+        val good = broken.copy(id = 2, input = MathString(listOf(NumberNode("5"))))
+        val store = MemorySessionStore(SessionCodec.encode(SavedSession(MathString(), listOf(good, broken))))
+
+        val vm = newViewModel(store)
+        vm.awaitHistory(1)
+        vm.saveSession()
+        // Not shown, but still saved, in its place
+        assertEquals(listOf(2L, 1L), savedEntries(store).map { it.id })
+
+        // Only AC removes it
+        vm.onKeyAction(KeyAction.Clear)
+        vm.saveSession()
+        assertTrue(savedEntries(store).isEmpty())
+    }
+
+    @Test
+    fun enteringALineWhileTheHistoryIsRestoredStillSeesItsVariables() = runBlocking {
+        val store = MemorySessionStore()
+        val saver = newViewModel(store)
+        saver.defineVariable("a", "2")
+        saver.saveSession()
+
+        val reopened = newViewModel(store)
+        // Straight away, before the saved history is back
+        reopened.onKeyAction(KeyAction.Variable("a"))
+        reopened.type("+", "1")
+        reopened.onKeyAction(KeyAction.Enter)
+        reopened.awaitCommit()
+        reopened.awaitHistory(2)
+        assertEquals("3", reopened.uiState.value.history[0].calculation.result.toString())
+        assertEquals(listOf(1L, 0L), reopened.uiState.value.history.map { it.id })
+    }
+
+    @Test
+    fun savedEntriesOnlyCarryWhatTheyUse() = runBlocking {
+        val store = MemorySessionStore()
+        val vm = newViewModel(store)
+        vm.defineVariable("a", "2")
+        vm.defineVariable("b", "3")
+        vm.type("4")
+        vm.onKeyAction(KeyAction.Enter)
+        vm.awaitCommit()
+        vm.onKeyAction(KeyAction.Variable("a"))
+        vm.type("+", "1")
+        vm.onKeyAction(KeyAction.Enter)
+        vm.awaitCommit()
+        vm.saveSession()
+
+        val entries = savedEntries(store) // newest first: a + 1, 4, b := 3, a := 2
+        assertEquals(setOf("a"), entries[0].snapshot.variables.keys)
+        assertTrue(entries[1].snapshot.variables.isEmpty())
+        assertNull(entries[1].snapshot.ans)
+        assertEquals(setOf("a"), entries[0].snapshot.variables.keys)
     }
 
     @Test

@@ -18,8 +18,7 @@ import com.vortessence.calculator.core.math.type.*
 import com.vortessence.calculator.ui.keypad.KeyAction
 import com.vortessence.calculator.ui.theme.ThemeMode
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -30,6 +29,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class CalculatorUiState(
     val expression: MathString = MathString(),
@@ -157,6 +157,17 @@ class CalculatorViewModel @JvmOverloads constructor(
      */
     private var sessionRestored = false
 
+    /**
+     * Saved entries that could not be calculated again (e.g. a calculation that timed out on a
+     * slow start). They are not shown, but kept in the saved session so the next start can try
+     * again; AC removes them.
+     */
+    private var unrestoredEntries: List<SavedEntry> = emptyList()
+
+    private val saveLock = Any()
+    private var saveCounter = 0L
+    private var lastSavedCounter = 0L
+
     /** The steps worked out for the live result, to show them at once when the sheet is opened. */
     private var cachedSteps: CachedSteps? = null
 
@@ -222,20 +233,28 @@ class CalculatorViewModel @JvmOverloads constructor(
         _uiState.update { it.copy(expression = saved.expression, cursorPath = listOf(saved.expression.length)) }
         restoreJob = viewModelScope.launch {
             try {
-                val entries = coroutineScope {
-                    saved.entries.map { entry -> async { restoreEntry(entry) } }.awaitAll()
-                }.filterNotNull()
-                // Anything committed in the meantime is newer than the restored entries
-                _uiState.update { it.copy(history = it.history + entries) }
+                // Each entry shows up as soon as it is calculated, in its place (newest first)
+                coroutineScope {
+                    for (entry in saved.entries) {
+                        launch {
+                            val restored = restoreEntry(entry)
+                            if (restored == null) {
+                                unrestoredEntries = unrestoredEntries + entry
+                            } else {
+                                _uiState.update { it.copy(history = (it.history + restored).sortedByDescending { e -> e.id }) }
+                            }
+                        }
+                    }
+                }
             } finally {
                 sessionRestored = true
             }
         }
     }
 
-    /** The entry calculated again, or null if that fails now (e.g. a very long calculation on a slow device). */
+    /** The entry calculated again, or null if that fails now. */
     private suspend fun restoreEntry(entry: SavedEntry): HistoryEntry? {
-        val result = MathEngine.calculate(entry.input, entry.snapshot.toMathContext())
+        val result = MathEngine.calculate(entry.input, entry.snapshot.toMathContext(), RESTORE_TIMEOUT_MILLIS)
         return if (result.isSuccess) HistoryEntry(entry.id, result, entry.form, entry.snapshot) else null
     }
 
@@ -247,7 +266,9 @@ class CalculatorViewModel @JvmOverloads constructor(
                 .distinctUntilChanged()
                 .collectLatest {
                     delay(SAVE_DELAY_MILLIS)
-                    saveSession()
+                    // Encoding and writing can take a while with a long history: not on the main thread
+                    val write = prepareSave() ?: return@collectLatest
+                    withContext(Dispatchers.Default) { write() }
                 }
         }
     }
@@ -259,10 +280,25 @@ class CalculatorViewModel @JvmOverloads constructor(
      * automatically after changes; also to be called when the app goes to the background.
      */
     fun saveSession() {
-        if (!sessionRestored) return
+        prepareSave()?.invoke()
+    }
+
+    /** Captures what is to be saved now; the returned function does the saving. Null while restoring. */
+    private fun prepareSave(): (() -> Unit)? {
+        if (!sessionRestored) return null
         val state = _uiState.value
-        val entries = state.history.map { SavedEntry(it.id, it.calculation.input, it.form, it.snapshot) }
-        sessionStore.save(SessionCodec.encode(SavedSession(state.expression, entries)))
+        val shown = state.history.map { SavedEntry(it.id, it.calculation.input, it.form, it.snapshot) }
+        val entries = (shown + unrestoredEntries).sortedByDescending { it.id }
+        val counter = ++saveCounter
+        return {
+            // Saves may overlap on different threads: only ever write a newer state over an older one
+            synchronized(saveLock) {
+                if (counter > lastSavedCounter) {
+                    lastSavedCounter = counter
+                    sessionStore.save(SessionCodec.encode(SavedSession(state.expression, entries)))
+                }
+            }
+        }
     }
 
     /** The expression and all calculation settings; a change of any of them updates the live result. */
@@ -1275,6 +1311,7 @@ class CalculatorViewModel @JvmOverloads constructor(
 
     fun clearAll() {
         restoreJob?.cancel() // do not bring back what was just cleared
+        unrestoredEntries = emptyList()
         _uiState.update {
             it.copy(
                 expression = MathString(),
@@ -1363,20 +1400,29 @@ class CalculatorViewModel @JvmOverloads constructor(
         val expr = state.expression
         if (expr.isEmpty) return
 
-        val snapshot = state.snapshot()
+        // While the saved history is being restored, variables and Ans are incomplete: wait for it,
+        // and do not trust a live result calculated meanwhile
+        val wasRestoring = restoreJob?.isActive == true
         commitJob?.cancel()
         commitJob = viewModelScope.launch {
+            restoreJob?.join()
+            val current = _uiState.value
+            if (current.expression != expr) return@launch // edited meanwhile
+            val snapshot = current.snapshot()
             // Reuse the live result if it is up to date, otherwise calculate right away
-            val res = state.result?.takeIf { it.input == expr }
+            val res = current.result?.takeIf { !wasRestoring && it.input == expr }
                 ?: MathEngine.calculate(expr, snapshot.toMathContext())
             if (_uiState.value.expression != expr) return@launch // edited meanwhile
             if (!res.isSuccess) {
                 _uiState.update { it.copy(result = res, showResultError = true) }
                 return@launch
             }
+            // Taken outside of update: it runs again when another update comes in between
+            val id = nextHistoryId++
+            val relevant = snapshot.relevantTo(expr)
             _uiState.update {
                 it.copy(
-                    history = listOf(HistoryEntry(nextHistoryId++, res, it.resultForm, snapshot)) + it.history,
+                    history = listOf(HistoryEntry(id, res, it.resultForm, relevant)) + it.history,
                     expression = MathString(),
                     cursorPath = listOf(0),
                     selectionRange = null,
@@ -1405,6 +1451,9 @@ class CalculatorViewModel @JvmOverloads constructor(
     private companion object {
         /** Saving waits for this long without changes, so that typing does not save on every key. */
         const val SAVE_DELAY_MILLIS = 400L
+
+        /** Longer than a normal calculation may take: the app has just started and calculates the whole history at once. */
+        const val RESTORE_TIMEOUT_MILLIS = 15_000L
 
         val SOURCE_DELIMITERS = setOf(MathOp.EQUALS, MathOp.DEFINE, MathOp.CONVERT, MathOp.LESS, MathOp.GREATER, MathOp.LESS_EQUAL, MathOp.GREATER_EQUAL)
     }
