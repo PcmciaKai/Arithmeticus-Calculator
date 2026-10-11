@@ -1,5 +1,7 @@
 package com.vortessence.calculator.core.math.steps
 
+import com.vortessence.calculator.core.math.i18n.Text
+import com.vortessence.calculator.core.math.i18n.Texts
 import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.context.MathIssue
 import com.vortessence.calculator.core.math.expressions.Additions
@@ -111,7 +113,7 @@ internal object SystemSteps {
             if (!left.isFinite() || !right.isFinite()) return null
             if (abs(left - right) > 1e-9 * maxOf(1.0, abs(left), abs(right))) {
                 if (calculated != null) return null
-                val none = TextExpression("no solution")
+                val none = TextExpression(Texts.get(Text.NO_SOLUTION))
                 solution.apply(Match(StepRule.CONTRADICTION, mapOf(root to none), solution.current, none, showChange = false, boxReplacements = false))
                 return solution.finish(none)
             }

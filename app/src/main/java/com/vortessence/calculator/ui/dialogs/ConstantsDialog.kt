@@ -14,6 +14,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vortessence.calculator.model.constants.ConstantsDb
 import com.vortessence.calculator.model.constants.MathConstant
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.vortessence.calculator.R
 
 @Composable
 fun ConstantsDialog(
@@ -21,14 +24,15 @@ fun ConstantsDialog(
     onConstantSelected: (String) -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
+    val context = LocalContext.current
     val filtered = remember(searchQuery) {
         if (searchQuery.isBlank()) {
             ConstantsDb.items
         } else {
             ConstantsDb.items.filter {
-                it.name.contains(searchQuery, ignoreCase = true) ||
+                context.getString(it.name).contains(searchQuery, ignoreCase = true) ||
                         it.symbol.contains(searchQuery, ignoreCase = true) ||
-                        it.category.contains(searchQuery, ignoreCase = true)
+                        context.getString(it.category).contains(searchQuery, ignoreCase = true)
             }
         }
     }
@@ -36,14 +40,14 @@ fun ConstantsDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text("Mathematical & Physical Constants", fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.constants_title), fontWeight = FontWeight.Bold)
         },
         text = {
             Column(modifier = Modifier.fillMaxWidth().height(380.dp)) {
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search constants (c, h, π, G)...") },
+                    placeholder = { Text(stringResource(R.string.constants_search)) },
                     modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                     shape = RoundedCornerShape(12.dp),
                     singleLine = true
@@ -61,7 +65,7 @@ fun ConstantsDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Close")
+                Text(stringResource(R.string.common_close))
             }
         },
         shape = RoundedCornerShape(20.dp)
@@ -91,7 +95,7 @@ private fun ConstantItemRow(constant: MathConstant, onClick: () -> Unit) {
                         color = MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        text = constant.name,
+                        text = stringResource(constant.name),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface
@@ -105,7 +109,7 @@ private fun ConstantItemRow(constant: MathConstant, onClick: () -> Unit) {
             }
             Badge(containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f)) {
                 Text(
-                    text = constant.category,
+                    text = stringResource(constant.category),
                     fontSize = 10.sp,
                     color = MaterialTheme.colorScheme.secondary
                 )

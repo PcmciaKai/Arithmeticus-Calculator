@@ -39,6 +39,11 @@ import com.vortessence.calculator.core.math.type.MathString
 import com.vortessence.calculator.ui.math.MathExpressionView
 import com.vortessence.calculator.ui.math.highlightColor
 import com.vortessence.calculator.viewmodel.StepsState
+import androidx.compose.ui.platform.LocalContext
+import com.vortessence.calculator.i18n.AppLanguage
+import com.vortessence.calculator.core.math.i18n.Language
+import com.vortessence.calculator.core.math.i18n.Text
+import com.vortessence.calculator.core.math.i18n.Texts
 
 /**
  * The step-by-step solution of a calculation: the problem, then for each step an arrow in the
@@ -324,7 +329,8 @@ private fun StepArrow(step: SolutionStep, color: Color) {
             .padding(start = 36.dp, top = 8.dp, bottom = 12.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        step.rule?.let { RuleText(stringResource(it.descriptionRes), it.formula) }
+        val language = AppLanguage.current(LocalContext.current)
+        step.rule?.let { RuleText(stringResource(it.descriptionRes), it.formula(language)) }
         if (step.chainRule) {
             if (step.rule?.isIntegral == true) RuleText(stringResource(R.string.steps_linear_argument), "\\int{f(ax + b)}{x} = \\frac{F(ax + b)}{a}")
             else RuleText(stringResource(R.string.steps_chain_rule), "(f(g))′ = f′(g)·g′")
@@ -635,7 +641,12 @@ private val StepRule.descriptionRes: Int
  * description says it all.
  */
 internal val StepRule.formula: String?
-    get() = when (this) {
+    get() = formula(Language.ENGLISH)
+
+/** The formula with the words between its symbols in [language]. */
+internal fun StepRule.formula(language: Language): String? {
+    fun w(text: Text) = Texts.get(text, language)
+    return when (this) {
         StepRule.CONSTANT -> "c′ = 0"
         StepRule.VARIABLE -> "x′ = 1"
         StepRule.SUM -> "(f ± g)′ = f′ ± g′"
@@ -663,8 +674,8 @@ internal val StepRule.formula: String?
         StepRule.LOGARITHM_OF_POWER -> "\\log{b}{b^n} = n"
         StepRule.EXPONENTIAL_OF_LOGARITHM -> "b^{\\log{b}{x}} = x"
         StepRule.ROOT_OF_FRACTION -> "\\sqrt{\\frac{a}{b}} = \\frac{\\sqrt{a}}{\\sqrt{b}}"
-        StepRule.POLYNOMIAL_DIVISION -> "\\frac{P}{Q} = S + \\frac{R}{Q}\\text{  with  }P = S·Q + R"
-        StepRule.CYCLIC_BY_PARTS -> "I = \\int{e^{px}sin(qx)}{x}\\text{:  by parts twice, then solve for }I"
+        StepRule.POLYNOMIAL_DIVISION -> "\\frac{P}{Q} = S + \\frac{R}{Q}\\text{${w(Text.FORMULA_WITH)}}P = S·Q + R"
+        StepRule.CYCLIC_BY_PARTS -> "I = \\int{e^{px}sin(qx)}{x}\\text{${w(Text.FORMULA_BY_PARTS_TWICE)}}"
         StepRule.HALF_ANGLE -> "sin^2(u) = \\frac{1 − cos(2u)}{2}\\text{,  }cos^2(u) = \\frac{1 + cos(2u)}{2}"
         StepRule.PYTHAGOREAN_IDENTITY -> "sin^2(x) + cos^2(x) = 1"
         StepRule.TRIG_ODD_POWER -> "sin^3(x) = sin(x)(1 − cos^2(x))"
@@ -680,7 +691,7 @@ internal val StepRule.formula: String?
         StepRule.MULTIPLY_FRACTIONS -> "\\frac{a}{b}·\\frac{c}{d} = \\frac{a·c}{b·d}"
         StepRule.SIMPLIFY_ROOT -> "\\sqrt{a²·b} = a·\\sqrt{b}"
         StepRule.REWRITE_AS_POWER -> "\\sqrt[n]{x} = x^{\\frac{1}{n}}, \\frac{1}{x^n} = x^{−n}"
-        StepRule.CHAIN_RULE -> "(f(g(x)))′ = f′(u)·g′(x)\\text{  with  }u = g(x)"
+        StepRule.CHAIN_RULE -> "(f(g(x)))′ = f′(u)·g′(x)\\text{${w(Text.FORMULA_WITH)}}u = g(x)"
         StepRule.POWER_AS_ROOT -> "x^{\\frac{1}{n}} = \\sqrt[n]{x}"
         StepRule.POWER_AS_FRACTION -> "x^{−n} = \\frac{1}{x^n}"
         StepRule.POWER_OF_POWER -> "(x^a)^b = x^{a·b}"
@@ -716,36 +727,36 @@ internal val StepRule.formula: String?
         StepRule.SUBTRACT_FROM_BOTH_SIDES -> "a = b\\text{  ⇔  }a − c = b − c"
         StepRule.MULTIPLY_BOTH_SIDES -> "a = b\\text{  ⇔  }a·c = b·c"
         StepRule.DIVIDE_BOTH_SIDES -> "a = b\\text{  ⇔  }\\frac{a}{c} = \\frac{b}{c}"
-        StepRule.DIVIDE_BY_NEGATIVE -> "a < b\\text{  ⇔  }\\frac{a}{c} > \\frac{b}{c}\\text{  for  }c < 0"
-        StepRule.MULTIPLY_BY_NEGATIVE -> "a < b\\text{  ⇔  }a·c > b·c\\text{  for  }c < 0"
+        StepRule.DIVIDE_BY_NEGATIVE -> "a < b\\text{  ⇔  }\\frac{a}{c} > \\frac{b}{c}\\text{${w(Text.FORMULA_FOR)}}c < 0"
+        StepRule.MULTIPLY_BY_NEGATIVE -> "a < b\\text{  ⇔  }a·c > b·c\\text{${w(Text.FORMULA_FOR)}}c < 0"
         StepRule.INEQUALITY_SWAP -> "a < b\\text{  ⇔  }b > a"
         StepRule.INEQUALITY_ONE_SIDE -> "f < g\\text{  ⇔  }f − g < 0"
         StepRule.SWAP_SIDES -> "a = b\\text{  ⇔  }b = a"
-        StepRule.SQUARE_ROOT_BOTH_SIDES -> "u^2 = c\\text{  ⇔  }u = \\sqrt{c}\\text{  or  }u = −\\sqrt{c}"
+        StepRule.SQUARE_ROOT_BOTH_SIDES -> "u^2 = c\\text{  ⇔  }u = \\sqrt{c}\\text{${w(Text.FORMULA_OR)}}u = −\\sqrt{c}"
         StepRule.SQUARE_BOTH_SIDES -> "a = b\\text{  ⇒  }a^2 = b^2"
-        StepRule.LIMIT_VANISH -> "\\frac{c}{x^n} → 0\\text{  for  }x → ±∞"
-        StepRule.LIMIT_RECIPROCAL_SUBSTITUTION -> "u = \\frac{1}{x}\\text{:  }x → ∞\\text{  is  }u → 0"
+        StepRule.LIMIT_VANISH -> "\\frac{c}{x^n} → 0\\text{${w(Text.FORMULA_FOR)}}x → ±∞"
+        StepRule.LIMIT_RECIPROCAL_SUBSTITUTION -> "u = \\frac{1}{x}\\text{:  }x → ∞\\text{${w(Text.FORMULA_IS)}}u → 0"
         StepRule.DETERMINANT_2X2 -> "\\text{det} = a·d − b·c"
         StepRule.EIGEN_CHARACTERISTIC -> "\\text{det}(A − λ·I) = 0"
-        StepRule.INVERSE_2X2 -> "A^{−1} = \\frac{1}{a·d − b·c}·\\text{(top: }d, −b\\text{; bottom: }−c, a\\text{)}"
-        StepRule.MATRIX_MULTIPLY -> "\\text{entry} = \\text{row of }A · \\text{column of }B"
-        StepRule.FACTOR_POLYNOMIAL -> "P(x) = (x − r)(x − s)…\\text{  where  }P(r) = 0"
-        StepRule.IMPROPER_INTEGRAL -> "\\int{f}{x}\\text{ to }∞ = \\text{lim }(F(t) − F(a))"
+        StepRule.INVERSE_2X2 -> "A^{−1} = \\frac{1}{a·d − b·c}·\\text{${w(Text.FORMULA_TOP)}}d, −b\\text{${w(Text.FORMULA_BOTTOM)}}−c, a\\text{)}"
+        StepRule.MATRIX_MULTIPLY -> "\\text{${w(Text.FORMULA_ENTRY)}} = \\text{${w(Text.FORMULA_ROW_OF)}}A · \\text{${w(Text.FORMULA_COLUMN_OF)}}B"
+        StepRule.FACTOR_POLYNOMIAL -> "P(x) = (x − r)(x − s)…\\text{${w(Text.FORMULA_WHERE)}}P(r) = 0"
+        StepRule.IMPROPER_INTEGRAL -> "\\int{f}{x}\\text{${w(Text.FORMULA_TO)}}∞ = \\text{lim }(F(t) − F(a))"
         StepRule.LIMIT_EXPONENTIAL_FORM -> "\\text{lim }f^g = e^{\\text{lim }g·ln(f)}"
         StepRule.LIMIT_PRODUCT_AS_QUOTIENT -> "f·g = \\frac{f}{\\frac{1}{g}}"
         StepRule.LIMIT_DIFFERENCE_OF_SQUARES -> "(a + b)(a − b) = a² − b²"
         StepRule.LOG_SUM -> "\\text{log }a + \\text{log }b = \\text{log}(a·b)"
         StepRule.LHOPITAL -> "\\text{lim }\\frac{f}{g} = \\text{lim }\\frac{f′}{g′}"
-        StepRule.ZERO_FRACTION -> "\\frac{a}{b} = 0\\text{  ⇔  }a = 0\\text{  (and  }b ≠ 0)"
-        StepRule.ABSOLUTE_VALUES_EQUAL -> "|a| = |b|\\text{  ⇔  }a = b\\text{  or  }a = −b"
-        StepRule.ABSOLUTE_VALUE_CASES -> "|a| = b\\text{  ⇔  }a = b\\text{  or  }a = −b"
+        StepRule.ZERO_FRACTION -> "\\frac{a}{b} = 0\\text{  ⇔  }a = 0\\text{${w(Text.FORMULA_AND)}}b ≠ 0)"
+        StepRule.ABSOLUTE_VALUES_EQUAL -> "|a| = |b|\\text{  ⇔  }a = b\\text{${w(Text.FORMULA_OR)}}a = −b"
+        StepRule.ABSOLUTE_VALUE_CASES -> "|a| = b\\text{  ⇔  }a = b\\text{${w(Text.FORMULA_OR)}}a = −b"
         StepRule.EXPONENTIATE_BOTH_SIDES -> "\\log{b}{f} = c\\text{  ⇔  }f = b^c"
-        StepRule.NEWTON_METHOD -> "x → x − \\frac{f(x)}{f′(x)}\\text{  until it settles}"
+        StepRule.NEWTON_METHOD -> "x → x − \\frac{f(x)}{f′(x)}\\text{${w(Text.FORMULA_UNTIL_IT_SETTLES)}}"
         StepRule.LOGARITHM_BOTH_SIDES -> "b^f = c\\text{  ⇔  }f = \\log{b}{c}"
         StepRule.NTH_ROOT_BOTH_SIDES -> "u^n = c\\text{  ⇔  }u = \\sqrt[n]{c}"
         StepRule.FACTOR_OUT -> "ax^2 + bx = x·(ax + b)"
-        StepRule.ZERO_PRODUCT -> "a·b = 0\\text{  ⇔  }a = 0\\text{  or  }b = 0"
-        StepRule.QUADRATIC_FORMULA -> "x = \\frac{−b ± \\sqrt{D}}{2a}\\text{  with  }D = b^2 − 4ac"
+        StepRule.ZERO_PRODUCT -> "a·b = 0\\text{  ⇔  }a = 0\\text{${w(Text.FORMULA_OR)}}b = 0"
+        StepRule.QUADRATIC_FORMULA -> "x = \\frac{−b ± \\sqrt{D}}{2a}\\text{${w(Text.FORMULA_WITH)}}D = b^2 − 4ac"
         StepRule.ROOT_OF_NUMBER, StepRule.IDENTITY, StepRule.SOLVE_FOR, StepRule.SUBSTITUTE_SOLUTION,
         StepRule.MULTIPLY_EQUATIONS, StepRule.ADD_EQUATIONS, StepRule.SUBTRACT_EQUATIONS, StepRule.INSERT_VALUE, StepRule.COLLECT_SOLUTION, StepRule.FACTOR_BY_ROOT, StepRule.NO_REAL_SOLUTION, StepRule.CONTRADICTION, StepRule.DETERMINANT_COFACTOR, StepRule.INVERSE_AUGMENT, StepRule.ROW_SWAP, StepRule.ROW_SCALE, StepRule.ROW_ADD, StepRule.INVERSE_RESULT, StepRule.SUBSTITUTE_RATIO, StepRule.ABSOLUTE_VALUE_SPLIT, StepRule.ABSOLUTE_VALUE_CASE, StepRule.INEQUALITY_SYSTEM_EACH, StepRule.INEQUALITY_SYSTEM_INTERSECT, StepRule.LOG_QUOTIENT, StepRule.TRIG_INEQUALITY_ISOLATE, StepRule.TRIG_INEQUALITY_PERIOD, StepRule.TRIG_INEQUALITY_SOLVE_X, StepRule.TRIG_INEQUALITY_BOUNDED, StepRule.LIMIT_CONJUGATE, StepRule.LIMIT_EXPONENT_INFINITE, StepRule.LIMIT_ABSOLUTE_VALUE, StepRule.ROW_REDUCE_BEGIN, StepRule.EIGEN_VECTOR, StepRule.EIGEN_VECTOR_RESULT, StepRule.EIGEN_RESULT, StepRule.MATRIX_SCALAR, StepRule.MATRIX_ADD, StepRule.MATRIX_SUBTRACT, StepRule.MATRIX_TRANSPOSE, StepRule.MATRIX_POWER, StepRule.INEQUALITY_ZEROS, StepRule.INEQUALITY_BREAKS, StepRule.INEQUALITY_CRITICAL, StepRule.INEQUALITY_RESULT, StepRule.ONE_SIDE, StepRule.TRIG_GENERAL_SOLUTION, StepRule.SUBSTITUTE_POWER, StepRule.BACK_SUBSTITUTE_POWER, StepRule.CHECK_SOLUTIONS, StepRule.LIMIT_SUBSTITUTE, StepRule.DIVIDE_BY_HIGHEST_POWER, StepRule.LIMIT_CONSTANT, StepRule.LIMIT_POLE, StepRule.LIMIT_LOGARITHM_ZERO, StepRule.LIMIT_EXPONENTIAL_RESULT, StepRule.LIMIT_GROWS, StepRule.LIMIT_RECIPROCAL,
         StepRule.INTEGRAL_TABLE, StepRule.EXPAND_INTEGRAND, StepRule.BACK_SUBSTITUTION,
@@ -753,3 +764,4 @@ internal val StepRule.formula: String?
         StepRule.ADD_NUMBERS, StepRule.SUBTRACT_NUMBERS, StepRule.ADD_AND_SUBTRACT_NUMBERS, StepRule.COMBINE_LIKE_TERMS,
         StepRule.SIMPLIFY, StepRule.SUBSTITUTE, StepRule.EVALUATE -> null
     }
+}

@@ -16,6 +16,9 @@ import com.vortessence.calculator.core.math.type.MathString
 import com.vortessence.calculator.model.formulas.Formula
 import com.vortessence.calculator.model.formulas.FormulasDb
 import com.vortessence.calculator.ui.math.MathExpressionView
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.vortessence.calculator.R
 
 /** Picker for ready-made formulas (statistics, combinatorics, ...), grouped by category. */
 @Composable
@@ -24,24 +27,25 @@ fun FormulasDialog(
     onFormulaSelected: (MathString) -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
-    val grouped = remember(searchQuery) {
+    val context = LocalContext.current
+    val grouped = remember(searchQuery, context) {
         FormulasDb.items.filter {
             searchQuery.isBlank() ||
-                it.name.contains(searchQuery, ignoreCase = true) ||
-                it.description.contains(searchQuery, ignoreCase = true) ||
-                it.category.contains(searchQuery, ignoreCase = true)
+                context.getString(it.name).contains(searchQuery, ignoreCase = true) ||
+                context.getString(it.description).contains(searchQuery, ignoreCase = true) ||
+                context.getString(it.category).contains(searchQuery, ignoreCase = true)
         }.groupBy { it.category }
     }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Formulas", fontWeight = FontWeight.Bold) },
+        title = { Text(stringResource(R.string.formulas_title), fontWeight = FontWeight.Bold) },
         text = {
             Column(modifier = Modifier.fillMaxWidth().height(420.dp)) {
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search (deviation, round, nCr)...") },
+                    placeholder = { Text(stringResource(R.string.formulas_search)) },
                     modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                     shape = RoundedCornerShape(12.dp),
                     singleLine = true
@@ -54,7 +58,7 @@ fun FormulasDialog(
                     grouped.forEach { (category, formulas) ->
                         item(key = category) {
                             Text(
-                                text = category,
+                                text = stringResource(category),
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary,
@@ -70,7 +74,7 @@ fun FormulasDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Close")
+                Text(stringResource(R.string.common_close))
             }
         },
         shape = RoundedCornerShape(20.dp)
@@ -93,13 +97,13 @@ private fun FormulaItemRow(formula: Formula, onClick: () -> Unit) {
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = formula.name,
+                    text = stringResource(formula.name),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = formula.description,
+                    text = stringResource(formula.description),
                     fontSize = 11.sp,
                     lineHeight = 14.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant

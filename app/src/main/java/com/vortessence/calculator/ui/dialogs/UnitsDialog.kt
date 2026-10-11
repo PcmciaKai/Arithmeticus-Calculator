@@ -22,6 +22,10 @@ import androidx.compose.ui.unit.sp
 import com.vortessence.calculator.core.math.expressions.UnitCategory
 import com.vortessence.calculator.core.math.expressions.UnitFamily
 import com.vortessence.calculator.core.math.expressions.UnitRegistry
+import androidx.compose.ui.res.stringResource
+import com.vortessence.calculator.R
+import com.vortessence.calculator.core.math.i18n.Language
+import com.vortessence.calculator.core.math.i18n.UnitNames
 
 /**
  * Unit picker: categories (Length, Pressure, ...) are chosen with chips; each category shows
@@ -38,19 +42,20 @@ fun UnitsDialog(
     onUnitSelected: (String) -> Unit,
     selectedCategory: Int = 0,
     onCategorySelected: (Int) -> Unit = {},
-    scrollToFamily: Int? = null
+    scrollToFamily: Int? = null,
+    language: Language = Language.ENGLISH
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var query by rememberSaveable { mutableStateOf("") }
     val categories = UnitRegistry.categories
     val categoryIndex = selectedCategory.coerceIn(categories.indices)
 
-    val sections: List<Pair<String?, List<UnitFamily>>> = remember(query, categoryIndex) {
+    val sections: List<Pair<String?, List<UnitFamily>>> = remember(query, categoryIndex, language) {
         if (query.isBlank()) {
             listOf(null to categories[categoryIndex].families)
         } else {
             categories.mapNotNull { category ->
-                search(category, query.trim())?.let { category.name to it }
+                search(category, query.trim(), language)?.let { UnitNames.category(category.name, language) to it }
             }
         }
     }
@@ -71,17 +76,17 @@ fun UnitsDialog(
                 .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("Insert unit", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.units_insert_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
 
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
-                placeholder = { Text("Search, e.g. km, pressure, gallon") },
+                placeholder = { Text(stringResource(R.string.units_search)) },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 trailingIcon = {
                     if (query.isNotEmpty()) {
                         IconButton(onClick = { query = "" }) {
-                            Icon(Icons.Default.Close, contentDescription = "Clear search")
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.units_clear_search))
                         }
                     }
                 },
@@ -96,7 +101,7 @@ fun UnitsDialog(
                         FilterChip(
                             selected = index == categoryIndex,
                             onClick = { onCategorySelected(index) },
-                            label = { Text(category.name) }
+                            label = { Text(UnitNames.category(category.name, language)) }
                         )
                     }
                 }
@@ -112,7 +117,7 @@ fun UnitsDialog(
                 if (sections.isEmpty()) {
                     item {
                         Text(
-                            "No units found",
+                            stringResource(R.string.units_none),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(vertical = 24.dp)
                         )
@@ -130,7 +135,7 @@ fun UnitsDialog(
                         }
                     }
                     items(families, key = { "$title-${it.name}" }) { family ->
-                        UnitFamilyRow(family = family, onUnitSelected = onUnitSelected)
+                        UnitFamilyRow(family = family, language = language, onUnitSelected = onUnitSelected)
                     }
                 }
             }
@@ -139,12 +144,14 @@ fun UnitsDialog(
 }
 
 /** Families of [category] matching [query], reduced to their matching units; null if none match. */
-private fun search(category: UnitCategory, query: String): List<UnitFamily>? {
+private fun search(category: UnitCategory, query: String, language: Language): List<UnitFamily>? {
     val q = query.lowercase()
-    if (category.name.lowercase().contains(q)) return category.families
+    // The names are found in English as well as in the language of the app
+    fun matches(name: String, shown: String) = name.lowercase().contains(q) || shown.lowercase().contains(q)
+    if (matches(category.name, UnitNames.category(category.name, language))) return category.families
     val families = category.families.mapNotNull { family ->
-        if (family.name.lowercase().contains(q)) return@mapNotNull family
-        val units = family.units.filter { it.symbol.lowercase().contains(q) || it.name.lowercase().contains(q) }
+        if (matches(family.name, UnitNames.family(family.name, language))) return@mapNotNull family
+        val units = family.units.filter { it.symbol.lowercase().contains(q) || matches(it.name, UnitNames.unit(it.name, language)) }
         if (units.isEmpty()) null else family.copy(units = units)
     }
     return families.ifEmpty { null }
@@ -152,10 +159,10 @@ private fun search(category: UnitCategory, query: String): List<UnitFamily>? {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun UnitFamilyRow(family: UnitFamily, onUnitSelected: (String) -> Unit) {
+private fun UnitFamilyRow(family: UnitFamily, language: Language, onUnitSelected: (String) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
-            family.name,
+            UnitNames.family(family.name, language),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -164,7 +171,7 @@ private fun UnitFamilyRow(family: UnitFamily, onUnitSelected: (String) -> Unit) 
                 SuggestionChip(
                     onClick = { onUnitSelected(unit.symbol) },
                     label = { Text(unit.symbol, fontSize = 16.sp, fontWeight = FontWeight.Medium) },
-                    modifier = Modifier.semantics { contentDescription = unit.name }
+                    modifier = Modifier.semantics { contentDescription = UnitNames.unit(unit.name, language) }
                 )
             }
         }

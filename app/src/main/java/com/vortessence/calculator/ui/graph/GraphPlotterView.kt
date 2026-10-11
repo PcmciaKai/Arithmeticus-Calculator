@@ -76,6 +76,12 @@ import kotlinx.coroutines.withContext
 import java.math.BigDecimal
 import java.util.Locale
 import kotlin.math.*
+import androidx.annotation.StringRes
+import androidx.compose.ui.res.stringResource
+import com.vortessence.calculator.R
+import com.vortessence.calculator.core.math.i18n.Language
+import com.vortessence.calculator.core.math.i18n.Text
+import com.vortessence.calculator.core.math.i18n.Texts
 
 private const val DEFAULT_SCALE = 40f
 private const val MIN_SCALE = 5f
@@ -89,10 +95,10 @@ private const val MAX_LOG_SCALE = 20000f
 // A polar curve r = f(θ) is sampled once over a full turn, finely enough to stay smooth when zoomed in
 private const val POLAR_SAMPLES = 2880
 
-private enum class GraphTool(val label: String, val icon: ImageVector) {
-    TRACE("Trace", Icons.Default.Timeline),
-    TANGENT("Tangent", TangentIcon),
-    INTEGRAL("Integral", Icons.Default.AreaChart)
+private enum class GraphTool(@StringRes val label: Int, val icon: ImageVector) {
+    TRACE(R.string.graph_tool_trace, Icons.Default.Timeline),
+    TANGENT(R.string.graph_tool_tangent, TangentIcon),
+    INTEGRAL(R.string.graph_tool_integral, Icons.Default.AreaChart)
 }
 
 /** A curve with a straight line touching it at one marked point; Material has no tangent icon. */
@@ -122,13 +128,13 @@ private val TangentIcon: ImageVector by lazy {
 /** What a touch grabbed: the trace/tangent cursor or one of the integration bounds. */
 private enum class GraphHandle { CURSOR, LOWER_BOUND, UPPER_BOUND }
 
-private enum class KeyPointKind(val label: String, val color: Color) {
-    ZERO("Zero", AccentRed),
-    MAXIMUM("Maximum", AccentGreen),
-    MINIMUM("Minimum", AccentBlue),
-    INFLECTION("Inflection point", AccentPurple),
+private enum class KeyPointKind(@StringRes val label: Int, val color: Color) {
+    ZERO(R.string.graph_point_zero, AccentRed),
+    MAXIMUM(R.string.graph_point_maximum, AccentGreen),
+    MINIMUM(R.string.graph_point_minimum, AccentBlue),
+    INFLECTION(R.string.graph_point_inflection, AccentPurple),
     // Implicit curves only; they have no inflection points, so the colour is free
-    Y_INTERCEPT("y-intercept", AccentPurple)
+    Y_INTERCEPT(R.string.graph_point_y_intercept, AccentPurple)
 }
 
 private data class KeyPoint(val x: Double, val y: Double, val kind: KeyPointKind)
@@ -636,7 +642,7 @@ fun GraphPlotterView(
             when {
                 isLoading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 curve == null -> Text(
-                    text = "This expression cannot be plotted",
+                    text = stringResource(R.string.graph_cannot_plot),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.align(Alignment.Center)
@@ -654,7 +660,7 @@ fun GraphPlotterView(
                 GraphInfoCard(modifier = Modifier.align(Alignment.TopCenter).padding(8.dp)) {
                     when {
                         tool == GraphTool.INTEGRAL -> IntegralInfo(lowerBound, upperBound, area)
-                        point == null -> InfoHint("Tap the curve to place the cursor")
+                        point == null -> InfoHint(stringResource(R.string.graph_tap_hint))
                         tool == GraphTool.TRACE -> TraceInfo(point, snappedPoint, isImplicit = implicit != null)
                         tool == GraphTool.TANGENT -> TangentInfo(point, slope)
                     }
@@ -759,7 +765,7 @@ private fun GraphHeader(
             }
             if (axisOptions != null) AxisMenu(axisOptions)
             IconButton(onClick = onRecenter) {
-                Icon(Icons.Default.Refresh, contentDescription = "Recenter")
+                Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.graph_recenter))
             }
             if (onClose != null) {
                 // Filled so the way back to the calculator is easy to spot
@@ -770,7 +776,7 @@ private fun GraphHeader(
                         contentColor = MaterialTheme.colorScheme.onPrimary
                     )
                 ) {
-                    Icon(Icons.Default.Close, contentDescription = "Close graph")
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.graph_close))
                 }
             }
         }
@@ -788,7 +794,7 @@ private fun AxisMenu(options: AxisOptions) {
         IconButton(onClick = { expanded = true }) {
             Icon(
                 Icons.Default.Straighten,
-                contentDescription = "Axes",
+                contentDescription = stringResource(R.string.graph_axes),
                 tint = if (options.logX || options.logY || options.polar) OrangePrimary else LocalContentColor.current
             )
         }
@@ -796,7 +802,7 @@ private fun AxisMenu(options: AxisOptions) {
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             for ((xAxis, enabled) in listOf(true to options.logX, false to options.logY)) {
                 DropdownMenuItem(
-                    text = { Text(if (xAxis) "Logarithmic x-axis" else "Logarithmic y-axis") },
+                    text = { Text(stringResource(if (xAxis) R.string.graph_log_x else R.string.graph_log_y)) },
                     onClick = { options.onLogChange(xAxis, !enabled) },
                     enabled = !options.polar,
                     trailingIcon = { Switch(checked = enabled, onCheckedChange = null, enabled = !options.polar) }
@@ -804,7 +810,7 @@ private fun AxisMenu(options: AxisOptions) {
             }
             HorizontalDivider()
             DropdownMenuItem(
-                text = { Text("Polar coordinates") },
+                text = { Text(stringResource(R.string.graph_polar)) },
                 onClick = { options.onPolarChange(!options.polar) },
                 enabled = options.polarAvailable,
                 trailingIcon = { Switch(checked = options.polar, onCheckedChange = null, enabled = options.polarAvailable) }
@@ -840,7 +846,7 @@ private fun GraphToolButton(
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             Icon(tool.icon, contentDescription = null)
-            Text(tool.label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(tool.label), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -888,19 +894,19 @@ private fun InfoHint(text: String) {
 
 @Composable
 private fun TraceInfo(point: PlotPoint, snapped: KeyPoint?, isImplicit: Boolean) {
-    InfoTitle(snapped?.kind?.label ?: "Trace", snapped?.kind?.color ?: OrangePrimary)
+    InfoTitle(stringResource(snapped?.kind?.label ?: R.string.graph_tool_trace), snapped?.kind?.color ?: OrangePrimary)
     InfoValues("x" to formatGraphNumber(point.x), "y" to formatGraphNumber(point.y))
     if (snapped == null) {
-        InfoHint(if (isImplicit) "Drag the point along the curve; snaps to highlighted points" else "Drag along the graph; snaps to highlighted points")
+        InfoHint(stringResource(if (isImplicit) R.string.graph_drag_curve else R.string.graph_drag_graph))
     }
 }
 
 @Composable
 private fun TangentInfo(point: PlotPoint, slope: Double) {
-    InfoTitle("Tangent", AccentBlue)
+    InfoTitle(stringResource(R.string.graph_tool_tangent), AccentBlue)
     InfoValues("x" to formatGraphNumber(point.x), "y" to formatGraphNumber(point.y))
     Text(
-        text = if (slope.isInfinite()) "vertical tangent" else "slope = ${formatGraphNumber(slope)}",
+        text = if (slope.isInfinite()) stringResource(R.string.graph_vertical_tangent) else stringResource(R.string.graph_slope, formatGraphNumber(slope)),
         style = MaterialTheme.typography.titleMedium,
         fontWeight = FontWeight.SemiBold
     )
@@ -912,14 +918,14 @@ private fun TangentInfo(point: PlotPoint, slope: Double) {
 
 @Composable
 private fun IntegralInfo(lowerBound: Double, upperBound: Double, area: Double?) {
-    InfoTitle("Integral", OrangePrimary)
+    InfoTitle(stringResource(R.string.graph_tool_integral), OrangePrimary)
     InfoValues("a" to formatGraphNumber(lowerBound), "b" to formatGraphNumber(upperBound))
     Text(
         text = "\u222B f(x) dx = ${area?.let { formatGraphNumber(it) } ?: "…"}",
         style = MaterialTheme.typography.titleMedium,
         fontWeight = FontWeight.SemiBold
     )
-    InfoHint("Drag a or b; they snap to zeros")
+    InfoHint(stringResource(R.string.graph_integral_hint))
 }
 
 /** y = mx + b with the sign of b folded into the operator. */
@@ -940,7 +946,7 @@ private fun formatLineEquation(slope: Double, intercept: Double): String {
  * within numerical noise of zero are shown as 0.
  */
 internal fun formatGraphNumber(value: Double, significantDigits: Int = 6): String {
-    if (value.isNaN()) return "undefined"
+    if (value.isNaN()) return Texts.get(Text.UNDEFINED_VALUE, Language.fromTag(java.util.Locale.getDefault().language))
     if (value.isInfinite()) return if (value > 0) "\u221E" else "\u2212\u221E"
     if (abs(value) < 1e-9) return "0"
     val rounded = BigDecimal(value).round(java.math.MathContext(significantDigits)).stripTrailingZeros()

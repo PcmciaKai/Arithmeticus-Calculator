@@ -54,6 +54,8 @@ import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.sin
 import kotlin.math.sqrt
+import androidx.compose.ui.res.stringResource
+import com.vortessence.calculator.R
 
 /** Grid cells per side; the surface is sampled at (CELLS + 1)² points. */
 private const val CELLS = 48
@@ -242,7 +244,7 @@ fun SurfacePlot(surface: Surface3D, state: SurfaceViewState, modifier: Modifier 
             drawSurface(current, view, colors, textMeasurer)
         }
         Text(
-            text = "One finger rotates · two fingers move and zoom",
+            text = stringResource(R.string.graph_surface_hint),
             style = MaterialTheme.typography.labelMedium,
             color = colors.label,
             modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp)

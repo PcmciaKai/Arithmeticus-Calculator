@@ -1,5 +1,7 @@
 package com.vortessence.calculator.core.math.expressions
 
+import com.vortessence.calculator.core.math.i18n.Text
+import com.vortessence.calculator.core.math.i18n.Texts
 import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.steps.Alternatives
 import com.vortessence.calculator.core.math.steps.TextExpression
@@ -45,7 +47,7 @@ internal class InequalityAnalysis(
 
 /** The intervals of a solution as a line: x < −2 or x > 2, 1 < x ≤ 3, x ∈ ℝ; "no real solution" for none. */
 internal fun intervalsExpression(v: Variable, pieces: List<Interval>): Expression {
-    if (pieces.isEmpty()) return TextExpression("no real solution")
+    if (pieces.isEmpty()) return TextExpression(Texts.get(Text.NO_REAL_SOLUTION_TEXT))
     val parts = pieces.map { piece ->
         when {
             piece.lower == null && piece.upper == null -> TextExpression("${v.identifier} ∈ ℝ")

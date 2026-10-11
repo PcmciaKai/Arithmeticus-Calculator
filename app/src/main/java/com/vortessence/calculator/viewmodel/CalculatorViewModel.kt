@@ -17,7 +17,11 @@ import com.vortessence.calculator.core.math.steps.Solution
 import com.vortessence.calculator.core.math.type.*
 import com.vortessence.calculator.ui.keypad.KeyAction
 import com.vortessence.calculator.ui.theme.ThemeMode
+import com.vortessence.calculator.core.math.i18n.Language
+import com.vortessence.calculator.i18n.AppLanguage
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -81,7 +85,9 @@ data class CalculatorUiState(
     /** Whether i and complex results are allowed (√−4 = 2i instead of an error). */
     val complexNumbers: Boolean = false,
     /** Set when the i key turned complex numbers on, until the message about it was shown. */
-    val showComplexNotice: Boolean = false
+    val showComplexNotice: Boolean = false,
+    /** The language of the texts the calculation produces (and the app is shown in). */
+    val language: Language = Language.ENGLISH
 )
 
 /**
@@ -173,6 +179,7 @@ class CalculatorViewModel @JvmOverloads constructor(
 
     init {
         loadSettings()
+        _uiState.update { it.copy(language = AppLanguage.current(application)) }
         restoreSession()
         observeLiveResult()
         observeSession()
@@ -254,8 +261,10 @@ class CalculatorViewModel @JvmOverloads constructor(
 
     /** The entry calculated again, or null if that fails now. */
     private suspend fun restoreEntry(entry: SavedEntry): HistoryEntry? {
-        val result = MathEngine.calculate(entry.input, entry.snapshot.toMathContext(), RESTORE_TIMEOUT_MILLIS)
-        return if (result.isSuccess) HistoryEntry(entry.id, result, entry.form, entry.snapshot) else null
+        // In the language of the day, not the one the entry was saved in
+        val snapshot = entry.snapshot.copy(language = _uiState.value.language)
+        val result = MathEngine.calculate(entry.input, snapshot.toMathContext(), RESTORE_TIMEOUT_MILLIS)
+        return if (result.isSuccess) HistoryEntry(entry.id, result, entry.form, snapshot) else null
     }
 
     /** Saves the session a moment after the line or the history changed. */
@@ -307,7 +316,7 @@ class CalculatorViewModel @JvmOverloads constructor(
     private class CachedSteps(val input: LiveInput, val solution: Solution?)
 
     private fun CalculatorUiState.snapshot() =
-        CalculationSnapshot(angleUnit, unitSystem, decimalPlaces, ans(), variables(), complexNumbers)
+        CalculationSnapshot(angleUnit, unitSystem, decimalPlaces, ans(), variables(), complexNumbers, language)
 
     /** Ans is the most recently committed result, not the live result of this line. */
     private fun CalculatorUiState.ans(): MathString? =
@@ -542,6 +551,27 @@ class CalculatorViewModel @JvmOverloads constructor(
     fun setComplexNumbers(enabled: Boolean) {
         prefs?.edit { putBoolean("complex_numbers", enabled) }
         _uiState.update { it.copy(complexNumbers = enabled) }
+    }
+
+    /**
+     * The language of the app changed (or was found to be another after the activity was made again): the texts the calculations
+     * produce, in the live result and the history, are written again in it.
+     */
+    fun refreshLanguage() {
+        val language = AppLanguage.current(getApplication())
+        if (_uiState.value.language == language) return
+        _uiState.update { it.copy(language = language) }
+        viewModelScope.launch {
+            val entries = _uiState.value.history
+            val again = entries.map { entry ->
+                async {
+                    val snapshot = entry.snapshot.copy(language = language)
+                    val result = MathEngine.calculate(entry.calculation.input, snapshot.toMathContext(), RESTORE_TIMEOUT_MILLIS)
+                    if (result.isSuccess) HistoryEntry(entry.id, result, entry.form, snapshot) else entry
+                }
+            }.awaitAll()
+            _uiState.update { state -> state.copy(history = state.history.map { old -> again.firstOrNull { it.id == old.id } ?: old }) }
+        }
     }
 
     fun dismissComplexNotice() {

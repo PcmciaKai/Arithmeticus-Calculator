@@ -1,5 +1,7 @@
 package com.vortessence.calculator.core.math.expressions
 
+import com.vortessence.calculator.core.math.i18n.Text
+import com.vortessence.calculator.core.math.i18n.Texts
 import com.vortessence.calculator.core.math.context.AngleUnit
 import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.solvers.NonlinearSystemSolver
@@ -139,7 +141,7 @@ internal object TrigInequalitySolver {
         val forX: Expression
         when (kind) {
             TrigInequality.Kind.ALL -> { forU = text("${v.identifier} ∈ ℝ"); forX = forU }
-            TrigInequality.Kind.NONE -> { forU = text("no real solution"); forX = forU }
+            TrigInequality.Kind.NONE -> { forU = text(Texts.get(Text.NO_REAL_SOLUTION_TEXT)); forX = forU }
             else -> {
                 val b = bounds!!
                 val uVariable: Expression = function.operand

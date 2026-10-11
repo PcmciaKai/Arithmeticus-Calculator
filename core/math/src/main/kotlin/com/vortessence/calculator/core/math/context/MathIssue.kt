@@ -1,38 +1,48 @@
 package com.vortessence.calculator.core.math.context
 
+import com.vortessence.calculator.core.math.i18n.Language
+import com.vortessence.calculator.core.math.i18n.Text
+import com.vortessence.calculator.core.math.i18n.Texts
+
 /**
  * Issues that may arise during evaluation, matching legacy MEIssue.
  */
-enum class MathIssue(val userMessage: String) {
-    DIVISION_BY_ZERO("Division by zero"),
-    NEGATIVE_ROOT("Even root of negative number"),
-    LOGARITHMIC_DOMAIN("Logarithm argument/base out of domain"),
-    TRIGONOMETRIC_DOMAIN("Argument out of domain"),
-    VALUES_TOO_LARGE("Value too large to calculate"),
-    UNDEFINED("Calculation undefined"),
-    CONTRADICTION("Contradiction (no solution)"),
-    NO_REAL_SOLUTION("No real solution"),
-    CANT_SOLVE_GENERIC("Cannot solve this equation"),
-    INVALID_UNIT("Incompatible or invalid units"),
-    COMPLEX_RESULT("Complex numbers are switched off in the settings"),
-    SYNTAX_ERROR("Incomplete or invalid expression"),
-    UNKNOWN_FUNCTION("Unknown function"),
-    CANT_DIFFERENTIATE("Cannot differentiate this expression"),
-    CANT_INTEGRATE("No closed form found for this integral"),
-    TIMEOUT("Calculation timed out"),
-    DIMENSION_MISMATCH("Matrix dimensions do not match"),
-    MATRIX_NOT_SQUARE("Matrix must be square"),
-    SINGULAR_MATRIX("Matrix is not invertible"),
-    MATRIX_UNSUPPORTED("Not defined for matrices"),
-    MATRIX_EXPECTED("Needs a matrix"),
-    MATRIX_NEEDS_NUMBERS("Needs a matrix of numbers"),
-    NO_EIGENVALUES("No real eigenvalues"),
-    EIGEN_ALONE("eig can only be used on its own"),
-    EIGENVALUES_NOT_EXACT("The eigenvalues cannot be found exactly"),
-    MATRIX_AND_SCALAR("A matrix and a number cannot be added"),
-    NO_ANS("No previous result for Ans"),
-    DIVERGES("Does not converge"),
-    INVALID_BOUNDS("Bounds must be whole numbers"),
-    ARGUMENT_COUNT("Wrong number of values for this function"),
-    WHOLE_NUMBERS_ONLY("Only defined for whole numbers")
+enum class MathIssue(private val text: Text) {
+    DIVISION_BY_ZERO(Text.DIVISION_BY_ZERO),
+    NEGATIVE_ROOT(Text.NEGATIVE_ROOT),
+    LOGARITHMIC_DOMAIN(Text.LOGARITHMIC_DOMAIN),
+    TRIGONOMETRIC_DOMAIN(Text.TRIGONOMETRIC_DOMAIN),
+    VALUES_TOO_LARGE(Text.VALUES_TOO_LARGE),
+    UNDEFINED(Text.UNDEFINED),
+    CONTRADICTION(Text.CONTRADICTION),
+    NO_REAL_SOLUTION(Text.NO_REAL_SOLUTION),
+    CANT_SOLVE_GENERIC(Text.CANT_SOLVE_GENERIC),
+    INVALID_UNIT(Text.INVALID_UNIT),
+    COMPLEX_RESULT(Text.COMPLEX_RESULT),
+    SYNTAX_ERROR(Text.SYNTAX_ERROR),
+    UNKNOWN_FUNCTION(Text.UNKNOWN_FUNCTION),
+    CANT_DIFFERENTIATE(Text.CANT_DIFFERENTIATE),
+    CANT_INTEGRATE(Text.CANT_INTEGRATE),
+    TIMEOUT(Text.TIMEOUT),
+    DIMENSION_MISMATCH(Text.DIMENSION_MISMATCH),
+    MATRIX_NOT_SQUARE(Text.MATRIX_NOT_SQUARE),
+    SINGULAR_MATRIX(Text.SINGULAR_MATRIX),
+    MATRIX_UNSUPPORTED(Text.MATRIX_UNSUPPORTED),
+    MATRIX_EXPECTED(Text.MATRIX_EXPECTED),
+    MATRIX_NEEDS_NUMBERS(Text.MATRIX_NEEDS_NUMBERS),
+    NO_EIGENVALUES(Text.NO_EIGENVALUES),
+    EIGEN_ALONE(Text.EIGEN_ALONE),
+    EIGENVALUES_NOT_EXACT(Text.EIGENVALUES_NOT_EXACT),
+    MATRIX_AND_SCALAR(Text.MATRIX_AND_SCALAR),
+    NO_ANS(Text.NO_ANS),
+    DIVERGES(Text.DIVERGES),
+    INVALID_BOUNDS(Text.INVALID_BOUNDS),
+    ARGUMENT_COUNT(Text.ARGUMENT_COUNT),
+    WHOLE_NUMBERS_ONLY(Text.WHOLE_NUMBERS_ONLY);
+
+    /** What went wrong, in the language of the calculation that is running (English where none is). */
+    val userMessage: String get() = Texts.get(text)
+
+    /** What went wrong, said in [language]. */
+    fun message(language: Language): String = Texts.get(text, language)
 }

@@ -1,5 +1,7 @@
 package com.vortessence.calculator.core.math.type
 
+import com.vortessence.calculator.core.math.i18n.Text
+import com.vortessence.calculator.core.math.i18n.Texts
 import com.vortessence.calculator.core.math.expressions.*
 import com.vortessence.calculator.core.math.numbers.BigInt
 import com.vortessence.calculator.core.math.numbers.Rational
@@ -307,7 +309,7 @@ class MathWriter(
 
     private fun writeReal(d: Double, result: MathString, scientific: Boolean = false) {
         when {
-            d.isNaN() -> return result.append(TextNode("undefined"))
+            d.isNaN() -> return result.append(TextNode(Texts.get(Text.UNDEFINED_VALUE)))
             d.isInfinite() -> {
                 if (d < 0) result.append(OperatorNode(MathOp.MINUS))
                 return result.append(ConstantNode("∞"))

@@ -1,5 +1,6 @@
 package com.vortessence.calculator.core.math.context
 
+import com.vortessence.calculator.core.math.i18n.Language
 import com.vortessence.calculator.core.math.type.MathString
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -18,7 +19,9 @@ class MathContext(
     /** Values of the variables defined with ":=", by name. */
     var variables: Map<String, MathString> = emptyMap(),
     /** Whether i and complex results (√−1 = i, ln(−1) = iπ) are allowed. */
-    var complexNumbers: Boolean = false
+    var complexNumbers: Boolean = false,
+    /** The language of the texts the calculation produces: error messages, notes in the steps. */
+    var language: Language = Language.ENGLISH
 ) {
     private val _issues = mutableListOf<MathIssue>()
     val issues: List<MathIssue> get() = _issues
@@ -47,7 +50,7 @@ class MathContext(
         get() = System.currentTimeMillis() > deadlineMillis
 
     fun copy(): MathContext {
-        val copy = MathContext(mode, angleUnit, maxPrecision, unitSystem, decimalPlaces, ans, variables, complexNumbers)
+        val copy = MathContext(mode, angleUnit, maxPrecision, unitSystem, decimalPlaces, ans, variables, complexNumbers, language)
         copy._issues.addAll(_issues)
         copy.isCancelled.set(isCancelled.get())
         copy.deadlineMillis = deadlineMillis

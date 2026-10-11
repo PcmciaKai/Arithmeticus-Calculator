@@ -1,5 +1,7 @@
 package com.vortessence.calculator.core.math
 
+import com.vortessence.calculator.core.math.i18n.Text
+import com.vortessence.calculator.core.math.i18n.Texts
 import com.vortessence.calculator.core.math.context.AngleUnit
 import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.context.MathIssue
@@ -176,8 +178,9 @@ object MathEngine {
         val used = try { parser.parse(input).variables().map { it.identifier }.toSet() } catch (e: RuntimeException) { return null }
         val names = ctx.variables.filter { (name, value) -> name in used && try { parser.parse(value) is MatrixExpression } catch (e: RuntimeException) { false } }.keys.sorted()
         if (names.isEmpty()) return null
-        val subject = if (names.size == 1) "${names.single()} is a matrix" else names.dropLast(1).joinToString(", ") + " and " + names.last() + " are matrices"
-        return "$subject. ${issue.userMessage}"
+        val subject = if (names.size == 1) Texts.format(Text.MATRIX_IS, names.single(), language = ctx.language)
+        else Texts.format(Text.MATRICES_ARE, names.dropLast(1).joinToString(", ") + Texts.get(Text.AND, ctx.language) + names.last(), language = ctx.language)
+        return "$subject. ${issue.message(ctx.language)}"
     }
 
     private fun evaluate(input: MathString, ctx: MathContext): CalculationResult {
@@ -739,7 +742,7 @@ object MathEngine {
     private fun truthResult(input: MathString, equation: Expression, truth: Boolean, ctx: MathContext) =
         CalculationResult(
             input = input,
-            result = MathString(listOf(TextNode(if (truth) "true" else "false"))),
+            result = MathString(listOf(TextNode(Texts.get(if (truth) Text.TRUE else Text.FALSE, ctx.language)))),
             expression = equation,
             numericValue = Double.NaN,
             issues = ctx.issues,

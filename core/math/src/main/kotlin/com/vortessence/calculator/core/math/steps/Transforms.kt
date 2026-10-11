@@ -1,5 +1,7 @@
 package com.vortessence.calculator.core.math.steps
 
+import com.vortessence.calculator.core.math.i18n.Text
+import com.vortessence.calculator.core.math.i18n.Texts
 import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.expressions.Additions
 import com.vortessence.calculator.core.math.expressions.Antiderivative
@@ -211,7 +213,7 @@ internal object Transforms {
 
         val solution = Solver(context)
         solution.start(typed)
-        solution.apply(Match(StepRule.EXTEND_FRACTIONS, mapOf(emptyList<Int>() to extended), typed, extended, notes = listOf(Note(TextExpression("common denominator"), denominator)), showChange = false, boxReplacements = false))
+        solution.apply(Match(StepRule.EXTEND_FRACTIONS, mapOf(emptyList<Int>() to extended), typed, extended, notes = listOf(Note(TextExpression(Texts.get(Text.COMMON_DENOMINATOR)), denominator)), showChange = false, boxReplacements = false))
         solution.apply(Match(StepRule.COMBINE_FRACTIONS, mapOf(emptyList<Int>() to together), extended, together, showChange = false, boxReplacements = false))
         // The numerator is simplified on its own (the sums of the denominator stay as they are)
         val path = listOf(0)

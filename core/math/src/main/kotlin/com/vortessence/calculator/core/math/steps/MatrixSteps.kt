@@ -1,5 +1,7 @@
 package com.vortessence.calculator.core.math.steps
 
+import com.vortessence.calculator.core.math.i18n.Text
+import com.vortessence.calculator.core.math.i18n.Texts
 import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.expressions.Additions
 import com.vortessence.calculator.core.math.expressions.Antiderivative
@@ -160,7 +162,7 @@ internal object MatrixSteps {
             1 -> terms.single()
             else -> Additions(terms)
         }
-        val note = Note(TextExpression("expanded along ${if (kind == "row") "row" else "column"} ${k + 1}"), TextExpression(""), relation = "")
+        val note = Note(TextExpression(Texts.format(if (kind == "row") Text.EXPANDED_ALONG_ROW else Text.EXPANDED_ALONG_COLUMN, k + 1)), TextExpression(""), relation = "")
         replace(solution, path, StepRule.DETERMINANT_COFACTOR, node, result, notes = listOf(note))
         return true
     }
@@ -314,7 +316,7 @@ internal object MatrixSteps {
         solution.start(normalize(problem))
         val matrix = matrixOf(start)
         solution.apply(Match(StepRule.ROW_REDUCE_BEGIN, mapOf(emptyList<Int>() to matrix), problem, matrix, showChange = false, boxReplacements = false))
-        val rank = Note(TextExpression("rank = ${reduction.rank}"), TextExpression(""), relation = "")
+        val rank = Note(TextExpression(Texts.format(Text.RANK, reduction.rank)), TextExpression(""), relation = "")
         showOperations(solution, emptyList(), reduction.operations, rank)
         return solution.finish(matrixOf(reduction.rows))
     }

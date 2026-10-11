@@ -1,5 +1,7 @@
 package com.vortessence.calculator.core.math.steps
 
+import com.vortessence.calculator.core.math.i18n.Text
+import com.vortessence.calculator.core.math.i18n.Texts
 import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.context.MathIssue
 import com.vortessence.calculator.core.math.context.AngleUnit
@@ -216,7 +218,7 @@ internal object EquationSteps {
             val note = when {
                 ok -> Note(inserted(equation.left), inserted(equation.right), relation = "=")
                 defined -> Note(inserted(equation.left), inserted(equation.right), relation = "≠")
-                else -> Note(TextExpression("x = ${writtenForm(value)}".replace("x", v.identifier)), TextExpression("not defined"), relation = ":")
+                else -> Note(TextExpression("x = ${writtenForm(value)}".replace("x", v.identifier)), TextExpression(Texts.get(Text.NOT_DEFINED)), relation = ":")
             }
             Candidate(branch, ok, note)
         }
@@ -226,7 +228,7 @@ internal object EquationSteps {
         if (rejected.isEmpty() && !alwaysShown) return null
         val paths = pathsOf(solution.current) { it is Equals }
         val crossedOut = rejected.associate { i ->
-            paths[i] to TextExpression("${v.identifier} = ${writtenForm(candidates[i].branch.right)} is not a solution")
+            paths[i] to TextExpression(Texts.format(Text.NOT_A_SOLUTION, "${v.identifier} = ${writtenForm(candidates[i].branch.right)}"))
         }
         solution.apply(
             Match(
@@ -243,11 +245,11 @@ internal object EquationSteps {
         return kept
     }
 
-    private const val TRUE = "true"
+    private val TRUE: String get() = Texts.get(Text.TRUE)
 
-    private const val NO_REAL_SOLUTION = "no real solution"
+    private val NO_REAL_SOLUTION: String get() = Texts.get(Text.NO_REAL_SOLUTION_TEXT)
 
-    private const val NO_SOLUTION = "no solution"
+    private val NO_SOLUTION: String get() = Texts.get(Text.NO_SOLUTION)
 
     /**
      * Solves the equation at [path] of the current expression of [solution] for [v], step by

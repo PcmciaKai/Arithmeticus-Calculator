@@ -67,6 +67,8 @@ import com.vortessence.calculator.ui.theme.*
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import androidx.compose.ui.res.stringResource
+import com.vortessence.calculator.R
 
 sealed class KeyAction {
     data class Number(val digit: String) : KeyAction()
@@ -334,7 +336,7 @@ fun CalculatorKeypad(
                         alternates = listOf(alt("|□|", KeyAction.Function("abs")))
                     ) { onKeyAction(KeyAction.Parentheses) }
                     KeyButton(
-                        icon = { Icon(Icons.AutoMirrored.Filled.Backspace, contentDescription = "Backspace", tint = AccentRed, modifier = Modifier.size(24.dp)) },
+                        icon = { Icon(Icons.AutoMirrored.Filled.Backspace, contentDescription = stringResource(R.string.keypad_backspace), tint = AccentRed, modifier = Modifier.size(24.dp)) },
                         buttonWidth = buttonWidth
                     ) { onKeyAction(KeyAction.Backspace) }
 
@@ -407,9 +409,9 @@ fun CalculatorKeypad(
                         buttonWidth = buttonWidth,
                         content = {
                             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                                Icon(Icons.Default.Straighten, contentDescription = "Units", tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(18.dp))
+                                Icon(Icons.Default.Straighten, contentDescription = stringResource(R.string.keypad_units), tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.height(2.dp))
-                                Text("Units", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                                Text(stringResource(R.string.keypad_units), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                             }
                         },
                         popupIcon = Icons.Default.Straighten,
@@ -421,9 +423,9 @@ fun CalculatorKeypad(
                         buttonWidth = buttonWidth,
                         content = {
                             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                                Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = "Formulas", tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(18.dp))
+                                Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = stringResource(R.string.keypad_formulas), tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.height(2.dp))
-                                Text("Formulas", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                                Text(stringResource(R.string.keypad_formulas), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                             }
                         }
                     ) { onKeyAction(KeyAction.OpenFormulas) }
@@ -462,7 +464,7 @@ fun CalculatorKeypad(
                     KeyButton(
                         text = "π",
                         buttonWidth = buttonWidth,
-                        alternates = listOf(alt("e", KeyAction.Constant("e")), KeyAlternate(AnnotatedString("infinity"), InfinityIcon) { onKeyAction(KeyAction.Constant("∞")) })
+                        alternates = listOf(alt("e", KeyAction.Constant("e")), KeyAlternate(AnnotatedString(stringResource(R.string.keypad_infinity)), InfinityIcon) { onKeyAction(KeyAction.Constant("∞")) })
                     ) { onKeyAction(KeyAction.Constant("π")) }
 
                     // Page 1 (cols 4..8)
@@ -477,7 +479,7 @@ fun CalculatorKeypad(
                         buttonWidth = buttonWidth,
                         isOp = true,
                         alternates = listOf(
-                            KeyAlternate(AnnotatedString("mixed number"), MixedFractionIcon) { onKeyAction(KeyAction.MixedFraction) },
+                            KeyAlternate(AnnotatedString(stringResource(R.string.keypad_mixed_number)), MixedFractionIcon) { onKeyAction(KeyAction.MixedFraction) },
                             alt("÷", KeyAction.InlineDivide)
                         ),
                         popupIcon = FractionIcon,
@@ -489,9 +491,9 @@ fun CalculatorKeypad(
                         buttonWidth = buttonWidth,
                         content = {
                             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                                Icon(Icons.Default.Science, contentDescription = "Constants", tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(18.dp))
+                                Icon(Icons.Default.Science, contentDescription = stringResource(R.string.keypad_constants), tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.height(2.dp))
-                                Text("Const", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                                Text(stringResource(R.string.keypad_constants_short), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                             }
                         }
                     ) { onKeyAction(KeyAction.OpenConstants) }
@@ -499,9 +501,9 @@ fun CalculatorKeypad(
                         buttonWidth = buttonWidth,
                         content = {
                             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                                Icon(Icons.Default.AutoGraph, contentDescription = "Graph 2D", tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(18.dp))
+                                Icon(Icons.Default.AutoGraph, contentDescription = stringResource(R.string.keypad_graph_2d), tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.height(2.dp))
-                                Text("Graph", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                                Text(stringResource(R.string.keypad_graph), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                             }
                         }
                     ) { onKeyAction(KeyAction.OpenGraph) }
@@ -562,7 +564,7 @@ fun CalculatorKeypad(
                         icon = {
                             Icon(
                                 Icons.AutoMirrored.Filled.KeyboardReturn,
-                                contentDescription = "Enter",
+                                contentDescription = stringResource(R.string.keypad_enter),
                                 tint = MaterialTheme.colorScheme.onPrimary,
                                 modifier = Modifier.size(28.dp)
                             )
@@ -572,7 +574,7 @@ fun CalculatorKeypad(
                         spacing = spacing,
                         bgColor = MaterialTheme.colorScheme.primary,
                         popupIcon = Icons.AutoMirrored.Filled.KeyboardReturn,
-                        alternates = listOf(alt("new line", KeyAction.NewLine))
+                        alternates = listOf(alt(stringResource(R.string.keypad_new_line), KeyAction.NewLine))
                     ) { onKeyAction(KeyAction.Enter) }
 
                     // Page 2 (cols 9..10)
@@ -581,9 +583,9 @@ fun CalculatorKeypad(
                         buttonWidth = buttonWidth,
                         content = {
                             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                                Icon(Icons.Default.Settings, contentDescription = "Settings", tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(18.dp))
+                                Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.keypad_settings), tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.height(2.dp))
-                                Text("Settings", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                                Text(stringResource(R.string.keypad_settings), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                             }
                         }
                     ) { onKeyAction(KeyAction.OpenSettings) }

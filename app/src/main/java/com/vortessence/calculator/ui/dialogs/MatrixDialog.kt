@@ -45,7 +45,7 @@ fun MatrixDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Matrix", fontWeight = FontWeight.Bold) },
+        title = { Text(stringResource(R.string.matrix_title), fontWeight = FontWeight.Bold) },
         text = {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                 Text(
@@ -121,7 +121,7 @@ fun MatrixDialog(
                 }
                 Spacer(Modifier.height(12.dp))
                 Text(
-                    text = "Drag to choose the size, lift to insert",
+                    text = stringResource(R.string.matrix_drag_hint),
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -136,12 +136,12 @@ fun MatrixDialog(
         },
         confirmButton = {
             TextButton(onClick = { onSizeSelected(rows, cols) }) {
-                Text("Insert")
+                Text(stringResource(R.string.matrix_insert))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.common_cancel))
             }
         },
         shape = RoundedCornerShape(20.dp)

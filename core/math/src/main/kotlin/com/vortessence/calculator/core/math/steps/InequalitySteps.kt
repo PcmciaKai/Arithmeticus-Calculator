@@ -1,5 +1,7 @@
 package com.vortessence.calculator.core.math.steps
 
+import com.vortessence.calculator.core.math.i18n.Text
+import com.vortessence.calculator.core.math.i18n.Texts
 import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.expressions.Additions
 import com.vortessence.calculator.core.math.expressions.Between
@@ -225,7 +227,7 @@ internal object InequalitySteps {
         }
         fun line(x: Double, difference: Double, holds: Boolean): Expression {
             val (substituted, value) = valueOf(x)
-            if (value == null) return TextExpression("not defined ✗")
+            if (value == null) return TextExpression(Texts.get(Text.NOT_DEFINED_FAILS))
             return Alternatives(listOf(Equals(substituted, value), TextExpression(verdict(difference, holds))), inline = true, separator = "  ")
         }
         for (k in 0..n) {
@@ -235,11 +237,11 @@ internal object InequalitySteps {
                 k == n -> Inequality(v, critical.last(), Relation.GREATER)
                 else -> Between(critical[k - 1], Relation.LESS, v, Relation.LESS, critical[k])
             }
-            val right = if (analysis.sampleValues[k].isFinite()) line(analysis.samples[k], analysis.sampleValues[k], analysis.intervalHolds[k]) else TextExpression("not defined ✗")
+            val right = if (analysis.sampleValues[k].isFinite()) line(analysis.samples[k], analysis.sampleValues[k], analysis.intervalHolds[k]) else TextExpression(Texts.get(Text.NOT_DEFINED_FAILS))
             notes.add(Note(label, right, relation = ":"))
             if (k < n) {
                 val x = critical[k].evaluateNumerically()
-                val right = if (analysis.pointValues[k].isFinite()) line(x, analysis.pointValues[k], analysis.pointHolds[k]) else TextExpression("not defined ✗")
+                val right = if (analysis.pointValues[k].isFinite()) line(x, analysis.pointValues[k], analysis.pointHolds[k]) else TextExpression(Texts.get(Text.NOT_DEFINED_FAILS))
                 notes.add(Note(Equals(v, critical[k]), right, relation = ":"))
             }
         }

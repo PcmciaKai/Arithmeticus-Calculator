@@ -1,5 +1,7 @@
 package com.vortessence.calculator.model.formulas
 
+import androidx.annotation.StringRes
+import com.vortessence.calculator.R
 import com.vortessence.calculator.core.math.type.*
 
 /**
@@ -7,9 +9,9 @@ import com.vortessence.calculator.core.math.type.*
  * then goes to its first empty slot (or before its first comma), ready to type the values.
  */
 data class Formula(
-    val name: String,
-    val description: String,
-    val category: String,
+    @StringRes val name: Int,
+    @StringRes val description: Int,
+    @StringRes val category: Int,
     val template: MathString
 )
 
@@ -22,30 +24,23 @@ object FormulasDb {
     /** name(, ): exactly two values; the cursor starts before the comma. */
     private fun ofTwo(name: String) = ms(FunctionNode(name, ms(SeparatorNode)))
 
-    private const val VALUES = "Values separated by commas (long press . for a comma)"
-
     val items = listOf(
-        // Statistics
-        Formula("Mean x̄", "Average of the values. $VALUES", "Statistics", ofValues("mean")),
-        Formula("Median", "Middle value when sorted; for an even count the mean of the two middle ones", "Statistics", ofValues("median")),
-        Formula("Standard deviation s (sample)", "Spread of a sample drawn from a larger population, divides by n − 1", "Statistics", ofValues("stdev")),
-        Formula("Standard deviation σ (population)", "Spread of a complete population, divides by n", "Statistics", ofValues("stdevp")),
-        Formula("Variance s² (sample)", "Square of the sample standard deviation, divides by n − 1", "Statistics", ofValues("var")),
-        Formula("Variance σ² (population)", "Square of the population standard deviation, divides by n", "Statistics", ofValues("varp")),
-        Formula("Standard error of the mean", "s/√n: how precisely a sample's mean estimates the population mean", "Statistics", ofValues("sem")),
-        Formula("Minimum", "Smallest of the values", "Statistics", ofValues("min")),
-        Formula("Maximum", "Largest of the values", "Statistics", ofValues("max")),
-
-        // Combinatorics
-        Formula("Combinations nCr", "Ways to choose k of n items, order does not matter: nCr(n, k)", "Combinatorics", ofTwo("nCr")),
-        Formula("Permutations nPr", "Ways to arrange k of n items in order: nPr(n, k)", "Combinatorics", ofTwo("nPr")),
-
-        // Divisors, rounding
-        Formula("Greatest common divisor", "Largest whole number dividing all values", "Numbers", ofValues("gcd")),
-        Formula("Least common multiple", "Smallest positive multiple of all values", "Numbers", ofValues("lcm")),
-        Formula("Round", "To the nearest whole number, halves away from zero", "Numbers", ofValues("round")),
-        Formula("Round to decimal places", "round(x, n): x with n decimal places", "Numbers", ofTwo("round")),
-        Formula("Round down (floor)", "Largest whole number not above the value", "Numbers", ofValues("floor")),
-        Formula("Round up (ceiling)", "Smallest whole number not below the value", "Numbers", ofValues("ceil"))
+        Formula(R.string.formula_mean_name, R.string.formula_mean_desc, R.string.category_statistics, ofValues("mean")),
+        Formula(R.string.formula_median_name, R.string.formula_median_desc, R.string.category_statistics, ofValues("median")),
+        Formula(R.string.formula_stdev_name, R.string.formula_stdev_desc, R.string.category_statistics, ofValues("stdev")),
+        Formula(R.string.formula_stdevp_name, R.string.formula_stdevp_desc, R.string.category_statistics, ofValues("stdevp")),
+        Formula(R.string.formula_var_name, R.string.formula_var_desc, R.string.category_statistics, ofValues("var")),
+        Formula(R.string.formula_varp_name, R.string.formula_varp_desc, R.string.category_statistics, ofValues("varp")),
+        Formula(R.string.formula_sem_name, R.string.formula_sem_desc, R.string.category_statistics, ofValues("sem")),
+        Formula(R.string.formula_min_name, R.string.formula_min_desc, R.string.category_statistics, ofValues("min")),
+        Formula(R.string.formula_max_name, R.string.formula_max_desc, R.string.category_statistics, ofValues("max")),
+        Formula(R.string.formula_ncr_name, R.string.formula_ncr_desc, R.string.category_combinatorics, ofTwo("nCr")),
+        Formula(R.string.formula_npr_name, R.string.formula_npr_desc, R.string.category_combinatorics, ofTwo("nPr")),
+        Formula(R.string.formula_gcd_name, R.string.formula_gcd_desc, R.string.category_numbers, ofValues("gcd")),
+        Formula(R.string.formula_lcm_name, R.string.formula_lcm_desc, R.string.category_numbers, ofValues("lcm")),
+        Formula(R.string.formula_round_name, R.string.formula_round_desc, R.string.category_numbers, ofValues("round")),
+        Formula(R.string.formula_round_places_name, R.string.formula_round_places_desc, R.string.category_numbers, ofTwo("round")),
+        Formula(R.string.formula_floor_name, R.string.formula_floor_desc, R.string.category_numbers, ofValues("floor")),
+        Formula(R.string.formula_ceil_name, R.string.formula_ceil_desc, R.string.category_numbers, ofValues("ceil"))
     )
 }

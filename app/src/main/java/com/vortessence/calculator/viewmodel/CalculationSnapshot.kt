@@ -4,6 +4,7 @@ import com.vortessence.calculator.core.math.context.AngleUnit
 import com.vortessence.calculator.core.math.context.CalculationMode
 import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.context.UnitSystem
+import com.vortessence.calculator.core.math.i18n.Language
 import com.vortessence.calculator.core.math.type.AnsNode
 import com.vortessence.calculator.core.math.type.AntiderivativeNode
 import com.vortessence.calculator.core.math.type.DerivativeNode
@@ -23,7 +24,9 @@ data class CalculationSnapshot(
     val decimalPlaces: Int?,
     val ans: MathString?,
     val variables: Map<String, MathString>,
-    val complexNumbers: Boolean
+    val complexNumbers: Boolean,
+    /** The language of the texts the calculation produces; not part of a saved entry: those are calculated in the language of the day. */
+    val language: Language = Language.ENGLISH
 ) {
     // Always exact; decimal display is a matter of the result form
     fun toMathContext() = MathContext(
@@ -33,7 +36,8 @@ data class CalculationSnapshot(
         decimalPlaces = decimalPlaces,
         ans = ans,
         variables = variables,
-        complexNumbers = complexNumbers
+        complexNumbers = complexNumbers,
+        language = language
     )
 
     /**

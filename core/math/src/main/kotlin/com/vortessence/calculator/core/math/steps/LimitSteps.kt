@@ -1,5 +1,7 @@
 package com.vortessence.calculator.core.math.steps
 
+import com.vortessence.calculator.core.math.i18n.Text
+import com.vortessence.calculator.core.math.i18n.Texts
 import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.expressions.AbsoluteValue
 import com.vortessence.calculator.core.math.expressions.Additions
@@ -147,8 +149,8 @@ internal object LimitSteps {
             if (!atDenominator.isZero || atNumerator.isZero || !atNumerator.evaluateNumerically().isFinite()) return@let
             val sides = if (side == 0) listOf(1, -1) else listOf(side)
             val notes = listOf(
-                Note(TextExpression("denominator"), TextExpression("→ 0${describeSides(denominator, v, point, sides)}")),
-                Note(TextExpression("numerator"), atNumerator)
+                Note(TextExpression(Texts.get(Text.DENOMINATOR)), TextExpression("→ 0${describeSides(denominator, v, point, sides)}")),
+                Note(TextExpression(Texts.get(Text.NUMERATOR)), atNumerator)
             )
             solution.apply(Match(StepRule.LIMIT_POLE, mapOf(root to infinity), solution.current, infinity, notes = notes, showChange = false))
             return true
@@ -273,7 +275,7 @@ internal object LimitSteps {
                     solution.apply(
                         Match(
                             StepRule.LIMIT_GROWS, mapOf(root to infinity), solution.current, infinity,
-                            notes = if (degreeD == 0 && d.size == 1 && d[0] == com.vortessence.calculator.core.math.numbers.Rational.ONE) emptyList() else listOf(Note(TextExpression("highest powers"), Multiplications.of(
+                            notes = if (degreeD == 0 && d.size == 1 && d[0] == com.vortessence.calculator.core.math.numbers.Rational.ONE) emptyList() else listOf(Note(TextExpression(Texts.get(Text.HIGHEST_POWERS)), Multiplications.of(
                                 PartialFractions.toExpression(listOf(n.last()), v), Power(v, Value(degreeN.toLong())),
                                 Power(Multiplications.of(PartialFractions.toExpression(listOf(d.last()), v), Power(v, Value(degreeD.toLong()))), Value.MINUS_ONE)
                             ))),
@@ -357,7 +359,10 @@ internal object LimitSteps {
             if (shown == null) { shown = operand; positive = near > 0 }
         }
         after = body.transform { e -> if (e is AbsoluteValue && e.operand.containsVariable(v)) (if (nearPoint(e.operand, v, point, side) > 0) e.operand else e.operand.negate()) else e }
-        val text = "${writtenForm(shown!!)} is ${if (positive == true) "positive" else "negative"} for ${v.identifier} → ${writtenForm(point)}${if (side > 0) "⁺" else "⁻"}"
+        val text = Texts.format(
+            if (positive == true) Text.IS_POSITIVE_FOR else Text.IS_NEGATIVE_FOR, writtenForm(shown!!),
+            "${v.identifier} → ${writtenForm(point)}${if (side > 0) "⁺" else "⁻"}"
+        )
         solution.apply(Match(StepRule.LIMIT_ABSOLUTE_VALUE, replacements, body, after, notes = listOf(Note(TextExpression(text), TextExpression(""), relation = "")), showChange = false, boxReplacements = false))
     }
 
@@ -379,7 +384,7 @@ internal object LimitSteps {
         if ((result.real.isInfinite && !expected.isInfinite()) || (!result.real.isInfinite && abs(expected) > 1e-12)) return null
         val goes = if (signs.first() > 0) "∞" else "−∞"
         val where = "${v.identifier} → ${writtenForm(point)}${if (side > 0) "⁺" else if (side < 0) "⁻" else ""}"
-        val note = Note(power.exponent, TextExpression("$goes  as  $where"), relation = "→")
+        val note = Note(power.exponent, TextExpression(Texts.format(Text.GOES_AS, goes, where)), relation = "→")
         solution.apply(Match(StepRule.LIMIT_EXPONENT_INFINITE, mapOf(emptyList<Int>() to result), solution.current, result, notes = listOf(note), showChange = false))
         return true
     }

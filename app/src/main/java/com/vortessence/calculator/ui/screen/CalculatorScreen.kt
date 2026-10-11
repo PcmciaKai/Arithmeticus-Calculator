@@ -1,5 +1,6 @@
 package com.vortessence.calculator.ui.screen
 
+import android.app.Activity
 import android.app.Application
 import android.os.Build
 import androidx.compose.foundation.background
@@ -28,6 +29,7 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -52,6 +54,7 @@ import com.vortessence.calculator.ui.math.MathEditorActions
 import com.vortessence.calculator.ui.math.MathExpressionView
 import com.vortessence.calculator.ui.math.rememberMathClipboard
 import androidx.compose.ui.tooling.preview.Preview
+import com.vortessence.calculator.i18n.AppLanguage
 import com.vortessence.calculator.ui.dialogs.SettingsDialog
 import com.vortessence.calculator.ui.theme.AccentRed
 import com.vortessence.calculator.ui.theme.CalculatorTheme
@@ -60,6 +63,10 @@ import com.vortessence.calculator.viewmodel.CalculatorViewModel
 import com.vortessence.calculator.viewmodel.PercentHint
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import androidx.annotation.StringRes
+import com.vortessence.calculator.core.math.i18n.Language
+import com.vortessence.calculator.core.math.i18n.Text
+import com.vortessence.calculator.core.math.i18n.Texts
 
 @Composable
 fun CalculatorScreen(
@@ -74,6 +81,7 @@ fun CalculatorScreen(
 
 @Composable
 private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: CalculatorUiState) {
+    val context = LocalContext.current
     if (uiState.isGraphOpen) {
         GraphPlotterView(
             curve = uiState.plotCurve,
@@ -99,7 +107,7 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
         if (uiState.showComplexNotice) {
             // Cleared afterwards: clearing it first would restart this effect and cancel the message
             snackbarHostState.showSnackbar(
-                message = "Complex numbers are now on. You can switch them off in the settings.",
+                message = context.getString(R.string.notice_complex_on),
                 withDismissAction = true
             )
             viewModel.dismissComplexNotice()
@@ -115,7 +123,7 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
     fun copy(math: MathString) {
         clipboard.copy(math)
         // Android 13 and later confirm copies themselves
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) showMessage("Copied")
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) showMessage(context.getString(R.string.message_copied))
     }
     // Long press on a history entry or the live result copies it
     fun copyWithFeedback(math: MathString) {
@@ -133,8 +141,8 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
             val content = clipboard.paste()
             when {
                 content == null -> Unit
-                content.math == null -> showMessage("Can't paste \"${content.text.ellipsized(24)}\" as math")
-                !viewModel.paste(content.math) -> showMessage("Several lines can't be pasted into a fraction, root, …")
+                content.math == null -> showMessage(context.getString(R.string.message_cant_paste, content.text.ellipsized(24)))
+                !viewModel.paste(content.math) -> showMessage(context.getString(R.string.message_cant_paste_lines))
             }
         },
         onSelectAll = { viewModel.selectAll() },
@@ -204,6 +212,7 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
                         onFormChange = { viewModel.setResultForm(it) },
                         onCopy = ::copyWithFeedback,
                         hasSteps = uiState.hasSteps || uiState.transforms.isNotEmpty(),
+                        language = uiState.language,
                         onShowSteps = { viewModel.showSteps() },
                         percentHint = uiState.percentHint,
                         onApplyPercentHint = { viewModel.applyPercentHint() }
@@ -226,7 +235,8 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
             onUnitSelected = { symbol -> viewModel.insertUnit(symbol) },
             selectedCategory = uiState.unitCategory,
             onCategorySelected = { viewModel.selectUnitCategory(it) },
-            scrollToFamily = uiState.unitFamilyToShow
+            scrollToFamily = uiState.unitFamilyToShow,
+            language = uiState.language
         )
     }
 
@@ -268,12 +278,14 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
             digitGrouping = uiState.digitGrouping,
             complexNumbers = uiState.complexNumbers,
             themeMode = uiState.themeMode,
+            languageChoice = remember(uiState.language, uiState.showSettingsDialog) { AppLanguage.choice(context) },
             onToggleAngleUnit = { viewModel.toggleAngleUnit() },
             onUnitSystemChange = { viewModel.setUnitSystem(it) },
             onDecimalPlacesChange = { viewModel.setDecimalPlaces(it) },
             onDigitGroupingChange = { viewModel.setDigitGrouping(it) },
             onComplexNumbersChange = { viewModel.setComplexNumbers(it) },
             onThemeModeChange = { viewModel.setThemeMode(it) },
+            onLanguageChange = { choice -> (context as? Activity)?.let { AppLanguage.set(it, choice) } },
             onDismiss = { viewModel.dismissSettingsDialog() }
         )
     }
@@ -295,6 +307,7 @@ private fun LiveResultView(
     onFormChange: (ResultForm) -> Unit,
     onCopy: (MathString) -> Unit,
     hasSteps: Boolean,
+    language: Language,
     onShowSteps: () -> Unit,
     percentHint: PercentHint? = null,
     onApplyPercentHint: () -> Unit = {},
@@ -312,7 +325,7 @@ private fun LiveResultView(
             val isIncomplete = result.issues.all { it == MathIssue.SYNTAX_ERROR }
             if (showError || !isIncomplete) {
                 Text(
-                    text = result.issueNote ?: result.issues.firstOrNull()?.userMessage ?: "Calculation Error",
+                    text = result.issueNote ?: result.issues.firstOrNull()?.message(language) ?: Texts.get(Text.CALCULATION_ERROR, language),
                     color = AccentRed,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold
@@ -333,7 +346,7 @@ private fun LiveResultView(
             if (hasSteps) AnswerPill(stringResource(R.string.steps_title), selected = false, onClick = onShowSteps)
             if (forms.size > 1) {
                 forms.forEach { option ->
-                    AnswerPill(option.label, shownForm == option) { onFormChange(option) }
+                    AnswerPill(stringResource(option.label), shownForm == option) { onFormChange(option) }
                 }
             }
             Spacer(modifier = Modifier.weight(1f))
@@ -377,13 +390,13 @@ private fun LiveResultView(
     }
 }
 
-private val ResultForm.label: String
-    get() = when (this) {
-        ResultForm.EXACT -> "Exact"
-        ResultForm.DECIMAL -> "Decimal"
-        ResultForm.SCIENTIFIC -> "Sci"
-        ResultForm.MIXED -> "Mixed"
-        ResultForm.POLAR -> "Polar"
+private val ResultForm.label: Int
+    @StringRes get() = when (this) {
+        ResultForm.EXACT -> R.string.result_form_exact
+        ResultForm.DECIMAL -> R.string.result_form_decimal
+        ResultForm.SCIENTIFIC -> R.string.result_form_scientific
+        ResultForm.MIXED -> R.string.result_form_mixed
+        ResultForm.POLAR -> R.string.result_form_polar
     }
 
 @Composable
@@ -436,7 +449,7 @@ private fun SwipeToDeleteBox(
                     .padding(horizontal = 20.dp),
                 contentAlignment = alignment
             ) {
-                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.onError)
+                Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.history_delete), tint = MaterialTheme.colorScheme.onError)
             }
         }
     ) {

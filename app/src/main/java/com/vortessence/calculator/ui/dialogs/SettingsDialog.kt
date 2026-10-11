@@ -1,5 +1,6 @@
 package com.vortessence.calculator.ui.dialogs
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -8,11 +9,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vortessence.calculator.core.math.context.AngleUnit
 import com.vortessence.calculator.core.math.context.UnitSystem
+import com.vortessence.calculator.R
+import com.vortessence.calculator.i18n.LanguageChoice
 import com.vortessence.calculator.ui.theme.ThemeMode
 import java.util.Locale
 
@@ -24,12 +28,14 @@ fun SettingsDialog(
     digitGrouping: Boolean,
     complexNumbers: Boolean,
     themeMode: ThemeMode,
+    languageChoice: LanguageChoice,
     onToggleAngleUnit: () -> Unit,
     onUnitSystemChange: (UnitSystem) -> Unit,
     onDecimalPlacesChange: (Int?) -> Unit,
     onDigitGroupingChange: (Boolean) -> Unit,
     onComplexNumbersChange: (Boolean) -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit,
+    onLanguageChange: (LanguageChoice) -> Unit,
     onDismiss: () -> Unit
 ) {
     var showSupport by remember { mutableStateOf(false) }
@@ -40,7 +46,7 @@ fun SettingsDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text("Calculator Settings", fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.settings_title), fontWeight = FontWeight.Bold)
         },
         text = {
             Column(
@@ -57,9 +63,9 @@ fun SettingsDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Text("Angle Unit", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                        Text(stringResource(R.string.settings_angle_unit), fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                         Text(
-                            if (angleUnit == AngleUnit.RADIANS) "Radians" else "Degrees",
+                            stringResource(if (angleUnit == AngleUnit.RADIANS) R.string.settings_radians else R.string.settings_degrees),
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -67,7 +73,7 @@ fun SettingsDialog(
                     FilterChip(
                         selected = angleUnit == AngleUnit.RADIANS,
                         onClick = onToggleAngleUnit,
-                        label = { Text(if (angleUnit == AngleUnit.RADIANS) "RAD" else "DEG") }
+                        label = { Text(stringResource(if (angleUnit == AngleUnit.RADIANS) R.string.settings_radians_short else R.string.settings_degrees_short)) }
                     )
                 }
 
@@ -80,10 +86,9 @@ fun SettingsDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Complex numbers", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                        Text(stringResource(R.string.settings_complex), fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                         Text(
-                            if (complexNumbers) "Allow i and complex results, e.g. √−4 = 2i"
-                            else "Real numbers only, √−4 is an error",
+                            stringResource(if (complexNumbers) R.string.settings_complex_on else R.string.settings_complex_off),
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -96,17 +101,17 @@ fun SettingsDialog(
                 // Unit system for results
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Column {
-                        Text("Units for results", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                        Text(stringResource(R.string.settings_units_for_results), fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                         Text(
-                            unitSystemDescription(unitSystem),
+                            stringResource(unitSystemDescription(unitSystem)),
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     val options = listOf(
-                        UnitSystem.METRIC to "Metric",
-                        UnitSystem.IMPERIAL to "Imperial",
-                        UnitSystem.US_CUSTOMARY to "US"
+                        UnitSystem.METRIC to stringResource(R.string.settings_metric),
+                        UnitSystem.IMPERIAL to stringResource(R.string.settings_imperial),
+                        UnitSystem.US_CUSTOMARY to stringResource(R.string.settings_us)
                     )
                     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                         options.forEachIndexed { index, (system, label) ->
@@ -125,17 +130,17 @@ fun SettingsDialog(
 
                 // Number display
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Number display", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                    Text(stringResource(R.string.settings_number_display), fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Decimal places", fontWeight = FontWeight.Medium, fontSize = 15.sp)
+                            Text(stringResource(R.string.settings_decimal_places), fontWeight = FontWeight.Medium, fontSize = 15.sp)
                             Text(
-                                if (decimalPlaces == null) "Automatic, up to 10 significant digits"
-                                else "Always $decimalPlaces, e.g. ${"%.${decimalPlaces}f".format(Locale.US, 2.5)}",
+                                if (decimalPlaces == null) stringResource(R.string.settings_decimal_auto)
+                                else stringResource(R.string.settings_decimal_fixed, decimalPlaces, "%.${decimalPlaces}f".format(Locale.US, 2.5)),
                                 fontSize = 13.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -148,9 +153,9 @@ fun SettingsDialog(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Digit grouping", fontWeight = FontWeight.Medium, fontSize = 15.sp)
+                            Text(stringResource(R.string.settings_digit_grouping), fontWeight = FontWeight.Medium, fontSize = 15.sp)
                             Text(
-                                "Show large numbers as 300\u202F000",
+                                stringResource(R.string.settings_digit_grouping_desc),
                                 fontSize = 13.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -163,11 +168,11 @@ fun SettingsDialog(
 
                 // Appearance
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Appearance", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                    Text(stringResource(R.string.settings_appearance), fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                     val options = listOf(
-                        ThemeMode.SYSTEM to "System",
-                        ThemeMode.LIGHT to "Light",
-                        ThemeMode.DARK to "Dark"
+                        ThemeMode.SYSTEM to stringResource(R.string.settings_theme_system),
+                        ThemeMode.LIGHT to stringResource(R.string.settings_theme_light),
+                        ThemeMode.DARK to stringResource(R.string.settings_theme_dark)
                     )
                     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                         options.forEachIndexed { index, (mode, label) ->
@@ -184,17 +189,40 @@ fun SettingsDialog(
 
                 HorizontalDivider()
 
+                // Language
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.settings_language), fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                    val options = listOf(
+                        LanguageChoice.SYSTEM to stringResource(R.string.settings_language_system),
+                        LanguageChoice.ENGLISH to stringResource(R.string.settings_language_english),
+                        LanguageChoice.GERMAN to stringResource(R.string.settings_language_german)
+                    )
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        options.forEachIndexed { index, (choice, label) ->
+                            SegmentedButton(
+                                selected = languageChoice == choice,
+                                onClick = { onLanguageChange(choice) },
+                                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size)
+                            ) {
+                                Text(label, fontSize = 13.sp, maxLines = 1)
+                            }
+                        }
+                    }
+                }
+
+                HorizontalDivider()
+
                 OutlinedButton(
                     onClick = { showSupport = true },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("♥︎ Support this app")
+                    Text(stringResource(R.string.settings_support))
                 }
             }
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Done")
+                Text(stringResource(R.string.settings_done))
             }
         },
         shape = RoundedCornerShape(20.dp)
@@ -206,30 +234,25 @@ private fun SupportDialog(onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text("♥︎ Support this app", fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.settings_support), fontWeight = FontWeight.Bold)
         },
         text = {
-            Text(
-                "I'm very glad that you like this app. This app is open-source and will always be free, " +
-                    "but I'd be happy if you were to buy me a coffee.\n\n" +
-                    "Unfortunately, due to Google's policies, I can't just add a button that would link to " +
-                    "a page where you can easily donate. I'm sure that if you can find this project on " +
-                    "my GitHub (PcmciaKai), you can also find a way to leave a tip."
-            )
+            Text(stringResource(R.string.support_text))
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Close")
+                Text(stringResource(R.string.common_close))
             }
         },
         shape = RoundedCornerShape(20.dp)
     )
 }
 
-private fun unitSystemDescription(system: UnitSystem): String = when (system) {
-    UnitSystem.METRIC -> "SI units: m, kg, m³, N, Pa, J, K, …"
-    UnitSystem.IMPERIAL -> "British imperial: ft, lb, imperial gallon, psi, …"
-    UnitSystem.US_CUSTOMARY -> "US customary: ft, lb, US gallon, psi, …"
+@StringRes
+private fun unitSystemDescription(system: UnitSystem): Int = when (system) {
+    UnitSystem.METRIC -> R.string.settings_units_si
+    UnitSystem.IMPERIAL -> R.string.settings_units_imperial
+    UnitSystem.US_CUSTOMARY -> R.string.settings_units_us
 }
 
 /** "Auto" or a fixed number of decimal places from 0 to [MAX_DECIMAL_PLACES]. */
@@ -238,12 +261,12 @@ private fun DecimalPlacesPicker(value: Int?, onChange: (Int?) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         OutlinedButton(onClick = { expanded = true }) {
-            Text(value?.toString() ?: "Auto")
+            Text(value?.toString() ?: stringResource(R.string.settings_auto))
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             (listOf<Int?>(null) + (0..MAX_DECIMAL_PLACES)).forEach { option ->
                 DropdownMenuItem(
-                    text = { Text(option?.toString() ?: "Auto") },
+                    text = { Text(option?.toString() ?: stringResource(R.string.settings_auto)) },
                     onClick = {
                         onChange(option)
                         expanded = false
