@@ -23,6 +23,7 @@ import com.vortessence.calculator.core.math.type.SeparatorNode
 import com.vortessence.calculator.core.math.type.MathOp
 import com.vortessence.calculator.ui.keypad.KeyAction
 import com.vortessence.calculator.viewmodel.CalculatorViewModel
+import com.vortessence.calculator.viewmodel.SessionStore
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancelAndJoin
@@ -45,8 +46,13 @@ class CalculatorViewModelTest {
     private val viewModels = mutableListOf<CalculatorViewModel>()
 
     /** Creates a ViewModel whose background work is shut down after the test. */
-    private fun newViewModel(): CalculatorViewModel =
-        CalculatorViewModel(Application(), liveResultDelayMillis = 0).also { viewModels.add(it) }
+    private fun newViewModel(store: SessionStore? = null): CalculatorViewModel =
+        CalculatorViewModel(Application(), liveResultDelayMillis = 0, sessionStore = store).also { viewModels.add(it) }
+
+    private class MemorySessionStore(var text: String? = null) : SessionStore {
+        override fun load() = text
+        override fun save(text: String) { this.text = text }
+    }
 
     @Before
     fun setUp() {
@@ -1443,5 +1449,136 @@ class CalculatorViewModelTest {
         // Backspace in the empty angle leaves the number
         vm.onKeyAction(KeyAction.Backspace)
         assertEquals("2", vm.uiState.value.expression.toString())
+    }
+
+    /** Waits until the restored history has been calculated again. */
+    private suspend fun CalculatorViewModel.awaitHistory(size: Int) {
+        var attempts = 0
+        while (uiState.value.history.size != size && attempts < 100) {
+            delay(20)
+            attempts++
+        }
+        assertEquals(size, uiState.value.history.size)
+    }
+
+    @Test
+    fun historyVariablesAndLineSurviveClosingTheApp() = runBlocking {
+        val store = MemorySessionStore()
+        val first = newViewModel(store)
+        first.defineVariable("a", "2")
+        first.type("5")
+        first.onKeyAction(KeyAction.Enter)
+        first.awaitCommit()
+        first.type("7", "+")
+        first.saveSession()
+
+        val reopened = newViewModel(store)
+        reopened.awaitHistory(2)
+        assertEquals(listOf("5", "a := 2"), reopened.uiState.value.history.map { it.calculation.input.toString() })
+        assertEquals("a = 2", reopened.uiState.value.history[1].calculation.result.toString())
+        assertEquals("7 + ", reopened.uiState.value.expression.toString())
+        assertEquals(listOf(2), reopened.uiState.value.cursorPath)
+        // The variable is still defined, and Ans is the last result
+        assertEquals("3", reopened.liveResultOf("a", "+", "1"))
+        // New entries do not clash with the restored ones
+        reopened.type("9")
+        reopened.onKeyAction(KeyAction.Enter)
+        reopened.awaitCommit()
+        val ids = reopened.uiState.value.history.map { it.id }
+        assertEquals(ids.size, ids.toSet().size)
+    }
+
+    @Test
+    fun swipedAwayEntriesStayAway() = runBlocking {
+        val store = MemorySessionStore()
+        val first = newViewModel(store)
+        first.defineVariable("a", "2")
+        first.type("5")
+        first.onKeyAction(KeyAction.Enter)
+        first.awaitCommit()
+        first.deleteHistoryEntry(first.uiState.value.history.single { it.calculation.definedVariable == "a" }.id)
+        first.saveSession()
+
+        val reopened = newViewModel(store)
+        reopened.awaitHistory(1)
+        assertEquals("5", reopened.uiState.value.history[0].calculation.input.toString())
+        // a is a plain symbol again
+        reopened.onKeyAction(KeyAction.Variable("a"))
+        reopened.type("+", "1")
+        reopened.awaitLiveResultText("a + 1")
+    }
+
+    @Test
+    fun clearAllClearsWhatWasSaved() = runBlocking {
+        val store = MemorySessionStore()
+        val first = newViewModel(store)
+        first.defineVariable("a", "2")
+        first.type("4")
+        first.onKeyAction(KeyAction.Clear) // clears the line
+        first.onKeyAction(KeyAction.Clear) // line is empty: clears everything
+        first.saveSession()
+
+        val reopened = newViewModel(store)
+        assertTrue(reopened.uiState.value.history.isEmpty())
+        assertTrue(reopened.uiState.value.expression.isEmpty)
+    }
+
+    @Test
+    fun anEntryKeepsItsResultWhenTheDefinitionItUsedIsGone() = runBlocking {
+        val store = MemorySessionStore()
+        val first = newViewModel(store)
+        first.defineVariable("a", "2")
+        first.onKeyAction(KeyAction.Variable("a"))
+        first.type("+", "1")
+        first.onKeyAction(KeyAction.Enter)
+        first.awaitCommit()
+        first.deleteHistoryEntry(first.uiState.value.history.single { it.calculation.definedVariable == "a" }.id)
+        first.saveSession()
+
+        val reopened = newViewModel(store)
+        reopened.awaitHistory(1)
+        assertEquals("a + 1", reopened.uiState.value.history[0].calculation.input.toString())
+        assertEquals("3", reopened.uiState.value.history[0].calculation.result.toString())
+    }
+
+    @Test
+    fun theFormAnEntryWasShownInIsKept() = runBlocking {
+        val store = MemorySessionStore()
+        val first = newViewModel(store)
+        first.setResultForm(com.vortessence.calculator.core.math.type.ResultForm.DECIMAL)
+        first.type("1", "÷", "3")
+        first.onKeyAction(KeyAction.Enter)
+        first.awaitCommit()
+        first.saveSession()
+
+        val reopened = newViewModel(store)
+        reopened.awaitHistory(1)
+        assertEquals(com.vortessence.calculator.core.math.type.ResultForm.DECIMAL, reopened.uiState.value.history[0].form)
+    }
+
+    @Test
+    fun changesAreSavedWithoutAskingAfterAShortPause() = runBlocking {
+        val store = MemorySessionStore()
+        val vm = newViewModel(store)
+        vm.type("5")
+        assertNull(store.text) // not on every key
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertNotNull(store.text)
+        vm.onKeyAction(KeyAction.Enter)
+        vm.awaitCommit()
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertTrue(store.text!!.contains("entry\t"))
+    }
+
+    @Test
+    fun anUnreadableSavedSessionIsIgnored() = runBlocking {
+        val store = MemorySessionStore("this is not a session")
+        val vm = newViewModel(store)
+        assertTrue(vm.uiState.value.history.isEmpty())
+        vm.type("5")
+        vm.onKeyAction(KeyAction.Enter)
+        vm.awaitCommit()
+        vm.saveSession()
+        newViewModel(store).awaitHistory(1)
     }
 }
