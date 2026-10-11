@@ -94,7 +94,7 @@ internal class Integrator(private val context: MathContext) {
                     expanded(e, v, depth) ?: bySubstitution(e, v, depth) ?: partialFractions(e, v, depth) ?: irreducibleQuadratic(e, v, depth) ?: dividedPolynomial(e, v, depth) ?: byParts(e, v, depth) ?: cyclicByParts(e, v)
                 }
             }
-            else -> basic(e, v) ?: expanded(e, v, depth) ?: bySubstitution(e, v, depth) ?: partialFractions(e, v, depth) ?: irreducibleQuadratic(e, v, depth) ?: dividedPolynomial(e, v, depth) ?: byParts(e, v, depth)
+            else -> basic(e, v) ?: oddTrigonometricPower(e, v, depth) ?: expanded(e, v, depth) ?: bySubstitution(e, v, depth) ?: partialFractions(e, v, depth) ?: irreducibleQuadratic(e, v, depth) ?: dividedPolynomial(e, v, depth) ?: byParts(e, v, depth)
         }
     }
 
@@ -157,21 +157,25 @@ internal class Integrator(private val context: MathContext) {
         }
     }
 
-    /** sin²(u) = (u − sin(u)cos(u))/2 and cos²(u) = (u + sin(u)cos(u))/2, divided by a. */
+    /** sin²(u) = (u − sin(u)cos(u))/2, cos²(u) = (u + sin(u)cos(u))/2 and tan²(u) = tan(u) − u, divided by a. */
     private fun squaredSineOrCosine(base: Expression, exponent: Expression, v: Variable): Expression? {
         if (exponent != Value.TWO || base !is TrigonometricFunction || base.angleUnit != AngleUnit.RADIANS) return null
+        val u = base.operand
+        val a = linearSlope(u, v) ?: return null
+        // tan²(u) = sec²(u) − 1: (tan(u) − u)/a
+        if (base.type == TrigType.TAN) {
+            return Multiplications(listOf(Additions(listOf(trig(TrigType.TAN, u), Multiplications(listOf(Value.MINUS_ONE, u)))), inverse(a)))
+        }
         val sign = when (base.type) {
             TrigType.SIN -> Value.MINUS_ONE
             TrigType.COS -> Value.ONE
             else -> return null
         }
-        val u = base.operand
-        val a = linearSlope(u, v) ?: return null
         val sinCos = Multiplications(listOf(sign, trig(TrigType.SIN, u), trig(TrigType.COS, u)))
         return Multiplications(listOf(Additions(listOf(u, sinCos)), inverse(Multiplications(listOf(Value.TWO, a)))))
     }
 
-    /** 1/(p + qx²) → atan, 1/√(p − qx²) → asin; the results are angles in radians. */
+    /** 1/(p + qx²) → atan, 1/√(p − qx²) → asin, √(p ∓ qx²); the results are angles in radians. */
     private fun quadratic(base: Expression, exponent: Expression, v: Variable): Expression? {
         if (context.angleUnit != AngleUnit.RADIANS) return null
         val coefficients = polynomialCoefficients(base, v) ?: return null
@@ -188,6 +192,25 @@ internal class Integrator(private val context: MathContext) {
             exponent == Value(-1L, 2L) && p > 0 && q < 0 -> Multiplications(listOf(
                 Power(qValue.negate(), Value(-1L, 2L)),
                 trig(TrigType.ASIN, Multiplications(listOf(v, Power(Multiplications(listOf(qValue.negate(), inverse(pValue))), Value.HALF))))
+            ))
+            // ∫√(p − r·x²) = x/2·√(p − r·x²) + p/(2√r)·asin(x·√(r/p))
+            exponent == Value.HALF && p > 0 && q < 0 -> {
+                val r = qValue.negate()
+                Additions(listOf(
+                    Multiplications(listOf(Value.HALF, v, Power(base, Value.HALF))),
+                    Multiplications(listOf(
+                        pValue, Value.HALF, Power(r, Value(-1L, 2L)),
+                        trig(TrigType.ASIN, Multiplications(listOf(v, Power(Multiplications(listOf(r, inverse(pValue))), Value.HALF))))
+                    ))
+                ))
+            }
+            // ∫√(p + q·x²) = x/2·√(p + q·x²) + p/(2√q)·ln|x·√q + √(p + q·x²)|
+            exponent == Value.HALF && p > 0 && q > 0 -> Additions(listOf(
+                Multiplications(listOf(Value.HALF, v, Power(base, Value.HALF))),
+                Multiplications(listOf(
+                    pValue, Value.HALF, Power(qValue, Value(-1L, 2L)),
+                    lnAbs(Additions(listOf(Multiplications(listOf(v, Power(qValue, Value.HALF))), Power(base, Value.HALF))))
+                ))
             ))
             else -> null
         }
@@ -339,6 +362,23 @@ internal class Integrator(private val context: MathContext) {
         // 1/(p + qx²) is in the table
         if (p.isZero && b.isZero) return null
         return QuadraticFraction(a, b, c, p, q, denominator)
+    }
+
+    /** sin³(u) = sin(u)·(1 − cos²(u)), cos³(u) = cos(u)·(1 − sin²(u)), and so on for odd powers: then a substitution. */
+    internal fun oddTrigonometricPower(f: Expression, v: Variable, depth: Int): Expression? = rewrittenOddPower(f, v)?.let { integrate(it, v, depth + 1) }
+
+    internal fun rewrittenOddPower(f: Expression, v: Variable): Expression? {
+        val power = f as? Power ?: return null
+        val n = (power.exponent as? Value)?.rational?.takeIf { !it.isFractional && it.numerator.isOdd && it.numerator.value.toLong() >= 3 }?.numerator?.value?.toLong() ?: return null
+        val trig = power.base as? TrigonometricFunction ?: return null
+        if ((trig.angleUnit ?: context.angleUnit) != AngleUnit.RADIANS || linearSlope(trig.operand, v) == null) return null
+        val other = when (trig.type) {
+            TrigType.SIN -> TrigType.COS
+            TrigType.COS -> TrigType.SIN
+            else -> return null
+        }
+        val rest = Power(Additions(listOf(Value.ONE, Multiplications(listOf(Value.MINUS_ONE, Power(trig(other, trig.operand), Value.TWO))))), Value((n - 1) / 2))
+        return Multiplications(listOf(trig(trig.type, trig.operand), rest))
     }
 
     /** The quotient and the remainder of P(x)/(ax² + bx + c) with no real roots, when P has degree 2 or more. */

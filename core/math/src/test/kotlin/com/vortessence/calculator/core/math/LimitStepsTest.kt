@@ -97,8 +97,8 @@ class LimitStepsTest {
         assertEquals("0", solution.result.toString())
         // lim x→∞ ln(x)/x
         assertEquals("0", solution(limInf(frac(ms(f("ln", x)), ms(x))))!!.result.toString())
-        // No rule for 1^∞: no steps
-        assertNull(solution(limInf(ParenthesesNode(ms(n("1"), plus, frac(ms(n("1")), ms(x)))), pow(x))))
+        // 1^∞ has its own rule, see the form e^(g·ln f)
+        assertEquals(StepRule.LIMIT_EXPONENTIAL_FORM, solution(limInf(ParenthesesNode(ms(n("1"), plus, frac(ms(n("1")), ms(x)))), pow(x)))!!.steps[1].rule)
     }
 
     @Test

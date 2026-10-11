@@ -183,6 +183,18 @@ enum class StepRule {
     INEQUALITY_CRITICAL,
     /** one test value in each interval, the solution */
     INEQUALITY_RESULT,
+    /** x² − 5x + 6 = (x − 2)(x − 3) */
+    FACTOR_POLYNOMIAL,
+    /** ∫ₐ^∞ f = lim F(t) − F(a) */
+    IMPROPER_INTEGRAL,
+    /** 1^∞: f^g = e^(g·ln f) */
+    LIMIT_EXPONENTIAL_FORM,
+    /** …the limit is e to the limit of g·ln f */
+    LIMIT_EXPONENTIAL_RESULT,
+    /** 1/x as x → 0⁺: the denominator goes to 0, the numerator does not: ±∞ */
+    LIMIT_POLE,
+    /** ln(g) with g → 0⁺: −∞ */
+    LIMIT_LOGARITHM_ZERO,
     /** x·sin(1/x) as x → ∞: u = 1/x, u → 0 */
     LIMIT_RECIPROCAL_SUBSTITUTION,
     /** x³/(x² + 1) = x − x/(x² + 1) */
@@ -193,6 +205,10 @@ enum class StepRule {
     HALF_ANGLE,
     /** √(4/9) = √4/√9 */
     ROOT_OF_FRACTION,
+    /** sin³(x) = sin(x)(1 − cos²(x)) */
+    TRIG_ODD_POWER,
+    /** sin²(x) + cos²(x) = 1 */
+    PYTHAGOREAN_IDENTITY,
     /** 1/√2 = √2/2 */
     RATIONALIZE,
     /** sin(π/6) = 1/2 */
@@ -301,5 +317,21 @@ data class SolutionStep(
 /** [before] = [after]: a rule applied to one part of an expression. */
 data class StepChange(val before: MathString, val after: MathString)
 
-/** The [steps] of a calculation and its [result] (as calculated, without highlighting). */
-data class Solution(val steps: List<SolutionStep>, val result: MathString)
+/**
+ * The [steps] of a calculation and its [result] (as calculated, without highlighting). For an inequality also the
+ * solution on a [numberLine] and in [intervalNotation]: (−∞, −2) ∪ (2, ∞).
+ */
+data class Solution(
+    val steps: List<SolutionStep>,
+    val result: MathString,
+    val numberLine: NumberLine? = null,
+    val intervalNotation: MathString? = null
+)
+
+/** The points where the solution of an inequality changes, and the [pieces] between them where it holds. */
+data class NumberLine(val points: List<NumberLinePoint>, val pieces: List<NumberLinePiece>)
+
+data class NumberLinePoint(val label: MathString, val value: Double)
+
+/** From the point with index [lower] to [upper] (null: goes on forever); closed ends belong to it. */
+data class NumberLinePiece(val lower: Int?, val lowerClosed: Boolean, val upper: Int?, val upperClosed: Boolean)

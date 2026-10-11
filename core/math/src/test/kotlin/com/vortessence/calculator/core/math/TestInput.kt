@@ -4,7 +4,8 @@ import com.vortessence.calculator.core.math.type.*
 
 /**
  * Test input as short text, e.g. "[x^2 - 4;x + 1] > 0": [a;b] is a fraction, ^2 or ^{…} an exponent, sqrt(…) a root,
- * abs(…) and the like are functions, "pi" and "e" constants, "|" starts a new line, <= and >= are ≤ and ≥.
+ * abs(…) and the like are functions, "pi", "inf" and "e" constants, "|" starts a new line, <= and >= are ≤ and ≥,
+ * D{…} a derivative, I{…} an antiderivative, I[a,b]{…} an integral, L[x->a]{…} a limit.
  */
 internal object TestInput {
 
@@ -22,7 +23,7 @@ internal object TestInput {
                     c == ' ' -> i++
                     c.isDigit() || c == '.' -> { val st = i; while (peek().isDigit() || peek() == '.') i++; nodes.add(NumberNode(s.substring(st, i))) }
                     c == '+' -> { i++; nodes.add(OperatorNode(MathOp.PLUS)) }
-                    c == '-' -> { i++; nodes.add(OperatorNode(MathOp.MINUS)) }
+                    c == '-' && !s.startsWith("->", i) -> { i++; nodes.add(OperatorNode(MathOp.MINUS)) }
                     c == '*' -> { i++; nodes.add(OperatorNode(MathOp.MULTIPLY)) }
                     c == '/' -> { i++; nodes.add(OperatorNode(MathOp.DIVIDE)) }
                     c == '=' -> { i++; nodes.add(OperatorNode(MathOp.EQUALS)) }
@@ -35,11 +36,27 @@ internal object TestInput {
                     c == '|' -> { i++; nodes.add(LineBreakNode) }
                     c == '(' -> { i++; val inner = string(")"); i++; nodes.add(ParenthesesNode(inner)) }
                     c == '[' -> { i++; val a = string(";"); i++; val b = string("]"); i++; nodes.add(FractionNode(a, b)) }
+                    c == '^' && (s.startsWith("^+", i) || s.startsWith("^-", i)) && nodes.lastOrNull() is NumberNode -> {
+                        // A superscript sign after a number, as the power key makes it: the number is the base
+                        val base = ArrayList<MathNode>()
+                        while (nodes.lastOrNull() is NumberNode) base.add(0, nodes.removeAt(nodes.lastIndex))
+                        val sign = if (s[i + 1] == '+') MathOp.PLUS else MathOp.MINUS
+                        i += 2
+                        nodes.add(ExponentNode(MathString(base), MathString(listOf(OperatorNode(sign)))))
+                    }
                     c == '^' -> {
                         i++
-                        val e = if (peek() == '{') { i++; string("}").also { i++ } } else MathString(listOf(single()))
+                        val e = if (peek() == '{') { i++; string("}").also { i++ } }
+                        else if (peek() == '+' || (peek() == '-' && !s.startsWith("->", i))) MathString(listOf(OperatorNode(if (peek() == '+') MathOp.PLUS else MathOp.MINUS))).also { i++ }
+                        else MathString(listOf(single()))
                         nodes.add(ExponentNode(null, e))
                     }
+                    s.startsWith("D{", i) -> { i += 2; val b = string("}"); i++; nodes.add(DerivativeNode(b)) }
+                    s.startsWith("I{", i) -> { i += 2; val b = string("}"); i++; nodes.add(AntiderivativeNode(b)) }
+                    s.startsWith("I[", i) -> { i += 2; val a = string(","); i++; val b = string("]"); i += 2; val body = string("}"); i++; nodes.add(IntegralNode(a, b, body)) }
+                    s.startsWith("L[", i) -> { i += 2; val a = string("]"); i += 2; val body = string("}"); i++; nodes.add(LimitNode(a, body)) }
+                    s.startsWith("->", i) -> { i += 2; nodes.add(OperatorNode(MathOp.CONVERT)) }
+                    s.startsWith("inf", i) -> { i += 3; nodes.add(ConstantNode("∞")) }
                     s.startsWith("pi", i) -> { i += 2; nodes.add(ConstantNode("π")) }
                     c.isLetter() -> {
                         val st = i; while (peek().isLetter()) i++

@@ -10,7 +10,7 @@ import org.junit.Test
 class InequalityStepsTest {
     private fun solution(text: String): Solution? = runBlocking { MathEngine.steps(TestInput.parse(text), MathContext()) }
 
-    private fun clean(s: String) = s.replace(Regex("\\s+"), " ").replace("− ", "−").trim()
+    private fun clean(s: String) = s.replace(Regex("\\s+"), " ").replace("− ", "−").replace("[ −", "[−").replace("( −", "(−").trim()
 
     private fun rules(text: String) = solution(text)?.steps?.map { it.rule }
 
@@ -82,5 +82,44 @@ class InequalityStepsTest {
             assertNotNull(text, steps)
             assertEquals(text, clean(calculated.result.toString()), clean(steps!!.result.toString()))
         }
+    }
+
+    @Test
+    fun theSolutionOnANumberLineAndInIntervalNotation() {
+        val solution = solution("x^2 - 4 > 0")!!
+        assertEquals("(−∞, −2) ∪ (2, ∞)", clean(solution.intervalNotation.toString()))
+        val line = solution.numberLine!!
+        assertEquals(listOf(-2.0, 2.0), line.points.map { it.value })
+        assertEquals(2, line.pieces.size)
+        assertNull(line.pieces[0].lower)
+        assertEquals(0, line.pieces[0].upper)
+        assertFalse(line.pieces[0].upperClosed)
+        assertEquals(1, line.pieces[1].lower)
+        assertNull(line.pieces[1].upper)
+        assertEquals("[−2, 2]", clean(solution("x^2 <= 4")!!.intervalNotation.toString()))
+        assertEquals("(−2, 1)", clean(solution("[x + 2;x - 1] < 0")!!.intervalNotation.toString()))
+        assertEquals("(−∞, 3)", clean(solution("2x + 1 < 7")!!.intervalNotation.toString()))
+        assertEquals("{2}", clean(solution("(x - 2)^2 <= 0")!!.intervalNotation.toString()))
+        assertEquals("∅", clean(solution("x^2 + 1 < 0")!!.intervalNotation.toString()))
+        // No notation for other problems
+        assertNull(solution("x^2 - 4 = 0")!!.intervalNotation)
+    }
+
+    @Test
+    fun inequalitiesHaveStepsWithComplexNumbersOnToo() {
+        // (7x + 5)/(3x − 5) < 5: the inequality is about real numbers, whatever the setting
+        val complex = MathContext(complexNumbers = true)
+        val input = TestInput.parse("[7x + 5;3x - 5] < 5")
+        val solution = runBlocking { MathEngine.steps(input, complex) }!!
+        assertEquals("x < (5)/(3) or x > (15)/(4)", clean(solution.result.toString()))
+        assertEquals("x < (5)/(3) or x > (15)/(4)", clean(runBlocking { MathEngine.calculate(input, complex) }.result.toString()))
+    }
+
+    @Test
+    fun theZerosOfAFractionAreFoundAlgebraicallyNotByApproximation() {
+        // (7x + 5)/(3x − 5) < 5: the equation as typed, (7x + 5)/(3x − 5) = 5, gives x = 15/4; no Newton's method
+        val solution = solution("[7x + 5;3x - 5] < 5")!!
+        assertTrue(solution.steps.none { it.rule == StepRule.NEWTON_METHOD })
+        assertEquals("(−∞, (5)/(3)) ∪ ((15)/(4), ∞)", clean(solution.intervalNotation.toString()).replace("(−∞, (5)/(3))", "(−∞, (5)/(3))"))
     }
 }

@@ -203,7 +203,7 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
                         form = uiState.resultForm,
                         onFormChange = { viewModel.setResultForm(it) },
                         onCopy = ::copyWithFeedback,
-                        hasSteps = uiState.hasSteps,
+                        hasSteps = uiState.hasSteps || uiState.transforms.isNotEmpty(),
                         onShowSteps = { viewModel.showSteps() },
                         percentHint = uiState.percentHint,
                         onApplyPercentHint = { viewModel.applyPercentHint() }
@@ -239,7 +239,7 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
     }
 
     uiState.steps?.let { steps ->
-        StepsSheet(state = steps, onDismiss = { viewModel.dismissSteps() })
+        StepsSheet(state = steps, onDismiss = { viewModel.dismissSteps() }, onSelect = { viewModel.selectStepsOption(it) })
     }
 
     if (uiState.showFormulasDialog) {

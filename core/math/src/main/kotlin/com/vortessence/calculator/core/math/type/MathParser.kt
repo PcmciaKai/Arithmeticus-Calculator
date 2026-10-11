@@ -215,8 +215,13 @@ class MathParser {
                     tokens.add(Token.ValueToken(Series(node.operator == BigOperator.PRODUCT, index, start, end, body)))
                 }
                 is LimitNode -> {
-                    val (variable, point) = parseBinding(node.approach, MathOp.CONVERT)
-                    tokens.add(Token.ValueToken(Limit(parseSlot(node.body), variable, point)))
+                    // x → 0⁺ and x → 0⁻: a superscript sign after the point
+                    // (typed with the power key after the point, so the point is the base; or a sign on its own)
+                    val last = node.approach.nodes.lastOrNull() as? ExponentNode
+                    val sign = (last?.exponent?.nodes?.singleOrNull() as? OperatorNode)?.op?.takeIf { it == MathOp.PLUS || it == MathOp.MINUS }
+                    val approach = if (sign != null && last != null) MathString(node.approach.nodes.dropLast(1) + (last.base?.nodes ?: emptyList())) else node.approach
+                    val (variable, point) = parseBinding(approach, MathOp.CONVERT)
+                    tokens.add(Token.ValueToken(Limit(parseSlot(node.body), variable, point, if (sign == MathOp.PLUS) 1 else if (sign == MathOp.MINUS) -1 else 0)))
                 }
                 is MatrixNode -> {
                     val elements = node.elements.map { parseSlot(it) }

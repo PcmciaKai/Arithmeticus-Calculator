@@ -178,7 +178,7 @@ internal object PartialFractions {
     }
 
     /** A rational root of [p] (by the rational root theorem on the polynomial with whole number coefficients). */
-    private fun rationalRoot(p: List<Rational>): Rational? {
+    internal fun rationalRoot(p: List<Rational>): Rational? {
         if (p.first().isZero) return Rational.ZERO
         val scale = p.fold(BigInt.ONE) { l, c -> l * c.denominator / l.gcd(c.denominator) }
         val whole = p.map { (it * scale).numerator.value }

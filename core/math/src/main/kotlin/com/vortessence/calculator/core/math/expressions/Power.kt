@@ -73,6 +73,23 @@ class Power(
             return Power(cBase.operand, cExp).canonicalize(context)
         }
 
+        // √(−4y) = 2·√(−y): an even root of a product with a negative number keeps the sign with the letters
+        // (√(−4)·√y would be the root of a negative number)
+        if (cBase is Multiplications) {
+            val r = (cExp as? Value)?.rational
+            val numbers = cBase.operands.filter { it is Value }
+            val others = cBase.operands.filter { it !is Value }
+            if (r != null && r.isFractional && r.denominator.isEven && others.isNotEmpty() && numbers.any { it.isNegative }) {
+                val number = Multiplications(numbers).canonicalize(context) as? Value
+                if (number != null && number.isNegative) {
+                    if (number == Value.MINUS_ONE) return Power(cBase, cExp)
+                    val positive = Power(number.negate(), cExp).canonicalize(context)
+                    val rest = Multiplications(listOf(Value.MINUS_ONE) + others).canonicalize(context)
+                    return Multiplications(listOf(positive, Power(rest, cExp).canonicalize(context))).canonicalize(context)
+                }
+            }
+        }
+
         // (a * b)^n = a^n * b^n
         if (cBase is Multiplications) {
             val terms = cBase.operands.map { Power(it, cExp).canonicalize(context) }

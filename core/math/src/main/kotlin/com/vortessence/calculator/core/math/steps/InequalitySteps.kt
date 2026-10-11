@@ -9,6 +9,7 @@ import com.vortessence.calculator.core.math.expressions.Inequality
 import com.vortessence.calculator.core.math.expressions.InequalityAnalysis
 import com.vortessence.calculator.core.math.expressions.InequalitySolver
 import com.vortessence.calculator.core.math.expressions.Multiplications
+import com.vortessence.calculator.core.math.expressions.Power
 import com.vortessence.calculator.core.math.expressions.Relation
 import com.vortessence.calculator.core.math.expressions.Value
 import com.vortessence.calculator.core.math.expressions.Variable
@@ -30,8 +31,9 @@ internal object InequalitySteps {
 
     private const val MAX_STEPS = 150
 
-    fun steps(inequality: Inequality, context: MathContext): ExpressionSolution? {
-        if (context.complexNumbers) return null
+    fun steps(inequality: Inequality, given: MathContext): ExpressionSolution? {
+        // An inequality is about real numbers: also with complex numbers on, x² = −4 has no zero here
+        val context = given.copy().also { it.complexNumbers = false }
         val analysis = InequalitySolver.analyze(inequality, context.copy()) ?: return null
         return linear(inequality, analysis, context) ?: signAnalysis(inequality, analysis, context)
     }
@@ -80,7 +82,7 @@ internal object InequalitySteps {
             else -> false
         }
         if (!matches || last.left != v) return null
-        return ExpressionSolution(steps, Inequality(v, last.right, relation))
+        return ExpressionSolution(steps, Inequality(v, last.right, relation), analysis)
     }
 
     private fun isNegativeNumber(e: Expression): Boolean =
@@ -102,6 +104,7 @@ internal object InequalitySteps {
         val first = Solver(context)
         first.start(normalize(inequality))
         val rightIsZero = (inequality.right as? Value)?.isZero == true
+        val hasDenominatorInSides = inequality.containsExpressionMatching { it is Power && (it.exponent as? Value)?.isNegative == true && it.base.containsVariable(v) }
         if (!rightIsZero) {
             val moved = Inequality(Additions(inequality.left, Multiplications(Value.MINUS_ONE, inequality.right)), Value.ZERO, inequality.relation)
             first.apply(
@@ -110,7 +113,8 @@ internal object InequalitySteps {
                     operation = BothSides(BothSides.Kind.SUBTRACT, inequality.right), showChange = false, boxReplacements = false
                 )
             )
-            while (true) {
+            // With a letter in a denominator it stays as it is: (7x + 5)/(3x − 5) − 5, not three fractions to test with
+            while (!hasDenominatorInSides) {
                 if (context.shouldStop || first.size > MAX_STEPS) return null
                 val match = SimplificationSteps.match(at(first.current, listOf(0)), Value.ZERO, context) ?: break
                 first.apply(EquationSteps.prefixed(match, listOf(0)))
@@ -121,7 +125,9 @@ internal object InequalitySteps {
 
         // 2. Where it is 0
         if (analysis.zeros.isNotEmpty()) {
-            val zeros = equationSteps(Equals(f, Value.ZERO), v, analysis.zeros, StepRule.INEQUALITY_ZEROS, context) ?: return null
+            // With a denominator the equation as it was typed ((7x + 5)/(3x − 5) = 5) has the better steps than the difference = 0
+            val equation = if (rightIsZero || !hasDenominatorInSides) Equals(f, Value.ZERO) else Equals(inequality.left, inequality.right)
+            val zeros = equationSteps(equation, v, analysis.zeros, StepRule.INEQUALITY_ZEROS, context) ?: return null
             lines.addAll(zeros)
         }
         // 3. Where it is not defined, or begins to be
@@ -134,11 +140,14 @@ internal object InequalitySteps {
         val critical = analysis.critical
         if (critical.isNotEmpty()) {
             val points: Expression = if (critical.size == 1) Equals(v, critical.single()) else Alternatives(critical.map { Equals(v, it) }, inline = true)
-            lines.add(ExpressionStep(points, StepRule.INEQUALITY_CRITICAL))
+            // One point that the steps of the equation ended with already: not said twice
+            if (!(critical.size == 1 && lines.isNotEmpty() && writtenForm(lines.last().expression) == writtenForm(points))) {
+                lines.add(ExpressionStep(points, StepRule.INEQUALITY_CRITICAL))
+            }
         }
         val result = analysis.toExpression()
         lines.add(ExpressionStep(result, StepRule.INEQUALITY_RESULT, notes = tests(analysis, f, context)))
-        return ExpressionSolution(lines, result)
+        return ExpressionSolution(lines, result, analysis)
     }
 
     /**

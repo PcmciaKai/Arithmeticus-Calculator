@@ -37,7 +37,12 @@ internal class BothSides(val kind: Kind, val operand: Expression? = null) {
  */
 internal const val PENDING_COLOR = -1
 
-internal class ExpressionSolution(val steps: List<ExpressionStep>, val result: Expression)
+internal class ExpressionSolution(
+    val steps: List<ExpressionStep>,
+    val result: Expression,
+    /** For an inequality: where it holds, for the number line and the interval notation. */
+    val inequality: com.vortessence.calculator.core.math.expressions.InequalityAnalysis? = null
+)
 
 /**
  * A line that tells what a rule needs, e.g. u = x² or, with a [differential], du = 2x dx.
@@ -212,3 +217,25 @@ internal fun pathsOf(e: Expression, path: Path = emptyList(), predicate: (Expres
 internal fun at(e: Expression, path: Path): Expression = path.fold(e) { part, i -> part.children[i] }
 
 private fun isKept(e: Expression) = e is Marked && e.keep
+
+
+/**
+ * [e] with the sines, cosines and tangents of letters written in degrees again: with angles in degrees the calculator
+ * works out sin(x) as sin(πx/180), the steps keep sin(x) with its unit (so that the rules see the same function).
+ */
+internal fun inDegreeForm(e: Expression, context: MathContext): Expression {
+    if (context.angleUnit != com.vortessence.calculator.core.math.context.AngleUnit.DEGREES) return e
+    return e.transform { f ->
+        if (f is com.vortessence.calculator.core.math.expressions.TrigonometricFunction && !f.type.isInverse &&
+            f.angleUnit == com.vortessence.calculator.core.math.context.AngleUnit.RADIANS && f.operand.variables().isNotEmpty()
+        ) {
+            val scratch = context.copy()
+            val scaled = com.vortessence.calculator.core.math.expressions.Multiplications.of(
+                f.operand, com.vortessence.calculator.core.math.expressions.Value(180L),
+                com.vortessence.calculator.core.math.expressions.Power(com.vortessence.calculator.core.math.expressions.Constant.PI, com.vortessence.calculator.core.math.expressions.Value.MINUS_ONE)
+            ).canonicalize(scratch)
+            if (scratch.shouldStop || scaled.containsExpressionMatching { it == com.vortessence.calculator.core.math.expressions.Constant.PI }) f
+            else com.vortessence.calculator.core.math.expressions.TrigonometricFunction(f.type, scaled, com.vortessence.calculator.core.math.context.AngleUnit.DEGREES)
+        } else f
+    }
+}

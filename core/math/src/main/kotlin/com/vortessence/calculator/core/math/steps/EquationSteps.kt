@@ -67,6 +67,30 @@ internal object EquationSteps {
             ?: NewtonSteps.steps(equation, v, solutions, context)
     }
 
+    /**
+     * The exact form of the decimal [solutions] the calculator found numerically, e.g. ln(5) for 1.609…, from the
+     * steps of the equation; the others stay. Null if the steps do not give the same values (then nothing changes).
+     */
+    fun exactSolutions(equation: Equals, v: Variable, solutions: Collection<Expression>, context: MathContext): List<Expression>? {
+        val decimals = solutions.filter { it is Value && it.rational == null }
+        if (decimals.isEmpty() || context.mode != com.vortessence.calculator.core.math.context.CalculationMode.EXACT) return null
+        if (equation.containsExpressionMatching { it is TrigonometricFunction }) return null
+        val solved = steps(equation, v, context.copy()) ?: return null
+        val exact = when (val result = solved.result) {
+            is Equals -> if (result.left == v) listOf(result.right) else return null
+            is Alternatives -> result.equations.map { (it as? Equals)?.takeIf { e -> e.left == v }?.right ?: return null }
+            else -> return null
+        }
+        if (exact.any { it.variables().isNotEmpty() || !it.evaluateNumerically().isFinite() }) return null
+        return solutions.map { solution ->
+            if (solution !is Value || solution.rational != null) return@map solution
+            val x = solution.real.value
+            val match = exact.filter { abs(it.evaluateNumerically() - x) <= 1e-7 * maxOf(1.0, abs(x)) }
+            // Every decimal must have exactly one exact form
+            match.singleOrNull() ?: return null
+        }
+    }
+
     private fun algebraic(
         equation: Equals, v: Variable, solutions: List<Expression>, context: MathContext,
         /** For an equation without a solution: what the last line says. */
@@ -438,7 +462,7 @@ internal object EquationSteps {
         private fun canonical(e: Expression): Expression? {
             val scratch = context.copy()
             val result = e.canonicalize(scratch)
-            return if (scratch.shouldStop) null else result
+            return if (scratch.shouldStop) null else inDegreeForm(result, context)
         }
 
         /** 0 = 0: the equation holds for every value (only for the whole problem). */

@@ -10,6 +10,7 @@ import com.vortessence.calculator.core.math.expressions.Derivative
 import com.vortessence.calculator.core.math.expressions.Differentiator
 import com.vortessence.calculator.core.math.expressions.Expression
 import com.vortessence.calculator.core.math.expressions.Integral
+import com.vortessence.calculator.core.math.expressions.Limit
 import com.vortessence.calculator.core.math.expressions.Integrator
 import com.vortessence.calculator.core.math.expressions.Logarithm
 import com.vortessence.calculator.core.math.expressions.MatrixExpression
@@ -69,6 +70,10 @@ internal object IntegralSteps {
         val (lower, upper) = problem.lowerBound to problem.upperBound
         // Numbers as bounds (at ∞, F(∞) would be a limit)
         val isNumber = { bound: Expression -> bound.variables().isEmpty() && bound.evaluateNumerically().isFinite() }
+        val isInfinite = { bound: Expression -> (bound.canonicalize(context.copy()) as? Value)?.real?.isInfinite == true }
+        if (isSupported(integrand) && integrand.variables().all { it == v } && ((isInfinite(upper) && isNumber(lower)) || (isInfinite(lower) && isNumber(upper)))) {
+            return improper(problem, integrand, context)
+        }
         if (!isSupported(integrand) || !isNumber(lower) || !isNumber(upper) || integrand.variables().any { it != v }) return null
         val value = calculated(Integral(lower, upper, integrand, v), context) ?: return null
         val antiderivative = calculated(Antiderivative(integrand, v), context) ?: return null
@@ -91,6 +96,39 @@ internal object IntegralSteps {
         solution.apply(Match(StepRule.BOUNDS, mapOf(emptyList<Int>() to difference), simplified, difference))
         if (!solution.simplifyToward(value, MAX_STEPS)) return null
         return solution.finish(value)
+    }
+
+    /**
+     * ∫ₐ^∞ f dx (or from −∞): the antiderivative F, then the limit of F(t) − F(a) as t → ∞, with the steps of that limit.
+     */
+    private fun improper(problem: Integral, integrand: Expression, context: MathContext): ExpressionSolution? {
+        val v = problem.variable
+        val (lower, upper) = problem.lowerBound to problem.upperBound
+        val value = calculated(Integral(lower, upper, integrand, v), context) ?: return null
+        val antiderivative = calculated(Antiderivative(integrand, v), context) ?: return null
+
+        val solution = Solver(context)
+        solution.start(Integral(lower, upper, integrand, v))
+        val bracket = EvaluateBetween(Antiderivative(integrand, v), v, lower, upper)
+        solution.apply(Match(StepRule.ANTIDERIVATIVE, mapOf(emptyList<Int>() to bracket), problem, bracket))
+        if (!integrate(solution, context)) return null
+        val own = (unmarked(solution.current) as? EvaluateBetween)?.antiderivative ?: return null
+        val f = finalForm(own, antiderivative, v, context) ?: return null
+        if (!solution.simplifyToward(EvaluateBetween(f, v, lower, upper), MAX_STEPS)) return null
+
+        // The limit of F(t) − F(a) as t → ∞ (F(b) − F(t) as t → −∞)
+        val t = listOf("t", "u", "w").map { Variable(it) }.firstOrNull { it != v && it !in f.variables() } ?: return null
+        val atInfinity = (upper.canonicalize(context.copy()) as? Value)?.real?.isInfinite == true
+        val atT = f.substituteVariables(mapOf(v to t))
+        val atBound = f.substituteVariables(mapOf(v to if (atInfinity) lower else upper))
+        val difference = if (atInfinity) Additions(atT, Multiplications(Value.MINUS_ONE, atBound)) else Additions(atBound, Multiplications(Value.MINUS_ONE, atT))
+        val limit = Limit(difference, t, if (atInfinity) upper else lower)
+        solution.apply(Match(StepRule.IMPROPER_INTEGRAL, mapOf(emptyList<Int>() to limit), unmarked(solution.current), limit, showChange = false, boxReplacements = false))
+        val inner = LimitSteps.steps(limit, context) ?: return null
+        val expected = value.evaluateNumerically()
+        val actual = inner.result.evaluateNumerically()
+        if (!(actual == expected || abs(actual - expected) <= 1e-7 * max(1.0, abs(expected)))) return null
+        return ExpressionSolution(solution.finish(limit).steps + inner.steps.drop(1), inner.result)
     }
 
     /** Functions of the variable the rules know about; no units, matrices or other calculus. */
@@ -169,7 +207,14 @@ internal object IntegralSteps {
             }
             rewriteAsPower()?.let { return it }
             halfAngle()?.let { return it }
+            oddTrigonometricPower()?.let { return it }
             return table(f) ?: rationalFunction() ?: expand() ?: substitution() ?: byParts() ?: cyclicByParts()
+        }
+
+        /** sin³(u) = sin(u)(1 − cos²(u)): an odd power of the sine or cosine keeps one factor, the rest is a polynomial in the other. */
+        private fun oddTrigonometricPower(): Match? {
+            val rewritten = integrator.rewrittenOddPower(f, v) ?: return null
+            return rewrite(StepRule.TRIG_ODD_POWER, integral(rewritten))
         }
 
         /** sin²(u) = (1 − cos(2u))/2 and cos²(u) = (1 + cos(2u))/2, for a linear angle u. */

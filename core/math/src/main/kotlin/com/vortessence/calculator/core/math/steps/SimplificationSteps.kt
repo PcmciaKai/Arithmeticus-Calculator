@@ -12,6 +12,7 @@ import com.vortessence.calculator.core.math.expressions.Multiplications
 import com.vortessence.calculator.core.math.expressions.TrigType
 import com.vortessence.calculator.core.math.expressions.TrigonometricFunction
 import com.vortessence.calculator.core.math.expressions.PartialFractions
+import com.vortessence.calculator.core.math.expressions.pythagoreanSum
 import com.vortessence.calculator.core.math.expressions.SymbolicCancel
 import com.vortessence.calculator.core.math.expressions.Power
 import com.vortessence.calculator.core.math.expressions.Value
@@ -60,6 +61,7 @@ internal object SimplificationSteps {
             ?: products.firstNotNullOfOrNull { combinePowers(it, context) }
             ?: products.firstNotNullOfOrNull { cancelCommonFactor(it, context) }
             ?: sums.firstNotNullOfOrNull { subtractSameSum(it, context) }
+            ?: sums.firstNotNullOfOrNull { pythagoreanIdentity(it, context) }
             ?: sums.firstNotNullOfOrNull { combineLikeTerms(it, context) }
             ?: sums.firstNotNullOfOrNull { addNumbers(it, context) }
             ?: sums.firstNotNullOfOrNull { combineFractions(it, context) }
@@ -95,7 +97,7 @@ internal object SimplificationSteps {
     /** A factor xⁿ with a negative number n, i.e. one that is written in a denominator. */
     private fun isReciprocal(e: Expression) = e is Power && (e.exponent as? Value)?.isNegative == true
 
-    private fun canonical(e: Expression, context: MathContext) = e.canonicalize(context.copy())
+    private fun canonical(e: Expression, context: MathContext) = inDegreeForm(e.canonicalize(context.copy()), context)
 
     /**
      * The [parts] merged into one: the first is replaced by [result], the others are
@@ -603,6 +605,16 @@ internal object SimplificationSteps {
             .map { Multiplications(it) }), context)
         if (expanded !is Additions) return null
         return Match(StepRule.EXPAND_POWER, mapOf(path to expanded), power, expanded)
+    }
+
+    /** sin²(x) + cos²(x) = 1, also times the same factors: 3sin²x + 3cos²x = 3. */
+    private fun pythagoreanIdentity(terms: List<Part>, context: MathContext): Match? {
+        for (i in terms.indices) for (j in i + 1 until terms.size) {
+            val combined = pythagoreanSum(terms[i].expression, terms[j].expression) ?: continue
+            val result = canonical(combined, context)
+            return merge(StepRule.PYTHAGOREAN_IDENTITY, listOf(terms[i], terms[j]), Additions(terms[i].expression, terms[j].expression), result, Value.ZERO)
+        }
+        return null
     }
 
     /** 2x + 3x = 5x, x − x = 0. */

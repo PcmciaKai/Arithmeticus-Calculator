@@ -121,6 +121,23 @@ class Equals(
      * Fallback for equations the symbolic solvers cannot handle, e.g. sin(x) = x / 2.
      * Searches near the origin first and widens the range only if nothing was found.
      */
+    /** A few Newton steps from a root found by bisection, kept only where they make it better: 90.00000059 → 90. */
+    private fun polish(function: Function1D, root: Double): Double {
+        var x = root
+        var fx = abs(function.evaluateAt(x))
+        repeat(6) {
+            val h = 1e-6 * maxOf(1.0, abs(x))
+            val slope = (function.evaluateAt(x + h) - function.evaluateAt(x - h)) / (2 * h)
+            if (!slope.isFinite() || slope == 0.0) return x
+            val next = x - function.evaluateAt(x) / slope
+            val fNext = abs(function.evaluateAt(next))
+            if (!fNext.isFinite() || fNext >= fx || abs(next - root) > 1e-4 * maxOf(1.0, abs(root))) return x
+            x = next
+            fx = fNext
+        }
+        return x
+    }
+
     private fun solveNumerically(diff: Expression, variable: Variable, context: MathContext): Set<Expression> {
         if (diff.variables() != setOf(variable)) {
             context.stopWithError(MathIssue.CANT_SOLVE_GENERIC)
@@ -128,8 +145,11 @@ class Equals(
         }
         val function = Function1D(diff, variable, context.angleUnit)
         var roots = emptyList<Double>()
+        // In degrees a period is 360, not 2π: the same number of periods is searched
+        val scale = if (context.angleUnit == com.vortessence.calculator.core.math.context.AngleUnit.DEGREES &&
+            diff.containsExpressionMatching { it is TrigonometricFunction }) 180.0 / Math.PI else 1.0
         for ((range, steps) in NUMERIC_SEARCH_RANGES) {
-            roots = NumericRootFinder.findRoots(function, -range, range, steps, context)
+            roots = NumericRootFinder.findRoots(function, -range * scale, range * scale, steps, context)
             if (context.shouldStop) return emptySet()
             if (roots.isNotEmpty()) break
         }
@@ -138,12 +158,17 @@ class Equals(
             return emptySet()
         }
         return roots
+            .map { polish(function, it) }
             .sortedBy { abs(it) }
             .take(MAX_NUMERIC_SOLUTIONS)
             .sorted()
             .map { root ->
                 val nearest = root.roundToLong()
-                if (abs(root - nearest) < 1e-9) Value(nearest) else Value(root)
+                // 360.0000002 in degrees is 360, and a root where the curve only touches 0 (found less exactly)
+                // is the whole number next to it if that is at least as good a root
+                val close = abs(root - nearest) < 1e-9 * maxOf(1.0, abs(root)) ||
+                    (abs(root - nearest) < 1e-5 * maxOf(1.0, abs(root)) && abs(function.evaluateAt(nearest.toDouble())) <= abs(function.evaluateAt(root)))
+                if (close) Value(nearest) else Value(root)
             }
             .toCollection(LinkedHashSet())
     }

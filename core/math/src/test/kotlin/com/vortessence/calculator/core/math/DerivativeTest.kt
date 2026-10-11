@@ -64,7 +64,7 @@ class DerivativeTest {
         assertResult("(1)/(1 + (x)^(2))", calc(d(f("atan", x))))
         assertResult("(1)/(sqrt(1 − (x)^(2)))", calc(d(f("asin", x))))
         // In degrees, x is an angle in degrees: d/dx sin(x°) = π/180·cos(x°)
-        assertResult("(πcos((πx)/(180)))/(180)", calc(d(f("sin", x)), AngleUnit.DEGREES))
+        assertResult("(πcos(x))/(180)", calc(d(f("sin", x)), AngleUnit.DEGREES))
         assertEquals(0.0, calc(d(f("sin", x), at = ms(n("90"))), AngleUnit.DEGREES).numericValue, 1e-12)
     }
 

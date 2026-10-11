@@ -1,5 +1,6 @@
 package com.vortessence.calculator.core.math
 
+import com.vortessence.calculator.core.math.context.AngleUnit
 import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.context.MathIssue
 import com.vortessence.calculator.core.math.expressions.Additions
@@ -10,6 +11,7 @@ import com.vortessence.calculator.core.math.expressions.Constant
 import com.vortessence.calculator.core.math.expressions.EquationSystem
 import com.vortessence.calculator.core.math.expressions.Equals
 import com.vortessence.calculator.core.math.expressions.Inequality
+import com.vortessence.calculator.core.math.expressions.InequalityAnalysis
 import com.vortessence.calculator.core.math.expressions.InequalitySolver
 import com.vortessence.calculator.core.math.expressions.Expression
 import com.vortessence.calculator.core.math.expressions.Limit
@@ -40,13 +42,19 @@ import com.vortessence.calculator.core.math.steps.BothSides
 import com.vortessence.calculator.core.math.steps.DerivativeSteps
 import com.vortessence.calculator.core.math.steps.EquationSteps
 import com.vortessence.calculator.core.math.steps.InequalitySteps
+import com.vortessence.calculator.core.math.steps.Transform
+import com.vortessence.calculator.core.math.steps.Transforms
 import com.vortessence.calculator.core.math.steps.SystemSteps
 import com.vortessence.calculator.core.math.steps.ExpressionSteps
 import com.vortessence.calculator.core.math.steps.IntegralSteps
 import com.vortessence.calculator.core.math.steps.LimitSteps
 import com.vortessence.calculator.core.math.steps.Note
 import com.vortessence.calculator.core.math.steps.displayForm
+import com.vortessence.calculator.core.math.steps.NumberLine
+import com.vortessence.calculator.core.math.steps.NumberLinePiece
+import com.vortessence.calculator.core.math.steps.NumberLinePoint
 import com.vortessence.calculator.core.math.steps.Solution
+import kotlin.math.abs
 import com.vortessence.calculator.core.math.steps.SolutionStep
 import com.vortessence.calculator.core.math.steps.StepChange
 import com.vortessence.calculator.core.math.type.LineBreakNode
@@ -55,6 +63,7 @@ import com.vortessence.calculator.core.math.type.MathOp
 import com.vortessence.calculator.core.math.type.MathParser
 import com.vortessence.calculator.core.math.type.MathString
 import com.vortessence.calculator.core.math.type.MathWriter
+import com.vortessence.calculator.core.math.type.isInequality
 import com.vortessence.calculator.core.math.type.isPostfix
 import com.vortessence.calculator.core.math.type.NumberNode
 import com.vortessence.calculator.core.math.type.OperatorNode
@@ -116,10 +125,10 @@ object MathEngine {
     private val parser = MathParser()
     private val writer = MathWriter()
     /** Writes reusable answers: exact fractions and all digits, independent of display settings. */
-    private val answerWriter = MathWriter(lossless = true)
+    private fun answerWriter(ctx: MathContext) = MathWriter(lossless = true, degrees = ctx.angleUnit == AngleUnit.DEGREES)
 
     /** Writes results for display with the context's number format. */
-    private fun displayWriter(ctx: MathContext) = MathWriter(decimalPlaces = ctx.decimalPlaces)
+    private fun displayWriter(ctx: MathContext) = MathWriter(decimalPlaces = ctx.decimalPlaces, degrees = ctx.angleUnit == AngleUnit.DEGREES)
 
     suspend fun calculate(
         input: MathString,
@@ -199,7 +208,7 @@ object MathEngine {
             numericValue = numVal,
             issues = issues,
             // Reused (Ans, tapping the result) in the form that is shown; the value is the same
-            answer = if (issues.isEmpty()) answerWriter.write(compact) else null,
+            answer = if (issues.isEmpty()) answerWriter(ctx).write(compact) else null,
             unit = simplified.partWithUnit()?.let { display.writeUnit(it) },
             decimalPlaces = ctx.decimalPlaces,
             definedVariable = definition?.name,
@@ -217,7 +226,9 @@ object MathEngine {
     suspend fun steps(
         input: MathString,
         context: MathContext = MathContext(),
-        timeoutMillis: Long = DEFAULT_TIMEOUT_MILLIS
+        timeoutMillis: Long = DEFAULT_TIMEOUT_MILLIS,
+        /** The steps of writing the expression in this form (multiplied out, factored, as one fraction) instead. */
+        transform: Transform? = null
     ): Solution? = withContext(Dispatchers.Default) {
         val execContext = context.copy()
         execContext.deadlineMillis = System.currentTimeMillis() + timeoutMillis
@@ -232,7 +243,7 @@ object MathEngine {
                 if (execContext.shouldStop) return@steps null
                 // The other kinds of steps work on 15·(1/100); only plain arithmetic shows how 15% becomes 15/100
                 val parsed = Percent.withoutPercents(asTyped)
-                val solution = when (parsed) {
+                val solution = if (transform != null) Transforms.steps(parsed, transform, execContext) else when (parsed) {
                     is Derivative -> DerivativeSteps.steps(parsed, execContext)
                     is Antiderivative, is Integral -> IntegralSteps.steps(parsed, execContext)
                     is Limit -> LimitSteps.steps(parsed, execContext)
@@ -244,7 +255,7 @@ object MathEngine {
                 if (solution == null || execContext.shouldStop || execContext.issues.isNotEmpty()) return@steps null
                 val display = displayWriter(execContext)
                 // The problem is shown as it was typed: 0.5, not 1/2
-                val typed = MathWriter(decimalPlaces = execContext.decimalPlaces, typedDecimals = typedDecimals(input))
+                val typed = MathWriter(decimalPlaces = execContext.decimalPlaces, typedDecimals = typedDecimals(input), degrees = execContext.angleUnit == AngleUnit.DEGREES)
                 val steps = solution.steps.mapIndexed { index, step ->
                     SolutionStep(
                         (if (index == 0) typed else display).write(step.expression),
@@ -261,7 +272,8 @@ object MathEngine {
                     result.insert(result.length, TextNode(" + C"))
                     steps.last().expression.insert(steps.last().expression.length, TextNode(" + C"))
                 }
-                Solution(steps, result)
+                val analysis = solution.inequality
+                Solution(steps, result, analysis?.let { numberLine(it, display) }, analysis?.let { intervalNotation(it, display) })
             }
         } catch (e: CancellationException) {
             throw e
@@ -273,6 +285,48 @@ object MathEngine {
         }
         ensureActive()
         steps
+    }
+
+    /** The critical points of an inequality and the pieces of its solution between them, for drawing. */
+    private fun numberLine(analysis: InequalityAnalysis, display: MathWriter): NumberLine? {
+        if (analysis.critical.isEmpty() && analysis.pieces.isEmpty()) return null
+        val points = analysis.critical.map { NumberLinePoint(display.write(it), it.evaluateNumerically()) }
+        fun indexOf(bound: Expression?): Int? = bound?.let { b -> analysis.critical.indexOfFirst { it === b || it == b || abs(it.evaluateNumerically() - b.evaluateNumerically()) < 1e-9 }.takeIf { it >= 0 } }
+        return NumberLine(points, analysis.pieces.map { NumberLinePiece(indexOf(it.lower), it.lowerClosed, indexOf(it.upper), it.upperClosed) })
+    }
+
+    /** (−∞, −2) ∪ (2, ∞), [−1, 3], {2}; ∅ for no solution. */
+    private fun intervalNotation(analysis: InequalityAnalysis, display: MathWriter): MathString {
+        val result = MathString()
+        if (analysis.pieces.isEmpty()) {
+            result.insert(result.length, TextNode("∅"))
+            return result
+        }
+        for ((i, piece) in analysis.pieces.withIndex()) {
+            if (i > 0) result.insert(result.length, TextNode(" ∪ "))
+            if (piece.isPoint) {
+                result.insert(result.length, TextNode("{"))
+                result.insertAll(result.length, display.write(piece.lower!!).nodes)
+                result.insert(result.length, TextNode("}"))
+                continue
+            }
+            result.insert(result.length, TextNode(if (piece.lower != null && piece.lowerClosed) "[" else "("))
+            if (piece.lower == null) result.insert(result.length, TextNode("−∞")) else result.insertAll(result.length, display.write(piece.lower).nodes)
+            result.insert(result.length, TextNode(", "))
+            if (piece.upper == null) result.insert(result.length, TextNode("∞")) else result.insertAll(result.length, display.write(piece.upper).nodes)
+            result.insert(result.length, TextNode(if (piece.upper != null && piece.upperClosed) "]" else ")"))
+        }
+        return result
+    }
+
+    /**
+     * The forms [input] can be asked to be written in ([Transform]): multiplied out, factored, or as one fraction,
+     * where that is not what the calculator gives anyway.
+     */
+    suspend fun transforms(input: MathString, context: MathContext = MathContext()): List<Transform> {
+        // An equation, a number or a definition has none: cheaper than trying each
+        if (input.nodes.any { it is OperatorNode && (it.op == MathOp.EQUALS || it.op == MathOp.DEFINE || it.op.isInequality) || it is LineBreakNode }) return emptyList()
+        return Transform.values().filter { steps(input, context, transform = it) != null }
     }
 
     /**
@@ -497,9 +551,11 @@ object MathEngine {
             return truthResult(input, equation, true, ctx)
         }
 
+        // 1.609… found numerically is ln(5) where the steps of the equation say so
+        val shownSolutions = EquationSteps.exactSolutions(equation, targetVar, solutions, ctx)?.toCollection(LinkedHashSet()) ?: solutions
         val display = displayWriter(ctx)
         val combinedResult = MathString()
-        for ((idx, sol) in solutions.withIndex()) {
+        for ((idx, sol) in shownSolutions.withIndex()) {
             if (idx > 0) combinedResult.insert(combinedResult.length, TextNode(", "))
             combinedResult.insertAll(combinedResult.length, display.write(Equals(targetVar, sol)).nodes)
         }
@@ -509,7 +565,7 @@ object MathEngine {
             expression = equation,
             numericValue = solutions.first().evaluateNumerically(),
             issues = ctx.issues,
-            answer = answerWriter.write(solutions.first()),
+            answer = answerWriter(ctx).write(solutions.first()),
             unit = solutions.first().partWithUnit()?.let { display.writeUnit(it) },
             decimalPlaces = ctx.decimalPlaces
         )
@@ -524,7 +580,7 @@ object MathEngine {
             val truth = inequality.truthValue(ctx) ?: return failure(input, ctx, MathIssue.UNDEFINED, inequality)
             return truthResult(input, inequality, truth, ctx)
         }
-        val analysis = InequalitySolver.analyze(inequality, ctx.copy())
+        val analysis = InequalitySolver.analyze(inequality, ctx.copy().also { it.complexNumbers = false })
         if (analysis == null || ctx.shouldStop) return failure(input, ctx, MathIssue.CANT_SOLVE_GENERIC, inequality)
         if (analysis.pieces.isEmpty()) return failure(input, ctx, MathIssue.NO_REAL_SOLUTION, inequality)
         return CalculationResult(
@@ -579,7 +635,7 @@ object MathEngine {
             expression = system,
             numericValue = Double.NaN,
             issues = ctx.issues,
-            answer = answerWriter.write(first),
+            answer = answerWriter(ctx).write(first),
             decimalPlaces = ctx.decimalPlaces
         )
     }

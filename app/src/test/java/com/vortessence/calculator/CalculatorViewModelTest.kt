@@ -534,6 +534,82 @@ class CalculatorViewModelTest {
         }
     }
 
+    @Test
+    fun anExpressionCanBeAskedToBeExpandedOrFactored() = runBlocking {
+        val vm = newViewModel()
+        // (x + 1)²: the calculator leaves it, "Expand" writes it out
+        vm.onKeyAction(KeyAction.LeftParen)
+        vm.onKeyAction(KeyAction.Variable("x"))
+        vm.onKeyAction(KeyAction.Operator("+"))
+        vm.onKeyAction(KeyAction.Number("1"))
+        vm.onKeyAction(KeyAction.RightParen)
+        vm.onKeyAction(KeyAction.Square)
+        vm.awaitLiveResult()
+        var attempts = 0
+        while (vm.uiState.value.transforms.isEmpty() && attempts < 100) {
+            delay(20)
+            attempts++
+        }
+        assertEquals(listOf(com.vortessence.calculator.core.math.steps.Transform.EXPAND), vm.uiState.value.transforms)
+
+        // One pill, "Steps": with only a form to show, the sheet opens on it
+        vm.showSteps()
+        assertEquals(com.vortessence.calculator.core.math.steps.Transform.EXPAND, vm.uiState.value.steps?.selected)
+        attempts = 0
+        while (vm.uiState.value.steps?.isLoading != false && attempts < 100) {
+            delay(20)
+            attempts++
+        }
+        val solution = vm.uiState.value.steps?.solution
+        assertNotNull(solution)
+        assertTrue(solution!!.result.toString(), solution.result.toString().contains("2x"))
+
+        // Typing on takes the pills away again
+        vm.dismissSteps()
+        vm.onKeyAction(KeyAction.Clear)
+        assertTrue(vm.uiState.value.transforms.isEmpty())
+    }
+
+    @Test
+    fun aLimitFromTheRightIsTypedWithASuperscriptPlus() = runBlocking {
+        val vm = newViewModel()
+        vm.onKeyAction(KeyAction.Limit)
+        // The cursor is behind "x →": 0, then a plus as the superscript of the 0
+        vm.onKeyAction(KeyAction.Number("0"))
+        vm.onKeyAction(KeyAction.SuperscriptSign(plus = true))
+        val limit = vm.uiState.value.expression.nodes.single() as LimitNode
+        val sign = limit.approach.nodes.last() as ExponentNode
+        assertEquals("0", sign.base.toString())
+        assertEquals(MathOp.PLUS, (sign.exponent.nodes.single() as OperatorNode).op)
+    }
+
+    @Test
+    fun aFractionInequalityTypedWithTheDivideKeyHasSteps() = runBlocking {
+        val vm = newViewModel()
+        // (7x + 5)/(3x − 5) < 5
+        vm.onKeyAction(KeyAction.LeftParen)
+        vm.onKeyAction(KeyAction.Number("7"))
+        vm.onKeyAction(KeyAction.Variable("x"))
+        vm.onKeyAction(KeyAction.Operator("+"))
+        vm.onKeyAction(KeyAction.Number("5"))
+        vm.onKeyAction(KeyAction.MoveRight)
+        vm.onKeyAction(KeyAction.Operator("÷"))
+        vm.onKeyAction(KeyAction.LeftParen)
+        vm.onKeyAction(KeyAction.Number("3"))
+        vm.onKeyAction(KeyAction.Variable("x"))
+        vm.onKeyAction(KeyAction.Operator("−"))
+        vm.onKeyAction(KeyAction.Number("5"))
+        vm.onKeyAction(KeyAction.MoveRight)
+        vm.onKeyAction(KeyAction.MoveRight)
+        vm.onKeyAction(KeyAction.Operator("<"))
+        vm.onKeyAction(KeyAction.Number("5"))
+        vm.awaitLiveResult()
+        val result = vm.uiState.value.result!!
+        assertTrue(result.issues.toString(), result.isSuccess)
+        vm.awaitSteps()
+        assertTrue(vm.uiState.value.expression.toString(), vm.uiState.value.hasSteps)
+    }
+
     /** Waits (a while) until the "Steps" pill is offered. */
     private suspend fun CalculatorViewModel.awaitSteps() {
         var attempts = 0

@@ -20,14 +20,16 @@ import kotlin.math.min
 class Limit(
     val body: Expression,
     val variable: Variable,
-    val point: Expression
+    val point: Expression,
+    /** From the right (1, x → 0⁺), from the left (−1, x → 0⁻), or from both sides (0). */
+    val side: Int = 0
 ) : Expression() {
 
     override val children: List<Expression> get() = listOf(body, point)
 
     override fun variables(): Set<Variable> = (body.variables() - variable) + point.variables()
 
-    override fun copyWithChildren(children: List<Expression>): Expression = Limit(children[0], variable, children[1])
+    override fun copyWithChildren(children: List<Expression>): Expression = Limit(children[0], variable, children[1], side)
 
     override fun canonicalize(context: MathContext): Expression {
         val cPoint = point.canonicalize(context)
@@ -47,7 +49,7 @@ class Limit(
             if (context.shouldStop) return this
         }
 
-        val symbolic = Limit(cBody, variable, cPoint)
+        val symbolic = Limit(cBody, variable, cPoint, side)
         if ((cBody.variables() - variable).isNotEmpty() || cPoint.variables().isNotEmpty()) return symbolic
         if (cBody.containsImaginaryUnit() || cPoint.containsImaginaryUnit()) {
             context.stopWithError(MathIssue.UNDEFINED)
@@ -131,6 +133,9 @@ class Limit(
         val h0 = if (abs(a) <= 8.0) FINITE_START else abs(a) / 64.0
         val right = NumericLimit.oneSided({ h -> f(a + h) }, h0, FINITE_STEPS, context)
         val left = NumericLimit.oneSided({ h -> f(a - h) }, h0, FINITE_STEPS, context)
+        // x → a⁺ looks from one side only
+        if (side > 0) return right ?: NumericOutcome.Undefined
+        if (side < 0) return left ?: NumericOutcome.Undefined
         return when {
             right == null -> left ?: NumericOutcome.Undefined
             left == null -> right
@@ -159,12 +164,12 @@ class Limit(
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is Limit) return false
-        return body == other.body && variable == other.variable && point == other.point
+        return body == other.body && variable == other.variable && point == other.point && side == other.side
     }
 
-    override fun hashCode(): Int = (body.hashCode() * 31 + variable.hashCode()) * 31 + point.hashCode()
+    override fun hashCode(): Int = ((body.hashCode() * 31 + variable.hashCode()) * 31 + point.hashCode()) * 31 + side
 
-    override fun toString(): String = "lim($variable->$point) $body"
+    override fun toString(): String = "lim($variable->$point${if (side > 0) "+" else if (side < 0) "-" else ""}) $body"
 
     private companion object {
         const val MAX_LHOPITAL_STEPS = 4

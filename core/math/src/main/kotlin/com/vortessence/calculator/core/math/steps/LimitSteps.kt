@@ -2,6 +2,7 @@ package com.vortessence.calculator.core.math.steps
 
 import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.expressions.Additions
+import com.vortessence.calculator.core.math.expressions.Constant
 import com.vortessence.calculator.core.math.expressions.Derivative
 import com.vortessence.calculator.core.math.expressions.Differentiator
 import com.vortessence.calculator.core.math.expressions.Expression
@@ -44,6 +45,7 @@ internal object LimitSteps {
         val expected = calculated.evaluateNumerically()
 
         val point = limit.point.canonicalize(context.copy())
+        exponentialForm(limit, point, expected, target, context)?.let { return it }
         val solution = Solver(context)
         solution.start(normalize(limit))
         if ((point as? Value)?.real?.isInfinite == true) {
@@ -52,7 +54,43 @@ internal object LimitSteps {
             return if (u != null) finitePoint(solution, u, Value.ZERO, target, expected, context)
             else atInfinity(solution, v, point.real.value > 0, target, expected, context)
         }
-        return finitePoint(solution, v, point, target, expected, context)
+        return finitePoint(solution, v, point, target, expected, context, limit.side)
+    }
+
+    /**
+     * The form 1^∞, e.g. (1 + 1/x)ˣ as x → ∞: f^g = e^(g·ln f), so the limit is e to the limit of g·ln(f), which has its own steps.
+     * The steps are those of the limit of g·ln(f) between the first line and the result e^L.
+     */
+    private fun exponentialForm(limit: Limit, point: Expression, expected: Double, target: Expression, context: MathContext): ExpressionSolution? {
+        val v = limit.variable
+        val body = canonical(limit.body, context) as? Power ?: return null
+        if (!body.base.containsVariable(v) || !body.exponent.containsVariable(v)) return null
+        if (!expected.isFinite() || expected <= 0.0) return null
+        // The base goes to 1, the exponent grows without bound
+        val at = point.evaluateNumerically()
+        val x = if (at.isInfinite()) at.let { Math.signum(it) * 1e7 } else at + (if (limit.side < 0) -1e-7 else 1e-7)
+        val baseValue = body.base.evaluateNumerically(mapOf(v to x))
+        val exponentValue = body.exponent.evaluateNumerically(mapOf(v to x))
+        if (!baseValue.isFinite() || !exponentValue.isFinite() || abs(baseValue - 1.0) > 1e-3 || abs(exponentValue) < 1e3) return null
+
+        val product = Multiplications.of(body.exponent, Logarithm.ln(body.base))
+        val inner = Limit(product, v, limit.point, limit.side)
+        val innerSolution = steps(inner, context) ?: return null
+        val exponent = innerSolution.result
+        if (abs(Power(Constant.E, exponent).evaluateNumerically() - expected) > 1e-7 * max(1.0, abs(expected))) return null
+
+        val first = Solver(context)
+        first.start(normalize(limit))
+        first.apply(
+            Match(
+                StepRule.LIMIT_EXPONENTIAL_FORM, mapOf(emptyList<Int>() to inner), normalize(limit), inner,
+                notes = listOf(Note(TextExpression("f(x)"), TextExpression("→ 1"), relation = ":"), Note(TextExpression("g(x)"), TextExpression("→ ∞"), relation = ":")),
+                showChange = false, boxReplacements = false
+            )
+        )
+        val lines = first.finish(inner).steps + innerSolution.steps.drop(1) +
+            ExpressionStep(target, StepRule.LIMIT_EXPONENTIAL_RESULT, notes = listOf(Note(TextExpression("L"), exponent)))
+        return ExpressionSolution(lines, target)
     }
 
     /** x·sin(1/x), x(e^(1/x) − 1) as x → ±∞: [limit] with u = 1/x and u → 0, the new variable; null if that is no help. */
@@ -62,7 +100,7 @@ internal object LimitSteps {
         fun isReciprocal(e: Expression) = e is Power && e.base == v && e.exponent == Value.MINUS_ONE
         // A function of 1/x, with x also outside of it
         val hasReciprocalArgument = body.containsExpressionMatching { f ->
-            (f is TrigonometricFunction || f is Logarithm || (f is Power && f.exponent.containsVariable(v))) && f.children.any { isReciprocal(it) }
+            (f is TrigonometricFunction || f is Logarithm || (f is Power && f.exponent.containsVariable(v))) && f.children.any { child -> child.containsExpressionMatching { isReciprocal(it) } }
         }
         if (!hasReciprocalArgument || !body.containsExpressionMatching { it == v }) return null
         // Not when x only occurs as 1/x: then the limit is just the value at 0
@@ -85,8 +123,56 @@ internal object LimitSteps {
 
     private fun canonicalBody(e: Expression, context: MathContext): Expression? = canonical(e, context)
 
+    /** The side of [point] the limit is taken from, written for a note: 0⁺, 0⁻ or just 0. */
+    private fun approach(point: Expression, side: Int): String =
+        "${writtenForm(point)}${if (side > 0) "⁺" else if (side < 0) "⁻" else ""}"
+
+    /** The value of [e] a tiny bit to the right (side 1) or left (−1) of the point. */
+    private fun nearPoint(e: Expression, v: Variable, point: Expression, side: Int): Double =
+        e.evaluateNumerically(mapOf(v to point.evaluateNumerically() + side * 1e-7))
+
+    /**
+     * Where the limit is ∞ or −∞ and a rule says so: a quotient whose denominator goes to 0 and numerator does not
+     * (1/x), ln(g) where g goes to 0⁺, and e^g or a^g where g goes to ±∞. Applies the step and returns true.
+     */
+    private fun infiniteValue(solution: Solver, body: Expression, v: Variable, point: Expression, expected: Double, side: Int, context: MathContext): Boolean? {
+        if (!expected.isInfinite()) return null
+        val infinity = Value(expected)
+        val root = emptyList<Int>()
+        // c/g with g → 0
+        splitFraction(body, v)?.let { (numerator, denominator) ->
+            val atNumerator = canonical(numerator.substituteVariables(mapOf(v to point)), context) ?: return@let
+            val atDenominator = canonical(denominator.substituteVariables(mapOf(v to point)), context) ?: return@let
+            if (!atDenominator.isZero || atNumerator.isZero || !atNumerator.evaluateNumerically().isFinite()) return@let
+            val sides = if (side == 0) listOf(1, -1) else listOf(side)
+            val notes = listOf(
+                Note(TextExpression("denominator"), TextExpression("→ 0${describeSides(denominator, v, point, sides)}")),
+                Note(TextExpression("numerator"), atNumerator)
+            )
+            solution.apply(Match(StepRule.LIMIT_POLE, mapOf(root to infinity), solution.current, infinity, notes = notes, showChange = false))
+            return true
+        }
+        // ln(g), g → 0⁺
+        val log = body as? Logarithm
+        if (log != null && !log.base.containsVariable(v)) {
+            val atInside = canonical(log.operand.substituteVariables(mapOf(v to point)), context)
+            if (atInside?.isZero == true) {
+                val notes = listOf(Note(TextExpression("${writtenForm(log.operand)}"), TextExpression("→ 0⁺"), relation = ":"))
+                solution.apply(Match(StepRule.LIMIT_LOGARITHM_ZERO, mapOf(root to infinity), solution.current, infinity, notes = notes, showChange = false))
+                return true
+            }
+        }
+        return null
+    }
+
+    /** "⁺", "⁻" or "": the sign g has next to the point on each side, written for a note about g → 0. */
+    private fun describeSides(g: Expression, v: Variable, point: Expression, sides: List<Int>): String {
+        val signs = sides.map { Math.signum(nearPoint(g, v, point, it)) }
+        return if (signs.all { it > 0 }) "⁺" else if (signs.all { it < 0 }) "⁻" else ""
+    }
+
     /** The limit for x → [point], a number: substituted, or after cancelling and l'Hôpital's rule. */
-    private fun finitePoint(solution: Solver, v: Variable, point: Expression, target: Expression, expected: Double, context: MathContext): ExpressionSolution? {
+    private fun finitePoint(solution: Solver, v: Variable, point: Expression, target: Expression, expected: Double, context: MathContext, side: Int = 0): ExpressionSolution? {
         repeat(MAX_LHOPITAL + 1) { round ->
             if (context.shouldStop || solution.size > MAX_STEPS) return null
             // A common factor of numerator and denominator is cancelled first: (x² − 4)/(x − 2) = x + 2
@@ -106,6 +192,8 @@ internal object LimitSteps {
                 if (!solution.simplifyToward(target, MAX_STEPS)) return null
                 return solution.finish(target)
             }
+            // 1/x at 0: the denominator goes to 0, the numerator does not
+            infiniteValue(solution, body, v, point, expected, side, context)?.let { return solution.finish(target) }
             if (round == MAX_LHOPITAL) return null
             // 0·∞ is written as a quotient first: x·ln(x) = ln(x)/(1/x)
             val quotient = if (splitFraction(body, v) == null) productAsQuotient(solution, body, v, point, context) else null
@@ -128,6 +216,41 @@ internal object LimitSteps {
                 if (!check(body)) return null
                 solution.apply(Match(StepRule.LIMIT_CONSTANT, mapOf(root to body), solution.current, body, showChange = false))
                 return solution.finish(target)
+            }
+            // A sum with terms that have a limit of their own, e^(−t) → 0 in 1 − e^(−t), atan(t) → π/2: those are replaced by it
+            if (body is Additions && body.operands.any { it.containsVariable(v) }) {
+                fun known(term: Expression): Expression? {
+                    if (!term.containsVariable(v)) return null
+                    if (abs(numericLimit(term, v, positive)) < 1e-12) return Value.ZERO
+                    // atan(g) with g growing: ±π/2
+                    val (coefficient, atan) = when {
+                        term is TrigonometricFunction -> 1L to term
+                        term is Multiplications && term.operands.size == 2 && term.operands[0] is Value && term.operands[1] is TrigonometricFunction ->
+                            ((term.operands[0] as Value).rational?.takeIf { !it.isFractional }?.numerator?.value?.toLong() ?: return null) to (term.operands[1] as TrigonometricFunction)
+                        else -> return null
+                    }
+                    if (atan.type != com.vortessence.calculator.core.math.expressions.TrigType.ATAN) return null
+                    val inner = numericLimit(atan.operand, v, positive)
+                    if (!inner.isInfinite()) return null
+                    val sign = if (inner > 0) coefficient else -coefficient
+                    return Multiplications.of(Value(sign), Value.HALF, Constant.PI)
+                }
+                val replaced = body.operands.mapIndexedNotNull { i, term -> known(term)?.let { i to it } }
+                if (replaced.isNotEmpty() && replaced.size < body.operands.size + 0 && replaced.size <= body.operands.size) {
+                    val replacedBody = Additions(body.operands.mapIndexed { i, term -> replaced.firstOrNull { it.first == i }?.second ?: term })
+                    solution.apply(
+                        Match(
+                            StepRule.LIMIT_VANISH,
+                            replaced.associate { (listOf(0) + it.first) to Marked(it.second, PENDING_COLOR, boxed = true, keep = true) },
+                            body, replacedBody, showChange = false, boxReplacements = false
+                        )
+                    )
+                    while (true) {
+                        if (context.shouldStop || solution.size > MAX_STEPS) return null
+                        solution.apply(EquationSteps.prefixed(SimplificationSteps.match(at(solution.current, listOf(0)), Value.ZERO, context) ?: break, listOf(0)))
+                    }
+                    return@repeat
+                }
             }
             val (numerator, denominator) = splitFraction(body, v) ?: (body to Value.ONE)
             val n = PartialFractions.polynomial(numerator, v, context)
@@ -338,6 +461,13 @@ internal object LimitSteps {
 
     /** (numerator, denominator) of a product with factors such as (x − 1)⁻¹; null without a denominator. */
     private fun splitFraction(e: Expression, v: Variable): Pair<Expression, Expression>? {
+        // e^x/(2x) − 1/(2x), as the simplified derivatives come out: one fraction over the common denominator
+        if (e is Additions) {
+            val parts = e.operands.map { splitFraction(it, v) ?: return null }
+            val denominator = parts.first().second
+            if (parts.any { it.second != denominator }) return null
+            return Additions(parts.map { it.first }) to denominator
+        }
         val factors = if (e is Multiplications) e.operands else listOf(e)
         val numerator = mutableListOf<Expression>()
         val denominator = mutableListOf<Expression>()

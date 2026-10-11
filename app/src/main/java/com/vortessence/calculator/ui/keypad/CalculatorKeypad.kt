@@ -77,6 +77,8 @@ sealed class KeyAction {
     /** Logarithm to an arbitrary base (logₙ). */
     data object LogBase : KeyAction()
     data object EE : KeyAction()
+    /** A plus or minus as the superscript of the number before it: 0⁺ and 0⁻, the side of a limit. */
+    data class SuperscriptSign(val plus: Boolean) : KeyAction()
     data object Parentheses : KeyAction()
     data object Fraction : KeyAction()
     /** A mixed number such as 3½ (whole part and fraction). */
@@ -378,8 +380,15 @@ fun CalculatorKeypad(
                     KeyButton(text = "4", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("4")) }
                     KeyButton(text = "5", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("5")) }
                     KeyButton(text = "6", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("6")) }
-                    KeyButton(text = "+", buttonWidth = buttonWidth, isOp = true) { onKeyAction(KeyAction.Operator("+")) }
-                    KeyButton(text = "−", buttonWidth = buttonWidth, isOp = true) { onKeyAction(KeyAction.Operator("−")) }
+                    // Long press: a plus or minus as a superscript, for a limit from one side (x → 0⁺)
+                    KeyButton(
+                        text = "+", buttonWidth = buttonWidth, isOp = true,
+                        alternates = listOf(KeyAlternate(scriptLabel("a", sup = "+")) { onKeyAction(KeyAction.SuperscriptSign(plus = true)) })
+                    ) { onKeyAction(KeyAction.Operator("+")) }
+                    KeyButton(
+                        text = "−", buttonWidth = buttonWidth, isOp = true,
+                        alternates = listOf(KeyAlternate(scriptLabel("a", sup = "−")) { onKeyAction(KeyAction.SuperscriptSign(plus = false)) })
+                    ) { onKeyAction(KeyAction.Operator("−")) }
 
                     // Page 2 (cols 9..10)
                     // Long press: convert to a unit ("5 km → mi"); the popup shows the arrow
@@ -625,6 +634,8 @@ private fun KeyButton(
     // Near the right screen edge the popup opens to the left (main function above the key,
     // alternates to its left), so the finger can still reach every entry
     var popupOpensLeft by remember { mutableStateOf(false) }
+    // Narrower than the key if the popup has more entries than fit next to the key
+    var popupCellPx by remember { mutableFloatStateOf(0f) }
     var keyLeftInWindow by remember { mutableFloatStateOf(0f) }
     val windowWidth = LocalWindowInfo.current.containerSize.width
     val gestureModifier = if (alternates.isEmpty()) {
@@ -663,7 +674,12 @@ private fun KeyButton(
                     // Long press: the finger slides over the alternates, lifting it picks one
                     view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
                     val count = popupEntries.size
-                    popupOpensLeft = keyLeftInWindow + count * cellPx > windowWidth
+                    // Opens to the side with more room (right by default); if the entries still do
+                    // not fit there, their cells are narrowed so that they all stay reachable
+                    val roomRight = windowWidth - keyLeftInWindow
+                    val roomLeft = keyLeftInWindow + size.width
+                    popupOpensLeft = count * cellPx > roomRight && roomLeft > roomRight
+                    popupCellPx = minOf(cellPx, (if (popupOpensLeft) roomLeft else roomRight) / count)
                     popupSelection = 0
                     try {
                         while (true) {
@@ -674,7 +690,7 @@ private fun KeyButton(
                                 break
                             }
                             val offset = if (popupOpensLeft) size.width - change.position.x else change.position.x
-                            val selection = (offset / cellPx).toInt().coerceIn(0, count - 1)
+                            val selection = (offset / popupCellPx).toInt().coerceIn(0, count - 1)
                             if (selection != popupSelection) {
                                 view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                                 popupSelection = selection
@@ -742,7 +758,8 @@ private fun KeyButton(
             AlternatesPopup(
                 listOf(KeyAlternate(popupLabel ?: AnnotatedString(text.orEmpty()), popupIcon, onClick)) + alternates,
                 selected,
-                cellWidth = buttonWidth,
+                cellWidth = with(LocalDensity.current) { popupCellPx.toDp() },
+                cellHeight = buttonWidth * 0.8f,
                 opensLeft = popupOpensLeft
             )
         }
@@ -820,6 +837,7 @@ private fun AlternatesPopup(
     alternates: List<KeyAlternate>,
     selected: Int,
     cellWidth: Dp,
+    cellHeight: Dp,
     opensLeft: Boolean
 ) {
     val gapPx = with(LocalDensity.current) { 6.dp.roundToPx() }
@@ -837,7 +855,7 @@ private fun AlternatesPopup(
                 val isSelected = index == selected
                 Box(
                     modifier = Modifier
-                        .size(width = cellWidth, height = cellWidth * 0.8f)
+                        .size(width = cellWidth, height = cellHeight)
                         .padding(4.dp)
                         .clip(RoundedCornerShape(10.dp))
                         .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent),

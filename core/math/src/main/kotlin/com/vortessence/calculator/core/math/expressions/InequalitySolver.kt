@@ -126,14 +126,18 @@ internal object InequalitySolver {
         // No solution or an identity: no point where the sign changes
         if (solutions.isEmpty() || solutions == setOf(v)) return emptyList()
         return solutions.filter { s -> !s.containsImaginaryUnit() && s.variables().isEmpty() && s.evaluateNumerically().isFinite() }
-            .map { exactIfRational(it, equation, v) }
+            .let { roots ->
+                // ln(x) = 1 gives 2.718…: e, from the steps of the equation; else a decimal that is a simple fraction (−1/3)
+                com.vortessence.calculator.core.math.steps.EquationSteps.exactSolutions(equation, v, roots, context)
+                    ?: roots.map { exactIfRational(it, equation, v) }
+            }
     }
 
     /** −0.3333333333 found numerically is −1/3 if that satisfies the equation as well. */
     private fun exactIfRational(root: Expression, equation: Equals, v: Variable): Expression {
         if (root !is Value || root.rational != null) return root
         val x = root.real.value
-        val candidate = com.vortessence.calculator.core.math.numbers.Rational.approximateFromDouble(x, 10000L) ?: return root
+        val candidate = com.vortessence.calculator.core.math.numbers.Rational.approximateFromDouble(x, 1000L) ?: return root
         if (abs(candidate.toDouble() - x) > 1e-7 * max(1.0, abs(x))) return root
         val bindings = mapOf(v to candidate.toDouble())
         val l = equation.left.evaluateNumerically(bindings)

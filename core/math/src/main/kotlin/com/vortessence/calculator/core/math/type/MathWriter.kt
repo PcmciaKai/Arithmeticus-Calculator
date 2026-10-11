@@ -34,8 +34,21 @@ class MathWriter(
     private val decimalPlaces: Int? = null,
     private val lossless: Boolean = false,
     /** Fractions written as the decimals they were typed as (0.5, not 1/2), for the first line of a solution. */
-    private val typedDecimals: Set<Rational> = emptySet()
+    private val typedDecimals: Set<Rational> = emptySet(),
+    /**
+     * Angles in degrees: sin(πx/180), as the calculator works it out, is written sin(x), as it was typed
+     * (the factor π/180 would read as a number of degrees again).
+     */
+    private val degrees: Boolean = false
 ) {
+
+    /** The operand of [f] in degrees: πx/180 is x. Unchanged where it is already in degrees or has no letters. */
+    private fun inDegrees(f: TrigonometricFunction): Expression {
+        if (f.type.isInverse || f.angleUnit == com.vortessence.calculator.core.math.context.AngleUnit.DEGREES || f.operand.variables().isEmpty()) return f.operand
+        val scratch = com.vortessence.calculator.core.math.context.MathContext()
+        val scaled = Multiplications.of(f.operand, Value(180L), Power(Constant.PI, Value.MINUS_ONE)).canonicalize(scratch)
+        return if (scratch.shouldStop || scaled.containsExpressionMatching { it == Constant.PI }) f.operand else scaled
+    }
 
     /** Writes [expr]; a bare unit is written as a quantity of 1, e.g. "1 psi". */
     fun write(expr: Expression): MathString {
@@ -94,7 +107,7 @@ class MathWriter(
             is Multiplications -> writeMultiplications(expr, result)
             is Additions -> writeAdditions(expr, result)
             is TrigonometricFunction -> {
-                result.append(FunctionNode(expr.type.symbol, writeExpr(expr.operand)))
+                result.append(FunctionNode(expr.type.symbol, writeExpr(if (degrees) inDegrees(expr) else expr.operand)))
             }
             is Logarithm -> {
                 val base = expr.base
@@ -216,7 +229,14 @@ class MathWriter(
                     writeExpr(expr.body)
                 ))
             }
-            is Limit -> result.append(LimitNode(binding(expr.variable, MathOp.CONVERT, expr.point), writeExpr(expr.body)))
+            is Limit -> {
+                val approach = MathString(listOf(VariableNode(expr.variable.identifier), OperatorNode(MathOp.CONVERT)))
+                val point = writeExpr(expr.point)
+                // x → 0⁺: the point with a sign as its superscript, as it is typed with the power key
+                if (expr.side != 0) approach.append(ExponentNode(point, MathString(listOf(OperatorNode(if (expr.side > 0) MathOp.PLUS else MathOp.MINUS)))))
+                else approach.appendAll(point)
+                result.append(LimitNode(approach, writeExpr(expr.body)))
+            }
             is Factorial -> {
                 val operand = writeExpr(expr.operand)
                 val isSimple = expr.operand is Variable || (expr.operand is Value && !expr.operand.isNegative && expr.operand.rational?.isFractional == false)

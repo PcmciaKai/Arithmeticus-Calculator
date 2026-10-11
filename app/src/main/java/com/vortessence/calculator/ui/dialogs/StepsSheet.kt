@@ -29,9 +29,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
 import com.vortessence.calculator.R
+import com.vortessence.calculator.core.math.steps.NumberLine
 import com.vortessence.calculator.core.math.steps.SolutionStep
 import com.vortessence.calculator.core.math.steps.StepChange
 import com.vortessence.calculator.core.math.steps.StepRule
+import com.vortessence.calculator.core.math.steps.Transform
 import com.vortessence.calculator.core.math.type.HighlightNode
 import com.vortessence.calculator.core.math.type.MathString
 import com.vortessence.calculator.ui.math.MathExpressionView
@@ -46,7 +48,7 @@ import com.vortessence.calculator.viewmodel.StepsState
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StepsSheet(state: StepsState, onDismiss: () -> Unit) {
+fun StepsSheet(state: StepsState, onDismiss: () -> Unit, onSelect: (Transform?) -> Unit = {}) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
@@ -57,6 +59,25 @@ fun StepsSheet(state: StepsState, onDismiss: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(stringResource(R.string.steps_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            // The solution, or the line written in another form: one to choose from if there are several
+            if (state.options.size > 1) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    state.options.forEach { option ->
+                        FilterChip(
+                            selected = option == state.selected,
+                            onClick = { onSelect(option) },
+                            label = {
+                                Text(stringResource(when (option) {
+                                    null -> R.string.steps_option_solution
+                                    Transform.EXPAND -> R.string.transform_expand
+                                    Transform.FACTOR -> R.string.transform_factor
+                                    Transform.COMBINE -> R.string.transform_combine
+                                }))
+                            }
+                        )
+                    }
+                }
+            }
             val solution = state.solution
             when {
                 state.isLoading -> Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
@@ -74,9 +95,15 @@ fun StepsSheet(state: StepsState, onDismiss: () -> Unit) {
                             .heightIn(max = 560.dp)
                     ) {
                         items(rows, key = { it.from }) { row ->
-                            if (row.to == row.from) StepItem(solution.steps, row.from)
-                            else CalculationGroup(solution.steps, row.from, row.to)
+                            when {
+                                row.to == row.from -> StepItem(solution.steps, row.from)
+                                row.section -> SectionGroup(solution.steps, row.from, row.to)
+                                else -> CalculationGroup(solution.steps, row.from, row.to)
+                            }
                         }
+                        // An inequality: the solution drawn, and written as intervals
+                        solution.numberLine?.let { line -> item(key = "numberLine") { NumberLineView(line) } }
+                        solution.intervalNotation?.let { notation -> item(key = "intervals") { IntervalNotation(notation) } }
                     }
                 }
             }
@@ -85,10 +112,18 @@ fun StepsSheet(state: StepsState, onDismiss: () -> Unit) {
 }
 
 /** A step, or with [to] after [from] a run of calculation steps that can be folded away. */
-private class StepRow(val from: Int, val to: Int)
+private class StepRow(val from: Int, val to: Int, /** Folds the steps of an equation that is part of a longer solution. */ val section: Boolean = false)
 
 /** Runs of at least this many plain calculations (adding, multiplying … numbers) are folded. */
 private const val MIN_FOLDED_STEPS = 3
+
+/** The steps that solve an equation inside an inequality start at these rules … */
+private val SECTION_STARTS = setOf(StepRule.INEQUALITY_ZEROS, StepRule.INEQUALITY_BREAKS)
+
+/** … and end before one of these. */
+private val SECTION_ENDS = setOf(StepRule.INEQUALITY_ZEROS, StepRule.INEQUALITY_BREAKS, StepRule.INEQUALITY_CRITICAL, StepRule.INEQUALITY_RESULT)
+
+private const val MIN_SECTION_STEPS = 4
 
 private val CALCULATION_RULES = setOf(
     StepRule.NUMBER_POWER, StepRule.ROOT_OF_NUMBER, StepRule.DIVIDE_BY_FRACTION,
@@ -101,6 +136,16 @@ private fun stepRows(steps: List<SolutionStep>): List<StepRow> {
     val rows = mutableListOf<StepRow>()
     var i = 0
     while (i < steps.size) {
+        // The steps of an equation inside an inequality (where its left side is 0): folded, they end at its solutions
+        if (steps[i].rule in SECTION_STARTS) {
+            var end = i
+            while (end + 1 < steps.size && steps[end + 1].rule !in SECTION_ENDS) end++
+            if (end - i + 1 >= MIN_SECTION_STEPS) {
+                rows.add(StepRow(i, end, section = true))
+                i = end + 1
+                continue
+            }
+        }
         var end = i
         if (i > 0 && steps[i].rule in CALCULATION_RULES) {
             while (end + 1 < steps.lastIndex && steps[end + 1].rule in CALCULATION_RULES) end++
@@ -126,6 +171,98 @@ private fun StepItem(steps: List<SolutionStep>, index: Int) {
     } else {
         ExpressionLine(step, highlightColor(index + 1))
     }
+}
+
+/** The steps of solving an equation inside an inequality: the equation, then the steps folded, then its solutions. */
+@Composable
+private fun SectionGroup(steps: List<SolutionStep>, from: Int, to: Int) {
+    var expanded by rememberSaveable(from) { mutableStateOf(false) }
+    val count = to - from
+    StepItem(steps, from)
+    if (expanded) {
+        FoldToggle(stringResource(R.string.steps_hide_section, count), expanded = true) { expanded = false }
+        for (index in from + 1..to) StepItem(steps, index)
+    } else {
+        FoldedArrow(highlightColor(from + 1)) { FoldToggle(stringResource(R.string.steps_show_section, count), expanded = false) { expanded = true } }
+        ExpressionLine(steps[to], highlightColor(to + 1))
+    }
+}
+
+/** The solution of an inequality as intervals: (−∞, −2) ∪ (2, ∞). */
+@Composable
+private fun IntervalNotation(notation: MathString) {
+    val color = MaterialTheme.colorScheme.onSurfaceVariant
+    Column(modifier = Modifier.padding(top = 2.dp)) {
+        Text(stringResource(R.string.steps_interval_notation), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = color)
+        ScrollingMath(notation, fontSize = 22.sp)
+    }
+}
+
+/**
+ * The solution of an inequality on a number line: the points where it changes, a closed dot where the point
+ * is part of the solution and an open one where it is not, the parts where it holds in color.
+ */
+@Composable
+private fun NumberLineView(line: NumberLine) {
+    val primary = MaterialTheme.colorScheme.primary
+    val axis = MaterialTheme.colorScheme.onSurfaceVariant
+    val surface = MaterialTheme.colorScheme.surface
+    Column(modifier = Modifier.padding(top = 4.dp)) {
+        Text(stringResource(R.string.steps_number_line), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = axis)
+        androidx.compose.ui.layout.Layout(
+            content = { line.points.forEach { point -> MathExpressionView(mathString = point.label, fontSize = 16.sp, textColor = axis, accentColor = axis) } },
+            modifier = Modifier
+                .fillMaxWidth()
+                .drawBehind {
+                    val xs = numberLinePositions(line.points.size, size.width, 28.dp.toPx())
+                    val y = 18.dp.toPx()
+                    val stroke = 2.dp.toPx()
+                    // The line with arrows at both ends
+                    drawLine(axis, Offset(0f, y), Offset(size.width, y), stroke)
+                    val head = 6.dp.toPx()
+                    drawLine(axis, Offset(head, y - head), Offset(0f, y), stroke, StrokeCap.Round)
+                    drawLine(axis, Offset(head, y + head), Offset(0f, y), stroke, StrokeCap.Round)
+                    drawLine(axis, Offset(size.width - head, y - head), Offset(size.width, y), stroke, StrokeCap.Round)
+                    drawLine(axis, Offset(size.width - head, y + head), Offset(size.width, y), stroke, StrokeCap.Round)
+                    // Where it holds
+                    for (piece in line.pieces) {
+                        val from = piece.lower?.let { xs[it] } ?: 0f
+                        val to = piece.upper?.let { xs[it] } ?: size.width
+                        drawLine(primary, Offset(from, y), Offset(to, y), 6.dp.toPx(), StrokeCap.Butt)
+                    }
+                    // The points: closed if they are in the solution
+                    val radius = 6.dp.toPx()
+                    for ((i, x) in xs.withIndex()) {
+                        val closed = line.pieces.any { (it.lower == i && it.lowerClosed) || (it.upper == i && it.upperClosed) }
+                        if (closed) {
+                            drawCircle(primary, radius, Offset(x, y))
+                        } else {
+                            drawCircle(surface, radius, Offset(x, y))
+                            drawCircle(axis, radius, Offset(x, y), style = androidx.compose.ui.graphics.drawscope.Stroke(stroke))
+                        }
+                    }
+                }
+        ) { measurables, constraints ->
+            val width = constraints.maxWidth
+            val xs = numberLinePositions(line.points.size, width.toFloat(), 28.dp.toPx())
+            val placeables = measurables.map { it.measure(constraints.copy(minWidth = 0, minHeight = 0)) }
+            // The labels hang below the line; as tall as the tallest one (a fraction) needs, so that nothing overlaps
+            val labelTop = 27.dp.roundToPx()
+            val height = labelTop + (placeables.maxOfOrNull { it.height } ?: 0)
+            layout(width, height) {
+                placeables.forEachIndexed { i, placeable ->
+                    placeable.placeRelative((xs[i] - placeable.width / 2f).toInt().coerceIn(0, (width - placeable.width).coerceAtLeast(0)), labelTop)
+                }
+            }
+        }
+    }
+}
+
+/** The x positions of [n] points along [width], evenly spread (it is a sketch), with [margin] at both ends. */
+private fun numberLinePositions(n: Int, width: Float, margin: Float): List<Float> = when (n) {
+    0 -> emptyList()
+    1 -> listOf(width / 2)
+    else -> List(n) { margin + (width - 2 * margin) * it / (n - 1) }
 }
 
 /** A run of calculations, folded to one arrow with the expression it ends in; a tap shows every step. */
@@ -407,6 +544,8 @@ private val StepRule.descriptionRes: Int
         StepRule.PYTHAGOREAN -> R.string.step_pythagorean
         StepRule.LOG_COMBINE -> R.string.step_log_combine
         StepRule.RATIONALIZE -> R.string.step_rationalize
+        StepRule.TRIG_ODD_POWER -> R.string.step_trig_odd_power
+        StepRule.PYTHAGOREAN_IDENTITY -> R.string.step_pythagorean_identity
         StepRule.HALF_ANGLE -> R.string.step_half_angle
         StepRule.POLYNOMIAL_DIVISION -> R.string.step_polynomial_division
         StepRule.CYCLIC_BY_PARTS -> R.string.step_cyclic_by_parts
@@ -423,6 +562,12 @@ private val StepRule.descriptionRes: Int
         StepRule.LIMIT_RECIPROCAL -> R.string.step_limit_reciprocal
         StepRule.LHOPITAL -> R.string.step_lhopital
         StepRule.LIMIT_PRODUCT_AS_QUOTIENT -> R.string.step_limit_product_as_quotient
+        StepRule.LIMIT_POLE -> R.string.step_limit_pole
+        StepRule.IMPROPER_INTEGRAL -> R.string.step_improper_integral
+        StepRule.FACTOR_POLYNOMIAL -> R.string.step_factor_polynomial
+        StepRule.LIMIT_EXPONENTIAL_FORM -> R.string.step_limit_exponential_form
+        StepRule.LIMIT_EXPONENTIAL_RESULT -> R.string.step_limit_exponential_result
+        StepRule.LIMIT_LOGARITHM_ZERO -> R.string.step_limit_logarithm_zero
         StepRule.LIMIT_RECIPROCAL_SUBSTITUTION -> R.string.step_limit_reciprocal_substitution
         StepRule.ZERO_FRACTION -> R.string.step_zero_fraction
         StepRule.ABSOLUTE_VALUE_CASES -> R.string.step_absolute_value_cases
@@ -487,6 +632,8 @@ internal val StepRule.formula: String?
         StepRule.POLYNOMIAL_DIVISION -> "\\frac{P}{Q} = S + \\frac{R}{Q}\\text{  with  }P = S·Q + R"
         StepRule.CYCLIC_BY_PARTS -> "I = \\int{e^{px}sin(qx)}{x}\\text{:  by parts twice, then solve for }I"
         StepRule.HALF_ANGLE -> "sin^2(u) = \\frac{1 − cos(2u)}{2}\\text{,  }cos^2(u) = \\frac{1 + cos(2u)}{2}"
+        StepRule.PYTHAGOREAN_IDENTITY -> "sin^2(x) + cos^2(x) = 1"
+        StepRule.TRIG_ODD_POWER -> "sin^3(x) = sin(x)(1 − cos^2(x))"
         StepRule.RATIONALIZE -> "\\frac{1}{\\sqrt{a}} = \\frac{\\sqrt{a}}{\\sqrt{a}\\sqrt{a}} = \\frac{\\sqrt{a}}{a}"
         StepRule.LOG_COMBINE -> "\\log{b}{x} + \\log{b}{y} = \\log{b}{xy}\\text{,  }\\log{b}{x} − \\log{b}{y} = \\log{b}{\\frac{x}{y}}"
         StepRule.LOG_EQUAL -> "\\log{b}{x} = \\log{b}{y}\\text{  ⇔  }x = y"
@@ -544,6 +691,9 @@ internal val StepRule.formula: String?
         StepRule.SQUARE_BOTH_SIDES -> "a = b\\text{  ⇒  }a^2 = b^2"
         StepRule.LIMIT_VANISH -> "\\frac{c}{x^n} → 0\\text{  for  }x → ±∞"
         StepRule.LIMIT_RECIPROCAL_SUBSTITUTION -> "u = \\frac{1}{x}\\text{:  }x → ∞\\text{  is  }u → 0"
+        StepRule.FACTOR_POLYNOMIAL -> "P(x) = (x − r)(x − s)…\\text{  where  }P(r) = 0"
+        StepRule.IMPROPER_INTEGRAL -> "\\int{f}{x}\\text{ to }∞ = \\text{lim }(F(t) − F(a))"
+        StepRule.LIMIT_EXPONENTIAL_FORM -> "\\text{lim }f^g = e^{\\text{lim }g·ln(f)}"
         StepRule.LIMIT_PRODUCT_AS_QUOTIENT -> "f·g = \\frac{f}{\\frac{1}{g}}"
         StepRule.LHOPITAL -> "\\text{lim }\\frac{f}{g} = \\text{lim }\\frac{f′}{g′}"
         StepRule.ZERO_FRACTION -> "\\frac{a}{b} = 0\\text{  ⇔  }a = 0\\text{  (and  }b ≠ 0)"
@@ -557,7 +707,7 @@ internal val StepRule.formula: String?
         StepRule.ZERO_PRODUCT -> "a·b = 0\\text{  ⇔  }a = 0\\text{  or  }b = 0"
         StepRule.QUADRATIC_FORMULA -> "x = \\frac{−b ± \\sqrt{D}}{2a}\\text{  with  }D = b^2 − 4ac"
         StepRule.ROOT_OF_NUMBER, StepRule.IDENTITY, StepRule.SOLVE_FOR, StepRule.SUBSTITUTE_SOLUTION,
-        StepRule.MULTIPLY_EQUATIONS, StepRule.ADD_EQUATIONS, StepRule.SUBTRACT_EQUATIONS, StepRule.INSERT_VALUE, StepRule.COLLECT_SOLUTION, StepRule.FACTOR_BY_ROOT, StepRule.NO_REAL_SOLUTION, StepRule.CONTRADICTION, StepRule.INEQUALITY_ZEROS, StepRule.INEQUALITY_BREAKS, StepRule.INEQUALITY_CRITICAL, StepRule.INEQUALITY_RESULT, StepRule.ONE_SIDE, StepRule.TRIG_GENERAL_SOLUTION, StepRule.SUBSTITUTE_POWER, StepRule.BACK_SUBSTITUTE_POWER, StepRule.CHECK_SOLUTIONS, StepRule.LIMIT_SUBSTITUTE, StepRule.DIVIDE_BY_HIGHEST_POWER, StepRule.LIMIT_CONSTANT, StepRule.LIMIT_GROWS, StepRule.LIMIT_RECIPROCAL,
+        StepRule.MULTIPLY_EQUATIONS, StepRule.ADD_EQUATIONS, StepRule.SUBTRACT_EQUATIONS, StepRule.INSERT_VALUE, StepRule.COLLECT_SOLUTION, StepRule.FACTOR_BY_ROOT, StepRule.NO_REAL_SOLUTION, StepRule.CONTRADICTION, StepRule.INEQUALITY_ZEROS, StepRule.INEQUALITY_BREAKS, StepRule.INEQUALITY_CRITICAL, StepRule.INEQUALITY_RESULT, StepRule.ONE_SIDE, StepRule.TRIG_GENERAL_SOLUTION, StepRule.SUBSTITUTE_POWER, StepRule.BACK_SUBSTITUTE_POWER, StepRule.CHECK_SOLUTIONS, StepRule.LIMIT_SUBSTITUTE, StepRule.DIVIDE_BY_HIGHEST_POWER, StepRule.LIMIT_CONSTANT, StepRule.LIMIT_POLE, StepRule.LIMIT_LOGARITHM_ZERO, StepRule.LIMIT_EXPONENTIAL_RESULT, StepRule.LIMIT_GROWS, StepRule.LIMIT_RECIPROCAL,
         StepRule.INTEGRAL_TABLE, StepRule.EXPAND_INTEGRAND, StepRule.BACK_SUBSTITUTION,
         StepRule.MULTIPLY_NUMBERS, StepRule.DIVIDE_NUMBERS, StepRule.REDUCE_FRACTION, StepRule.NUMBER_POWER,
         StepRule.ADD_NUMBERS, StepRule.SUBTRACT_NUMBERS, StepRule.ADD_AND_SUBTRACT_NUMBERS, StepRule.COMBINE_LIKE_TERMS,

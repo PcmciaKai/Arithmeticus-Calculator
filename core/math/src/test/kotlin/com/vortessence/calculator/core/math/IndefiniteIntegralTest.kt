@@ -74,7 +74,7 @@ class IndefiniteIntegralTest {
         assertResult("atan(x) + C", calc(i(frac(ms(n("1")), ms(n("1"), op(MathOp.PLUS), x, pow(n("2")))))))
         assertResult("asin(x) + C", calc(i(frac(ms(n("1")), ms(RadicalNode(null, ms(n("1"), op(MathOp.MINUS), x, pow(n("2")))))))))
         // In degrees x is an angle in degrees
-        assertResult(" − (180cos((πx)/(180)))/(π) + C", calc(i(f("sin", x)), AngleUnit.DEGREES))
+        assertResult(" − (180cos(x))/(π) + C", calc(i(f("sin", x)), AngleUnit.DEGREES))
         // atan/asin results are angles in radians, which would be misread in degree mode
         assertNotFound(calc(i(frac(ms(n("1")), ms(n("1"), op(MathOp.PLUS), x, pow(n("2"))))), AngleUnit.DEGREES))
     }

@@ -259,3 +259,26 @@ class TrigonometricFunction(
 
     override fun toString(): String = "${type.symbol}($operand)"
 }
+
+
+/**
+ * c·R·sin²(u) + c·R·cos²(u) = c·R: the two terms of a sum that are the squares of the sine and the cosine of the same
+ * angle, with the same factors besides. Null if [a] and [b] are not such a pair.
+ */
+internal fun pythagoreanSum(a: Expression, b: Expression): Expression? {
+    fun split(term: Expression): Triple<TrigType, TrigonometricFunction, List<Expression>>? {
+        val factors = if (term is Multiplications) term.operands else listOf(term)
+        val index = factors.indexOfFirst {
+            it is Power && (it.exponent as? Value)?.rational == com.vortessence.calculator.core.math.numbers.Rational.of(2L) &&
+                it.base is TrigonometricFunction && ((it.base as TrigonometricFunction).type == TrigType.SIN || (it.base as TrigonometricFunction).type == TrigType.COS)
+        }
+        if (index < 0) return null
+        val trig = (factors[index] as Power).base as TrigonometricFunction
+        return Triple(trig.type, trig, factors.filterIndexed { i, _ -> i != index })
+    }
+    val first = split(a) ?: return null
+    val second = split(b) ?: return null
+    if (first.first == second.first || first.second.operand != second.second.operand || first.second.angleUnit != second.second.angleUnit) return null
+    if (first.third.size != second.third.size || !sameOperandsIgnoringOrder(first.third, second.third)) return null
+    return Multiplications.of(*first.third.toTypedArray()).let { if (first.third.isEmpty()) Value.ONE else it }
+}

@@ -211,7 +211,9 @@ private class ExpressionRow(
 
                 val isNodeFocused = cursorPath.size > 1 && cursorPath[0] == index
                 val isUnaryMinus = node is OperatorNode && node.op == MathOp.MINUS &&
-                    (index == start || (mathString.nodes[index - 1] as? OperatorNode)?.op?.isPostfix == false)
+                    (index == start || (mathString.nodes[index - 1] as? OperatorNode)?.op?.isPostfix == false ||
+                        // (−∞, −2): after the bracket or comma of an interval
+                        (mathString.nodes[index - 1] as? TextNode)?.text?.trimEnd()?.let { it.endsWith("(") || it.endsWith("[") || it.endsWith("{") || it.endsWith(",") || it.endsWith("∪") } == true)
                 // −½: a gap, so that the minus does not run into the fraction bar
                 val isSignOfFraction = isUnaryMinus && !LocalInExponent.current && mathString.nodes.getOrNull(index + 1).let {
                     it is FractionNode || (it is HighlightNode && it.content.nodes.firstOrNull() is FractionNode)

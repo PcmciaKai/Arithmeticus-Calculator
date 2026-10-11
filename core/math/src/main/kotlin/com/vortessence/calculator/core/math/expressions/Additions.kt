@@ -78,6 +78,22 @@ class Additions(val operands: List<Expression>) : Expression() {
             used[i] = true
         }
 
+        // sin²u + cos²u = 1 (also times the same factors)
+        var pythagorean = false
+        outer@ while (true) {
+            for (i in merged.indices) for (j in i + 1 until merged.size) {
+                val combined = pythagoreanSum(merged[i], merged[j]) ?: continue
+                val replacement = combined.canonicalize(context)
+                merged.removeAt(j)
+                merged.removeAt(i)
+                if (!replacement.isZero) merged.add(i, replacement)
+                pythagorean = true
+                continue@outer
+            }
+            break
+        }
+        if (pythagorean) return Additions(merged).canonicalize(context)
+
         if (merged.isEmpty()) return Value.ZERO
         if (merged.size == 1) return merged[0]
         val sum = Additions(merged)

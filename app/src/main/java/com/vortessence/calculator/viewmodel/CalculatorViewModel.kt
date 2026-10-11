@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.core.content.edit
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.vortessence.calculator.core.math.steps.Transform
 import com.vortessence.calculator.core.math.*
 import com.vortessence.calculator.core.math.context.AngleUnit
 import com.vortessence.calculator.core.math.context.CalculationMode
@@ -37,6 +38,8 @@ data class CalculatorUiState(
     val showResultError: Boolean = false,
     /** Whether the step-by-step solution of the live result can be shown (for derivatives). */
     val hasSteps: Boolean = false,
+    /** The forms the live result can be asked to be written in (multiplied out, factored, one fraction), with steps. */
+    val transforms: List<Transform> = emptyList(),
     /** The step-by-step solution being shown, or null if it is closed. */
     val steps: StepsState? = null,
     /** For "a + b%": the pocket-calculator reading, b% of a, with its result; null for other lines. */
@@ -95,7 +98,17 @@ data class PercentHint(
     val subtracts: Boolean
 )
 
-data class StepsState(val input: MathString, val solution: Solution? = null, val isLoading: Boolean = true)
+/**
+ * The steps being shown. [options] are what the line can show steps of: its solution (null), or being written in another
+ * form ([Transform]); [selected] is the one shown.
+ */
+data class StepsState(
+    val input: MathString,
+    val solution: Solution? = null,
+    val isLoading: Boolean = true,
+    val options: List<Transform?> = emptyList(),
+    val selected: Transform? = null
+)
 
 /**
  * A committed calculation, shown in the [form] chosen when it was committed. [id] is stable,
@@ -149,14 +162,14 @@ class CalculatorViewModel @JvmOverloads constructor(
                 .distinctUntilChanged()
                 .collectLatest { input ->
                     if (input.expression.isEmpty) {
-                        _uiState.update { it.copy(result = null, showResultError = false, hasSteps = false, percentHint = null) }
+                        _uiState.update { it.copy(result = null, showResultError = false, hasSteps = false, transforms = emptyList(), percentHint = null) }
                         return@collectLatest
                     }
                     if (liveResultDelayMillis > 0) delay(liveResultDelayMillis)
                     val context = input.settings.toMathContext()
                     val res = MathEngine.calculate(input.expression, context)
                     _uiState.update {
-                        if (it.expression == input.expression) it.copy(result = res, showResultError = false, hasSteps = false, percentHint = null) else it
+                        if (it.expression == input.expression) it.copy(result = res, showResultError = false, hasSteps = false, transforms = emptyList(), percentHint = null) else it
                     }
                     percentHint(input.expression, res, context)?.let { hint ->
                         _uiState.update { if (it.expression == input.expression) it.copy(percentHint = hint) else it }
@@ -169,6 +182,10 @@ class CalculatorViewModel @JvmOverloads constructor(
                         cachedSteps = CachedSteps(input, solution)
                         if (solution != null) {
                             _uiState.update { if (it.expression == input.expression) it.copy(hasSteps = true) else it }
+                        }
+                        val forms = MathEngine.transforms(input.expression, context)
+                        if (forms.isNotEmpty()) {
+                            _uiState.update { if (it.expression == input.expression) it.copy(transforms = forms) else it }
                         }
                     }
                 }
@@ -278,6 +295,7 @@ class CalculatorViewModel @JvmOverloads constructor(
             is KeyAction.Function -> insertNode(FunctionNode(action.name, MathString()))
             is KeyAction.LogBase -> insertNode(LogBaseNode())
             is KeyAction.EE -> insertEE()
+            is KeyAction.SuperscriptSign -> insertPower(MathString(listOf(OperatorNode(if (action.plus) MathOp.PLUS else MathOp.MINUS))))
             is KeyAction.Parentheses -> onParenthesesAction()
             is KeyAction.Fraction -> insertDivision()
             is KeyAction.Power -> insertPower()
@@ -588,22 +606,41 @@ class CalculatorViewModel @JvmOverloads constructor(
         }
     }
 
-    /** Opens the step-by-step solution of the line being typed. */
+    /**
+     * Opens the steps of the line being typed: its solution if it has one, otherwise the steps of writing it in another form
+     * (multiplied out, factored, as one fraction); the sheet offers the others.
+     */
     fun showSteps() {
         val state = _uiState.value
+        val options = buildList {
+            if (state.hasSteps) add(null)
+            addAll(state.transforms)
+        }
+        if (options.isEmpty()) return
+        loadSteps(options.first(), options)
+    }
+
+    /** Switches the sheet to the steps of [option]: the solution (null) or a form. */
+    fun selectStepsOption(option: Transform?) {
+        val steps = _uiState.value.steps ?: return
+        loadSteps(option, steps.options)
+    }
+
+    private fun loadSteps(option: Transform?, options: List<Transform?>) {
+        val state = _uiState.value
         val input = state.expression
-        val cached = cachedSteps?.takeIf { it.solution != null && it.input == LiveInput(input, state.mathContext()) }
+        val cached = if (option == null) cachedSteps?.takeIf { it.solution != null && it.input == LiveInput(input, state.mathContext()) } else null
         if (cached != null) {
             stepsJob?.cancel()
-            _uiState.update { it.copy(steps = StepsState(input, cached.solution, isLoading = false)) }
+            _uiState.update { it.copy(steps = StepsState(input, cached.solution, isLoading = false, options = options, selected = option)) }
             return
         }
-        _uiState.update { it.copy(steps = StepsState(input)) }
+        _uiState.update { it.copy(steps = StepsState(input, options = options, selected = option)) }
         stepsJob?.cancel()
         stepsJob = viewModelScope.launch {
-            val solution = MathEngine.steps(input, state.mathContext().toMathContext())
+            val solution = MathEngine.steps(input, state.mathContext().toMathContext(), transform = option)
             _uiState.update {
-                if (it.steps?.input == input) it.copy(steps = StepsState(input, solution, isLoading = false)) else it
+                if (it.steps?.input == input && it.steps.selected == option) it.copy(steps = StepsState(input, solution, isLoading = false, options = options, selected = option)) else it
             }
         }
     }
