@@ -119,10 +119,25 @@
     <string name="step_limit_exponential_form">The base goes to 1 and the exponent to ∞: write the power with e and take the limit of the exponent</string>
     <string name="step_limit_exponential_result">The limit is e to the power of that limit</string>
     <string name="step_factor_polynomial">Find the zeros of the polynomial (rational root theorem): each zero r gives a factor (x − r)</string>
+    <string name="matrix_store_hint">To use a matrix again, store it with := (long press on =), for example m := [matrix]</string>
     <string name="steps_option_solution">Solution</string>
     <string name="transform_expand">Expand</string>
     <string name="transform_factor">Factor</string>
     <string name="transform_combine">One fraction</string>
+    <string name="step_determinant_2x2">The determinant of a 2×2 matrix: the product of the diagonal minus the product of the other diagonal</string>
+    <string name="step_determinant_cofactor">Expand the determinant along a row or column: each entry times the determinant of what is left when its row and column are crossed out, the signs alternate</string>
+    <string name="step_inverse_2x2">The inverse of a 2×2 matrix: swap the diagonal, change the signs of the other two entries, and divide by the determinant</string>
+    <string name="step_inverse_augment">Write the matrix next to the identity matrix: row operations that turn the left part into the identity turn the right part into the inverse</string>
+    <string name="step_row_swap">Swap two rows to get a pivot that is not 0</string>
+    <string name="step_row_scale">Divide the row by its pivot so that the pivot is 1</string>
+    <string name="step_row_add">Subtract a multiple of the pivot row to make the entry in this column 0</string>
+    <string name="step_inverse_result">The left part is the identity matrix: the right part is the inverse</string>
+    <string name="step_matrix_multiply">Multiply the matrices: each entry is a row of the first times a column of the second</string>
+    <string name="step_matrix_scalar">A number times a matrix: it multiplies every entry</string>
+    <string name="step_matrix_add">Add the matrices entry by entry</string>
+    <string name="step_matrix_subtract">Subtract the matrices entry by entry</string>
+    <string name="step_matrix_transpose">The transpose: rows become columns</string>
+    <string name="step_matrix_power">A power of a matrix is the matrix multiplied by itself</string>
     <string name="step_improper_integral">One bound is infinite: the antiderivative at t instead of at the bound, and the limit as t goes to infinity</string>
     <string name="step_limit_pole">The denominator goes to 0 and the numerator does not: the quotient grows without bound, the signs say which way</string>
     <string name="step_limit_logarithm_zero">The logarithm of a number that goes to 0⁺ goes to −∞</string>

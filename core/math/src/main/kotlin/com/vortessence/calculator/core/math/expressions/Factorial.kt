@@ -15,7 +15,11 @@ class Factorial(val operand: Expression) : Expression() {
     override fun canonicalize(context: MathContext): Expression {
         val canonical = operand.canonicalize(context)
         if (context.shouldStop) return this
-        if (canonical.variables().isNotEmpty() && !canonical.containsExpressionMatching { it is MatrixExpression }) {
+        if (canonical.containsExpressionMatching { it is MatrixExpression }) {
+            context.stopWithError(MathIssue.MATRIX_UNSUPPORTED)
+            return this
+        }
+        if (canonical.variables().isNotEmpty()) {
             return Factorial(canonical)
         }
         val n: Long? = (canonical as? Value)?.let { value ->

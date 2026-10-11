@@ -97,7 +97,10 @@ class MathWriter(
             is UnitExpression -> result.append(UnitNode(expr.symbol))
             is Power -> {
                 val exp = expr.exponent
-                if (exp is Value && exp.isNegative) {
+                // A⁻¹ and Aᵀ stay powers of the matrix, not a fraction
+                if (expr.base is MatrixExpression) {
+                    writePower(expr, result)
+                } else if (exp is Value && exp.isNegative) {
                     // x^-n is shown as the fraction 1/x^n
                     writeMultiplications(Multiplications(listOf(expr)), result)
                 } else {
@@ -256,6 +259,7 @@ class MathWriter(
                     expr.elements.map { writeExpr(it) }
                 ))
             }
+            is Determinant -> result.append(FunctionNode("det", writeExpr(expr.operand)))
             else -> result.append(TextNode(expr.toString()))
         }
         return result
@@ -454,7 +458,9 @@ class MathWriter(
                 continue
             }
             val exponent = (op as? Power)?.exponent as? Value
-            if (op is Power && exponent != null && exponent.isNegative) {
+            if (op is Power && op.base is MatrixExpression) {
+                numerators.add(op)
+            } else if (op is Power && exponent != null && exponent.isNegative) {
                 val posExp = exponent.negate()
                 denominators.add(if (posExp == Value.ONE) op.base else Power(op.base, posExp))
             } else if (op is Value && op.rational != null && op.rational.isFractional && op.rational.abs() !in typedDecimals) {

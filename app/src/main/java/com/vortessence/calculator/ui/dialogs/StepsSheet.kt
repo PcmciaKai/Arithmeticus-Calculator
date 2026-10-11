@@ -565,6 +565,20 @@ private val StepRule.descriptionRes: Int
         StepRule.LIMIT_POLE -> R.string.step_limit_pole
         StepRule.IMPROPER_INTEGRAL -> R.string.step_improper_integral
         StepRule.FACTOR_POLYNOMIAL -> R.string.step_factor_polynomial
+        StepRule.DETERMINANT_2X2 -> R.string.step_determinant_2x2
+        StepRule.DETERMINANT_COFACTOR -> R.string.step_determinant_cofactor
+        StepRule.INVERSE_2X2 -> R.string.step_inverse_2x2
+        StepRule.INVERSE_AUGMENT -> R.string.step_inverse_augment
+        StepRule.ROW_SWAP -> R.string.step_row_swap
+        StepRule.ROW_SCALE -> R.string.step_row_scale
+        StepRule.ROW_ADD -> R.string.step_row_add
+        StepRule.INVERSE_RESULT -> R.string.step_inverse_result
+        StepRule.MATRIX_MULTIPLY -> R.string.step_matrix_multiply
+        StepRule.MATRIX_SCALAR -> R.string.step_matrix_scalar
+        StepRule.MATRIX_ADD -> R.string.step_matrix_add
+        StepRule.MATRIX_SUBTRACT -> R.string.step_matrix_subtract
+        StepRule.MATRIX_TRANSPOSE -> R.string.step_matrix_transpose
+        StepRule.MATRIX_POWER -> R.string.step_matrix_power
         StepRule.LIMIT_EXPONENTIAL_FORM -> R.string.step_limit_exponential_form
         StepRule.LIMIT_EXPONENTIAL_RESULT -> R.string.step_limit_exponential_result
         StepRule.LIMIT_LOGARITHM_ZERO -> R.string.step_limit_logarithm_zero
@@ -691,6 +705,9 @@ internal val StepRule.formula: String?
         StepRule.SQUARE_BOTH_SIDES -> "a = b\\text{  ⇒  }a^2 = b^2"
         StepRule.LIMIT_VANISH -> "\\frac{c}{x^n} → 0\\text{  for  }x → ±∞"
         StepRule.LIMIT_RECIPROCAL_SUBSTITUTION -> "u = \\frac{1}{x}\\text{:  }x → ∞\\text{  is  }u → 0"
+        StepRule.DETERMINANT_2X2 -> "\\text{det} = a·d − b·c"
+        StepRule.INVERSE_2X2 -> "A^{−1} = \\frac{1}{a·d − b·c}·\\text{(top: }d, −b\\text{; bottom: }−c, a\\text{)}"
+        StepRule.MATRIX_MULTIPLY -> "\\text{entry} = \\text{row of }A · \\text{column of }B"
         StepRule.FACTOR_POLYNOMIAL -> "P(x) = (x − r)(x − s)…\\text{  where  }P(r) = 0"
         StepRule.IMPROPER_INTEGRAL -> "\\int{f}{x}\\text{ to }∞ = \\text{lim }(F(t) − F(a))"
         StepRule.LIMIT_EXPONENTIAL_FORM -> "\\text{lim }f^g = e^{\\text{lim }g·ln(f)}"
@@ -707,7 +724,7 @@ internal val StepRule.formula: String?
         StepRule.ZERO_PRODUCT -> "a·b = 0\\text{  ⇔  }a = 0\\text{  or  }b = 0"
         StepRule.QUADRATIC_FORMULA -> "x = \\frac{−b ± \\sqrt{D}}{2a}\\text{  with  }D = b^2 − 4ac"
         StepRule.ROOT_OF_NUMBER, StepRule.IDENTITY, StepRule.SOLVE_FOR, StepRule.SUBSTITUTE_SOLUTION,
-        StepRule.MULTIPLY_EQUATIONS, StepRule.ADD_EQUATIONS, StepRule.SUBTRACT_EQUATIONS, StepRule.INSERT_VALUE, StepRule.COLLECT_SOLUTION, StepRule.FACTOR_BY_ROOT, StepRule.NO_REAL_SOLUTION, StepRule.CONTRADICTION, StepRule.INEQUALITY_ZEROS, StepRule.INEQUALITY_BREAKS, StepRule.INEQUALITY_CRITICAL, StepRule.INEQUALITY_RESULT, StepRule.ONE_SIDE, StepRule.TRIG_GENERAL_SOLUTION, StepRule.SUBSTITUTE_POWER, StepRule.BACK_SUBSTITUTE_POWER, StepRule.CHECK_SOLUTIONS, StepRule.LIMIT_SUBSTITUTE, StepRule.DIVIDE_BY_HIGHEST_POWER, StepRule.LIMIT_CONSTANT, StepRule.LIMIT_POLE, StepRule.LIMIT_LOGARITHM_ZERO, StepRule.LIMIT_EXPONENTIAL_RESULT, StepRule.LIMIT_GROWS, StepRule.LIMIT_RECIPROCAL,
+        StepRule.MULTIPLY_EQUATIONS, StepRule.ADD_EQUATIONS, StepRule.SUBTRACT_EQUATIONS, StepRule.INSERT_VALUE, StepRule.COLLECT_SOLUTION, StepRule.FACTOR_BY_ROOT, StepRule.NO_REAL_SOLUTION, StepRule.CONTRADICTION, StepRule.DETERMINANT_COFACTOR, StepRule.INVERSE_AUGMENT, StepRule.ROW_SWAP, StepRule.ROW_SCALE, StepRule.ROW_ADD, StepRule.INVERSE_RESULT, StepRule.MATRIX_SCALAR, StepRule.MATRIX_ADD, StepRule.MATRIX_SUBTRACT, StepRule.MATRIX_TRANSPOSE, StepRule.MATRIX_POWER, StepRule.INEQUALITY_ZEROS, StepRule.INEQUALITY_BREAKS, StepRule.INEQUALITY_CRITICAL, StepRule.INEQUALITY_RESULT, StepRule.ONE_SIDE, StepRule.TRIG_GENERAL_SOLUTION, StepRule.SUBSTITUTE_POWER, StepRule.BACK_SUBSTITUTE_POWER, StepRule.CHECK_SOLUTIONS, StepRule.LIMIT_SUBSTITUTE, StepRule.DIVIDE_BY_HIGHEST_POWER, StepRule.LIMIT_CONSTANT, StepRule.LIMIT_POLE, StepRule.LIMIT_LOGARITHM_ZERO, StepRule.LIMIT_EXPONENTIAL_RESULT, StepRule.LIMIT_GROWS, StepRule.LIMIT_RECIPROCAL,
         StepRule.INTEGRAL_TABLE, StepRule.EXPAND_INTEGRAND, StepRule.BACK_SUBSTITUTION,
         StepRule.MULTIPLY_NUMBERS, StepRule.DIVIDE_NUMBERS, StepRule.REDUCE_FRACTION, StepRule.NUMBER_POWER,
         StepRule.ADD_NUMBERS, StepRule.SUBTRACT_NUMBERS, StepRule.ADD_AND_SUBTRACT_NUMBERS, StepRule.COMBINE_LIKE_TERMS,

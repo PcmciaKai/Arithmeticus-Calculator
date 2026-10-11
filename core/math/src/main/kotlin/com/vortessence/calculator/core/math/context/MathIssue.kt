@@ -24,6 +24,7 @@ enum class MathIssue(val userMessage: String) {
     MATRIX_NOT_SQUARE("Matrix must be square"),
     SINGULAR_MATRIX("Matrix is not invertible"),
     MATRIX_UNSUPPORTED("Not defined for matrices"),
+    MATRIX_AND_SCALAR("A matrix and a number cannot be added"),
     NO_ANS("No previous result for Ans"),
     DIVERGES("Does not converge"),
     INVALID_BOUNDS("Bounds must be whole numbers"),

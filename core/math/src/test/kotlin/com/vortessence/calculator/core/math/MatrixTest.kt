@@ -55,7 +55,7 @@ class MatrixTest {
         assertMatrix(calc(mat("1 2", "3 4"), op(MathOp.PLUS), mat("5 6", "7 8")), 2, 2, "6", "8", "10", "12")
         assertMatrix(calc(mat("1 2", "3 4"), op(MathOp.MINUS), mat("1 2", "3 4")), 2, 2, "0", "0", "0", "0")
         assertIssue(calc(mat("1 2", "3 4"), op(MathOp.PLUS), mat("1 2 3")), MathIssue.DIMENSION_MISMATCH)
-        assertIssue(calc(mat("1 2", "3 4"), op(MathOp.PLUS), n("1")), MathIssue.DIMENSION_MISMATCH)
+        assertIssue(calc(mat("1 2", "3 4"), op(MathOp.PLUS), n("1")), MathIssue.MATRIX_AND_SCALAR)
     }
 
     @Test

@@ -97,4 +97,25 @@ class VariableDefinitionTest {
         // A variable cannot stand for an equation
         assertEquals(listOf(MathIssue.SYNTAX_ERROR), calc(emptyMap(), v("a"), define, v("x"), op(MathOp.EQUALS), n("3")).issues)
     }
+
+    @Test
+    fun aMatrixVariableUsedWithANumberSaysWhichVariableIsTheMatrix() {
+        val matrix = MatrixNode(2, 2, listOf(ms(n("1")), ms(n("2")), ms(n("3")), ms(n("4"))))
+        val vars = defineVar(emptyMap(), v("m"), define, matrix)
+        // 2 + m: a matrix and a number
+        val sum = calc(vars, n("2"), op(MathOp.PLUS), v("m"))
+        assertEquals(listOf(MathIssue.MATRIX_AND_SCALAR), sum.issues)
+        assertEquals("m is a matrix. A matrix and a number cannot be added", sum.issueNote)
+        // sin(m), m!, a comparison
+        assertEquals("m is a matrix. Not defined for matrices", calc(vars, FunctionNode("sin", ms(v("m")))).issueNote)
+        assertEquals("m is a matrix. Not defined for matrices", calc(vars, v("m"), op(MathOp.FACTORIAL)).issueNote)
+        assertEquals("m is a matrix. Not defined for matrices", calc(vars, v("m"), op(MathOp.LESS), n("2")).issueNote)
+        // Two of them, and what works stays as it is
+        val both = defineVar(vars, v("n"), define, MatrixNode(3, 3, List(9) { ms(n("1")) }))
+        assertEquals("m and n are matrices. Matrix dimensions do not match", calc(both, v("m"), op(MathOp.PLUS), v("n")).issueNote)
+        assertTrue(calc(vars, v("m"), v("m")).isSuccess)
+        // No note for an error that has nothing to do with matrices, or without matrix variables
+        assertNull(calc(vars, n("1"), op(MathOp.DIVIDE), n("0")).issueNote)
+        assertNull(calc(emptyMap(), n("2"), op(MathOp.PLUS), MatrixNode(1, 1, listOf(ms(n("1"))))).issueNote)
+    }
 }

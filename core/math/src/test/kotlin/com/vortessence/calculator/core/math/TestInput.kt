@@ -14,6 +14,7 @@ internal object TestInput {
     private class Reader(val s: String) {
         var i = 0
         fun peek() = if (i < s.length) s[i] else '\u0000'
+        fun peek2() = if (i + 1 < s.length) s[i + 1] else '\u0000'
 
         fun string(stop: String): MathString {
             val nodes = mutableListOf<MathNode>()
@@ -36,6 +37,13 @@ internal object TestInput {
                     c == '|' -> { i++; nodes.add(LineBreakNode) }
                     c == '(' -> { i++; val inner = string(")"); i++; nodes.add(ParenthesesNode(inner)) }
                     c == '[' -> { i++; val a = string(";"); i++; val b = string("]"); i++; nodes.add(FractionNode(a, b)) }
+                    s.startsWith("M[", i) -> {
+                        // A matrix: M[1 2/3 4], rows separated by /, entries by spaces
+                        val end = s.indexOf(']', i)
+                        val rows = s.substring(i + 2, end).split('/').map { row -> row.trim().split(Regex("\\s+")).map { Reader(it).string("") } }
+                        i = end + 1
+                        nodes.add(MatrixNode(rows.size, rows.first().size, rows.flatten()))
+                    }
                     c == '^' && (s.startsWith("^+", i) || s.startsWith("^-", i)) && nodes.lastOrNull() is NumberNode -> {
                         // A superscript sign after a number, as the power key makes it: the number is the base
                         val base = ArrayList<MathNode>()
@@ -47,6 +55,7 @@ internal object TestInput {
                     c == '^' -> {
                         i++
                         val e = if (peek() == '{') { i++; string("}").also { i++ } }
+                        else if (peek() == '-' && peek2().isDigit()) { i++; val st = i; while (peek().isDigit()) i++; MathString(listOf(OperatorNode(MathOp.MINUS), NumberNode(s.substring(st, i)))) }
                         else if (peek() == '+' || (peek() == '-' && !s.startsWith("->", i))) MathString(listOf(OperatorNode(if (peek() == '+') MathOp.PLUS else MathOp.MINUS))).also { i++ }
                         else MathString(listOf(single()))
                         nodes.add(ExponentNode(null, e))

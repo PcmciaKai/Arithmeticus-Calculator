@@ -183,6 +183,33 @@ enum class StepRule {
     INEQUALITY_CRITICAL,
     /** one test value in each interval, the solution */
     INEQUALITY_RESULT,
+    /** det(a b; c d) = ad − bc */
+    DETERMINANT_2X2,
+    /** a determinant expanded along a row or column into smaller ones */
+    DETERMINANT_COFACTOR,
+    /** A⁻¹ = 1/(ad − bc)·(d −b; −c a) */
+    INVERSE_2X2,
+    /** (A | I) */
+    INVERSE_AUGMENT,
+    /** swap two rows */
+    ROW_SWAP,
+    /** divide a row by its pivot */
+    ROW_SCALE,
+    /** subtract a multiple of a row from another */
+    ROW_ADD,
+    /** (I | A⁻¹): the right half is the inverse */
+    INVERSE_RESULT,
+    /** every entry is a row times a column */
+    MATRIX_MULTIPLY,
+    /** a number times every entry */
+    MATRIX_SCALAR,
+    /** entry by entry */
+    MATRIX_ADD,
+    MATRIX_SUBTRACT,
+    /** rows and columns swapped */
+    MATRIX_TRANSPOSE,
+    /** Aⁿ = A·A·…·A */
+    MATRIX_POWER,
     /** x² − 5x + 6 = (x − 2)(x − 3) */
     FACTOR_POLYNOMIAL,
     /** ∫ₐ^∞ f = lim F(t) − F(a) */

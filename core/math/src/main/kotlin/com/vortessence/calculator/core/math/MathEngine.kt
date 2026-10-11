@@ -42,6 +42,8 @@ import com.vortessence.calculator.core.math.steps.BothSides
 import com.vortessence.calculator.core.math.steps.DerivativeSteps
 import com.vortessence.calculator.core.math.steps.EquationSteps
 import com.vortessence.calculator.core.math.steps.InequalitySteps
+import com.vortessence.calculator.core.math.steps.MatrixSteps
+import com.vortessence.calculator.core.math.steps.TextExpression
 import com.vortessence.calculator.core.math.steps.Transform
 import com.vortessence.calculator.core.math.steps.Transforms
 import com.vortessence.calculator.core.math.steps.SystemSteps
@@ -99,6 +101,8 @@ data class CalculationResult(
     val definedVariable: String? = null,
     /** The imaginary part of a complex result; [numericValue] is then its real part. */
     val numericImaginary: Double = 0.0,
+    /** What went wrong said for this input, e.g. "m is a matrix. A matrix and a number cannot be added"; null if the issue's own message says it. */
+    val issueNote: String? = null,
     /** A complex result in polar form, r·e^(iθ), exact; null if the result is not complex. */
     val polar: MathString? = null
 )
@@ -153,7 +157,20 @@ object MathEngine {
             failure(input, execContext, MathIssue.VALUES_TOO_LARGE)
         }
         ensureActive() // a cancelled calculation must not deliver a (partial) result
-        result
+        if (result.isSuccess) result else result.copy(issueNote = matrixNote(input, result, execContext))
+    }
+
+    private val MATRIX_ISSUES = setOf(MathIssue.MATRIX_UNSUPPORTED, MathIssue.MATRIX_AND_SCALAR, MathIssue.DIMENSION_MISMATCH, MathIssue.MATRIX_NOT_SQUARE, MathIssue.SINGULAR_MATRIX)
+
+    /** "m is a matrix. Not defined for matrices": says which of the variables used is a matrix, if the problem is with matrices. */
+    private fun matrixNote(input: MathString, result: CalculationResult, ctx: MathContext): String? {
+        val issue = result.issues.firstOrNull()?.takeIf { it in MATRIX_ISSUES } ?: return null
+        if (ctx.variables.isEmpty()) return null
+        val used = try { parser.parse(input).variables().map { it.identifier }.toSet() } catch (e: RuntimeException) { return null }
+        val names = ctx.variables.filter { (name, value) -> name in used && try { parser.parse(value) is MatrixExpression } catch (e: RuntimeException) { false } }.keys.sorted()
+        if (names.isEmpty()) return null
+        val subject = if (names.size == 1) "${names.single()} is a matrix" else names.dropLast(1).joinToString(", ") + " and " + names.last() + " are matrices"
+        return "$subject. ${issue.userMessage}"
     }
 
     private fun evaluate(input: MathString, ctx: MathContext): CalculationResult {
@@ -250,7 +267,7 @@ object MathEngine {
                     is EquationSystem -> SystemSteps.steps(parsed, execContext)
                     is Inequality -> InequalitySteps.steps(parsed, execContext)
                     is Equals -> parsed.variables().takeIf { it.isNotEmpty() }?.let { EquationSteps.steps(parsed, pickVariable(it), execContext) }
-                    else -> ExpressionSteps.steps(parsed, execContext) ?: ArithmeticSteps.steps(asTyped, execContext)
+                    else -> MatrixSteps.steps(parsed, execContext) ?: ExpressionSteps.steps(parsed, execContext) ?: ArithmeticSteps.steps(asTyped, execContext)
                 }
                 if (solution == null || execContext.shouldStop || execContext.issues.isNotEmpty()) return@steps null
                 val display = displayWriter(execContext)
@@ -449,6 +466,8 @@ object MathEngine {
 
     /** "u = x²", or with a differential "du = 2x dx". */
     private fun writeNote(note: Note, writer: MathWriter): MathString {
+        // Only a line of text: R₂ → R₂ − 3R₁
+        if (note.relation == "" && (note.right as? TextExpression)?.text?.isEmpty() == true) return writer.write(note.left)
         note.relation?.let { relation ->
             val result = writer.write(note.left)
             result.insert(result.length, TextNode(" $relation "))

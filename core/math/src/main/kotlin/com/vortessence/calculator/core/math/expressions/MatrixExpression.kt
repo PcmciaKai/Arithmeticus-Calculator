@@ -290,7 +290,7 @@ internal fun addMatrices(terms: List<Expression>, context: MathContext): MatrixE
     for (term in terms) {
         if (term !is MatrixExpression) {
             // A matrix plus a number is undefined
-            context.stopWithError(MathIssue.DIMENSION_MISMATCH)
+            context.stopWithError(MathIssue.MATRIX_AND_SCALAR)
             return null
         }
         sum = if (sum == null) term else sum.plus(term, context) ?: run {

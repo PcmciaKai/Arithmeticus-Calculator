@@ -312,7 +312,7 @@ private fun LiveResultView(
             val isIncomplete = result.issues.all { it == MathIssue.SYNTAX_ERROR }
             if (showError || !isIncomplete) {
                 Text(
-                    text = result.issues.firstOrNull()?.userMessage ?: "Calculation Error",
+                    text = result.issueNote ?: result.issues.firstOrNull()?.userMessage ?: "Calculation Error",
                     color = AccentRed,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold

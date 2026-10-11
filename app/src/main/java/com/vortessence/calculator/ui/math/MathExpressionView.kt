@@ -1177,7 +1177,8 @@ private fun MatrixView(node: MatrixNode, fontSize: TextUnit, slots: SlotContext)
     MatrixGrid(
         rows = node.rows,
         cols = node.cols,
-        modifier = Modifier.centeredMathAxis().squareBrackets(slots.textColor)
+        // The outer padding keeps what comes next to the matrix (an exponent, another matrix) off the brackets
+        modifier = Modifier.centeredMathAxis().padding(horizontal = 5.dp).squareBrackets(slots.textColor)
     ) {
         node.elements.forEachIndexed { idx, element ->
             slots.Slot(child = idx, string = element, fontSize = elementFontSize)
