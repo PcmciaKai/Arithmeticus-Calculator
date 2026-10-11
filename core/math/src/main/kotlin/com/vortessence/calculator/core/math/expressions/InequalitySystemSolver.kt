@@ -12,7 +12,7 @@ internal object InequalitySystemSolver {
 
     class Result(
         val variable: Variable,
-        /** The analysis of each inequality, in the order of the lines. */
+        /** The analysis of each inequality with the variable, in the order of the lines. */
         val parts: List<InequalityAnalysis>,
         /** What they have in common, sorted. */
         val pieces: List<Interval>
@@ -31,11 +31,14 @@ internal object InequalitySystemSolver {
 
     /** Null if a line has no solution set of this kind, or the lines are about different variables. */
     fun solve(inequalities: List<Inequality>, context: MathContext): Result? {
-        val variable = inequalities.firstOrNull()?.variables()?.singleOrNull() ?: return null
-        if (inequalities.any { it.variables() != setOf(variable) }) return null
-        val parts = inequalities.map { InequalitySolver.analyze(it, context.copy().also { c -> c.complexNumbers = false }) ?: return null }
+        // A line without the variable (1 < 2) is true or false for all of them
+        val (constants, withVariable) = inequalities.partition { it.variables().isEmpty() }
+        val variable = withVariable.firstOrNull()?.variables()?.singleOrNull() ?: return null
+        if (withVariable.any { it.variables() != setOf(variable) }) return null
+        val parts = withVariable.map { InequalitySolver.analyze(it, context.copy().also { c -> c.complexNumbers = false }) ?: return null }
         var pieces: List<Interval> = listOf(Interval(null, false, null, false))
         for (part in parts) pieces = intersect(pieces, part.pieces)
+        if (constants.any { it.truthValue(context.copy()) != true }) pieces = emptyList()
         val sorted = pieces.sortedBy { it.lower?.evaluateNumerically() ?: Double.NEGATIVE_INFINITY }
         return Result(variable, parts, sorted)
     }

@@ -398,12 +398,22 @@ internal object LimitSteps {
 
     private fun radicand(e: Expression): Expression? = (e as? Power)?.takeIf { (it.exponent as? Value)?.rational == com.vortessence.calculator.core.math.numbers.Rational.of(1L, 2L) }?.base
 
-    /** The two terms if the sum is √a ± b or √a ± √c with polynomials of the degrees 2k and k (or 2k and 2k), as at x → ±∞ they are ∞ − ∞. */
+    /**
+     * The two parts if the sum is √a ± b or √a ± √c, or √a with a polynomial (√a − 3x − 1: the other terms together), with polynomials
+     * of the degrees 2k and k (or 2k and 2k), as at x → ±∞ they are ∞ − ∞.
+     */
     private fun conjugateParts(body: Expression, v: Variable, positive: Boolean, context: MathContext): ConjugateParts? {
         val sum = body as? Additions ?: return null
-        if (sum.operands.size != 2) return null
-        val terms = sum.operands.map { term(it) }
-        if (terms.none { radicand(it.core) != null }) return null
+        if (sum.operands.size < 2) return null
+        var terms = sum.operands.map { term(it) }
+        val roots = terms.filter { radicand(it.core) != null }
+        val others = terms.filter { radicand(it.core) == null }
+        if (roots.isEmpty() || roots.size > 2) return null
+        // √a − 3x − 1: the terms without a root are one polynomial
+        if (roots.size == 1 && others.size > 1) {
+            val together = Additions(others.map { it.original })
+            terms = listOf(roots.single(), Term(1, together, together))
+        } else if (terms.size != 2) return null
         var k = -1
         for (t in terms) {
             val inside = radicand(t.core)

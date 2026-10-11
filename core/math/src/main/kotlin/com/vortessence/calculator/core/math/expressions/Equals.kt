@@ -184,10 +184,17 @@ class Equals(
         // In degrees a period is 360, not 2π: the same number of periods is searched
         val scale = if (context.angleUnit == com.vortessence.calculator.core.math.context.AngleUnit.DEGREES &&
             diff.containsExpressionMatching { it is TrigonometricFunction }) 180.0 / Math.PI else 1.0
+        // Sine and cosine repeat: the nearest roots are what is wanted. Others (1/x + 1/(x − 30) = 1/4, with a root at 34.5 as well as 3.5)
+        // have roots wherever they are, so the wider search is made as well, not only when the narrow one found nothing.
+        val repeats = diff.containsExpressionMatching { it is TrigonometricFunction }
         for ((range, steps) in NUMERIC_SEARCH_RANGES) {
-            roots = NumericRootFinder.findRoots(function, -range * scale, range * scale, steps, context)
+            val found = NumericRootFinder.findRoots(function, -range * scale, range * scale, steps, context)
             if (context.shouldStop) return emptySet()
-            if (roots.isNotEmpty()) break
+            if (repeats) {
+                if (found.isNotEmpty()) { roots = found; break }
+            } else {
+                roots = roots + found.filter { r -> roots.none { abs(it - r) <= 1e-6 * maxOf(1.0, abs(r)) } }
+            }
         }
         if (roots.isEmpty()) {
             context.stopWithError(MathIssue.NO_REAL_SOLUTION)
@@ -204,9 +211,16 @@ class Equals(
                 // is the whole number next to it if that is at least as good a root
                 val close = abs(root - nearest) < 1e-9 * maxOf(1.0, abs(root)) ||
                     (abs(root - nearest) < 1e-5 * maxOf(1.0, abs(root)) && abs(function.evaluateAt(nearest.toDouble())) <= abs(function.evaluateAt(root)))
-                if (close) Value(nearest) else Value(root)
+                if (close) Value(nearest) else simpleFraction(function, root) ?: Value(root)
             }
             .toCollection(LinkedHashSet())
+    }
+
+    /** 1.5 is 3/2 where that is as good a root: a simple fraction (denominator up to 100) next to the number found. */
+    private fun simpleFraction(function: Function1D, root: Double): Expression? {
+        val candidate = Rational.approximateFromDouble(root, 100L) ?: return null
+        if (abs(candidate.toDouble() - root) > 1e-9 * maxOf(1.0, abs(root))) return null
+        return if (abs(function.evaluateAt(candidate.toDouble())) <= abs(function.evaluateAt(root)) + 1e-14) Value(candidate) else null
     }
 
     private fun trySolveLinear(expr: Expression, variable: Variable, context: MathContext): Expression? {

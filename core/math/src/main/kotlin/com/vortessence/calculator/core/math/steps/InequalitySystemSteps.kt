@@ -16,6 +16,8 @@ internal object InequalitySystemSteps {
     fun steps(system: EquationSystem, given: MathContext): ExpressionSolution? {
         val context = given.copy().also { it.complexNumbers = false }
         val inequalities = system.lines.map { it as? Inequality ?: return null }
+        // (a line without the variable has no steps of its own)
+        if (inequalities.any { it.variables().isEmpty() }) return null
         val solved = InequalitySystemSolver.solve(inequalities, context.copy()) ?: return null
         if (solved.pieces.isEmpty()) return null
 

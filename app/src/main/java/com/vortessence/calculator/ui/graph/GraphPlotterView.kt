@@ -254,7 +254,8 @@ fun GraphPlotterView(
     val touchRadiusPx = with(density) { 28.dp.toPx() }
     val snapRadiusPx = with(density) { 14.dp.toPx() }
     val contourCellPx = with(density) { 4.dp.toPx() }
-    val shadeCellPx = with(density) { 2.5.dp.toPx() }
+    // Finer where no boundary curve is drawn over the edge (several inequalities), and in one variable, where a column costs next to nothing
+    val shadeCellPx = with(density) { (if (region?.twoVariables == false) 1.2.dp else if (region?.primary == null) 1.5.dp else 2.5.dp).toPx() }
 
     // Implicit curves: segments for the visible area plus a margin, so that short pans do not
     // reveal gaps before the recomputation after the gesture settles
