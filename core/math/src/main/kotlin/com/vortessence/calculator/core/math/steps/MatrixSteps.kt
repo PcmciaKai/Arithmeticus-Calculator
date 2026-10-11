@@ -43,6 +43,7 @@ internal object MatrixSteps {
     private const val MAX_POWER = 5
     private const val MAX_GAUSS_SIZE = 5
     private const val MAX_EIGEN_SIZE = 4
+    private const val MAX_EIGEN_RESULT_SIZE = 5
     private const val MAX_REDUCE_ROWS = MAX_GAUSS_SIZE + 1
     private const val MAX_REDUCE_COLUMNS = 2 * MAX_GAUSS_SIZE
 
@@ -52,7 +53,8 @@ internal object MatrixSteps {
         if (e is RowReduced || e is EigenSystem) {
             val operand = if (e is RowReduced) e.operand else (e as EigenSystem).operand
             val scratch = context.copy()
-            val m = (operand as? MatrixExpression ?: operand.canonicalize(scratch)) as? MatrixExpression
+            // The entries as numbers: 1 + 1 is 2 (the first step of the steps shows the matrix as it was typed)
+            val m = operand.canonicalize(scratch) as? MatrixExpression
             if (m == null || scratch.shouldStop) return null
             return if (e is RowReduced) rowReduceSteps(e, m, context) else eigenSteps(e, m, context)
         }
@@ -386,6 +388,9 @@ internal object MatrixSteps {
         }
         if (values.isEmpty() || values.any { it.variables().isNotEmpty() || (it.containsImaginaryUnit() && !context.complexNumbers) }) return null
         val sorted = values.sortedBy { it.evaluateNumerically() }
+        // The steps must end at the calculator's result
+        val expected = eigenvalueList(a, lambda, context.copy()) ?: return null
+        if (expected.size != sorted.size || expected.indices.any { Math.abs(expected[it].evaluateNumerically() - sorted[it].evaluateNumerically()) > 1e-9 * maxOf(1.0, Math.abs(expected[it].evaluateNumerically())) }) return null
 
         // 3. The eigenvector of each rational eigenvalue
         val results = mutableListOf<Expression>()
@@ -405,7 +410,7 @@ internal object MatrixSteps {
 
     /**
      * eig(A) as a result: λ = 3, v = (1, 1) for each eigenvalue (the vector only for the exact ones). Null, with the issue reported,
-     * if A is not a square matrix of numbers or the eigenvalues cannot be found.
+     * if A is not a square matrix of numbers or the eigenvalues cannot be found. Independent of the steps, which have limits of their own.
      */
     internal fun eigenSystem(m: MatrixExpression, context: MathContext): Expression? {
         if (!m.isSquare) {
@@ -417,18 +422,58 @@ internal object MatrixSteps {
             context.stopWithError(MathIssue.MATRIX_NEEDS_NUMBERS)
             return null
         }
-        val lambda = Variable("λ")
-        if (m.rows == 1) return Alternatives(listOf(Equals(lambda, Value(a[0][0])), Equals(Variable("v"), MatrixExpression(1, 1, listOf(Value.ONE)))), inline = true, separator = ",   ")
-        if (m.rows > MAX_EIGEN_SIZE) {
+        if (m.rows > MAX_EIGEN_RESULT_SIZE) {
             context.stopWithError(MathIssue.MATRIX_UNSUPPORTED)
             return null
         }
+        val lambda = Variable("λ")
+        if (m.rows == 1) return eigenLine(a[0][0].let { Value(it) }, listOf(listOf(Rational.ONE)), lambda)
+        val values = eigenvalueList(a, lambda, context) ?: return null
+        val results = values.map { value ->
+            val rational = (value as? Value)?.rational
+            val vectors = rational?.let { nullVectors(a, it) }
+            if (vectors == null) Equals(lambda, value) else eigenLine(value, vectors, lambda)
+        }
+        return if (results.size == 1) results.single() else Alternatives(results)
+    }
+
+    /** The zeros of det(A − λI), sorted; null, with the issue reported, if there is none or they cannot be found. */
+    private fun eigenvalueList(a: List<List<Rational>>, lambda: Variable, context: MathContext): List<Expression>? {
+        val equation = Equals(PartialFractions.toExpression(characteristicPolynomial(a), lambda), Value.ZERO)
         val scratch = context.copy()
-        val solution = eigenSteps(m, m, scratch)
-        if (solution != null) return solution.result
+        val roots = equation.solveForVariable(lambda, scratch)
         if (context.shouldStop) return null
-        context.stopWithError(if (scratch.issues.contains(MathIssue.NO_REAL_SOLUTION)) MathIssue.NO_EIGENVALUES else MathIssue.EIGENVALUES_NOT_EXACT)
-        return null
+        if (scratch.issues.contains(MathIssue.NO_REAL_SOLUTION)) {
+            context.stopWithError(MathIssue.NO_EIGENVALUES)
+            return null
+        }
+        val values = roots.filter { it.variables().isEmpty() && (context.complexNumbers || !it.containsImaginaryUnit()) }
+        if (scratch.shouldStop || scratch.issues.isNotEmpty() || roots.isEmpty() || values.size != roots.size) {
+            context.stopWithError(MathIssue.EIGENVALUES_NOT_EXACT)
+            return null
+        }
+        return values.sortedBy { it.evaluateNumerically() }
+    }
+
+    /** λ = 3, v = (1, 1): the eigenvalue with its eigenvectors (v₁, v₂ if there are several). */
+    private fun eigenLine(value: Expression, vectors: List<List<Rational>>, lambda: Variable): Expression {
+        val named = vectors.mapIndexed { i, v ->
+            Equals(Variable(if (vectors.size == 1) "v" else "v${subscript(i)}"), MatrixExpression(v.size, 1, v.map { Value(it) }))
+        }
+        return Alternatives(listOf<Expression>(Equals(lambda, value)) + named, inline = true, separator = ",   ")
+    }
+
+    /** The eigenvectors of [value]: a basis of the solutions of (A − λI)·v = 0 as whole numbers, a free variable 1 and the others 0; null if there are none. */
+    private fun nullVectors(a: List<List<Rational>>, value: Rational): List<List<Rational>>? {
+        val n = a.size
+        val reduction = reduce(List(n) { r -> List(n) { c -> if (r == c) a[r][c] - value else a[r][c] } }, n)
+        if (reduction.rank >= n) return null
+        return (0 until n).filter { it !in reduction.pivotColumns }.map { f ->
+            val v = MutableList(n) { Rational.ZERO }
+            v[f] = Rational.ONE
+            for ((i, p) in reduction.pivotColumns.withIndex()) v[p] = -reduction.rows[i][f]
+            integers(v)
+        }
     }
 
     /** The coefficients c₀ + c₁λ + … + λⁿ of det(λI − A) (which is det(A − λI) for an even n, its negative for an odd one), by the Faddeev-LeVerrier method. */
@@ -471,18 +516,8 @@ internal object MatrixSteps {
         lines.add(ExpressionStep(head.expression, StepRule.EIGEN_VECTOR, head.chainRule, head.change, listOf(note), head.operation))
         lines.addAll(steps.drop(1))
 
-        // Free columns are free to choose: 1 for one of them, 0 for the others
-        val free = (0 until n).filter { it !in reduction.pivotColumns }
-        val vectors = free.map { f ->
-            val v = MutableList(n) { Rational.ZERO }
-            v[f] = Rational.ONE
-            for ((i, p) in reduction.pivotColumns.withIndex()) v[p] = -reduction.rows[i][f]
-            integers(v)
-        }
-        val named = vectors.mapIndexed { i, v ->
-            Equals(Variable(if (vectors.size == 1) "v" else "v${subscript(i)}"), MatrixExpression(n, 1, v.map { Value(it) }))
-        }
-        val line = Alternatives(listOf<Expression>(Equals(lambda, Value(value))) + named, inline = true, separator = ",   ")
+        val vectors = nullVectors(a, value) ?: return null
+        val line = eigenLine(Value(value), vectors, lambda)
         lines.add(ExpressionStep(line, StepRule.EIGEN_VECTOR_RESULT))
         return line
     }

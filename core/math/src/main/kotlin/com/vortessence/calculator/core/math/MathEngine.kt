@@ -19,6 +19,7 @@ import com.vortessence.calculator.core.math.expressions.Series
 import com.vortessence.calculator.core.math.expressions.containsImaginaryUnit
 import com.vortessence.calculator.core.math.expressions.numericComplex
 import com.vortessence.calculator.core.math.expressions.polarForm
+import com.vortessence.calculator.core.math.expressions.EigenSystem
 import com.vortessence.calculator.core.math.expressions.MatrixExpression
 import com.vortessence.calculator.core.math.expressions.Percent
 import com.vortessence.calculator.core.math.expressions.Value
@@ -161,7 +162,7 @@ object MathEngine {
         if (result.isSuccess) result else result.copy(issueNote = matrixNote(input, result, execContext))
     }
 
-    private val MATRIX_ISSUES = setOf(MathIssue.MATRIX_UNSUPPORTED, MathIssue.MATRIX_AND_SCALAR, MathIssue.DIMENSION_MISMATCH, MathIssue.MATRIX_NOT_SQUARE, MathIssue.SINGULAR_MATRIX, MathIssue.MATRIX_EXPECTED, MathIssue.MATRIX_NEEDS_NUMBERS)
+    private val MATRIX_ISSUES = setOf(MathIssue.MATRIX_UNSUPPORTED, MathIssue.MATRIX_AND_SCALAR, MathIssue.DIMENSION_MISMATCH, MathIssue.MATRIX_NOT_SQUARE, MathIssue.SINGULAR_MATRIX, MathIssue.MATRIX_EXPECTED, MathIssue.MATRIX_NEEDS_NUMBERS, MathIssue.EIGEN_ALONE)
 
     /** "m is a matrix. Not defined for matrices": says which of the variables used is a matrix, if the problem is with matrices. */
     private fun matrixNote(input: MathString, result: CalculationResult, ctx: MathContext): String? {
@@ -180,6 +181,10 @@ object MathEngine {
         val parsed = parse(definition?.value ?: input, ctx)
         if (ctx.shouldStop) return failure(input, ctx, expression = parsed)
 
+        // A list of eigenvalues and vectors is no value to calculate with, nor to store
+        if (parsed.containsExpressionMatching { it is EigenSystem } && (parsed !is EigenSystem || definition != null)) {
+            return failure(input, ctx, if (definition != null) MathIssue.SYNTAX_ERROR else MathIssue.EIGEN_ALONE, parsed)
+        }
         if (definition != null && (parsed is Equals || parsed is EquationSystem || parsed is Inequality)) {
             // A variable stands for a value, not for an equation
             return failure(input, ctx, MathIssue.SYNTAX_ERROR, parsed)
@@ -227,7 +232,8 @@ object MathEngine {
             numericValue = numVal,
             issues = issues,
             // Reused (Ans, tapping the result) in the form that is shown; the value is the same
-            answer = if (issues.isEmpty()) answerWriter(ctx).write(compact) else null,
+            // (a list of eigenvalues and vectors is not reused)
+            answer = if (issues.isEmpty() && compact !is Alternatives) answerWriter(ctx).write(compact) else null,
             unit = simplified.partWithUnit()?.let { display.writeUnit(it) },
             decimalPlaces = ctx.decimalPlaces,
             definedVariable = definition?.name,

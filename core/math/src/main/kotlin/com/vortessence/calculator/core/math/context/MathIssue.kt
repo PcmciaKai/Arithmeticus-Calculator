@@ -27,6 +27,7 @@ enum class MathIssue(val userMessage: String) {
     MATRIX_EXPECTED("Needs a matrix"),
     MATRIX_NEEDS_NUMBERS("Needs a matrix of numbers"),
     NO_EIGENVALUES("No real eigenvalues"),
+    EIGEN_ALONE("eig can only be used on its own"),
     EIGENVALUES_NOT_EXACT("The eigenvalues cannot be found exactly"),
     MATRIX_AND_SCALAR("A matrix and a number cannot be added"),
     NO_ANS("No previous result for Ans"),

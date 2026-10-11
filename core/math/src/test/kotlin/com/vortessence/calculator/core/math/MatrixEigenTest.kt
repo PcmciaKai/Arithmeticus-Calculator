@@ -120,4 +120,44 @@ class MatrixEigenTest {
         val surds = runBlocking { MathEngine.calculate(TestInput.parse("x^3-3x^2-2x+4=0"), MathContext()) }
         assertEquals("x = 1 −sqrt(5), x = 1, x = 1 + sqrt(5)", clean(surds.result.toString()))
     }
+
+    @Test
+    fun entriesTypedAsExpressionsHaveStepsToo() {
+        // 1 + 1 is 2: the steps start from the matrix as typed and work with the numbers
+        assertNotNull(steps("rref(M[1+1 2 3/4 5 6])"))
+        assertEquals(2, matrices(calc("eig(M[1+1 1/1 2])").result).size)
+        assertNotNull(steps("eig(M[1+1 1/1 2])"))
+    }
+
+    @Test
+    fun bigAndRepeatedEigenvalues() {
+        // (λ − 1)³(λ − 5): one eigenvalue with three eigenvectors, one with a single one
+        val square = calc("eig(M[2 1 1 1/1 2 1 1/1 1 2 1/1 1 1 2])")
+        assertTrue(square.isSuccess)
+        // λ = 1 with three vectors, λ = 5 with one
+        assertEquals(4, matrices(square.result).size)
+        assertNotNull(steps("eig(M[2 1 1 1/1 2 1 1/1 1 2 1/1 1 1 2])"))
+        // 5×5: the result is there, the steps are not (too many)
+        val five = calc("eig(M[1 0 0 0 0/0 2 0 0 0/0 0 3 0 0/0 0 0 4 0/0 0 0 0 5])")
+        assertTrue(five.isSuccess)
+        assertEquals(5, matrices(five.result).size)
+        assertNull(steps("eig(M[1 0 0 0 0/0 2 0 0 0/0 0 3 0 0/0 0 0 4 0/0 0 0 0 5])"))
+        // A zero eigenvalue
+        assertEquals(listOf(listOf("−1", "1"), listOf("1", "1")), matrices(calc("eig(M[1 1/1 1])").result))
+    }
+
+    @Test
+    fun eigIsAResultOnItsOwn() {
+        // Not a number to calculate with, nor to store, nor to reuse as Ans
+        assertEquals("eig can only be used on its own", calc("2*eig(M[2 1/1 2])").issues.first().userMessage)
+        assertFalse(calc("det(eig(M[2 1/1 2]))").isSuccess)
+        assertFalse(calc("eig(M[2 1/1 2]) + 1").isSuccess)
+        assertNull(calc("eig(M[2 1/1 2])").answer)
+        // rref gives a matrix, which can be used
+        assertTrue(calc("rref(M[1 2/3 4]) * M[1 2/3 4]").isSuccess)
+        assertNotNull(calc("rref(M[1 2/3 4])").answer)
+        // From a stored matrix
+        val stored = MathContext(variables = mapOf("m" to TestInput.parse("M[2 1/1 2]")))
+        assertEquals(2, matrices(runBlocking { MathEngine.calculate(TestInput.parse("eig(m)"), stored) }.result).size)
+    }
 }
