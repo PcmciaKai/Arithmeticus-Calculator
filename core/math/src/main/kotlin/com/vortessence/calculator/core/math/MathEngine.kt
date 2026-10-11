@@ -44,6 +44,7 @@ import com.vortessence.calculator.core.math.steps.EquationSteps
 import com.vortessence.calculator.core.math.steps.InequalitySteps
 import com.vortessence.calculator.core.math.steps.MatrixSteps
 import com.vortessence.calculator.core.math.steps.TextExpression
+import com.vortessence.calculator.core.math.steps.Alternatives
 import com.vortessence.calculator.core.math.steps.Transform
 import com.vortessence.calculator.core.math.steps.Transforms
 import com.vortessence.calculator.core.math.steps.SystemSteps
@@ -160,7 +161,7 @@ object MathEngine {
         if (result.isSuccess) result else result.copy(issueNote = matrixNote(input, result, execContext))
     }
 
-    private val MATRIX_ISSUES = setOf(MathIssue.MATRIX_UNSUPPORTED, MathIssue.MATRIX_AND_SCALAR, MathIssue.DIMENSION_MISMATCH, MathIssue.MATRIX_NOT_SQUARE, MathIssue.SINGULAR_MATRIX)
+    private val MATRIX_ISSUES = setOf(MathIssue.MATRIX_UNSUPPORTED, MathIssue.MATRIX_AND_SCALAR, MathIssue.DIMENSION_MISMATCH, MathIssue.MATRIX_NOT_SQUARE, MathIssue.SINGULAR_MATRIX, MathIssue.MATRIX_EXPECTED, MathIssue.MATRIX_NEEDS_NUMBERS)
 
     /** "m is a matrix. Not defined for matrices": says which of the variables used is a matrix, if the problem is with matrices. */
     private fun matrixNote(input: MathString, result: CalculationResult, ctx: MathContext): String? {
@@ -190,7 +191,8 @@ object MathEngine {
         val canonical = parsed.canonicalize(ctx)
         if (ctx.shouldStop) return failure(input, ctx, expression = parsed)
         // A matrix that did not combine into the result (e.g. a factorial of a matrix)
-        if (canonical !is MatrixExpression && canonical.containsExpressionMatching { it is MatrixExpression }) {
+        // (the eigenvectors of eig(A) are matrices in a list of results)
+        if (canonical !is MatrixExpression && canonical !is Alternatives && canonical.containsExpressionMatching { it is MatrixExpression }) {
             return failure(input, ctx, MathIssue.MATRIX_UNSUPPORTED, canonical)
         }
         // An explicit conversion (5 km → mi) keeps its target unit

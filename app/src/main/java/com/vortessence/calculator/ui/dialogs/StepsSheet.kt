@@ -573,6 +573,11 @@ private val StepRule.descriptionRes: Int
         StepRule.ROW_SCALE -> R.string.step_row_scale
         StepRule.ROW_ADD -> R.string.step_row_add
         StepRule.INVERSE_RESULT -> R.string.step_inverse_result
+        StepRule.ROW_REDUCE_BEGIN -> R.string.step_row_reduce_begin
+        StepRule.EIGEN_CHARACTERISTIC -> R.string.step_eigen_characteristic
+        StepRule.EIGEN_VECTOR -> R.string.step_eigen_vector
+        StepRule.EIGEN_VECTOR_RESULT -> R.string.step_eigen_vector_result
+        StepRule.EIGEN_RESULT -> R.string.step_eigen_result
         StepRule.MATRIX_MULTIPLY -> R.string.step_matrix_multiply
         StepRule.MATRIX_SCALAR -> R.string.step_matrix_scalar
         StepRule.MATRIX_ADD -> R.string.step_matrix_add
@@ -706,6 +711,7 @@ internal val StepRule.formula: String?
         StepRule.LIMIT_VANISH -> "\\frac{c}{x^n} → 0\\text{  for  }x → ±∞"
         StepRule.LIMIT_RECIPROCAL_SUBSTITUTION -> "u = \\frac{1}{x}\\text{:  }x → ∞\\text{  is  }u → 0"
         StepRule.DETERMINANT_2X2 -> "\\text{det} = a·d − b·c"
+        StepRule.EIGEN_CHARACTERISTIC -> "\\text{det}(A − λ·I) = 0"
         StepRule.INVERSE_2X2 -> "A^{−1} = \\frac{1}{a·d − b·c}·\\text{(top: }d, −b\\text{; bottom: }−c, a\\text{)}"
         StepRule.MATRIX_MULTIPLY -> "\\text{entry} = \\text{row of }A · \\text{column of }B"
         StepRule.FACTOR_POLYNOMIAL -> "P(x) = (x − r)(x − s)…\\text{  where  }P(r) = 0"
@@ -724,7 +730,7 @@ internal val StepRule.formula: String?
         StepRule.ZERO_PRODUCT -> "a·b = 0\\text{  ⇔  }a = 0\\text{  or  }b = 0"
         StepRule.QUADRATIC_FORMULA -> "x = \\frac{−b ± \\sqrt{D}}{2a}\\text{  with  }D = b^2 − 4ac"
         StepRule.ROOT_OF_NUMBER, StepRule.IDENTITY, StepRule.SOLVE_FOR, StepRule.SUBSTITUTE_SOLUTION,
-        StepRule.MULTIPLY_EQUATIONS, StepRule.ADD_EQUATIONS, StepRule.SUBTRACT_EQUATIONS, StepRule.INSERT_VALUE, StepRule.COLLECT_SOLUTION, StepRule.FACTOR_BY_ROOT, StepRule.NO_REAL_SOLUTION, StepRule.CONTRADICTION, StepRule.DETERMINANT_COFACTOR, StepRule.INVERSE_AUGMENT, StepRule.ROW_SWAP, StepRule.ROW_SCALE, StepRule.ROW_ADD, StepRule.INVERSE_RESULT, StepRule.MATRIX_SCALAR, StepRule.MATRIX_ADD, StepRule.MATRIX_SUBTRACT, StepRule.MATRIX_TRANSPOSE, StepRule.MATRIX_POWER, StepRule.INEQUALITY_ZEROS, StepRule.INEQUALITY_BREAKS, StepRule.INEQUALITY_CRITICAL, StepRule.INEQUALITY_RESULT, StepRule.ONE_SIDE, StepRule.TRIG_GENERAL_SOLUTION, StepRule.SUBSTITUTE_POWER, StepRule.BACK_SUBSTITUTE_POWER, StepRule.CHECK_SOLUTIONS, StepRule.LIMIT_SUBSTITUTE, StepRule.DIVIDE_BY_HIGHEST_POWER, StepRule.LIMIT_CONSTANT, StepRule.LIMIT_POLE, StepRule.LIMIT_LOGARITHM_ZERO, StepRule.LIMIT_EXPONENTIAL_RESULT, StepRule.LIMIT_GROWS, StepRule.LIMIT_RECIPROCAL,
+        StepRule.MULTIPLY_EQUATIONS, StepRule.ADD_EQUATIONS, StepRule.SUBTRACT_EQUATIONS, StepRule.INSERT_VALUE, StepRule.COLLECT_SOLUTION, StepRule.FACTOR_BY_ROOT, StepRule.NO_REAL_SOLUTION, StepRule.CONTRADICTION, StepRule.DETERMINANT_COFACTOR, StepRule.INVERSE_AUGMENT, StepRule.ROW_SWAP, StepRule.ROW_SCALE, StepRule.ROW_ADD, StepRule.INVERSE_RESULT, StepRule.ROW_REDUCE_BEGIN, StepRule.EIGEN_VECTOR, StepRule.EIGEN_VECTOR_RESULT, StepRule.EIGEN_RESULT, StepRule.MATRIX_SCALAR, StepRule.MATRIX_ADD, StepRule.MATRIX_SUBTRACT, StepRule.MATRIX_TRANSPOSE, StepRule.MATRIX_POWER, StepRule.INEQUALITY_ZEROS, StepRule.INEQUALITY_BREAKS, StepRule.INEQUALITY_CRITICAL, StepRule.INEQUALITY_RESULT, StepRule.ONE_SIDE, StepRule.TRIG_GENERAL_SOLUTION, StepRule.SUBSTITUTE_POWER, StepRule.BACK_SUBSTITUTE_POWER, StepRule.CHECK_SOLUTIONS, StepRule.LIMIT_SUBSTITUTE, StepRule.DIVIDE_BY_HIGHEST_POWER, StepRule.LIMIT_CONSTANT, StepRule.LIMIT_POLE, StepRule.LIMIT_LOGARITHM_ZERO, StepRule.LIMIT_EXPONENTIAL_RESULT, StepRule.LIMIT_GROWS, StepRule.LIMIT_RECIPROCAL,
         StepRule.INTEGRAL_TABLE, StepRule.EXPAND_INTEGRAND, StepRule.BACK_SUBSTITUTION,
         StepRule.MULTIPLY_NUMBERS, StepRule.DIVIDE_NUMBERS, StepRule.REDUCE_FRACTION, StepRule.NUMBER_POWER,
         StepRule.ADD_NUMBERS, StepRule.SUBTRACT_NUMBERS, StepRule.ADD_AND_SUBTRACT_NUMBERS, StepRule.COMBINE_LIKE_TERMS,

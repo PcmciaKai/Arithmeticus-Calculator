@@ -262,6 +262,58 @@ class Determinant(val operand: Expression) : Expression() {
     override fun toString(): String = "det($operand)"
 }
 
+/** rref(A): the reduced row echelon form of a matrix of numbers, by Gauss-Jordan. */
+class RowReduced(val operand: Expression) : Expression() {
+
+    override val children: List<Expression> get() = listOf(operand)
+
+    override fun copyWithChildren(children: List<Expression>): Expression = RowReduced(children[0])
+
+    override fun canonicalize(context: MathContext): Expression {
+        val op = operand.canonicalize(context)
+        if (context.shouldStop) return this
+        if (op !is MatrixExpression) {
+            context.stopWithError(MathIssue.MATRIX_EXPECTED)
+            return this
+        }
+        return com.vortessence.calculator.core.math.steps.MatrixSteps.rowReduced(op, context) ?: this
+    }
+
+    override fun evaluateNumerically(bindings: Map<Variable, Double>): Double = Double.NaN
+
+    override fun equals(other: Any?): Boolean = other is RowReduced && operand == other.operand
+
+    override fun hashCode(): Int = operand.hashCode() * 31 + 11
+
+    override fun toString(): String = "rref($operand)"
+}
+
+/** eig(A): the eigenvalues of a square matrix of numbers, each with an eigenvector (as far as they are exact). */
+class EigenSystem(val operand: Expression) : Expression() {
+
+    override val children: List<Expression> get() = listOf(operand)
+
+    override fun copyWithChildren(children: List<Expression>): Expression = EigenSystem(children[0])
+
+    override fun canonicalize(context: MathContext): Expression {
+        val op = operand.canonicalize(context)
+        if (context.shouldStop) return this
+        if (op !is MatrixExpression) {
+            context.stopWithError(MathIssue.MATRIX_EXPECTED)
+            return this
+        }
+        return com.vortessence.calculator.core.math.steps.MatrixSteps.eigenSystem(op, context) ?: this
+    }
+
+    override fun evaluateNumerically(bindings: Map<Variable, Double>): Double = Double.NaN
+
+    override fun equals(other: Any?): Boolean = other is EigenSystem && operand == other.operand
+
+    override fun hashCode(): Int = operand.hashCode() * 31 + 13
+
+    override fun toString(): String = "eig($operand)"
+}
+
 /** The matrix that [expressions] (canonical factors, in order) multiply to; scalars commute. */
 internal fun multiplyWithMatrices(expressions: List<Expression>, context: MathContext): MatrixExpression? {
     var matrix: MatrixExpression? = null

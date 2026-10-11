@@ -355,7 +355,18 @@ fun CalculatorKeypad(
                         text = "[M]",
                         buttonWidth = buttonWidth,
                         isAccent = true,
-                        alternates = listOf(alt(scriptLabel("[M]", sup = "T"), KeyAction.Transpose), alt("det", KeyAction.Function("det")))
+                        alternates = listOf(
+                            alt(scriptLabel("[M]", sup = "T"), KeyAction.Transpose),
+                            alt("det", KeyAction.Function("det")),
+                            alt("rref", KeyAction.Function("rref")),
+                            alt("eig", KeyAction.Function("eig"))
+                        ),
+                        // The most common ones; the dots tell that the popup has more (rref, eig)
+                        hints = listOf(
+                            alt(scriptLabel("[M]", sup = "T"), KeyAction.Transpose),
+                            alt("det", KeyAction.Function("det")),
+                            KeyAlternate(AnnotatedString("…")) { }
+                        )
                     ) { onKeyAction(KeyAction.Matrix) }
                     KeyButton(
                         text = "sin",

@@ -260,6 +260,8 @@ class MathWriter(
                 ))
             }
             is Determinant -> result.append(FunctionNode("det", writeExpr(expr.operand)))
+            is RowReduced -> result.append(FunctionNode("rref", writeExpr(expr.operand)))
+            is EigenSystem -> result.append(FunctionNode("eig", writeExpr(expr.operand)))
             else -> result.append(TextNode(expr.toString()))
         }
         return result

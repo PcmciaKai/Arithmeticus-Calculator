@@ -199,6 +199,16 @@ enum class StepRule {
     ROW_ADD,
     /** (I | A⁻¹): the right half is the inverse */
     INVERSE_RESULT,
+    /** rref(A): the matrix is brought to reduced row echelon form by row operations */
+    ROW_REDUCE_BEGIN,
+    /** det(A − λI) = 0 */
+    EIGEN_CHARACTERISTIC,
+    /** solve (A − λI)·v = 0 for an eigenvalue */
+    EIGEN_VECTOR,
+    /** λ with its eigenvector */
+    EIGEN_VECTOR_RESULT,
+    /** the eigenvalues with their eigenvectors */
+    EIGEN_RESULT,
     /** every entry is a row times a column */
     MATRIX_MULTIPLY,
     /** a number times every entry */

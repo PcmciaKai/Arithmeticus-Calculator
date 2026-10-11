@@ -4,7 +4,10 @@ import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.expressions.Additions
 import com.vortessence.calculator.core.math.expressions.Antiderivative
 import com.vortessence.calculator.core.math.expressions.Derivative
+import com.vortessence.calculator.core.math.context.MathIssue
 import com.vortessence.calculator.core.math.expressions.Determinant
+import com.vortessence.calculator.core.math.expressions.EigenSystem
+import com.vortessence.calculator.core.math.expressions.RowReduced
 import com.vortessence.calculator.core.math.expressions.Equals
 import com.vortessence.calculator.core.math.expressions.EquationSystem
 import com.vortessence.calculator.core.math.expressions.Expression
@@ -13,11 +16,13 @@ import com.vortessence.calculator.core.math.expressions.Integral
 import com.vortessence.calculator.core.math.expressions.Limit
 import com.vortessence.calculator.core.math.expressions.MatrixExpression
 import com.vortessence.calculator.core.math.expressions.Multiplications
+import com.vortessence.calculator.core.math.expressions.PartialFractions
 import com.vortessence.calculator.core.math.expressions.Power
 import com.vortessence.calculator.core.math.expressions.Series
 import com.vortessence.calculator.core.math.expressions.UnitExpression
 import com.vortessence.calculator.core.math.expressions.Value
 import com.vortessence.calculator.core.math.expressions.Variable
+import com.vortessence.calculator.core.math.expressions.containsImaginaryUnit
 import com.vortessence.calculator.core.math.numbers.Rational
 import kotlin.math.abs
 import kotlin.math.max
@@ -37,9 +42,20 @@ internal object MatrixSteps {
     private const val MAX_SIMPLIFY = 120
     private const val MAX_POWER = 5
     private const val MAX_GAUSS_SIZE = 5
+    private const val MAX_EIGEN_SIZE = 4
+    private const val MAX_REDUCE_ROWS = MAX_GAUSS_SIZE + 1
+    private const val MAX_REDUCE_COLUMNS = 2 * MAX_GAUSS_SIZE
 
     fun steps(e: Expression, context: MathContext): ExpressionSolution? {
         if (!e.containsExpressionMatching { it is MatrixExpression }) return null
+        // rref(A) and eig(A) are worked out as a whole, from the matrix that A stands for
+        if (e is RowReduced || e is EigenSystem) {
+            val operand = if (e is RowReduced) e.operand else (e as EigenSystem).operand
+            val scratch = context.copy()
+            val m = (operand as? MatrixExpression ?: operand.canonicalize(scratch)) as? MatrixExpression
+            if (m == null || scratch.shouldStop) return null
+            return if (e is RowReduced) rowReduceSteps(e, m, context) else eigenSteps(e, m, context)
+        }
         if (e.containsExpressionMatching {
                 it is Equals || it is Inequality || it is EquationSystem || it is Derivative || it is Antiderivative ||
                     it is Integral || it is Limit || it is Series || it is UnitExpression
@@ -185,53 +201,297 @@ internal object MatrixSteps {
     private fun gaussJordan(solution: Solver, path: Path, node: Power, m: MatrixExpression, context: MathContext): Boolean {
         val n = m.rows
         if (n > MAX_GAUSS_SIZE) return false
-        val rows = Array(n) { r -> Array(2 * n) { c -> if (c < n) ((m[r, c] as? Value)?.rational ?: return false) else if (c - n == r) Rational.ONE else Rational.ZERO } }
+        val numbers = numbers(m) ?: return false
         val width = 2 * n
-        fun asMatrix() = MatrixExpression(n, width, (0 until n).flatMap { r -> (0 until width).map { c -> Value(rows[r][c]) } })
-        val augmented = asMatrix()
-        replace(solution, path, StepRule.INVERSE_AUGMENT, node, augmented)
-
-        fun subscript(i: Int) = (i + 1).toString().map { "₀₁₂₃₄₅₆₇₈₉"[it - '0'] }.joinToString("")
-        fun show(changed: List<Int>, rule: StepRule, text: String) {
-            val before = asMatrix()
-            val replacements = changed.flatMap { r -> (0 until width).map { c -> (path + (r * width + c)) to Value(rows[r][c]) as Expression } }.toMap()
-            val after = asMatrix()
-            solution.apply(
-                Match(
-                    rule, replacements, before, after,
-                    notes = listOf(Note(TextExpression(text), TextExpression(""), relation = "")), showChange = false
-                )
-            )
-        }
-        // The matrix as it was shown has to be what the rows are applied to
-        for (col in 0 until n) {
-            val pivotRow = (col until n).firstOrNull { !rows[it][col].isZero } ?: return false
-            if (pivotRow != col) {
-                val swapped = rows[col]
-                rows[col] = rows[pivotRow]
-                rows[pivotRow] = swapped
-                show(listOf(col, pivotRow), StepRule.ROW_SWAP, "R${subscript(col)} ↔ R${subscript(pivotRow)}")
-            }
-            val pivot = rows[col][col]
-            if (pivot != Rational.ONE) {
-                for (c in 0 until width) rows[col][c] = rows[col][c] / pivot
-                show(listOf(col), StepRule.ROW_SCALE, "R${subscript(col)} → R${subscript(col)} ÷ ${writtenNumber(pivot)}")
-            }
-            for (r in 0 until n) {
-                if (r == col || rows[r][col].isZero) continue
-                val factor = rows[r][col]
-                for (c in 0 until width) rows[r][c] = rows[r][c] - factor * rows[col][c]
-                val shown = if (factor == Rational.ONE) "" else "${writtenNumber(factor)}·"
-                show(listOf(r), StepRule.ROW_ADD, "R${subscript(r)} → R${subscript(r)} − ${shown}R${subscript(col)}")
-            }
-        }
-        val inverse = MatrixExpression(n, n, (0 until n).flatMap { r -> (0 until n).map { c -> Value(rows[r][n + c]) } })
-        replace(solution, path, StepRule.INVERSE_RESULT, asMatrix(), inverse)
+        val start = List(n) { r -> List(width) { c -> if (c < n) numbers[r][c] else if (c - n == r) Rational.ONE else Rational.ZERO } }
+        val reduction = reduce(start, n)
+        if (reduction.rank < n) return false
+        replace(solution, path, StepRule.INVERSE_AUGMENT, node, matrixOf(start))
+        showOperations(solution, path, reduction.operations)
+        val inverse = MatrixExpression(n, n, (0 until n).flatMap { r -> (0 until n).map { c -> Value(reduction.rows[r][n + c]) } })
+        replace(solution, path, StepRule.INVERSE_RESULT, matrixOf(reduction.rows), inverse)
         return true
     }
 
+    // ----- row reduction -----
+
+    private class RowOperation(val rule: StepRule, val text: String, val changed: List<Int>, val rows: List<List<Rational>>)
+
+    private class Reduction(val operations: List<RowOperation>, val rows: List<List<Rational>>, val pivotColumns: List<Int>) {
+        val rank: Int get() = pivotColumns.size
+    }
+
+    private fun matrixOf(rows: List<List<Rational>>) = MatrixExpression(rows.size, rows.first().size, rows.flatten().map { Value(it) })
+
+    /** The entries as numbers; null if there is anything else in them. */
+    private fun numbers(m: MatrixExpression): List<List<Rational>>? =
+        (0 until m.rows).map { r -> (0 until m.cols).map { c -> (normalize(unmarked(m[r, c])) as? Value)?.rational ?: return null } }
+
+    private fun subscript(i: Int) = (i + 1).toString().map { "₀₁₂₃₄₅₆₇₈₉"[it - '0'] }.joinToString("")
+
+    /**
+     * Gauss-Jordan on the first [columns] columns: a 1 in each pivot place, zeros above and below it (reduced row echelon form).
+     * The rows with the operations that made it: swapping, dividing a row by its pivot, subtracting a multiple of the pivot row.
+     */
+    private fun reduce(start: List<List<Rational>>, columns: Int): Reduction {
+        val rows = start.map { it.toMutableList() }.toMutableList()
+        val n = rows.size
+        val width = rows.first().size
+        val operations = mutableListOf<RowOperation>()
+        val pivots = mutableListOf<Int>()
+        fun record(rule: StepRule, text: String, changed: List<Int>) = operations.add(RowOperation(rule, text, changed, rows.map { it.toList() }))
+        var row = 0
+        for (col in 0 until columns) {
+            if (row >= n) break
+            val pivotRow = (row until n).firstOrNull { !rows[it][col].isZero } ?: continue
+            if (pivotRow != row) {
+                val swapped = rows[row]
+                rows[row] = rows[pivotRow]
+                rows[pivotRow] = swapped
+                record(StepRule.ROW_SWAP, "R${subscript(row)} ↔ R${subscript(pivotRow)}", listOf(row, pivotRow))
+            }
+            val pivot = rows[row][col]
+            if (pivot != Rational.ONE) {
+                for (c in 0 until width) rows[row][c] = rows[row][c] / pivot
+                record(StepRule.ROW_SCALE, "R${subscript(row)} → R${subscript(row)} ÷ ${writtenNumber(pivot)}", listOf(row))
+            }
+            for (r in 0 until n) {
+                if (r == row || rows[r][col].isZero) continue
+                val factor = rows[r][col]
+                for (c in 0 until width) rows[r][c] = rows[r][c] - factor * rows[row][c]
+                val size = if (factor.isNegative) -factor else factor
+                val shown = if (size == Rational.ONE) "" else "${writtenNumber(size)}·"
+                record(StepRule.ROW_ADD, "R${subscript(r)} → R${subscript(r)} ${if (factor.isNegative) "+" else "−"} ${shown}R${subscript(row)}", listOf(r))
+            }
+            pivots.add(col)
+            row++
+        }
+        return Reduction(operations, rows.map { it.toList() }, pivots)
+    }
+
+    /** One step for each row operation, each showing the whole matrix with the changed rows marked; [last] is added to the notes of the final step. */
+    private fun showOperations(solution: Solver, path: Path, operations: List<RowOperation>, last: Note? = null) {
+        for ((i, operation) in operations.withIndex()) {
+            val width = operation.rows.first().size
+            val matrix = matrixOf(operation.rows)
+            val replacements = operation.changed.flatMap { r -> (0 until width).map { c -> (path + (r * width + c)) to Value(operation.rows[r][c]) as Expression } }.toMap()
+            val notes = listOfNotNull(Note(TextExpression(operation.text), TextExpression(""), relation = ""), last.takeIf { i == operations.lastIndex })
+            solution.apply(Match(operation.rule, replacements, matrix, matrix, notes = notes, showChange = false))
+        }
+    }
+
     /** −2 or 3/4 as it is written in a note. */
-    private fun writtenNumber(r: Rational): String = if (r.isFractional) "(${r.numerator}/${r.denominator})" else if (r.isNegative) "(${r})" else r.toString()
+    private fun writtenNumber(r: Rational): String {
+        val sign = if (r.isNegative) "−" else ""
+        val size = if (r.isNegative) -r else r
+        val number = if (size.isFractional) "${size.numerator}/${size.denominator}" else size.toString()
+        return if (r.isNegative || r.isFractional) "($sign$number)" else number
+    }
+
+    /** The reduced row echelon form of [m], or null (with an issue reported) if it is not a matrix of numbers. */
+    internal fun rowReduced(m: MatrixExpression, context: MathContext): MatrixExpression? {
+        if (m.rows > MAX_REDUCE_ROWS || m.cols > MAX_REDUCE_COLUMNS) {
+            context.stopWithError(MathIssue.MATRIX_UNSUPPORTED)
+            return null
+        }
+        val start = numbers(m)
+        if (start == null) {
+            context.stopWithError(MathIssue.MATRIX_NEEDS_NUMBERS)
+            return null
+        }
+        return matrixOf(reduce(start, m.cols).rows)
+    }
+
+    /** rref(A) row by row; the rank is told in the last step. Null if A is reduced already (or not a matrix of numbers). */
+    private fun rowReduceSteps(problem: Expression, m: MatrixExpression, context: MathContext): ExpressionSolution? {
+        if (m.rows > MAX_REDUCE_ROWS || m.cols > MAX_REDUCE_COLUMNS) return null
+        val start = numbers(m) ?: return null
+        val reduction = reduce(start, m.cols)
+        if (reduction.operations.isEmpty()) return null
+        val solution = Solver(context)
+        solution.start(normalize(problem))
+        val matrix = matrixOf(start)
+        solution.apply(Match(StepRule.ROW_REDUCE_BEGIN, mapOf(emptyList<Int>() to matrix), problem, matrix, showChange = false, boxReplacements = false))
+        val rank = Note(TextExpression("rank = ${reduction.rank}"), TextExpression(""), relation = "")
+        showOperations(solution, emptyList(), reduction.operations, rank)
+        return solution.finish(matrixOf(reduction.rows))
+    }
+
+    // ----- eigenvalues -----
+
+    /**
+     * The eigenvalues of a square matrix of numbers: the zeros of det(A − λ·I), expanded and solved, and for each rational one the eigenvector,
+     * from the row reduction of A − λ·I. Null if the polynomial cannot be solved exactly (or has no real zero).
+     */
+    private fun eigenSteps(problem: Expression, m: MatrixExpression, context: MathContext): ExpressionSolution? {
+        val n = m.rows
+        if (!m.isSquare || n !in 2..MAX_EIGEN_SIZE) return null
+        val a = numbers(m) ?: return null
+        val lambda = Variable("λ")
+        val polynomial = characteristicPolynomial(a)
+        val shifted = MatrixExpression(n, n, (0 until n).flatMap { r ->
+            (0 until n).map { c ->
+                val entry = Value(a[r][c])
+                when {
+                    r != c -> entry
+                    a[r][c].isZero -> Multiplications(Value.MINUS_ONE, lambda)
+                    else -> Additions(entry, Multiplications(Value.MINUS_ONE, lambda))
+                }
+            }
+        })
+        val equation = Equals(Determinant(shifted), Value.ZERO)
+
+        // 1. det(A − λI) = 0, worked out like any determinant, then written as a polynomial
+        val first = Solver(context)
+        first.start(normalize(problem))
+        first.apply(Match(StepRule.EIGEN_CHARACTERISTIC, mapOf(emptyList<Int>() to equation), problem, equation, showChange = false, boxReplacements = false))
+        var operations = 0
+        while (true) {
+            if (context.shouldStop) return null
+            val path = pathsOf(first.current) { isReady(unmarked(it)) }.firstOrNull() ?: break
+            if (++operations > MAX_OPERATIONS || !apply(first, path, context)) return null
+        }
+        val target = PartialFractions.toExpression(polynomial, lambda)
+        val left = listOf(0)
+        var guard = 0
+        while (true) {
+            if (context.shouldStop || ++guard > MAX_SIMPLIFY) return null
+            val match = SimplificationSteps.match(at(first.current, left), target, context) ?: break
+            first.apply(EquationSteps.prefixed(match, left))
+        }
+        if (writtenForm(at(first.current, left)) != writtenForm(target)) {
+            first.apply(Match(StepRule.SIMPLIFY, mapOf(left to target), normalize(unmarked(at(first.current, left))), target))
+        }
+        val lines = first.finish(first.current).steps.toMutableList()
+
+        // 2. The zeros
+        val characteristic = Equals(target, Value.ZERO)
+        val solved = EquationSteps.steps(characteristic, lambda, context)
+        val values: List<Expression>
+        if (solved != null) {
+            values = solutionValues(solved.result, lambda) ?: run {
+                if (solved.steps.any { it.rule == StepRule.NO_REAL_SOLUTION }) context.stopWithError(MathIssue.NO_REAL_SOLUTION)
+                return null
+            }
+            val nested = solved.steps
+            lines.addAll(if (writtenForm(nested.first().expression) == writtenForm(lines.last().expression)) nested.drop(1) else nested)
+        } else {
+            val scratch = context.copy()
+            val roots = characteristic.solveForVariable(lambda, scratch)
+            if (scratch.issues.contains(MathIssue.NO_REAL_SOLUTION)) context.stopWithError(MathIssue.NO_REAL_SOLUTION)
+            if (scratch.shouldStop || scratch.issues.isNotEmpty()) return null
+            values = roots.filter { it.variables().isEmpty() && (context.complexNumbers || !it.containsImaginaryUnit()) }.sortedBy { it.evaluateNumerically() }
+            if (values.isEmpty() || values.size != roots.size) return null
+            lines.add(ExpressionStep(if (values.size == 1) Equals(lambda, values.single()) else Alternatives(values.map { Equals(lambda, it) }, inline = true), StepRule.COLLECT_SOLUTION))
+        }
+        if (values.isEmpty() || values.any { it.variables().isNotEmpty() || (it.containsImaginaryUnit() && !context.complexNumbers) }) return null
+        val sorted = values.sortedBy { it.evaluateNumerically() }
+
+        // 3. The eigenvector of each rational eigenvalue
+        val results = mutableListOf<Expression>()
+        for (value in sorted) {
+            val rational = (value as? Value)?.rational
+            if (rational == null) {
+                results.add(Equals(lambda, value))
+                continue
+            }
+            val vectors = eigenvectors(a, rational, lambda, context, lines) ?: return null
+            results.add(vectors)
+        }
+        val result: Expression = if (results.size == 1) results.single() else Alternatives(results)
+        lines.add(ExpressionStep(result, StepRule.EIGEN_RESULT))
+        return ExpressionSolution(lines, result)
+    }
+
+    /**
+     * eig(A) as a result: λ = 3, v = (1, 1) for each eigenvalue (the vector only for the exact ones). Null, with the issue reported,
+     * if A is not a square matrix of numbers or the eigenvalues cannot be found.
+     */
+    internal fun eigenSystem(m: MatrixExpression, context: MathContext): Expression? {
+        if (!m.isSquare) {
+            context.stopWithError(MathIssue.MATRIX_NOT_SQUARE)
+            return null
+        }
+        val a = numbers(m)
+        if (a == null) {
+            context.stopWithError(MathIssue.MATRIX_NEEDS_NUMBERS)
+            return null
+        }
+        val lambda = Variable("λ")
+        if (m.rows == 1) return Alternatives(listOf(Equals(lambda, Value(a[0][0])), Equals(Variable("v"), MatrixExpression(1, 1, listOf(Value.ONE)))), inline = true, separator = ",   ")
+        if (m.rows > MAX_EIGEN_SIZE) {
+            context.stopWithError(MathIssue.MATRIX_UNSUPPORTED)
+            return null
+        }
+        val scratch = context.copy()
+        val solution = eigenSteps(m, m, scratch)
+        if (solution != null) return solution.result
+        if (context.shouldStop) return null
+        context.stopWithError(if (scratch.issues.contains(MathIssue.NO_REAL_SOLUTION)) MathIssue.NO_EIGENVALUES else MathIssue.EIGENVALUES_NOT_EXACT)
+        return null
+    }
+
+    /** The coefficients c₀ + c₁λ + … + λⁿ of det(λI − A) (which is det(A − λI) for an even n, its negative for an odd one), by the Faddeev-LeVerrier method. */
+    private fun characteristicPolynomial(a: List<List<Rational>>): List<Rational> {
+        val n = a.size
+        // det(λI − A): c[n] = 1, c[n−k] = −tr(A·Mₖ)/k
+        var m = List(n) { r -> List(n) { c -> if (r == c) Rational.ONE else Rational.ZERO } }
+        val coefficients = MutableList(n + 1) { Rational.ZERO }
+        coefficients[n] = Rational.ONE
+        for (k in 1..n) {
+            val product = List(n) { r -> List(n) { c -> (0 until n).fold(Rational.ZERO) { sum, i -> sum + a[r][i] * m[i][c] } } }
+            val trace = (0 until n).fold(Rational.ZERO) { sum, i -> sum + product[i][i] }
+            val c = -trace / Rational.of(k.toLong())
+            coefficients[n - k] = c
+            m = List(n) { r -> List(n) { col -> product[r][col] + if (r == col) c else Rational.ZERO } }
+        }
+        // det(A − λI) = (−1)ⁿ·det(λI − A)
+        return if (n % 2 == 0) coefficients else coefficients.map { -it }
+    }
+
+    private fun solutionValues(result: Expression, v: Variable): List<Expression>? = when (result) {
+        is Equals -> if (result.left == v) listOf(result.right) else null
+        is Alternatives -> result.equations.map { (it as? Equals)?.takeIf { e -> e.left == v }?.right ?: return null }
+        else -> null
+    }
+
+    /** The steps for the eigenvectors of [value] added to [lines]; the line "λ = 3, v = (1, 1)" of them (null if there is no eigenvector). */
+    private fun eigenvectors(a: List<List<Rational>>, value: Rational, lambda: Variable, context: MathContext, lines: MutableList<ExpressionStep>): Expression? {
+        val n = a.size
+        val shifted = List(n) { r -> List(n) { c -> if (r == c) a[r][c] - value else a[r][c] } }
+        val reduction = reduce(shifted, n)
+        if (reduction.rank >= n) return null
+        val matrix = matrixOf(shifted)
+        val solution = Solver(context)
+        solution.start(matrix)
+        showOperations(solution, emptyList(), reduction.operations)
+        val steps = solution.finish(solution.current).steps
+        val head = steps.first()
+        val note = Note(Equals(lambda, Value(value)), TextExpression(""), relation = "")
+        lines.add(ExpressionStep(head.expression, StepRule.EIGEN_VECTOR, head.chainRule, head.change, listOf(note), head.operation))
+        lines.addAll(steps.drop(1))
+
+        // Free columns are free to choose: 1 for one of them, 0 for the others
+        val free = (0 until n).filter { it !in reduction.pivotColumns }
+        val vectors = free.map { f ->
+            val v = MutableList(n) { Rational.ZERO }
+            v[f] = Rational.ONE
+            for ((i, p) in reduction.pivotColumns.withIndex()) v[p] = -reduction.rows[i][f]
+            integers(v)
+        }
+        val named = vectors.mapIndexed { i, v ->
+            Equals(Variable(if (vectors.size == 1) "v" else "v${subscript(i)}"), MatrixExpression(n, 1, v.map { Value(it) }))
+        }
+        val line = Alternatives(listOf<Expression>(Equals(lambda, Value(value))) + named, inline = true, separator = ",   ")
+        lines.add(ExpressionStep(line, StepRule.EIGEN_VECTOR_RESULT))
+        return line
+    }
+
+    /** (1/2, 1, 0) as (1, 2, 0): the smallest whole numbers in the same direction. */
+    private fun integers(v: List<Rational>): List<Rational> {
+        val scale = v.fold(com.vortessence.calculator.core.math.numbers.BigInt.ONE) { l, x -> l * x.denominator / l.gcd(x.denominator) }
+        return v.map { it * Rational.of(scale) }
+    }
 
     // ----- products -----
 

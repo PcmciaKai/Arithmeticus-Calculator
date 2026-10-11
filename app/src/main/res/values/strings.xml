@@ -124,13 +124,19 @@
     <string name="transform_expand">Expand</string>
     <string name="transform_factor">Factor</string>
     <string name="transform_combine">One fraction</string>
+
     <string name="step_determinant_2x2">The determinant of a 2×2 matrix: the product of the diagonal minus the product of the other diagonal</string>
     <string name="step_determinant_cofactor">Expand the determinant along a row or column: each entry times the determinant of what is left when its row and column are crossed out, the signs alternate</string>
     <string name="step_inverse_2x2">The inverse of a 2×2 matrix: swap the diagonal, change the signs of the other two entries, and divide by the determinant</string>
     <string name="step_inverse_augment">Write the matrix next to the identity matrix: row operations that turn the left part into the identity turn the right part into the inverse</string>
     <string name="step_row_swap">Swap two rows to get a pivot that is not 0</string>
     <string name="step_row_scale">Divide the row by its pivot so that the pivot is 1</string>
-    <string name="step_row_add">Subtract a multiple of the pivot row to make the entry in this column 0</string>
+    <string name="step_row_add">Add or subtract a multiple of the pivot row to make the other entries in this column 0</string>
+    <string name="step_row_reduce_begin">Row reduction: row operations turn every pivot into 1 and the other entries in its column into 0 (reduced row echelon form)</string>
+    <string name="step_eigen_characteristic">The eigenvalues λ are where A − λ·I is not invertible: the determinant of A − λ·I is 0</string>
+    <string name="step_eigen_vector">An eigenvector v of this eigenvalue solves (A − λ·I)·v = 0: reduce the rows</string>
+    <string name="step_eigen_vector_result">Free variables are set to 1 and 0; v is scaled to whole numbers (any multiple is an eigenvector as well)</string>
+    <string name="step_eigen_result">The eigenvalues, each with an eigenvector</string>
     <string name="step_inverse_result">The left part is the identity matrix: the right part is the inverse</string>
     <string name="step_matrix_multiply">Multiply the matrices: each entry is a row of the first times a column of the second</string>
     <string name="step_matrix_scalar">A number times a matrix: it multiplies every entry</string>

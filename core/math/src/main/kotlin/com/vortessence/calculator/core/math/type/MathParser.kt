@@ -181,6 +181,8 @@ class MathParser {
                         "sqrt" -> Power.squareRoot(arg)
                         "abs" -> AbsoluteValue(arg)
                         "det" -> Determinant(arg)
+                        "rref" -> RowReduced(arg)
+                        "eig" -> EigenSystem(arg)
                         else -> {
                             MathContext.current().stopWithError(MathIssue.UNKNOWN_FUNCTION)
                             arg

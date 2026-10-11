@@ -1,6 +1,7 @@
 package com.vortessence.calculator.core.math.expressions
 
 import com.vortessence.calculator.core.math.context.MathContext
+import com.vortessence.calculator.core.math.numbers.Rational
 import com.vortessence.calculator.core.math.context.MathIssue
 import com.vortessence.calculator.core.math.solvers.Function1D
 import com.vortessence.calculator.core.math.solvers.NumericRootFinder
@@ -95,7 +96,42 @@ class Equals(
         if (quadraticSols != null) return quadraticSols.toSet()
         if (context.shouldStop) return emptySet()
 
+        trySolvePolynomial(polynomial, variable, context)?.let { return it }
+        if (context.shouldStop) return emptySet()
+
         return solveNumerically(diff, variable, context)
+    }
+
+    /**
+     * A polynomial of degree 3 or more with a rational root, e.g. x³ − 14x² + 35x − 22: its rational roots by the rational root
+     * theorem and what is left of degree 2 by the formula, exactly. (The numeric search only looks for roots close to 0 once it has
+     * found some, so 11 would be missed.) Null if there is no rational root to start with.
+     */
+    private fun trySolvePolynomial(polynomial: Expression, variable: Variable, context: MathContext): Set<Expression>? {
+        if (context.complexNumbers) return null
+        var rest = PartialFractions.polynomial(polynomial, variable, context) ?: return null
+        if (rest.size < 4) return null
+        val roots = mutableListOf<Expression>()
+        while (rest.size > 3) {
+            val root = PartialFractions.rationalRoot(rest) ?: return null
+            roots.add(Value(root))
+            while (rest.size > 1 && PartialFractions.value(rest, root).isZero) rest = PartialFractions.divideByLinear(rest, root)
+        }
+        when (rest.size) {
+            2 -> roots.add(Value(-rest[0] / rest[1]))
+            3 -> {
+                val discriminant = rest[1] * rest[1] - Rational.of(4L) * rest[2] * rest[0]
+                if (discriminant.isZero) {
+                    roots.add(Value(-rest[1] / (Rational.of(2L) * rest[2])))
+                } else if (!discriminant.isNegative) {
+                    val sqrtD = Power.squareRoot(Value(discriminant)).canonicalize(context)
+                    val twoA = Value(Rational.of(2L) * rest[2])
+                    roots.add(Multiplications.of(Additions(Value(-rest[1]), sqrtD), twoA.invert()).canonicalize(context))
+                    roots.add(Multiplications.of(Additions(Value(-rest[1]), sqrtD.negate()), twoA.invert()).canonicalize(context))
+                }
+            }
+        }
+        return roots.sortedBy { it.evaluateNumerically() }.toCollection(LinkedHashSet())
     }
 
     /**
