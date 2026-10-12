@@ -46,9 +46,11 @@ import com.vortessence.calculator.ui.dialogs.FormulasDialog
 import com.vortessence.calculator.ui.dialogs.StepsSheet
 import com.vortessence.calculator.ui.dialogs.MatrixDialog
 import com.vortessence.calculator.ui.dialogs.UnitsDialog
+import com.vortessence.calculator.ui.dialogs.VariableDialog
 import com.vortessence.calculator.ui.graph.GraphPlotterView
 import com.vortessence.calculator.ui.keypad.CalculatorKeypad
 import com.vortessence.calculator.ui.math.LocalDigitGrouping
+import com.vortessence.calculator.ui.math.LocalVariableDefinitions
 import com.vortessence.calculator.ui.math.MathEditor
 import com.vortessence.calculator.ui.math.MathEditorActions
 import com.vortessence.calculator.ui.math.MathExpressionView
@@ -74,7 +76,12 @@ fun CalculatorScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     // Digit grouping applies to every number shown: input, results, history and graph
-    CompositionLocalProvider(LocalDigitGrouping provides uiState.digitGrouping) {
+    // Defined variables decide whether a derivative is written d/dx or, partial, ∂/∂x
+    val definitions = remember(uiState.history) { uiState.variables() }
+    CompositionLocalProvider(
+        LocalDigitGrouping provides uiState.digitGrouping,
+        LocalVariableDefinitions provides definitions
+    ) {
         CalculatorScreenContent(viewModel, uiState)
     }
 }
@@ -202,7 +209,8 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
                         onSelectToken = { path, index -> viewModel.selectTokenAt(path, index) },
                         onBeginHandleDrag = { isStart -> viewModel.beginHandleDrag(isStart) },
                         onExtendSelection = { caret -> viewModel.extendSelection(caret) },
-                        actions = editorActions
+                        actions = editorActions,
+                        onEditVariable = { path, index -> viewModel.editVariable(path, index) }
                     )
 
                     LiveResultView(
@@ -237,6 +245,14 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
             onCategorySelected = { viewModel.selectUnitCategory(it) },
             scrollToFamily = uiState.unitFamilyToShow,
             language = uiState.language
+        )
+    }
+
+    uiState.variableEdit?.let { edit ->
+        VariableDialog(
+            initial = edit.name,
+            onDismiss = { viewModel.dismissVariableEdit() },
+            onConfirm = { viewModel.setVariable(it) }
         )
     }
 

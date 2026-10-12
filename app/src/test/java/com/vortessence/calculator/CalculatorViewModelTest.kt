@@ -2,6 +2,9 @@ import android.app.Application
 import com.vortessence.calculator.ui.theme.ThemeMode
 import com.vortessence.calculator.core.math.context.MathIssue
 import com.vortessence.calculator.core.math.type.AnsNode
+import com.vortessence.calculator.core.math.type.AntiderivativeNode
+import com.vortessence.calculator.core.math.type.DerivativeNode
+import com.vortessence.calculator.core.math.type.IntegralNode
 import com.vortessence.calculator.core.math.type.BigOperatorNode
 import com.vortessence.calculator.core.math.type.LimitNode
 import com.vortessence.calculator.core.math.type.MixedFractionNode
@@ -458,6 +461,65 @@ class CalculatorViewModelTest {
 
         vm.dismissSteps()
         assertNull(vm.uiState.value.steps)
+    }
+
+    @Test
+    fun theVariableOfAnIntegralCanBeChanged() = runBlocking {
+        val vm = newViewModel()
+        vm.onKeyAction(KeyAction.Antiderivative)
+        vm.onKeyAction(KeyAction.Variable("x"))
+        vm.onKeyAction(KeyAction.Variable("y"))
+        vm.awaitLiveResult()
+        assertEquals("((x)^(2)y)/(2) + C", vm.uiState.value.result!!.result.toString())
+
+        vm.editVariable(emptyList(), 0)
+        assertEquals("x", vm.uiState.value.variableEdit?.name)
+        assertTrue(vm.setVariable("y"))
+        assertNull(vm.uiState.value.variableEdit)
+        assertEquals("y", (vm.uiState.value.expression.nodeAt(0) as AntiderivativeNode).variable)
+        // The integrand and the cursor in it are untouched
+        assertEquals(listOf(0, 0, 2), vm.uiState.value.cursorPath)
+        vm.awaitLiveResultText("(x(y)^(2))/(2) + C")
+    }
+
+    @Test
+    fun theVariableOfADerivativeAndADefiniteIntegralCanBeChanged() = runBlocking {
+        val vm = newViewModel()
+        vm.onKeyAction(KeyAction.DerivativeAt)
+        vm.editVariable(emptyList(), 0)
+        assertTrue(vm.setVariable("t"))
+        assertEquals("t", (vm.uiState.value.expression.nodeAt(0) as DerivativeNode).variable)
+        // The point stays
+        assertNotNull((vm.uiState.value.expression.nodeAt(0) as DerivativeNode).point)
+
+        vm.onKeyAction(KeyAction.Clear)
+        vm.onKeyAction(KeyAction.Integral)
+        vm.editVariable(emptyList(), 0)
+        assertTrue(vm.setVariable("z"))
+        assertEquals("z", (vm.uiState.value.expression.nodeAt(0) as IntegralNode).variable)
+    }
+
+    @Test
+    fun onlyOneLowerCaseLetterThatIsNoConstantIsAVariable() = runBlocking {
+        val vm = newViewModel()
+        vm.onKeyAction(KeyAction.Derivative)
+        vm.editVariable(emptyList(), 0)
+        for (name in listOf("", "X", "xy", "1", "e", "i")) {
+            assertFalse("'$name'", vm.setVariable(name))
+        }
+        // Still open, nothing changed
+        assertEquals("x", vm.uiState.value.variableEdit?.name)
+        assertEquals("x", (vm.uiState.value.expression.nodeAt(0) as DerivativeNode).variable)
+
+        vm.dismissVariableEdit()
+        assertNull(vm.uiState.value.variableEdit)
+        // Only integrals and derivatives have a variable
+        vm.onKeyAction(KeyAction.Clear)
+        vm.onKeyAction(KeyAction.Variable("x"))
+        vm.editVariable(emptyList(), 0)
+        assertNull(vm.uiState.value.variableEdit)
+        vm.editVariable(listOf(7, 7), 3)
+        assertNull(vm.uiState.value.variableEdit)
     }
 
     @Test

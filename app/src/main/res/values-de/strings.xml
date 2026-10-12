@@ -120,6 +120,9 @@
     <string name="matrix_drag_hint">Ziehen, um die Größe zu wählen, loslassen zum Einfügen</string>
     <string name="matrix_insert">Einfügen</string>
     <string name="common_cancel">Abbrechen</string>
+    <string name="variable_title">Variable</string>
+    <string name="variable_hint">Ein Kleinbuchstabe, nicht e oder i</string>
+    <string name="common_ok">OK</string>
     <string name="notice_complex_on">Komplexe Zahlen sind jetzt eingeschaltet. Du kannst sie in den Einstellungen ausschalten.</string>
     <string name="message_copied">Kopiert</string>
     <string name="message_cant_paste">„%1$s“ kann nicht als Rechenausdruck eingefügt werden</string>

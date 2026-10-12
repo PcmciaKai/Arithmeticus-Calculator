@@ -38,10 +38,17 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vortessence.calculator.core.math.MathEngine
 import com.vortessence.calculator.core.math.type.*
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
+
+/**
+ * The variables defined with := (name to value). A derivative whose body only has a defined
+ * variable besides its own is an ordinary one: the definition is substituted before differentiating.
+ */
+val LocalVariableDefinitions = staticCompositionLocalOf<Map<String, MathString>> { emptyMap() }
 
 /** Whether numbers are shown with digit groups (300 000). Display only, the text is unchanged. */
 val LocalDigitGrouping = staticCompositionLocalOf { false }
@@ -393,6 +400,21 @@ private fun SlotContext.Slot(
         path = parentPath + listOf(nodeIndex, child),
         verticalPadding = verticalPadding
     )
+}
+
+/**
+ * Makes the variable label of a node (the x of dx) tappable in the editor: reports where it is to
+ * the [CaretGeometry], which the editor asks first on a tap. [part] tells the labels of one node apart.
+ */
+@Composable
+private fun SlotContext.variableLabel(part: Int): Modifier {
+    val geometry = caretGeometry ?: return Modifier
+    val path = parentPath
+    val index = nodeIndex
+    DisposableEffect(geometry, path, index, part) {
+        onDispose { geometry.removeVariableLabel(path, index, part) }
+    }
+    return Modifier.onGloballyPositioned { geometry.setVariableLabel(path, index, part, it) }
 }
 
 /**
@@ -1045,7 +1067,8 @@ private fun IntegralView(node: IntegralNode, fontSize: TextUnit, slots: SlotCont
             text = " d${node.variable}",
             fontSize = fontSize,
             fontWeight = FontWeight.Normal,
-            color = slots.textColor
+            color = slots.textColor,
+            modifier = slots.variableLabel(part = 0)
         )
     }
 }
@@ -1118,16 +1141,23 @@ private fun AntiderivativeView(node: AntiderivativeNode, fontSize: TextUnit, slo
             text = " d${node.variable}",
             fontSize = fontSize,
             fontWeight = FontWeight.Normal,
-            color = slots.textColor
+            color = slots.textColor,
+            modifier = slots.variableLabel(part = 0)
         )
     }
 }
 
-/** d/dx as a small fraction, the expression in parentheses and, at a point, the bar |ₓ₌ₐ. */
+/**
+ * d/dx as a small fraction, the expression in parentheses and, at a point, the bar |ₓ₌ₐ. A
+ * partial derivative (the expression has more variables than x) is written with ∂.
+ */
 @Composable
 private fun DerivativeView(node: DerivativeNode, fontSize: TextUnit, slots: SlotContext) {
     val labelFontSize = (fontSize.value * 0.7f).sp
     val subscriptFontSize = (fontSize.value * 0.55f).sp
+    val definitions = LocalVariableDefinitions.current
+    val isPartial = remember(node, definitions) { MathEngine.isPartialDerivative(node, definitions) }
+    val d = if (isPartial) "∂" else "d"
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.padding(horizontal = 2.dp).centeredMathAxis()
@@ -1136,16 +1166,22 @@ private fun DerivativeView(node: DerivativeNode, fontSize: TextUnit, slots: Slot
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.width(IntrinsicSize.Max)
         ) {
-            Text(text = "d", fontSize = labelFontSize, color = slots.accentColor, fontWeight = FontWeight.SemiBold)
+            Text(text = d, fontSize = labelFontSize, color = slots.accentColor, fontWeight = FontWeight.SemiBold)
             HorizontalDivider(thickness = 1.5.dp, color = slots.accentColor)
-            Text(text = "d${node.variable}", fontSize = labelFontSize, color = slots.accentColor, fontWeight = FontWeight.SemiBold)
+            Text(
+                text = "$d${node.variable}",
+                fontSize = labelFontSize,
+                color = slots.accentColor,
+                fontWeight = FontWeight.SemiBold,
+                modifier = slots.variableLabel(part = 0)
+            )
         }
         slots.Slot(child = 0, string = node.body, fontSize = fontSize, modifier = Modifier.stretchyParentheses(slots.textColor, fontSize, isFlat(node.body)))
         val point = node.point
         if (point != null) {
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(text = "|", fontSize = (fontSize.value * 1.4f).sp, fontWeight = FontWeight.ExtraLight, color = slots.textColor)
-                Text(text = "${node.variable}=", fontSize = subscriptFontSize, color = slots.textColor)
+                Text(text = "${node.variable}=", fontSize = subscriptFontSize, color = slots.textColor, modifier = slots.variableLabel(part = 1))
                 slots.Slot(child = 1, string = point, fontSize = subscriptFontSize)
             }
         }

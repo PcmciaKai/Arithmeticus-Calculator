@@ -362,6 +362,9 @@
     <string name="matrix_drag_hint">Drag to choose the size, lift to insert</string>
     <string name="matrix_insert">Insert</string>
     <string name="common_cancel">Cancel</string>
+    <string name="variable_title">Variable</string>
+    <string name="variable_hint">One lower-case letter, not e or i</string>
+    <string name="common_ok">OK</string>
     <string name="notice_complex_on">Complex numbers are now on. You can switch them off in the settings.</string>
     <string name="message_copied">Copied</string>
     <string name="message_cant_paste">Can\'t paste \"%1$s\" as math</string>

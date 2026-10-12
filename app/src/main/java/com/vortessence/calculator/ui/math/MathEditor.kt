@@ -41,6 +41,7 @@ import kotlin.math.roundToInt
  * - tap places the cursor at the nearest position,
  * - long press selects the token under the finger; keep dragging to extend the selection,
  * - while something is selected, two handles below its ends can be dragged to adjust it,
+ * - a tap on the variable of an integral or derivative (the x of dx) calls [onEditVariable],
  * - with [actions], Android's floating Cut/Copy/Paste/Select all menu appears over a selection
  *   once the finger is lifted, and with Paste over the caret after a long press on empty space
  *   or a tap on the caret.
@@ -59,6 +60,7 @@ fun MathEditor(
     onExtendSelection: (focusCaret: List<Int>) -> Unit,
     modifier: Modifier = Modifier,
     actions: MathEditorActions? = null,
+    onEditVariable: (stringPath: List<Int>, nodeIndex: Int) -> Unit = { _, _ -> },
     fontSize: TextUnit = 32.sp,
     accentColor: Color = MaterialTheme.colorScheme.primary
 ) {
@@ -72,6 +74,7 @@ fun MathEditor(
     val currentOnSelectToken by rememberUpdatedState(onSelectToken)
     val currentOnExtendSelection by rememberUpdatedState(onExtendSelection)
     val currentOnBeginHandleDrag by rememberUpdatedState(onBeginHandleDrag)
+    val currentOnEditVariable by rememberUpdatedState(onEditVariable)
     val currentCursorPath by rememberUpdatedState(cursorPath)
     val currentSelectionRange by rememberUpdatedState(selectionRange)
     val currentExpression by rememberUpdatedState(expression)
@@ -150,6 +153,10 @@ fun MathEditor(
                         // A tap, unless the gesture was a scroll (consumed by horizontalScroll)
                         val up = currentEvent.changes.firstOrNull { it.id == down.id }
                         if (up != null && !up.pressed && !up.isConsumed) {
+                            geometry.hitTestVariableLabel(down.position)?.let { (stringPath, nodeIndex) ->
+                                currentOnEditVariable(stringPath, nodeIndex)
+                                return@awaitEachGesture
+                            }
                             val caret = geometry.hitTestCaret(down.position) ?: return@awaitEachGesture
                             // Tapping the caret itself toggles the Paste menu, like in a text field
                             if (caret == currentCursorPath && currentSelectionRange == null) {
@@ -306,6 +313,9 @@ private fun TextMenu(
     }
 }
 
+/** How far beside a variable label (px) a touch still counts as on it. */
+private const val LABEL_SLOP = 12f
+
 private val HANDLE_SIZE = 22.dp
 private val HANDLE_TOUCH_SIZE = 44.dp
 
@@ -394,6 +404,9 @@ class CaretGeometry {
 
     private val strings = HashMap<List<Int>, StringInfo>()
     private val nodes = HashMap<List<Int>, HashMap<Int, Rect>>()
+    /** The variable labels (the x of dx) of integrals and derivatives, by node and part of the node. */
+    private data class LabelKey(val path: List<Int>, val index: Int, val part: Int)
+    private val variableLabels = HashMap<LabelKey, Rect>()
     /** Lines by index, only for strings with line breaks; [lineCounts] tells which are current. */
     private val lines = HashMap<List<Int>, HashMap<Int, LineInfo>>()
     private val lineCounts = HashMap<List<Int>, Int>()
@@ -440,6 +453,15 @@ class CaretGeometry {
         }
     }
 
+    internal fun setVariableLabel(path: List<Int>, index: Int, part: Int, coordinates: LayoutCoordinates) {
+        val bounds = boundsInRoot(coordinates)
+        if (variableLabels.put(LabelKey(path, index, part), bounds) != bounds) version++
+    }
+
+    internal fun removeVariableLabel(path: List<Int>, index: Int, part: Int) {
+        if (variableLabels.remove(LabelKey(path, index, part)) != null) version++
+    }
+
     /** Line [index] of [count] of the string at [path], covering caret positions [start]..[end]. */
     internal fun setLine(path: List<Int>, index: Int, count: Int, start: Int, end: Int, coordinates: LayoutCoordinates) {
         val info = LineInfo(boundsInRoot(coordinates), start, end)
@@ -454,6 +476,7 @@ class CaretGeometry {
     internal fun removeString(path: List<Int>) {
         strings.remove(path)
         nodes.remove(path)
+        variableLabels.keys.removeAll { it.path == path }
         lines.remove(path)
         lineCounts.remove(path)
         version++
@@ -528,6 +551,20 @@ class CaretGeometry {
             else -> info.bounds.left
         } ?: return null
         return x - editorOrigin.x
+    }
+
+    /**
+     * The integral or derivative whose variable label (the x of dx) is under [localPoint], as
+     * (string path, node index). The label is small, so it also catches touches a little beside it.
+     */
+    fun hitTestVariableLabel(localPoint: Offset): Pair<List<Int>, Int>? {
+        version // read for snapshot consistency
+        val point = localPoint + editorOrigin
+        val hit = variableLabels.entries
+            .filter { (_, bounds) -> bounds.width > 0f && bounds.inflate(LABEL_SLOP).contains(point) }
+            .minByOrNull { (_, bounds) -> (bounds.center - point).getDistanceSquared() }
+            ?: return null
+        return hit.key.path to hit.key.index
     }
 
     /** The node under [localPoint] as (string path, node index), e.g. for a long press. */

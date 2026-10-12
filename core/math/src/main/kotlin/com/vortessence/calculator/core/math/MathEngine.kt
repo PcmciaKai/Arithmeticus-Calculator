@@ -68,6 +68,7 @@ import com.vortessence.calculator.core.math.steps.Solution
 import kotlin.math.abs
 import com.vortessence.calculator.core.math.steps.SolutionStep
 import com.vortessence.calculator.core.math.steps.StepChange
+import com.vortessence.calculator.core.math.type.DerivativeNode
 import com.vortessence.calculator.core.math.type.LineBreakNode
 import com.vortessence.calculator.core.math.type.MathNode
 import com.vortessence.calculator.core.math.type.MathOp
@@ -525,6 +526,25 @@ object MathEngine {
         if (parsed == null || execContext.shouldStop) return false
         if (parsed is Derivative) return DerivativeSteps.isSupported(parsed)
         return steps(input, context) != null
+    }
+
+    /**
+     * Whether the derivative [node] is a partial one: once the [definitions] (variable name to
+     * value, as in [MathContext.variables]) are substituted, its body still depends on a
+     * variable other than the one it differentiates by, e.g. d/dx(x²y). The differentiation
+     * variable is bound, so a definition of it is not used. Only the notation differs (∂
+     * instead of d), the result is the same. False for a body that cannot be parsed yet.
+     */
+    fun isPartialDerivative(node: DerivativeNode, definitions: Map<String, MathString> = emptyMap()): Boolean {
+        val body = try {
+            val parsed = parser.parse(node.body)
+            val used = parsed.variables().map { it.identifier }
+            val values = definitions.filterKeys { it in used && it != node.variable }.entries.associate { (name, value) -> Variable(name) to parser.parse(value) }
+            parsed.substituteVariables(values)
+        } catch (e: RuntimeException) {
+            return false
+        }
+        return body.variables().any { it.identifier != node.variable }
     }
 
     /**

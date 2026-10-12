@@ -90,8 +90,23 @@ data class CalculatorUiState(
     /** Set when the i key turned complex numbers on, until the message about it was shown. */
     val showComplexNotice: Boolean = false,
     /** The language of the texts the calculation produces (and the app is shown in). */
-    val language: Language = Language.ENGLISH
-)
+    val language: Language = Language.ENGLISH,
+    /** The integral or derivative whose variable is being changed (a tap on its dx), or null. */
+    val variableEdit: VariableEdit? = null
+) {
+    /**
+     * Variables defined with ":=" by calculations in the history; the newest definition of a
+     * name wins. A variable stays defined until its definition is removed from the history.
+     */
+    fun variables(): Map<String, MathString> =
+        history.asReversed().mapNotNull { entry ->
+            val name = entry.calculation.definedVariable ?: return@mapNotNull null
+            entry.calculation.answer?.let { name to it }
+        }.toMap()
+}
+
+/** The variable of the integral or derivative at [nodeIndex] of the string at [stringPath], as it is now. */
+data class VariableEdit(val stringPath: List<Int>, val nodeIndex: Int, val name: String)
 
 /**
  * The step-by-step solution of [input]; [solution] is null while it is worked out, or if
@@ -324,16 +339,6 @@ class CalculatorViewModel @JvmOverloads constructor(
     /** Ans is the most recently committed result, not the live result of this line. */
     private fun CalculatorUiState.ans(): MathString? =
         history.firstNotNullOfOrNull { it.calculation.answer }
-
-    /**
-     * Variables defined with ":=" by calculations in the history; the newest definition of a
-     * name wins. A variable stays defined until its definition is removed from the history.
-     */
-    private fun CalculatorUiState.variables(): Map<String, MathString> =
-        history.asReversed().mapNotNull { entry ->
-            val name = entry.calculation.definedVariable ?: return@mapNotNull null
-            entry.calculation.answer?.let { name to it }
-        }.toMap()
 
     private fun loadSettings() {
         val savedAngleStr = prefs?.getString("angle_unit", AngleUnit.RADIANS.name) ?: AngleUnit.RADIANS.name
@@ -649,6 +654,46 @@ class CalculatorViewModel @JvmOverloads constructor(
     fun closeGraph() {
         plotJob?.cancel()
         _uiState.update { it.copy(isGraphOpen = false, isPlotLoading = false) }
+    }
+
+    /** Opens the dialog for the variable of the integral or derivative at [nodeIndex] in the string at [stringPath]. */
+    fun editVariable(stringPath: List<Int>, nodeIndex: Int) {
+        val node = CaretPaths.resolve(_uiState.value.expression, stringPath)?.nodes?.getOrNull(nodeIndex) ?: return
+        val name = variableOf(node) ?: return
+        _uiState.update { it.copy(variableEdit = VariableEdit(stringPath, nodeIndex, name)) }
+    }
+
+    fun dismissVariableEdit() {
+        _uiState.update { it.copy(variableEdit = null) }
+    }
+
+    /** Gives the integral or derivative being edited the variable [name]; false (and nothing changes) if it is no valid name. */
+    fun setVariable(name: String): Boolean {
+        if (!isValidVariableName(name)) return false
+        val edit = _uiState.value.variableEdit ?: return false
+        val root = _uiState.value.expression.copy()
+        val target = CaretPaths.resolve(root, edit.stringPath) ?: return false
+        val node = target.nodes.getOrNull(edit.nodeIndex)
+        val renamed = when (node) {
+            is IntegralNode -> node.copy(variable = name)
+            is AntiderivativeNode -> node.copy(variable = name)
+            is DerivativeNode -> node.copy(variable = name)
+            else -> null
+        }
+        if (renamed == null) {
+            dismissVariableEdit()
+            return false
+        }
+        target.setNode(edit.nodeIndex, renamed)
+        _uiState.update { it.copy(expression = root, variableEdit = null) }
+        return true
+    }
+
+    private fun variableOf(node: MathNode): String? = when (node) {
+        is IntegralNode -> node.variable
+        is AntiderivativeNode -> node.variable
+        is DerivativeNode -> node.variable
+        else -> null
     }
 
     fun dismissUnitsDialog() {

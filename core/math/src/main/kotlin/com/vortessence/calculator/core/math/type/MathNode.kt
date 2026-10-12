@@ -55,6 +55,12 @@ data class VariableNode(val name: String) : MathNode() {
     override fun toString(): String = name
 }
 
+/**
+ * Whether [name] can be the variable of an integral or derivative (d/dy): one lower-case letter.
+ * e and i are left out, they are the constants.
+ */
+fun isValidVariableName(name: String): Boolean = name.length == 1 && name[0] in 'a'..'z' && name != "e" && name != "i"
+
 data class ConstantNode(val name: String) : MathNode() {
     override fun copy(): MathNode = ConstantNode(name)
     override fun toString(): String = name
