@@ -106,6 +106,10 @@ class Multiplications(val operands: List<Expression>) : Expression() {
                 if (baseI == baseJ) {
                     expI = Additions(listOf(expI, expJ)).canonicalize(context)
                     used[j] = true
+                } else if (baseJ == reciprocalPartner(baseI)) {
+                    // sec(u)·cos(u) = 1: one is the other to the power −1
+                    expI = Additions(listOf(expI, Multiplications.of(Value.MINUS_ONE, expJ))).canonicalize(context)
+                    used[j] = true
                 }
             }
 

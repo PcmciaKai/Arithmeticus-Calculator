@@ -925,8 +925,10 @@ private fun AlternatesPopup(
             // Opening to the left, the rows end above the key
             horizontalAlignment = if (opensLeft) Alignment.End else Alignment.Start
         ) {
-            if (upper.isNotEmpty()) AlternatesRow(upper, lower.size, selected, cellWidth, cellHeight, opensLeft)
-            AlternatesRow(lower, 0, selected, cellWidth, cellHeight, opensLeft)
+            // Two rows of function names read evenly with one size; a single row sizes each label by itself
+            val sharedSize = if (upper.isNotEmpty()) (lower + upper).maxOf { it.label.length } else null
+            if (upper.isNotEmpty()) AlternatesRow(upper, lower.size, selected, cellWidth, cellHeight, opensLeft, sharedSize)
+            AlternatesRow(lower, 0, selected, cellWidth, cellHeight, opensLeft, sharedSize)
         }
     }
 }
@@ -939,7 +941,9 @@ private fun AlternatesRow(
     selected: Int,
     cellWidth: Dp,
     cellHeight: Dp,
-    opensLeft: Boolean
+    opensLeft: Boolean,
+    /** The length of the longest label of the popup, if all labels are to be the same size. */
+    sharedLength: Int? = null
 ) {
     Row {
         // Opening to the left, the main function is the rightmost cell (above the key)

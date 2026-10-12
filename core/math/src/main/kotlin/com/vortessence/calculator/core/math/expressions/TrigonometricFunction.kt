@@ -368,23 +368,72 @@ class TrigonometricFunction(
 
 
 /**
- * c·R·sin²(u) + c·R·cos²(u) = c·R: the two terms of a sum that are the squares of the sine and the cosine of the same
- * angle, with the same factors besides. Null if [a] and [b] are not such a pair.
+ * The two terms of a sum that are squares of functions of the same angle whose squares make 1: c·R·sin²(u) + c·R·cos²(u) = c·R,
+ * and c·R·sec²(u) − c·R·tan²(u), c·R·csc²(u) − c·R·cot²(u), c·R·cosh²(u) − c·R·sinh²(u), with the same factors R besides.
+ * Null if [a] and [b] are not such a pair.
  */
 internal fun pythagoreanSum(a: Expression, b: Expression): Expression? {
-    fun split(term: Expression): Triple<TrigType, TrigonometricFunction, List<Expression>>? {
+    // (the function that comes first in the identity, the other one, whether the squares are added: otherwise subtracted)
+    val identities = listOf<Triple<Any, Any, Boolean>>(
+        Triple(TrigType.SIN, TrigType.COS, true),
+        Triple(TrigType.SEC, TrigType.TAN, false),
+        Triple(TrigType.CSC, TrigType.COT, false),
+        Triple(HyperbolicType.COSH, HyperbolicType.SINH, false)
+    )
+    fun typeOf(f: Expression): Any? = (f as? TrigonometricFunction)?.type ?: (f as? HyperbolicFunction)?.type
+    fun angleUnitOf(f: Expression): Any? = (f as? TrigonometricFunction)?.angleUnit
+    fun operandOf(f: Expression): Expression? = (f as? TrigonometricFunction)?.operand ?: (f as? HyperbolicFunction)?.operand
+    /** (the function, the number factor, the other factors) of c·R·f², or null. */
+    fun split(term: Expression): Triple<Expression, Value, List<Expression>>? {
         val factors = if (term is Multiplications) term.operands else listOf(term)
-        val index = factors.indexOfFirst {
-            it is Power && (it.exponent as? Value)?.rational == com.vortessence.calculator.core.math.numbers.Rational.of(2L) &&
-                it.base is TrigonometricFunction && ((it.base as TrigonometricFunction).type == TrigType.SIN || (it.base as TrigonometricFunction).type == TrigType.COS)
+        val index = factors.indexOfFirst { factor ->
+            factor is Power && (factor.exponent as? Value)?.rational == com.vortessence.calculator.core.math.numbers.Rational.of(2L) &&
+                typeOf(factor.base).let { type -> type != null && identities.any { type == it.first || type == it.second } }
         }
         if (index < 0) return null
-        val trig = (factors[index] as Power).base as TrigonometricFunction
-        return Triple(trig.type, trig, factors.filterIndexed { i, _ -> i != index })
+        val function = (factors[index] as Power).base
+        val rest = factors.filterIndexed { i, _ -> i != index }
+        val coefficient = rest.filterIsInstance<Value>().fold(Value.ONE) { product, value -> product.times(value) }
+        return Triple(function, coefficient, rest.filter { it !is Value })
     }
     val first = split(a) ?: return null
     val second = split(b) ?: return null
-    if (first.first == second.first || first.second.operand != second.second.operand || first.second.angleUnit != second.second.angleUnit) return null
-    if (first.third.size != second.third.size || !sameOperandsIgnoringOrder(first.third, second.third)) return null
-    return Multiplications.of(*first.third.toTypedArray()).let { if (first.third.isEmpty()) Value.ONE else it }
+    val others = first.third
+    if (others.size != second.third.size || !sameOperandsIgnoringOrder(others, second.third)) return null
+    if (operandOf(first.first) != operandOf(second.first) || angleUnitOf(first.first) != angleUnitOf(second.first)) return null
+    val firstType = typeOf(first.first)
+    val secondType = typeOf(second.first)
+    for ((leading, other, sum) in identities) {
+        val firstLeads = firstType == leading && secondType == other
+        if (!firstLeads && !(firstType == other && secondType == leading)) continue
+        // c·f² ± c·g²: the numbers are the same, or opposite for a difference (the leading term is the positive one)
+        val (lead, trail) = if (firstLeads) first to second else second to first
+        if (if (sum) lead.second != trail.second else lead.second != trail.second.negate()) continue
+        val parts = (if (lead.second == Value.ONE) emptyList() else listOf<Expression>(lead.second)) + others
+        return if (parts.isEmpty()) Value.ONE else Multiplications.of(*parts.toTypedArray())
+    }
+    return null
+}
+
+/** sec ↔ cos, csc ↔ sin, cot ↔ tan, sech ↔ cosh, csch ↔ sinh, coth ↔ tanh of the same operand: the function whose reciprocal [e] is. */
+internal fun reciprocalPartner(e: Expression): Expression? = when (e) {
+    is TrigonometricFunction -> when (e.type) {
+        TrigType.SEC -> TrigType.COS
+        TrigType.COS -> TrigType.SEC
+        TrigType.CSC -> TrigType.SIN
+        TrigType.SIN -> TrigType.CSC
+        TrigType.COT -> TrigType.TAN
+        TrigType.TAN -> TrigType.COT
+        else -> null
+    }?.let { TrigonometricFunction(it, e.operand, e.angleUnit) }
+    is HyperbolicFunction -> when (e.type) {
+        HyperbolicType.SECH -> HyperbolicType.COSH
+        HyperbolicType.COSH -> HyperbolicType.SECH
+        HyperbolicType.CSCH -> HyperbolicType.SINH
+        HyperbolicType.SINH -> HyperbolicType.CSCH
+        HyperbolicType.COTH -> HyperbolicType.TANH
+        HyperbolicType.TANH -> HyperbolicType.COTH
+        else -> null
+    }?.let { HyperbolicFunction(it, e.operand) }
+    else -> null
 }

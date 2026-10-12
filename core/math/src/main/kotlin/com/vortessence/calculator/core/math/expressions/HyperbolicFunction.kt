@@ -57,8 +57,8 @@ enum class HyperbolicType(val symbol: String, val isInverse: Boolean) {
         }
     }
 
-    /** Whether this function has a pole at [v]: csch and coth at 0. */
-    fun hasPoleAt(v: Double): Boolean = (this == CSCH || this == COTH) && abs(v) < 1e-15
+    /** Whether this function has a pole at [v]: csch and coth at 0. Unlike with π, 0 is exact, so next to it they are only large. */
+    fun hasPoleAt(v: Double): Boolean = (this == CSCH || this == COTH) && v == 0.0
 }
 
 /**
@@ -107,8 +107,8 @@ class HyperbolicFunction(
                     context.stopWithError(MathIssue.VALUES_TOO_LARGE)
                     return this
                 }
-                // Snap floating point noise to zero
-                return Value(Real(if (abs(res) < 1e-14) 0.0 else res))
+                // No snapping to 0 as for sin(π): 0 is exact here, so a small result is a small result
+                return Value(Real(res))
             }
             val exact = if (type.isInverse) exactInverse(op, context) else exactForward(op, context)
             if (exact != null || context.shouldStop) return exact ?: this
@@ -138,11 +138,26 @@ class HyperbolicFunction(
         return result.canonicalize(context)
     }
 
-    /** atanh(0) = 0, and where the logarithm form is rational: asinh(3/4) = ln 2, acosh(5/3) = ln 3. */
+    /**
+     * atanh(x) = ½·ln((1 + x)/(1 − x)) and acoth(x) = ½·ln((x + 1)/(x − 1)) for any rational x; asinh and acosh where the
+     * logarithm form is rational: asinh(3/4) = ln 2, acosh(5/3) = ln 3.
+     */
     private fun exactInverse(op: Expression, context: MathContext): Expression? {
         if (op !is Value || op.rational == null) return null
-        if (type == HyperbolicType.ATANH && op.isZero) return Value.ZERO
-        if (type == HyperbolicType.ATANH || type == HyperbolicType.ACOTH) return null
+        if (type == HyperbolicType.ATANH || type == HyperbolicType.ACOTH) {
+            // Both are odd functions: the result for −x is the negative of the one for x
+            val x = if (op.isNegative) op.negate() else op
+            val ratio = if (type == HyperbolicType.ATANH) {
+                Multiplications.of(Additions(Value.ONE, x), Power(Additions(Value.ONE, x.negate()), Value.MINUS_ONE))
+            } else {
+                Multiplications.of(Additions(x, Value.ONE), Power(Additions(x, Value.MINUS_ONE), Value.MINUS_ONE))
+            }
+            // ½·ln(4) is ln(2): where the ratio is a square, the half goes into the logarithm
+            val root = Power(ratio, Value.HALF).canonicalize(context)
+            val result = if (root is Value && root.rational != null) Logarithm.ln(root).canonicalize(context)
+            else Multiplications.of(Value.HALF, Logarithm.ln(ratio)).canonicalize(context)
+            return if (op.isNegative) result.negate().canonicalize(context) else result
+        }
         // asinh(x) = ln(x + √(x² + 1)) and acosh(x) = ln(x + √(x² − 1)); asech and acsch are these at 1/x
         val reciprocal = type == HyperbolicType.ASECH || type == HyperbolicType.ACSCH
         val x = (if (reciprocal) Power(op, Value.MINUS_ONE).canonicalize(context) else op) as? Value ?: return null

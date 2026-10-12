@@ -18,6 +18,7 @@ import com.vortessence.calculator.core.math.expressions.Multiplications
 import com.vortessence.calculator.core.math.expressions.Power
 import com.vortessence.calculator.core.math.expressions.TrigType
 import com.vortessence.calculator.core.math.expressions.HyperbolicFunction
+import com.vortessence.calculator.core.math.expressions.HyperbolicType
 import com.vortessence.calculator.core.math.expressions.TrigonometricFunction
 import com.vortessence.calculator.core.math.expressions.UnitExpression
 import com.vortessence.calculator.core.math.expressions.Value
@@ -317,10 +318,22 @@ internal object IntegralSteps {
                         TrigType.SIN -> divide(product(Value.MINUS_ONE, trig(TrigType.COS, u)), a) to StepRule.INTEGRAL_SINE
                         TrigType.COS -> divide(trig(TrigType.SIN, u), a) to StepRule.INTEGRAL_COSINE
                         TrigType.TAN -> divide(product(Value.MINUS_ONE, lnAbs(trig(TrigType.COS, u))), a) to StepRule.INTEGRAL_TANGENT
+                        TrigType.SEC -> fromTable(g, StepRule.INTEGRAL_SECANT)
+                        TrigType.CSC -> fromTable(g, StepRule.INTEGRAL_COSECANT)
+                        TrigType.COT -> fromTable(g, StepRule.INTEGRAL_COTANGENT)
                         else -> fromTable(g)
                     }
                 }
-                g is HyperbolicFunction && !g.type.isInverse -> return fromTable(g)
+                g is HyperbolicFunction && !g.type.isInverse -> {
+                    return fromTable(g, when (g.type) {
+                        HyperbolicType.SINH -> StepRule.INTEGRAL_HYPERBOLIC_SINE
+                        HyperbolicType.COSH -> StepRule.INTEGRAL_HYPERBOLIC_COSINE
+                        HyperbolicType.TANH -> StepRule.INTEGRAL_HYPERBOLIC_TANGENT
+                        HyperbolicType.COTH -> StepRule.INTEGRAL_HYPERBOLIC_COTANGENT
+                        HyperbolicType.SECH -> StepRule.INTEGRAL_HYPERBOLIC_SECANT
+                        else -> StepRule.INTEGRAL_HYPERBOLIC_COSECANT
+                    })
+                }
                 g is Logarithm && !g.base.containsVariable(v) -> {
                     val u = g.operand
                     val a = integrator.linearSlope(u, v) ?: return null
@@ -331,9 +344,9 @@ internal object IntegralSteps {
             return null
         }
 
-        /** The calculator's table integral of [g], without a rule of its own. */
-        private fun fromTable(g: Expression): Pair<Expression, StepRule>? =
-            integrator.basic(canonical(g) ?: g, v)?.let { canonical(it) }?.let { it to StepRule.INTEGRAL_TABLE }
+        /** The calculator's table integral of [g], with a rule of its own or as a table value. */
+        private fun fromTable(g: Expression, rule: StepRule = StepRule.INTEGRAL_TABLE): Pair<Expression, StepRule>? =
+            integrator.basic(canonical(g) ?: g, v)?.let { canonical(it) }?.let { it to rule }
 
         private fun table(g: Expression): Match? {
             val (result, rule) = tableIntegral(g) ?: return null

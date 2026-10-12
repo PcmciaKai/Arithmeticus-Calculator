@@ -9,6 +9,10 @@ import com.vortessence.calculator.core.math.steps.StepRule
 import com.vortessence.calculator.core.math.type.ConstantNode
 import com.vortessence.calculator.core.math.type.FunctionNode
 import com.vortessence.calculator.core.math.type.MathNode
+import com.vortessence.calculator.core.math.type.MathOp
+import com.vortessence.calculator.core.math.type.NumberNode
+import com.vortessence.calculator.core.math.type.OperatorNode
+import com.vortessence.calculator.core.math.type.UnitNode
 import com.vortessence.calculator.core.math.type.MathString
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
@@ -263,5 +267,113 @@ class ReciprocalAndHyperbolicTest {
         assertResult("1", "L[x->inf]{tanh(x)}")
         assertResult("1", "L[x->inf]{[sinh(x);cosh(x)]}")
         assertResult("0", "L[x->inf]{acot(x)}")
+    }
+
+    @Test
+    fun identitiesAndReciprocalProductsAreSimplified() {
+        assertResult("1", "sec(x)^2-tan(x)^2")
+        assertResult("3", "3*csc(x)^2-3*cot(x)^2")
+        assertResult("1", "cosh(x)^2-sinh(x)^2")
+        assertResult("− 1", "sinh(x)^2-cosh(x)^2")
+        assertResult("x", "x*sec(x)*cos(x)")
+        assertResult("1", "cot(x)*tan(x)")
+        assertResult("1", "cosh(x)*sech(x)")
+        assertResult("sec(x)", "sec(x)^2*cos(x)")
+        // Not the same angle, not the same sign, not the same function
+        assertResult("(sec(x))^(2) − (tan(y))^(2)", "sec(x)^2-tan(y)^2")
+        assertResult("(cosh(x))^(2) + (sinh(x))^(2)", "cosh(x)^2+sinh(x)^2")
+        assertResult("(sec(x))^(2) − 2(tan(x))^(2)", "sec(x)^2-2*tan(x)^2")
+    }
+
+    @Test
+    fun simplificationStepsNameTheIdentities() {
+        assertEquals(listOf(StepRule.SECANT_IDENTITY), solution("sec(x)^2-tan(x)^2").steps.mapNotNull { it.rule })
+        assertEquals(listOf(StepRule.COSECANT_IDENTITY), solution("3*csc(x)^2-3*cot(x)^2").steps.mapNotNull { it.rule })
+        assertEquals(listOf(StepRule.HYPERBOLIC_IDENTITY), solution("cosh(x)^2-sinh(x)^2").steps.mapNotNull { it.rule })
+        assertEquals(listOf(StepRule.RECIPROCAL_FUNCTIONS), solution("x*csc(x)*sin(x)").steps.mapNotNull { it.rule })
+        assertEquals(listOf(StepRule.EXACT_HYPERBOLIC_VALUE), solution("sinh(ln(2))").steps.mapNotNull { it.rule })
+        assertEquals("ln(2)", solution("asinh(3/4)").result.toString())
+    }
+
+    @Test
+    fun integralsNameTheirRules() {
+        assertEquals(StepRule.INTEGRAL_SECANT, solution("I{sec(2*x)}").steps.mapNotNull { it.rule }.single())
+        assertEquals(StepRule.INTEGRAL_COSECANT, solution("I{csc(x)}").steps.mapNotNull { it.rule }.single())
+        assertEquals(StepRule.INTEGRAL_COTANGENT, solution("I{cot(x)}").steps.mapNotNull { it.rule }.single())
+        assertEquals(StepRule.INTEGRAL_HYPERBOLIC_COSINE, solution("I{cosh(2*x)}").steps.mapNotNull { it.rule }.single())
+        assertEquals(StepRule.INTEGRAL_HYPERBOLIC_SECANT, solution("I{sech(x)}").steps.mapNotNull { it.rule }.single())
+        assertSolved("atan(sinh(1))", "I[0,1]{sech(x)}")
+    }
+
+    @Test
+    fun inequalitiesOfCotangentAreOneIntervalPerPeriod() {
+        assertResult("πk < x < (π)/(4) + πk, k ∈ ℤ", "cot(x)>1")
+        assertResult("(π)/(4) + πk < x < π + πk, k ∈ ℤ", "cot(x)<1")
+        assertResult("πk < x ≤ (π)/(2) + πk, k ∈ ℤ", "cot(x)>=0")
+        assertResult("(πk)/(2) < x < (π)/(8) + (πk)/(2), k ∈ ℤ", "cot(2*x)>1")
+        assertResult("180k < x < 45 + 180k, k ∈ ℤ", "cot(x)>1", AngleUnit.DEGREES)
+    }
+
+    @Test
+    fun inequalitiesOfSecantAndCosecantHaveTwoIntervalsPerPeriod() {
+        assertResult("− (π)/(2) + 2πk < x < − (π)/(3) + 2πk or (π)/(3) + 2πk < x < (π)/(2) + 2πk, k ∈ ℤ", "sec(x)>2")
+        assertResult("− (π)/(2) + 2πk < x ≤ − (π)/(3) + 2πk or (π)/(3) + 2πk ≤ x < (π)/(2) + 2πk, k ∈ ℤ", "sec(x)>=2")
+        assertResult("− (π)/(3) + 2πk < x < (π)/(3) + 2πk or (π)/(2) + 2πk < x < (3π)/(2) + 2πk, k ∈ ℤ", "sec(x)<2")
+        assertResult("(π)/(2) + 2πk < x ≤ (2π)/(3) + 2πk or (4π)/(3) + 2πk ≤ x < (3π)/(2) + 2πk, k ∈ ℤ", "sec(x)<=-2")
+        assertResult("− (π)/(2) + 2πk < x < (π)/(2) + 2πk, k ∈ ℤ", "sec(x)>1/2")
+        assertResult("(π)/(2) + 2πk < x < (3π)/(2) + 2πk, k ∈ ℤ", "sec(x)<0")
+        // The only place where sec is −1 (at π) is a point of its own
+        assertResult("− (π)/(2) + 2πk < x < (π)/(2) + 2πk or x = π + 2πk, k ∈ ℤ", "sec(x)>=-1")
+        assertResult("2πk < x < (π)/(6) + 2πk or (5π)/(6) + 2πk < x < π + 2πk, k ∈ ℤ", "csc(x)>2")
+        assertResult("π + 2πk < x ≤ (7π)/(6) + 2πk or (11π)/(6) + 2πk ≤ x < 2π + 2πk, k ∈ ℤ", "csc(x)<=-2")
+        assertResult("2πk < x < acsc(3) + 2πk or π − acsc(3) + 2πk < x < π + 2πk, k ∈ ℤ", "csc(x)>3")
+        assertResult("− 90 + 360k < x < − 60 + 360k or 60 + 360k < x < 90 + 360k, k ∈ ℤ", "sec(x)>2", AngleUnit.DEGREES)
+        assertResult("− (π)/(4) + πk < x < − (π)/(6) + πk or (π)/(6) + πk < x < (π)/(4) + πk, k ∈ ℤ", "sec(2*x)>2")
+    }
+
+    @Test
+    fun anglesWithUnitsAreConvertedForTheReciprocalFunctionsOnly() {
+        fun withUnit(name: String, number: String, unit: String) = runBlocking {
+            MathEngine.calculate(MathString(listOf(FunctionNode(name, MathString(listOf(NumberNode(number), UnitNode(unit)))))), MathContext())
+        }
+        // sec(60°) = 2 whatever the angle unit of the calculator
+        assertEquals(2.0, withUnit("sec", "60", "°").numericValue, 1e-9)
+        assertEquals(2.0, withUnit("csc", "30", "°").numericValue, 1e-9)
+        assertEquals(1.0, withUnit("cot", "45", "°").numericValue, 1e-9)
+        // A hyperbolic function takes a number, not an angle or a length
+        assertTrue(withUnit("sinh", "2", "m").issues.contains(MathIssue.INVALID_UNIT))
+        assertTrue(withUnit("cosh", "30", "°").issues.contains(MathIssue.INVALID_UNIT))
+    }
+
+    @Test
+    fun reciprocalFunctionsOfComplexNumbers() {
+        fun complexCalc(name: String, vararg argument: MathNode) = runBlocking {
+            MathEngine.calculate(MathString(listOf(FunctionNode(name, MathString(argument.toList())))), MathContext(complexNumbers = true))
+        }
+        fun text(res: CalculationResult) = res.result.toString().replace(" ", "").replace("−", "-")
+        val i = ConstantNode("i")
+        // sec(i) = 1/cosh(1), csc(i) = −i/sinh(1), cot(i) = −i·coth(1)
+        assertEquals("0.6480542737", text(complexCalc("sec", i)))
+        assertEquals("-0.8509181282i", text(complexCalc("csc", i)))
+        assertEquals("-1.313035285i", text(complexCalc("cot", i)))
+        // tanh(iπ/4) = i·tan(π/4)
+        assertEquals("i", text(complexCalc("tanh", i, OperatorNode(MathOp.MULTIPLY), ConstantNode("π"), OperatorNode(MathOp.DIVIDE), NumberNode("4"))))
+        // Poles stay poles: cot(0), sech and csch of 0 + 0i
+        assertTrue(complexCalc("cot", NumberNode("0")).issues.contains(MathIssue.DIVISION_BY_ZERO))
+        assertTrue(complexCalc("csch", NumberNode("0")).issues.contains(MathIssue.DIVISION_BY_ZERO))
+    }
+
+    @Test
+    fun atanhAndAcothOfRationalsAreLogarithms() {
+        assertResult("(ln(3))/(2)", "atanh(1/2)")
+        assertResult("− (ln(3))/(2)", "atanh(-1/2)")
+        assertResult("0", "atanh(0)")
+        // ½·ln(4) = ln(2)
+        assertResult("ln(2)", "atanh(3/5)")
+        assertResult("(ln(3))/(2)", "acoth(2)")
+        assertResult("− (ln(2))/(2)", "acoth(-3)")
+        assertSolved("x = (ln(3))/(2)", "tanh(x)=1/2")
+        assertSolved("x = (ln(3))/(2)", "coth(x)=2")
+        assertSolved("x = − (ln(2))/(2)", "tanh(x)=-1/3")
     }
 }

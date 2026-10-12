@@ -113,7 +113,13 @@ internal class ComplexDouble(val re: Double, val im: Double) {
     fun toExpression(context: MathContext): Expression {
         val scale = max(abs(re), abs(im))
         fun clean(x: Double) = if (abs(x) <= NOISE * scale) 0.0 else x
-        return complexOf(Value(clean(re)), Value(clean(im)), context)
+        // 0.9999999999999999 is 1 (tanh(iπ/4) = i, not 1i with a decimal 1)
+        fun part(x: Double): Value {
+            val c = clean(x)
+            val whole = Math.rint(c)
+            return if (abs(c - whole) <= NOISE * max(1.0, abs(c)) && abs(whole) < 1e15) Value(whole.toLong()) else Value(c)
+        }
+        return complexOf(part(re), part(im), context)
     }
 
     private companion object {

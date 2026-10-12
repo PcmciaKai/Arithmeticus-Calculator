@@ -133,6 +133,15 @@ enum class StepRule {
     INTEGRAL_SINE,
     INTEGRAL_COSINE,
     INTEGRAL_TANGENT,
+    INTEGRAL_SECANT,
+    INTEGRAL_COSECANT,
+    INTEGRAL_COTANGENT,
+    INTEGRAL_HYPERBOLIC_SINE,
+    INTEGRAL_HYPERBOLIC_COSINE,
+    INTEGRAL_HYPERBOLIC_TANGENT,
+    INTEGRAL_HYPERBOLIC_COTANGENT,
+    INTEGRAL_HYPERBOLIC_SECANT,
+    INTEGRAL_HYPERBOLIC_COSECANT,
     /** ∫ ln(x) dx = x·ln(x) − x */
     INTEGRAL_LOGARITHM,
     /** sin², cos², 1/(p + qx²), 1/√(p − qx²) */
@@ -264,6 +273,16 @@ enum class StepRule {
     TRIG_ODD_POWER,
     /** sin²(x) + cos²(x) = 1 */
     PYTHAGOREAN_IDENTITY,
+    /** sec²(x) − tan²(x) = 1 */
+    SECANT_IDENTITY,
+    /** csc²(x) − cot²(x) = 1 */
+    COSECANT_IDENTITY,
+    /** cosh²(x) − sinh²(x) = 1 */
+    HYPERBOLIC_IDENTITY,
+    /** sec(x)·cos(x) = 1 */
+    RECIPROCAL_FUNCTIONS,
+    /** sinh(0) = 0, sinh(ln 2) = 3/4 */
+    EXACT_HYPERBOLIC_VALUE,
     /** 1/√2 = √2/2 */
     RATIONALIZE,
     /** sin(π/6) = 1/2 */

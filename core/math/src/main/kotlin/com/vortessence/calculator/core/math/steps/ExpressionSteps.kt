@@ -9,6 +9,7 @@ import com.vortessence.calculator.core.math.expressions.Expression
 import com.vortessence.calculator.core.math.expressions.Logarithm
 import com.vortessence.calculator.core.math.expressions.Multiplications
 import com.vortessence.calculator.core.math.expressions.Power
+import com.vortessence.calculator.core.math.expressions.HyperbolicFunction
 import com.vortessence.calculator.core.math.expressions.TrigonometricFunction
 import com.vortessence.calculator.core.math.expressions.Value
 import com.vortessence.calculator.core.math.expressions.Variable
@@ -49,13 +50,14 @@ internal object ExpressionSteps {
      */
     private fun isSupported(e: Expression, context: MathContext): Boolean {
         // Without variables only for what has an exact value: sin(π/6), log(100)
-        if (e.variables().isEmpty() && !e.containsExpressionMatching { it is TrigonometricFunction || it is Logarithm }) return false
+        if (e.variables().isEmpty() && !e.containsExpressionMatching { it is TrigonometricFunction || it is HyperbolicFunction || it is Logarithm }) return false
         val withVariables = e.variables().isNotEmpty()
         return !e.containsExpressionMatching { part ->
             when (part) {
                 is Value, is Variable, is Additions, is Multiplications, is Power, is Logarithm, is AbsoluteValue -> false
                 is Constant -> part.unit != null
                 is TrigonometricFunction -> withVariables && (part.angleUnit ?: context.angleUnit) == AngleUnit.DEGREES
+                is HyperbolicFunction -> false
                 else -> true
             }
         }

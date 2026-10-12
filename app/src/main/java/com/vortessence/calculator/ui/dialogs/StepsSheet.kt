@@ -530,6 +530,15 @@ private val StepRule.descriptionRes: Int
         StepRule.INTEGRAL_SINE -> R.string.step_integral_sine
         StepRule.INTEGRAL_COSINE -> R.string.step_integral_cosine
         StepRule.INTEGRAL_TANGENT -> R.string.step_integral_tangent
+        StepRule.INTEGRAL_SECANT -> R.string.step_integral_secant
+        StepRule.INTEGRAL_COSECANT -> R.string.step_integral_cosecant
+        StepRule.INTEGRAL_COTANGENT -> R.string.step_integral_cotangent
+        StepRule.INTEGRAL_HYPERBOLIC_SINE -> R.string.step_integral_sinh
+        StepRule.INTEGRAL_HYPERBOLIC_COSINE -> R.string.step_integral_cosh
+        StepRule.INTEGRAL_HYPERBOLIC_TANGENT -> R.string.step_integral_tanh
+        StepRule.INTEGRAL_HYPERBOLIC_COTANGENT -> R.string.step_integral_coth
+        StepRule.INTEGRAL_HYPERBOLIC_SECANT -> R.string.step_integral_sech
+        StepRule.INTEGRAL_HYPERBOLIC_COSECANT -> R.string.step_integral_csch
         StepRule.INTEGRAL_LOGARITHM -> R.string.step_integral_logarithm
         StepRule.INTEGRAL_TABLE -> R.string.step_integral_table
         StepRule.EXPAND_INTEGRAND -> R.string.step_expand_integrand
@@ -573,6 +582,11 @@ private val StepRule.descriptionRes: Int
         StepRule.RATIONALIZE -> R.string.step_rationalize
         StepRule.TRIG_ODD_POWER -> R.string.step_trig_odd_power
         StepRule.PYTHAGOREAN_IDENTITY -> R.string.step_pythagorean_identity
+        StepRule.SECANT_IDENTITY -> R.string.step_secant_identity
+        StepRule.COSECANT_IDENTITY -> R.string.step_cosecant_identity
+        StepRule.HYPERBOLIC_IDENTITY -> R.string.step_hyperbolic_identity
+        StepRule.RECIPROCAL_FUNCTIONS -> R.string.step_reciprocal_functions
+        StepRule.EXACT_HYPERBOLIC_VALUE -> R.string.step_exact_hyperbolic_value
         StepRule.HALF_ANGLE -> R.string.step_half_angle
         StepRule.POLYNOMIAL_DIVISION -> R.string.step_polynomial_division
         StepRule.CYCLIC_BY_PARTS -> R.string.step_cyclic_by_parts
@@ -709,9 +723,9 @@ internal fun StepRule.formula(language: Language): String? {
         StepRule.DIVIDE_BY_FRACTION -> "\\frac{1}{\\frac{a}{b}} = \\frac{b}{a}"
         StepRule.EXTEND_FRACTIONS -> "\\frac{a}{b} = \\frac{a·c}{b·c}"
         StepRule.TANGENT_AS_FRACTION -> "tan(u) = \\frac{sin(u)}{cos(u)}"
-        StepRule.RECIPROCAL_EQUATION -> "sec(u) = c\\text{  ⇔  }cos(u) = \\frac{1}{c}\\text{,  }csc(u) = c\\text{  ⇔  }sin(u) = \\frac{1}{c}\\text{,  }cot(u) = c\\text{  ⇔  }tan(u) = \\frac{1}{c}"
-        StepRule.RECIPROCAL_TRIGONOMETRIC -> "sec(u) = \\frac{1}{cos(u)}\\text{,  }csc(u) = \\frac{1}{sin(u)}\\text{,  }cot(u) = \\frac{cos(u)}{sin(u)}"
-        StepRule.HYPERBOLIC_SOLUTION -> "sinh(u) = c\\text{  ⇔  }u = asinh(c)\\text{,  }cosh(u) = c\\text{  ⇔  }u = ±acosh(c)"
+        StepRule.RECIPROCAL_EQUATION -> "sec(u) = c\\text{  ⇔  }cos(u) = \\frac{1}{c}"
+        StepRule.RECIPROCAL_TRIGONOMETRIC -> "sec(u) = \\frac{1}{cos(u)}\\text{,  }cot(u) = \\frac{cos(u)}{sin(u)}"
+        StepRule.HYPERBOLIC_SOLUTION -> "sinh(u) = c\\text{  ⇔  }u = asinh(c)"
         StepRule.EXACT_TRIGONOMETRIC_VALUE -> "sin(\\frac{π}{6}) = \\frac{1}{2}\\text{,  }cos(\\frac{π}{3}) = \\frac{1}{2}\\text{,  }tan(\\frac{π}{4}) = 1"
         StepRule.LOGARITHM_OF_POWER -> "\\log{b}{b^n} = n"
         StepRule.EXPONENTIAL_OF_LOGARITHM -> "b^{\\log{b}{x}} = x"
@@ -720,6 +734,11 @@ internal fun StepRule.formula(language: Language): String? {
         StepRule.CYCLIC_BY_PARTS -> "I = \\int{e^{px}sin(qx)}{x}\\text{${w(Text.FORMULA_BY_PARTS_TWICE)}}"
         StepRule.HALF_ANGLE -> "sin^2(u) = \\frac{1 − cos(2u)}{2}\\text{,  }cos^2(u) = \\frac{1 + cos(2u)}{2}"
         StepRule.PYTHAGOREAN_IDENTITY -> "sin^2(x) + cos^2(x) = 1"
+        StepRule.SECANT_IDENTITY -> "sec^2(x) − tan^2(x) = 1"
+        StepRule.COSECANT_IDENTITY -> "csc^2(x) − cot^2(x) = 1"
+        StepRule.HYPERBOLIC_IDENTITY -> "cosh^2(x) − sinh^2(x) = 1"
+        StepRule.RECIPROCAL_FUNCTIONS -> "sec(x)·cos(x) = 1\\text{,  }cot(x)·tan(x) = 1"
+        StepRule.EXACT_HYPERBOLIC_VALUE -> "cosh(0) = 1\\text{,  }sinh(ln(2)) = \\frac{3}{4}"
         StepRule.TRIG_ODD_POWER -> "sin^3(x) = sin(x)(1 − cos^2(x))"
         StepRule.RATIONALIZE -> "\\frac{1}{\\sqrt{a}} = \\frac{\\sqrt{a}}{\\sqrt{a}\\sqrt{a}} = \\frac{\\sqrt{a}}{a}"
         StepRule.LOG_COMBINE -> "\\log{b}{x} + \\log{b}{y} = \\log{b}{xy}\\text{,  }\\log{b}{x} − \\log{b}{y} = \\log{b}{\\frac{x}{y}}"
@@ -757,6 +776,15 @@ internal fun StepRule.formula(language: Language): String? {
         StepRule.INTEGRAL_SINE -> "\\int{sin(x)}{x} = −cos(x)"
         StepRule.INTEGRAL_COSINE -> "\\int{cos(x)}{x} = sin(x)"
         StepRule.INTEGRAL_TANGENT -> "\\int{tan(x)}{x} = −ln(|cos(x)|)"
+        StepRule.INTEGRAL_SECANT -> "\\int{sec(x)}{x} = ln(|sec(x) + tan(x)|)"
+        StepRule.INTEGRAL_COSECANT -> "\\int{csc(x)}{x} = −ln(|csc(x) + cot(x)|)"
+        StepRule.INTEGRAL_COTANGENT -> "\\int{cot(x)}{x} = ln(|sin(x)|)"
+        StepRule.INTEGRAL_HYPERBOLIC_SINE -> "\\int{sinh(x)}{x} = cosh(x)"
+        StepRule.INTEGRAL_HYPERBOLIC_COSINE -> "\\int{cosh(x)}{x} = sinh(x)"
+        StepRule.INTEGRAL_HYPERBOLIC_TANGENT -> "\\int{tanh(x)}{x} = ln(cosh(x))"
+        StepRule.INTEGRAL_HYPERBOLIC_COTANGENT -> "\\int{coth(x)}{x} = ln(|sinh(x)|)"
+        StepRule.INTEGRAL_HYPERBOLIC_SECANT -> "\\int{sech(x)}{x} = atan(sinh(x))"
+        StepRule.INTEGRAL_HYPERBOLIC_COSECANT -> "\\int{csch(x)}{x} = ln(|tanh(\\frac{x}{2})|)"
         StepRule.INTEGRAL_LOGARITHM -> "\\int{ln(x)}{x} = x·ln(x) − x"
         StepRule.SUBSTITUTION -> "\\int{f(g(x))·g′(x)}{x} = \\int{f(u)}{u}"
         StepRule.BY_PARTS -> "\\int{u}{v} = u·v − \\int{v}{u}"

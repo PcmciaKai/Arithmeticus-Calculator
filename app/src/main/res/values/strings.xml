@@ -43,9 +43,9 @@
     <string name="step_multiply_numbers">Multiply numbers</string>
     <string name="step_extend_fractions">Give the fractions a common denominator</string>
     <string name="step_tangent_as_fraction">Write the tangent as sine over cosine</string>
-    <string name="step_reciprocal_equation">Take the reciprocal of both sides</string>
+    <string name="step_reciprocal_equation">Take the reciprocal of both sides: secant ↔ cosine, cosecant ↔ sine, cotangent ↔ tangent</string>
     <string name="step_reciprocal_trigonometric">Write the secant, cosecant and cotangent with sine and cosine</string>
-    <string name="step_hyperbolic_solution">Apply the inverse hyperbolic function (cosh and sech also have the negative solution)</string>
+    <string name="step_hyperbolic_solution">Apply the inverse hyperbolic function (for cosh and sech the negative value is a solution too)</string>
     <string name="step_exact_trigonometric_value">The exact value of a special angle (unit circle)</string>
     <string name="step_logarithm_of_power">The logarithm of a power of its base is the exponent</string>
     <string name="step_exponential_of_logarithm">A power of the base with its logarithm as the exponent is the number</string>
@@ -54,6 +54,11 @@
     <string name="step_cyclic_by_parts">Integrate by parts twice: the same integral comes back, solve for it</string>
     <string name="step_half_angle">Write the square of the sine or cosine with the double angle</string>
     <string name="step_pythagorean_identity">The square of the sine plus the square of the cosine of the same angle is 1</string>
+    <string name="step_secant_identity">The square of the secant minus the square of the tangent of the same angle is 1</string>
+    <string name="step_cosecant_identity">The square of the cosecant minus the square of the cotangent of the same angle is 1</string>
+    <string name="step_hyperbolic_identity">The square of the hyperbolic cosine minus the square of the hyperbolic sine of the same number is 1</string>
+    <string name="step_reciprocal_functions">A function times its reciprocal function of the same angle is 1</string>
+    <string name="step_exact_hyperbolic_value">The exact value of a hyperbolic function (at 0, or at a logarithm)</string>
     <string name="step_trig_odd_power">An odd power of the sine or cosine: keep one factor, write the rest with the other function</string>
     <string name="step_rationalize">Remove the root from the denominator: multiply numerator and denominator by it</string>
     <string name="step_divide_by_negative">Divide both sides by a negative number: the inequality sign turns around</string>
@@ -107,6 +112,15 @@
     <string name="step_integral_sine">Integrate the sine</string>
     <string name="step_integral_cosine">Integrate the cosine</string>
     <string name="step_integral_tangent">Integrate the tangent</string>
+    <string name="step_integral_secant">Integrate the secant</string>
+    <string name="step_integral_cosecant">Integrate the cosecant</string>
+    <string name="step_integral_cotangent">Integrate the cotangent</string>
+    <string name="step_integral_sinh">Integrate the hyperbolic sine</string>
+    <string name="step_integral_cosh">Integrate the hyperbolic cosine</string>
+    <string name="step_integral_tanh">Integrate the hyperbolic tangent</string>
+    <string name="step_integral_coth">Integrate the hyperbolic cotangent</string>
+    <string name="step_integral_sech">Integrate the hyperbolic secant</string>
+    <string name="step_integral_csch">Integrate the hyperbolic cosecant</string>
     <string name="step_integral_logarithm">Integrate the logarithm</string>
     <string name="step_integral_table">Use a standard integral</string>
     <string name="step_expand_integrand">Multiply out the integrand</string>
@@ -131,8 +145,8 @@
     <string name="step_square_both_sides">Square both sides</string>
     <string name="step_trig_general_solution">The function repeats: add whole periods, 2π for sine and cosine, π for tangent</string>
     <string name="step_divide_by_highest_power">Divide numerator and denominator by the highest power of the denominator</string>
-    <string name="step_trig_inequality_isolate">Get the sine, cosine or tangent on its own</string>
-    <string name="step_trig_inequality_period">Inside one period the solution is a single interval, found from the inverse function; every period gives the same one again, 2kπ later (kπ for the tangent)</string>
+    <string name="step_trig_inequality_isolate">Get the trigonometric function on its own</string>
+    <string name="step_trig_inequality_period">Inside one period the solution is one interval or two, found from the inverse function; every period gives the same ones again, 2kπ later (kπ for tangent and cotangent)</string>
     <string name="step_trig_inequality_solve_x">Now the inside is x: subtract and divide on every part</string>
     <string name="step_trig_inequality_bounded">Sine and cosine are always between −1 and 1</string>
     <string name="step_substitute_ratio">Every term has degree 2: divide by x² and write t = y/x (x = 0 is no solution of this equation, it is checked on its own)</string>

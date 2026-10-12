@@ -10,7 +10,10 @@ import com.vortessence.calculator.core.math.expressions.LogarithmRules
 import com.vortessence.calculator.core.math.expressions.MixedNumber
 import com.vortessence.calculator.core.math.expressions.Percent
 import com.vortessence.calculator.core.math.expressions.Multiplications
+import com.vortessence.calculator.core.math.expressions.HyperbolicFunction
+import com.vortessence.calculator.core.math.expressions.HyperbolicType
 import com.vortessence.calculator.core.math.expressions.TrigType
+import com.vortessence.calculator.core.math.expressions.reciprocalPartner
 import com.vortessence.calculator.core.math.expressions.TrigonometricFunction
 import com.vortessence.calculator.core.math.expressions.PartialFractions
 import com.vortessence.calculator.core.math.expressions.pythagoreanSum
@@ -55,10 +58,11 @@ internal object SimplificationSteps {
             ?: products.firstNotNullOfOrNull { multiplyNumbers(it, context) }
             ?: powers.firstNotNullOfOrNull { powerOfPower(at(e, it), it, context) }
             ?: powers.firstNotNullOfOrNull { powerOfProduct(at(e, it), it) }
-            ?: pathsOf(e) { it is TrigonometricFunction }.firstNotNullOfOrNull { exactTrigonometricValue(at(e, it), it, context) }
+            ?: pathsOf(e) { it is TrigonometricFunction || it is HyperbolicFunction }.firstNotNullOfOrNull { exactTrigonometricValue(at(e, it), it, context) }
             ?: pathsOf(e) { it is Logarithm }.firstNotNullOfOrNull { logarithmOfPower(at(e, it), it, context) }
             ?: powers.firstNotNullOfOrNull { exponentialOfLogarithm(at(e, it), it) }
             ?: products.firstNotNullOfOrNull { if (tangents) tangentFromQuotient(it) else null }
+            ?: products.firstNotNullOfOrNull { reciprocalFunctions(it, context) }
             ?: products.firstNotNullOfOrNull { combinePowers(it, context) }
             ?: products.firstNotNullOfOrNull { cancelCommonFactor(it, context) }
             ?: sums.firstNotNullOfOrNull { subtractSameSum(it, context) }
@@ -500,17 +504,31 @@ internal object SimplificationSteps {
         return Match(if (result is AbsoluteValue) StepRule.ROOT_OF_SQUARE else StepRule.POWER_OF_POWER, mapOf(path to result), power, result)
     }
 
-    /** sin(π/6) = 1/2, cos(π) = −1, tan(π/4) = 1: the exact values of the special angles. */
+    /** sin(π/6) = 1/2, cos(π) = −1, tan(π/4) = 1, sinh(0) = 0, sinh(ln 2) = 3/4: the exact values of the special angles and numbers. */
     private fun exactTrigonometricValue(e: Expression, path: Path, context: MathContext): Match? {
-        val function = unmarked(e) as? TrigonometricFunction ?: return null
-        if (function.operand.variables().isNotEmpty()) return null
+        val function = unmarked(e)
+        val operand = (function as? TrigonometricFunction)?.operand ?: (function as? HyperbolicFunction)?.operand ?: return null
+        if (operand.variables().isNotEmpty()) return null
         // sin(π/2 + π/2): the angle is simplified first
-        if (canonical(function.operand, context) != function.operand) return null
+        if (canonical(operand, context) != operand) return null
         val value = canonical(function, context)
-        if (value == function || value.containsExpressionMatching { it is TrigonometricFunction }) return null
+        if (value == function || value.containsExpressionMatching { it is TrigonometricFunction || it is HyperbolicFunction }) return null
         // A decimal is no exact value
         if (value is Value && value.rational == null) return null
-        return Match(StepRule.EXACT_TRIGONOMETRIC_VALUE, mapOf(path to value), function, value)
+        val rule = if (function is HyperbolicFunction) StepRule.EXACT_HYPERBOLIC_VALUE else StepRule.EXACT_TRIGONOMETRIC_VALUE
+        return Match(rule, mapOf(path to value), function, value)
+    }
+
+    /** sec(x)·cos(x) = 1, csc(x)·sin(x) = 1, cot(x)·tan(x) = 1 and the same for the hyperbolic functions (also with powers). */
+    private fun reciprocalFunctions(factors: List<Part>, context: MathContext): Match? {
+        fun function(e: Expression) = if (e is Power) e.base else e
+        for (i in factors.indices) for (j in i + 1 until factors.size) {
+            val partner = reciprocalPartner(function(factors[i].expression)) ?: continue
+            if (partner != function(factors[j].expression)) continue
+            val before = Multiplications(factors[i].expression, factors[j].expression)
+            return merge(StepRule.RECIPROCAL_FUNCTIONS, listOf(factors[i], factors[j]), before, canonical(before, context), Value.ONE)
+        }
+        return null
     }
 
     /** log(100) = log(10²) = 2, ln(eˣ) = x. */
@@ -610,12 +628,20 @@ internal object SimplificationSteps {
         return Match(StepRule.EXPAND_POWER, mapOf(path to expanded), power, expanded)
     }
 
-    /** sin²(x) + cos²(x) = 1, also times the same factors: 3sin²x + 3cos²x = 3. */
+    /** sin²(x) + cos²(x) = 1, sec²(x) − tan²(x) = 1 and the like, also times the same factors: 3sin²x + 3cos²x = 3. */
     private fun pythagoreanIdentity(terms: List<Part>, context: MathContext): Match? {
         for (i in terms.indices) for (j in i + 1 until terms.size) {
             val combined = pythagoreanSum(terms[i].expression, terms[j].expression) ?: continue
             val result = canonical(combined, context)
-            return merge(StepRule.PYTHAGOREAN_IDENTITY, listOf(terms[i], terms[j]), Additions(terms[i].expression, terms[j].expression), result, Value.ZERO)
+            val before = Additions(terms[i].expression, terms[j].expression)
+            fun mentions(test: (Expression) -> Boolean) = before.containsExpressionMatching(test)
+            val rule = when {
+                mentions { it is HyperbolicFunction } -> StepRule.HYPERBOLIC_IDENTITY
+                mentions { it is TrigonometricFunction && it.type == TrigType.SEC } -> StepRule.SECANT_IDENTITY
+                mentions { it is TrigonometricFunction && it.type == TrigType.CSC } -> StepRule.COSECANT_IDENTITY
+                else -> StepRule.PYTHAGOREAN_IDENTITY
+            }
+            return merge(rule, listOf(terms[i], terms[j]), before, result, Value.ZERO)
         }
         return null
     }

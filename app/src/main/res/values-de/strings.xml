@@ -206,7 +206,7 @@
     <string name="step_multiply_numbers">Zahlen multiplizieren</string>
     <string name="step_extend_fractions">Bringe die Brüche auf den Hauptnenner</string>
     <string name="step_tangent_as_fraction">Schreibe den Tangens als Sinus durch Kosinus</string>
-    <string name="step_reciprocal_equation">Bilde auf beiden Seiten den Kehrwert</string>
+    <string name="step_reciprocal_equation">Bilde auf beiden Seiten den Kehrwert: Sekans ↔ Kosinus, Kosekans ↔ Sinus, Kotangens ↔ Tangens</string>
     <string name="step_reciprocal_trigonometric">Schreibe Sekans, Kosekans und Kotangens mit Sinus und Kosinus</string>
     <string name="step_hyperbolic_solution">Wende die Areafunktion an (bei Kosinus hyperbolicus und Sekans hyperbolicus gibt es auch die negative Lösung)</string>
     <string name="step_exact_trigonometric_value">Der exakte Wert eines besonderen Winkels (Einheitskreis)</string>
@@ -217,6 +217,11 @@
     <string name="step_cyclic_by_parts">Integriere zweimal partiell: dasselbe Integral kommt zurück, löse danach auf</string>
     <string name="step_half_angle">Schreibe das Quadrat von Sinus oder Kosinus mit dem doppelten Winkel</string>
     <string name="step_pythagorean_identity">Das Quadrat des Sinus plus das Quadrat des Kosinus desselben Winkels ist 1</string>
+    <string name="step_secant_identity">Das Quadrat des Sekans minus das Quadrat des Tangens desselben Winkels ist 1</string>
+    <string name="step_cosecant_identity">Das Quadrat des Kosekans minus das Quadrat des Kotangens desselben Winkels ist 1</string>
+    <string name="step_hyperbolic_identity">Das Quadrat des Kosinus hyperbolicus minus das Quadrat des Sinus hyperbolicus derselben Zahl ist 1</string>
+    <string name="step_reciprocal_functions">Eine Funktion mal ihre Kehrwertfunktion desselben Winkels ist 1</string>
+    <string name="step_exact_hyperbolic_value">Der exakte Wert einer Hyperbelfunktion (bei 0 oder bei einem Logarithmus)</string>
     <string name="step_trig_odd_power">Eine ungerade Potenz von Sinus oder Kosinus: einen Faktor stehen lassen, den Rest mit der anderen Funktion schreiben</string>
     <string name="step_rationalize">Entferne die Wurzel aus dem Nenner: erweitere mit ihr</string>
     <string name="step_divide_by_negative">Dividiere beide Seiten durch eine negative Zahl: das Ungleichheitszeichen dreht sich um</string>
@@ -270,6 +275,15 @@
     <string name="step_integral_sine">Integriere den Sinus</string>
     <string name="step_integral_cosine">Integriere den Kosinus</string>
     <string name="step_integral_tangent">Integriere den Tangens</string>
+    <string name="step_integral_secant">Integriere den Sekans</string>
+    <string name="step_integral_cosecant">Integriere den Kosekans</string>
+    <string name="step_integral_cotangent">Integriere den Kotangens</string>
+    <string name="step_integral_sinh">Integriere den Sinus hyperbolicus</string>
+    <string name="step_integral_cosh">Integriere den Kosinus hyperbolicus</string>
+    <string name="step_integral_tanh">Integriere den Tangens hyperbolicus</string>
+    <string name="step_integral_coth">Integriere den Kotangens hyperbolicus</string>
+    <string name="step_integral_sech">Integriere den Sekans hyperbolicus</string>
+    <string name="step_integral_csch">Integriere den Kosekans hyperbolicus</string>
     <string name="step_integral_logarithm">Integriere den Logarithmus</string>
     <string name="step_integral_table">Verwende ein Grundintegral</string>
     <string name="step_expand_integrand">Multipliziere den Integranden aus</string>
@@ -294,8 +308,8 @@
     <string name="step_square_both_sides">Quadriere beide Seiten</string>
     <string name="step_trig_general_solution">Die Funktion wiederholt sich: ganze Perioden addieren, 2π bei Sinus und Kosinus, π beim Tangens</string>
     <string name="step_divide_by_highest_power">Teile Zähler und Nenner durch die höchste Potenz des Nenners</string>
-    <string name="step_trig_inequality_isolate">Stelle den Sinus, Kosinus oder Tangens frei</string>
-    <string name="step_trig_inequality_period">Innerhalb einer Periode ist die Lösung ein einzelnes Intervall, gefunden mit der Umkehrfunktion; jede Periode liefert dasselbe Intervall erneut, 2kπ später (kπ beim Tangens)</string>
+    <string name="step_trig_inequality_isolate">Stelle die trigonometrische Funktion frei</string>
+    <string name="step_trig_inequality_period">Innerhalb einer Periode besteht die Lösung aus einem oder zwei Intervallen, gefunden mit der Umkehrfunktion; jede Periode liefert dieselben erneut, 2kπ später (kπ bei Tangens und Kotangens)</string>
     <string name="step_trig_inequality_solve_x">Jetzt nach x auflösen: auf jedem Teil subtrahieren und dividieren</string>
     <string name="step_trig_inequality_bounded">Sinus und Kosinus liegen immer zwischen −1 und 1</string>
     <string name="step_substitute_ratio">Jeder Term hat den Grad 2: dividiere durch x² und schreibe t = y/x (x = 0 ist keine Lösung dieser Gleichung, das wird einzeln geprüft)</string>

@@ -45,28 +45,77 @@ object NumericRootFinder {
             ) {
                 val touch = minimizeAbs(function, xBefore, x1)?.let { refineByDerivative(function, xBefore, x1, it) }
                 val scale = max(1.0, max(abs(yBefore), abs(y1)))
-                if (touch != null && abs(function.evaluateAt(touch)) <= 1e-12 * scale) addRoot(touch)
+                // At a touching root the slope is 0: the values on both sides are alike (not so for rounding noise)
+                if (touch != null && abs(function.evaluateAt(touch)) <= 1e-12 * scale && isSmoothAt(function, touch, 0.0, yBefore, y1)) addRoot(touch)
             }
+            val yPrevious = yBefore
             xBefore = x0
             yBefore = y0
 
             if (y0.isFinite() && y1.isFinite()) {
-                if (abs(y0) < 1e-12) {
+                if (abs(y0) < 1e-12 && isZeroAmongNeighbors(y0, yPrevious, y1) &&
+                    isSmoothAt(function, x0, if (yPrevious.isFinite()) (y1 - yPrevious) / (2.0 * stepSize) else (y1 - y0) / stepSize, y1, yPrevious)
+                ) {
                     addRoot(x0)
                 } else if (y0 * y1 < 0.0) {
                     val root = bisection(function, x0, x1)
                     // A true root makes |f| small; at a pole |f| grows instead of shrinking
-                    if (root != null && abs(function.evaluateAt(root)) <= 1e-6 * max(1.0, min(abs(y0), abs(y1)))) {
+                    if (root != null && abs(function.evaluateAt(root)) <= 1e-6 * max(1.0, min(abs(y0), abs(y1))) &&
+                        crossesOnce(function, x0, x1, y0, y1) && isSmoothAt(function, root, (y1 - y0) / (x1 - x0), y0, y1)
+                    ) {
                         addRoot(root)
                     }
                 }
-                if (i == steps && abs(y1) < 1e-12) addRoot(x1)
+                if (i == steps && abs(y1) < 1e-12 && isZeroAmongNeighbors(y1, y0, Double.NaN) &&
+                    isSmoothAt(function, x1, (y1 - y0) / stepSize, y1, y0)) addRoot(x1)
             }
 
             x0 = x1
             y0 = y1
         }
         return roots
+    }
+
+    /**
+     * Whether a sample [y] that is nearly 0 is a zero of the function and not just a value on the way to 0, or a stretch of 0
+     * (e^(−x), sech x and cosh x − sinh x are below 1e-12 from some x on, but never reach it): next to a zero the function is
+     * clearly different from 0 on both sides, and far bigger than at the zero. A neighbor of 1e-9 or less is hardly different
+     * from 0 itself.
+     */
+    private fun isZeroAmongNeighbors(y: Double, before: Double, after: Double): Boolean {
+        val neighbors = listOf(before, after).filter { it.isFinite() }.map { abs(it) }
+        if (neighbors.isEmpty()) return true
+        return neighbors.all { it >= 1e-9 } && (y == 0.0 || abs(y) <= 1e-3 * neighbors.min())
+    }
+
+    /**
+     * Whether f near the root [x] changes the way the slope [bracketSlope] across the bracket says. Next to a root the values of
+     * a smooth function agree with it; rounding noise (cosh x − sinh x is 1e-8 noise for x = 19) differs between points that
+     * are close together.
+     */
+    private fun isSmoothAt(function: Function1D, x: Double, bracketSlope: Double, ya: Double, yb: Double): Boolean {
+        val delta = 1e-6 * max(1.0, abs(x))
+        val left = function.evaluateAt(x - delta)
+        val right = function.evaluateAt(x + delta)
+        if (!left.isFinite() || !right.isFinite() || !bracketSlope.isFinite()) return true
+        return abs(right - left) <= 10.0 * abs(2.0 * delta * bracketSlope) + 1e-12 * max(1.0, max(abs(ya), abs(yb)))
+    }
+
+    /**
+     * Whether f changes sign exactly once between [a] and [b] (f(a) and f(b) have different signs): rounding noise, as in
+     * cosh x − sinh x for large x, changes sign back and forth instead.
+     */
+    private fun crossesOnce(function: Function1D, a: Double, b: Double, ya: Double, yb: Double): Boolean {
+        var changes = 0
+        var previous = ya
+        for (i in 1..8) {
+            val y = function.evaluateAt(a + (b - a) * i / 9.0)
+            if (!y.isFinite()) return true
+            if (y != 0.0 && previous != 0.0 && y * previous < 0.0) changes++
+            if (y != 0.0) previous = y
+        }
+        if (yb != 0.0 && previous != 0.0 && yb * previous < 0.0) changes++
+        return changes <= 1
     }
 
     /**
