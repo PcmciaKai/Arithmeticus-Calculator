@@ -27,6 +27,7 @@ import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.automirrored.filled.KeyboardReturn
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.AutoGraph
+import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Straighten
@@ -136,6 +137,8 @@ sealed class KeyAction {
     data object Product : KeyAction()
     /** lim x→a. */
     data object Limit : KeyAction()
+    /** Opens the system keyboard to type any letter as a variable (also capitals, for matrices). */
+    data object FreeVariable : KeyAction()
     /** The imaginary unit i (turns complex numbers on if they are off). */
     data object ImaginaryUnit : KeyAction()
     /** A complex number in angle notation r∠θ (also turns complex numbers on). */
@@ -177,7 +180,6 @@ fun CalculatorKeypad(
     fun alt(label: CharSequence, action: KeyAction) = KeyAlternate(
         label as? AnnotatedString ?: AnnotatedString(label.toString())
     ) { onKeyAction(action) }
-    // Letters that do not look like a constant (e, c, h, ...) or a unit (g, d, ...)
     fun variableAlternates(vararg names: String) = names.map { alt(it, KeyAction.Variable(it)) }
 
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
@@ -444,13 +446,7 @@ fun CalculatorKeypad(
                     // Long press: convert to a unit ("5 km → mi"); the popup shows the arrow
                     KeyButton(
                         buttonWidth = buttonWidth,
-                        content = {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                                Icon(Icons.Default.Straighten, contentDescription = stringResource(R.string.keypad_units), tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.height(2.dp))
-                                Text(stringResource(R.string.keypad_units), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                            }
-                        },
+                        content = { IconLabel(Icons.Default.Straighten, stringResource(R.string.keypad_units), stringResource(R.string.keypad_units)) },
                         popupIcon = Icons.Default.Straighten,
                         alternates = listOf(
                             KeyAlternate(AnnotatedString("→"), Icons.AutoMirrored.Filled.ArrowRightAlt) { onKeyAction(KeyAction.Convert) }
@@ -458,13 +454,7 @@ fun CalculatorKeypad(
                     ) { onKeyAction(KeyAction.OpenUnits) }
                     KeyButton(
                         buttonWidth = buttonWidth,
-                        content = {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                                Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = stringResource(R.string.keypad_formulas), tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.height(2.dp))
-                                Text(stringResource(R.string.keypad_formulas), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                            }
-                        }
+                        content = { IconLabel(Icons.AutoMirrored.Filled.MenuBook, stringResource(R.string.keypad_formulas), stringResource(R.string.keypad_formulas)) }
                     ) { onKeyAction(KeyAction.OpenFormulas) }
                 }
 
@@ -501,7 +491,7 @@ fun CalculatorKeypad(
                     KeyButton(
                         text = "π",
                         buttonWidth = buttonWidth,
-                        alternates = listOf(alt("e", KeyAction.Constant("e")), KeyAlternate(AnnotatedString(stringResource(R.string.keypad_infinity)), InfinityIcon) { onKeyAction(KeyAction.Constant("∞")) })
+                        alternates = listOf(KeyAlternate(AnnotatedString(stringResource(R.string.keypad_infinity)), InfinityIcon) { onKeyAction(KeyAction.Constant("∞")) })
                     ) { onKeyAction(KeyAction.Constant("π")) }
 
                     // Page 1 (cols 4..8)
@@ -526,23 +516,11 @@ fun CalculatorKeypad(
                     // Page 2 (cols 9..10)
                     KeyButton(
                         buttonWidth = buttonWidth,
-                        content = {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                                Icon(Icons.Default.Science, contentDescription = stringResource(R.string.keypad_constants), tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.height(2.dp))
-                                Text(stringResource(R.string.keypad_constants_short), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                            }
-                        }
+                        content = { IconLabel(Icons.Default.Science, stringResource(R.string.keypad_constants_short), stringResource(R.string.keypad_constants)) }
                     ) { onKeyAction(KeyAction.OpenConstants) }
                     KeyButton(
                         buttonWidth = buttonWidth,
-                        content = {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                                Icon(Icons.Default.AutoGraph, contentDescription = stringResource(R.string.keypad_graph_2d), tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.height(2.dp))
-                                Text(stringResource(R.string.keypad_graph), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                            }
-                        }
+                        content = { IconLabel(Icons.Default.AutoGraph, stringResource(R.string.keypad_graph), stringResource(R.string.keypad_graph_2d)) }
                     ) { onKeyAction(KeyAction.OpenGraph) }
                 }
 
@@ -565,18 +543,14 @@ fun CalculatorKeypad(
                     KeyButton(
                         text = "x",
                         buttonWidth = buttonWidth,
-                        alternates = variableAlternates("a", "f", "j")
+                        alternates = variableAlternates("y", "z")
                     ) { onKeyAction(KeyAction.Variable("x")) }
+                    // Any other letter (capitals too, e.g. for matrices) comes from the system keyboard
                     KeyButton(
-                        text = "y",
                         buttonWidth = buttonWidth,
-                        alternates = variableAlternates("k", "n", "p")
-                    ) { onKeyAction(KeyAction.Variable("y")) }
-                    KeyButton(
-                        text = "z",
-                        buttonWidth = buttonWidth,
-                        alternates = variableAlternates("q", "r", "u")
-                    ) { onKeyAction(KeyAction.Variable("z")) }
+                        content = { IconLabel(Icons.Default.Keyboard, "abc", stringResource(R.string.keypad_variable)) }
+                    ) { onKeyAction(KeyAction.FreeVariable) }
+                    KeyButton(text = "e", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Constant("e")) }
 
                     // Page 1 (cols 4..8)
                     KeyButton(text = "0", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("0")) }
@@ -619,17 +593,23 @@ fun CalculatorKeypad(
                     KeyButton(text = "Ans", buttonWidth = buttonWidth, textColor = MaterialTheme.colorScheme.onPrimaryContainer) { onKeyAction(KeyAction.Ans) }
                     KeyButton(
                         buttonWidth = buttonWidth,
-                        content = {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                                Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.keypad_settings), tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.height(2.dp))
-                                Text(stringResource(R.string.keypad_settings), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                            }
-                        }
+                        content = { IconLabel(Icons.Default.Settings, stringResource(R.string.keypad_settings), stringResource(R.string.keypad_settings)) }
                     ) { onKeyAction(KeyAction.OpenSettings) }
                 }
             }
         }
+    }
+}
+
+/**
+ * A key with an icon over a short label. The label has the line height of its size: the theme's
+ * (24sp) would leave a gap of several dp between icon and text.
+ */
+@Composable
+private fun IconLabel(icon: ImageVector, label: String, contentDescription: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        Icon(icon, contentDescription = contentDescription, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(18.dp))
+        Text(label, fontSize = 11.sp, lineHeight = 12.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
     }
 }
 

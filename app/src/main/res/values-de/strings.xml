@@ -121,8 +121,13 @@
     <string name="matrix_insert">Einfügen</string>
     <string name="common_cancel">Abbrechen</string>
     <string name="variable_title">Variable</string>
-    <string name="variable_hint">Ein Kleinbuchstabe, nicht e oder i</string>
-    <string name="common_ok">OK</string>
+    <string name="variable_prompt">Tippe einen Buchstaben</string>
+    <string name="variable_is_constant">%1$s ist eine Konstante</string>
+    <string name="variable_is_transpose">T steht für die Transponierte einer Matrix</string>
+    <string name="variable_hint_derivative">Nach %1$s ableiten</string>
+    <string name="variable_hint_integral">Nach %1$s integrieren</string>
+    <string name="keypad_variable">Buchstabe</string>
+    <string name="typing_hint">Buchstaben sind Variablen: ab bedeutet a · b. Ein Funktionsname und ( wie sin( oder mean( beginnt diese Funktion.</string>
     <string name="notice_complex_on">Komplexe Zahlen sind jetzt eingeschaltet. Du kannst sie in den Einstellungen ausschalten.</string>
     <string name="message_copied">Kopiert</string>
     <string name="message_cant_paste">„%1$s“ kann nicht als Rechenausdruck eingefügt werden</string>

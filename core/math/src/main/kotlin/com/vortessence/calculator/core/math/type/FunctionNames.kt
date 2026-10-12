@@ -1,0 +1,34 @@
+package com.vortessence.calculator.core.math.type
+
+import com.vortessence.calculator.core.math.expressions.NamedFunctionKind
+
+/**
+ * The names of the functions that can be typed (the name, then "("), e.g. sin(, mean( or nCr(.
+ * Names are matched ignoring case; [endingWord] gives the function as it is written in a
+ * [FunctionNode] (or "sqrt", which is a root).
+ */
+object FunctionNames {
+    private val names: List<String> = (
+        listOf(
+            "sin", "cos", "tan", "sec", "csc", "cot",
+            "asin", "acos", "atan", "asec", "acsc", "acot",
+            "sinh", "cosh", "tanh", "sech", "csch", "coth",
+            "asinh", "acosh", "atanh", "asech", "acsch", "acoth",
+            "arcsin", "arccos", "arctan",
+            "ln", "log", "abs", "sqrt", "det", "rref", "eig"
+        ) + NamedFunctionKind.entries.map { it.functionName }
+        ).sortedByDescending { it.length }
+
+    /** The longest function name that [word] ends with (so "asin" and not "sin", "xsin" has "sin"), or null. */
+    fun endingWord(word: String): String? = names.firstOrNull { word.endsWith(it, ignoreCase = true) }
+
+    /**
+     * Whether the end of [letters] could be the start of a function name, e.g. "xsi" (for "sin"):
+     * more letters may still turn it into a function.
+     */
+    fun endsWithNameStart(letters: String): Boolean =
+        letters.indices.any { start ->
+            val tail = letters.substring(start)
+            names.any { it.length > tail.length && it.startsWith(tail, ignoreCase = true) }
+        }
+}

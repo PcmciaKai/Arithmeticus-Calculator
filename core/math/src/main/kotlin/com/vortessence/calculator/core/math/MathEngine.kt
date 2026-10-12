@@ -68,7 +68,10 @@ import com.vortessence.calculator.core.math.steps.Solution
 import kotlin.math.abs
 import com.vortessence.calculator.core.math.steps.SolutionStep
 import com.vortessence.calculator.core.math.steps.StepChange
+import com.vortessence.calculator.core.math.type.AntiderivativeNode
 import com.vortessence.calculator.core.math.type.DerivativeNode
+import com.vortessence.calculator.core.math.type.IntegralNode
+import com.vortessence.calculator.core.math.type.isValidVariableName
 import com.vortessence.calculator.core.math.type.LineBreakNode
 import com.vortessence.calculator.core.math.type.MathNode
 import com.vortessence.calculator.core.math.type.MathOp
@@ -529,22 +532,44 @@ object MathEngine {
     }
 
     /**
-     * Whether the derivative [node] is a partial one: once the [definitions] (variable name to
-     * value, as in [MathContext.variables]) are substituted, its body still depends on a
-     * variable other than the one it differentiates by, e.g. d/dx(x²y). The differentiation
-     * variable is bound, so a definition of it is not used. Only the notation differs (∂
-     * instead of d), the result is the same. False for a body that cannot be parsed yet.
+     * The variables [body] still depends on once the [definitions] (variable name to value, as in
+     * [MathContext.variables]) are substituted, except the definition of [bound], the variable of
+     * the integral or derivative around it. Null for a body that cannot be parsed yet.
      */
-    fun isPartialDerivative(node: DerivativeNode, definitions: Map<String, MathString> = emptyMap()): Boolean {
-        val body = try {
-            val parsed = parser.parse(node.body)
-            val used = parsed.variables().map { it.identifier }
-            val values = definitions.filterKeys { it in used && it != node.variable }.entries.associate { (name, value) -> Variable(name) to parser.parse(value) }
-            parsed.substituteVariables(values)
-        } catch (e: RuntimeException) {
-            return false
+    private fun freeVariables(body: MathString, bound: String, definitions: Map<String, MathString>): Set<String>? = try {
+        val parsed = parser.parse(body)
+        val used = parsed.variables().map { it.identifier }
+        val values = definitions.filterKeys { it in used && it != bound }.entries.associate { (name, value) -> Variable(name) to parser.parse(value) }
+        parsed.substituteVariables(values).variables().map { it.identifier }.toSet()
+    } catch (e: RuntimeException) {
+        null
+    }
+
+    /**
+     * Whether the derivative [node] is a partial one: once the [definitions] are substituted,
+     * its body still depends on a variable other than the one it differentiates by, e.g.
+     * d/dx(x²y). The differentiation variable is bound, so a definition of it is not used. Only
+     * the notation differs (∂ instead of d), the result is the same. False for a body that
+     * cannot be parsed yet.
+     */
+    fun isPartialDerivative(node: DerivativeNode, definitions: Map<String, MathString> = emptyMap()): Boolean =
+        freeVariables(node.body, node.variable, definitions)?.any { it != node.variable } ?: false
+
+    /**
+     * For an integral or derivative [node] whose body does not contain its variable but other
+     * variables, e.g. d/dx(y²) (which is 0): those variables, as candidates for the one meant.
+     * Empty for everything else, also if the body has the node's variable (d/dx(x²y)).
+     */
+    fun otherVariables(node: MathNode, definitions: Map<String, MathString> = emptyMap()): List<String> {
+        val (body, variable) = when (node) {
+            is IntegralNode -> node.integrand to node.variable
+            is AntiderivativeNode -> node.integrand to node.variable
+            is DerivativeNode -> node.body to node.variable
+            else -> return emptyList()
         }
-        return body.variables().any { it.identifier != node.variable }
+        val free = freeVariables(body, variable, definitions) ?: return emptyList()
+        if (variable in free) return emptyList()
+        return free.filter { isValidVariableName(it) }.sorted()
     }
 
     /**

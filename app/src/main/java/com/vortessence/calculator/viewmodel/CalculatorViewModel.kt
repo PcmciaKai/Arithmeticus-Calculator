@@ -11,6 +11,7 @@ import com.vortessence.calculator.core.math.*
 import com.vortessence.calculator.core.math.context.AngleUnit
 import com.vortessence.calculator.core.math.context.CalculationMode
 import com.vortessence.calculator.core.math.context.MathContext
+import com.vortessence.calculator.core.math.context.MathIssue
 import com.vortessence.calculator.core.math.context.UnitSystem
 import com.vortessence.calculator.core.math.expressions.UnitRegistry
 import com.vortessence.calculator.core.math.solvers.PlotCurve
@@ -92,7 +93,11 @@ data class CalculatorUiState(
     /** The language of the texts the calculation produces (and the app is shown in). */
     val language: Language = Language.ENGLISH,
     /** The integral or derivative whose variable is being changed (a tap on its dx), or null. */
-    val variableEdit: VariableEdit? = null
+    val variableEdit: VariableEdit? = null,
+    /** Why a letter typed on the system keyboard was not taken (see [CalculatorViewModel.typeText]); null after the next typing that had no such letter. */
+    val typingNotice: TypingNotice? = null,
+    /** For an integral or derivative that has other variables than its own: the ones that may be meant. */
+    val variableHint: VariableHint? = null
 ) {
     /**
      * Variables defined with ":=" by calculations in the history; the newest definition of a
@@ -104,6 +109,15 @@ data class CalculatorUiState(
             entry.calculation.answer?.let { name to it }
         }.toMap()
 }
+
+/**
+ * The integral or derivative at [nodeIndex] of the string at [stringPath] has none of its own
+ * variable in it, e.g. d/dx(y²) (which is 0): one of the [candidates] (y) is probably meant.
+ */
+data class VariableHint(val stringPath: List<Int>, val nodeIndex: Int, val isDerivative: Boolean, val candidates: List<String>)
+
+/** The [letter] typed on the system keyboard is no variable, for the reason [problem]. */
+data class TypingNotice(val letter: String, val problem: VariableNameProblem)
 
 /** The variable of the integral or derivative at [nodeIndex] of the string at [stringPath], as it is now. */
 data class VariableEdit(val stringPath: List<Int>, val nodeIndex: Int, val name: String)
@@ -214,14 +228,20 @@ class CalculatorViewModel @JvmOverloads constructor(
                 .distinctUntilChanged()
                 .collectLatest { input ->
                     if (input.expression.isEmpty) {
-                        _uiState.update { it.copy(result = null, showResultError = false, hasSteps = false, transforms = emptyList(), percentHint = null) }
+                        _uiState.update { it.copy(result = null, showResultError = false, hasSteps = false, transforms = emptyList(), percentHint = null, variableHint = null) }
                         return@collectLatest
                     }
                     if (liveResultDelayMillis > 0) delay(liveResultDelayMillis)
                     val context = input.snapshot.toMathContext()
                     val res = MathEngine.calculate(input.expression, context)
                     _uiState.update {
-                        if (it.expression == input.expression) it.copy(result = res, showResultError = false, hasSteps = false, transforms = emptyList(), percentHint = null) else it
+                        if (it.expression == input.expression) {
+                            it.copy(
+                                result = res, showResultError = false, hasSteps = false, transforms = emptyList(), percentHint = null,
+                                // Not while the line is unfinished: d/dx(y + is not yet a question
+                                variableHint = if (MathIssue.SYNTAX_ERROR in res.issues) null else variableHint(input.expression, input.snapshot.variables)
+                            )
+                        } else it
                     }
                     percentHint(input.expression, res, context)?.let { hint ->
                         _uiState.update { if (it.expression == input.expression) it.copy(percentHint = hint) else it }
@@ -373,6 +393,7 @@ class CalculatorViewModel @JvmOverloads constructor(
     }
 
     fun onKeyAction(action: KeyAction) {
+        endTypedWord()
         when (action) {
             is KeyAction.Number -> insertNode(NumberNode(action.digit))
             is KeyAction.Operator -> {
@@ -400,6 +421,8 @@ class CalculatorViewModel @JvmOverloads constructor(
             is KeyAction.InlineDivide -> insertNode(OperatorNode(MathOp.DIVIDE))
             is KeyAction.MixedFraction -> insertMixedFraction()
             is KeyAction.Variable -> insertNode(VariableNode(action.name))
+            // Opens the system keyboard, which the screen does; what is typed arrives in typeText
+            is KeyAction.FreeVariable -> Unit
             is KeyAction.Constant -> insertNode(ConstantNode(action.symbol))
             is KeyAction.Function -> insertNode(FunctionNode(action.name, MathString()))
             is KeyAction.LogBase -> insertNode(LogBaseNode())
@@ -671,22 +694,149 @@ class CalculatorViewModel @JvmOverloads constructor(
     fun setVariable(name: String): Boolean {
         if (!isValidVariableName(name)) return false
         val edit = _uiState.value.variableEdit ?: return false
+        renameVariable(edit.stringPath, edit.nodeIndex, name)
+        _uiState.update { it.copy(variableEdit = null) }
+        return true
+    }
+
+    /** The integral or derivative at [nodeIndex] of the string at [stringPath] gets the variable [name]; false if there is none. */
+    private fun renameVariable(stringPath: List<Int>, nodeIndex: Int, name: String): Boolean {
         val root = _uiState.value.expression.copy()
-        val target = CaretPaths.resolve(root, edit.stringPath) ?: return false
-        val node = target.nodes.getOrNull(edit.nodeIndex)
-        val renamed = when (node) {
+        val target = CaretPaths.resolve(root, stringPath) ?: return false
+        val renamed = when (val node = target.nodes.getOrNull(nodeIndex)) {
             is IntegralNode -> node.copy(variable = name)
             is AntiderivativeNode -> node.copy(variable = name)
             is DerivativeNode -> node.copy(variable = name)
-            else -> null
+            else -> return false
         }
-        if (renamed == null) {
-            dismissVariableEdit()
-            return false
-        }
-        target.setNode(edit.nodeIndex, renamed)
-        _uiState.update { it.copy(expression = root, variableEdit = null) }
+        target.setNode(nodeIndex, renamed)
+        _uiState.update { it.copy(expression = root) }
         return true
+    }
+
+    /** Takes the hinted [name] (one of its candidates) as the variable of the integral or derivative it is about. */
+    fun applyVariableHint(name: String) {
+        val hint = _uiState.value.variableHint ?: return
+        if (name !in hint.candidates || !isValidVariableName(name)) return
+        renameVariable(hint.stringPath, hint.nodeIndex, name)
+    }
+
+    /** The first integral or derivative of [expression] that has other variables but not its own, if any. */
+    private fun variableHint(expression: MathString, definitions: Map<String, MathString>): VariableHint? {
+        fun search(string: MathString, path: List<Int>): VariableHint? {
+            for ((index, node) in string.nodes.withIndex()) {
+                val candidates = MathEngine.otherVariables(node, definitions)
+                if (candidates.isNotEmpty()) return VariableHint(path, index, node is DerivativeNode, candidates)
+                for ((child, sub) in node.subStrings.withIndex()) {
+                    search(sub, path + listOf(index, child))?.let { return it }
+                }
+            }
+            return null
+        }
+        return search(expression, emptyList())
+    }
+
+    /** A letter typed on the system keyboard; [inserted] if it went into the expression ([silent]: left out for now, it may belong to a function name). */
+    private class TypedLetter(val char: Char, val inserted: Boolean, val silent: Boolean = false)
+
+    /**
+     * The letters just typed in a row, to find out whether they are the name of a function once
+     * "(" comes ([typeParenthesis]). Only valid while the cursor is still at [typedWordCursor].
+     */
+    private val typedWord = mutableListOf<TypedLetter>()
+    private var typedWordCursor: List<Int>? = null
+
+    private fun hasTypedWord(): Boolean {
+        val state = _uiState.value
+        return typedWord.isNotEmpty() && state.selectionRange == null && state.cursorPath == typedWordCursor
+    }
+
+    /** The word is over (something else was typed or done): a letter that was left out for a possible function name is now told. */
+    private fun endTypedWord() {
+        typedWord.firstOrNull { it.silent }?.let { noticeFor(it.char) }
+        typedWord.clear()
+    }
+
+    private fun noticeFor(letter: Char) {
+        val problem = variableNameProblem(letter.toString()) ?: return
+        _uiState.update { it.copy(typingNotice = TypingNotice(letter.toString(), problem)) }
+    }
+
+    /**
+     * Text typed on the system keyboard (the abc key), as if its characters were keys of the
+     * keypad: digits, operators, brackets, and letters as variables (a variable is a single letter,
+     * so "ab" is a·b). e and π are the constants. A name of a function followed by "(" is that
+     * function instead of its letters: sin( or mean(, with the cursor inside, see [FunctionNames].
+     * A letter that cannot be a variable (i, T) is not taken; [CalculatorUiState.typingNotice]
+     * says why. Everything else is ignored.
+     */
+    fun typeText(text: String) {
+        _uiState.update { it.copy(typingNotice = null) }
+        for (c in text) {
+            when (c) {
+                in '0'..'9' -> onKeyAction(KeyAction.Number(c.toString()))
+                '.' -> onKeyAction(KeyAction.Number("."))
+                ',' -> onKeyAction(if (_uiState.value.decimalComma) KeyAction.Number(".") else KeyAction.Separator)
+                ';' -> onKeyAction(KeyAction.Separator)
+                '+', '-', '−', '*', '×', '/', '÷', '=', '<', '>', '≤', '≥', '!', '%' -> onKeyAction(KeyAction.Operator(c.toString()))
+                '^' -> onKeyAction(KeyAction.Power)
+                '(' -> typeParenthesis()
+                ')' -> onKeyAction(KeyAction.RightParen)
+                'e', 'π' -> typeLetterNode(c, ConstantNode(c.toString()))
+                else -> if (c.isLetter()) typeLetter(c)
+            }
+        }
+    }
+
+    /** Backspace on the system keyboard: takes back the last typed letter, so that the word typed so far stays right. */
+    fun typeBackspace() {
+        val last = if (hasTypedWord()) typedWord.last() else null
+        if (last == null) {
+            onKeyAction(KeyAction.Backspace)
+            return
+        }
+        typedWord.removeAt(typedWord.lastIndex)
+        if (last.inserted) deleteAtCursor()
+        typedWordCursor = _uiState.value.cursorPath
+    }
+
+    private fun typeLetterNode(letter: Char, node: MathNode) {
+        if (!hasTypedWord()) typedWord.clear()
+        insertNode(node)
+        typedWord.add(TypedLetter(letter, inserted = true))
+        typedWordCursor = _uiState.value.cursorPath
+    }
+
+    private fun typeLetter(letter: Char) {
+        val problem = variableNameProblem(letter.toString())
+        if (problem == null) {
+            typeLetterNode(letter, VariableNode(letter.toString()))
+            return
+        }
+        if (!hasTypedWord()) typedWord.clear()
+        // sin( is typed s, i, n: an i that may belong to a function name is not told off yet
+        val word = typedWord.joinToString("") { it.char.toString() } + letter
+        val mayBeNamed = letter == 'i' && typedWord.isNotEmpty() && FunctionNames.endsWithNameStart(word)
+        typedWord.add(TypedLetter(letter, inserted = false, silent = mayBeNamed))
+        typedWordCursor = _uiState.value.cursorPath
+        if (!mayBeNamed) noticeFor(letter)
+    }
+
+    /** "(": the function whose name was just typed, or else a pair of parentheses. */
+    private fun typeParenthesis() {
+        val word = typedWord.joinToString("") { it.char.toString() }
+        val name = if (hasTypedWord()) FunctionNames.endingWord(word) else null
+        if (name == null) {
+            onKeyAction(KeyAction.LeftParen)
+            return
+        }
+        val named = typedWord.takeLast(name.length)
+        // A letter before the name that was left out for a function that did not come
+        typedWord.dropLast(name.length).firstOrNull { it.silent }?.let { noticeFor(it.char) }
+        typedWord.clear()
+        // The nodes of the name's letters are right before the cursor: they give way to the function
+        repeat(named.count { it.inserted }) { onKeyAction(KeyAction.Backspace) }
+        onKeyAction(if (name == "sqrt") KeyAction.Sqrt else KeyAction.Function(name))
     }
 
     private fun variableOf(node: MathNode): String? = when (node) {

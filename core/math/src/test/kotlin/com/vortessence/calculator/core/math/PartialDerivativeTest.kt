@@ -86,15 +86,51 @@ class PartialDerivativeTest {
 
     @Test
     fun variableNames() {
-        assertTrue(isValidVariableName("x"))
-        assertTrue(isValidVariableName("y"))
-        assertTrue(isValidVariableName("a"))
-        assertFalse(isValidVariableName(""))
-        assertFalse(isValidVariableName("xy"))
-        assertFalse(isValidVariableName("X"))
-        assertFalse(isValidVariableName("1"))
-        assertFalse(isValidVariableName("e"))
-        assertFalse(isValidVariableName("i"))
+        for (name in listOf("x", "y", "a", "X", "A", "M", "θ", "λ")) assertTrue(name, isValidVariableName(name))
+        for (name in listOf("", "xy", "1", " ", "+", "∞")) {
+            assertEquals(name, VariableNameProblem.NOT_A_LETTER, variableNameProblem(name))
+        }
+        for (name in listOf("e", "i", "π")) assertEquals(name, VariableNameProblem.CONSTANT, variableNameProblem(name))
+        // T in an exponent is the transpose
+        assertEquals(VariableNameProblem.TRANSPOSE, variableNameProblem("T"))
+        assertFalse(isValidVariableName("T"))
+    }
+
+    @Test
+    fun otherVariablesAreOfferedWhenTheVariableIsNotInTheBody() {
+        // d/dx(y²) is 0: y is probably meant
+        assertEquals(listOf("y"), MathEngine.otherVariables(derivative(y, pow(n("2")))))
+        assertEquals(listOf("y", "z"), MathEngine.otherVariables(derivative(y, VariableNode("z"))))
+        assertEquals(listOf("y"), MathEngine.otherVariables(AntiderivativeNode(ms(y, pow(n("2"))), "x")))
+        assertEquals(listOf("y"), MathEngine.otherVariables(IntegralNode(ms(n("0")), ms(n("1")), ms(y), "x")))
+    }
+
+    @Test
+    fun noOtherVariablesWhenThereIsNothingToSuggest() {
+        // The variable is in the body: a partial derivative, or just fine
+        assertEquals(emptyList<String>(), MathEngine.otherVariables(derivative(x, pow(n("2")), y)))
+        assertEquals(emptyList<String>(), MathEngine.otherVariables(derivative(x, pow(n("2")))))
+        // A constant or an empty body
+        assertEquals(emptyList<String>(), MathEngine.otherVariables(derivative(n("5"))))
+        assertEquals(emptyList<String>(), MathEngine.otherVariables(derivative()))
+        // Constants and the transpose are no candidates
+        assertEquals(emptyList<String>(), MathEngine.otherVariables(derivative(ConstantNode("e"))))
+        assertEquals(emptyList<String>(), MathEngine.otherVariables(derivative(VariableNode("T"))))
+        // Not an integral or a derivative
+        assertEquals(emptyList<String>(), MathEngine.otherVariables(y))
+        // A defined variable is a number by then
+        assertEquals(emptyList<String>(), MathEngine.otherVariables(derivative(VariableNode("a")), mapOf("a" to ms(n("5")))))
+        assertEquals(listOf("y"), MathEngine.otherVariables(derivative(VariableNode("a")), mapOf("a" to ms(y))))
+    }
+
+    @Test
+    fun savedLinesKeepCapitalAndGreekVariablesAndChosenVariables() {
+        val line = ms(
+            VariableNode("A"), VariableNode("θ"),
+            DerivativeNode(ms(x, y), null, "y"), AntiderivativeNode(ms(x), "z"),
+            IntegralNode(ms(n("0")), ms(n("1")), ms(x), "t")
+        )
+        assertEquals(line, MathStringCodec.decode(MathStringCodec.encode(line)))
     }
 
     @Test

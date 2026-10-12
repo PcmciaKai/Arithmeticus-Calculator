@@ -55,11 +55,27 @@ data class VariableNode(val name: String) : MathNode() {
     override fun toString(): String = name
 }
 
+/** Why a name cannot be a variable (see [variableNameProblem]). */
+enum class VariableNameProblem {
+    NOT_A_LETTER,
+    /** e, i and π are the constants. */
+    CONSTANT,
+    /** T in the exponent of a matrix is its transpose. */
+    TRANSPOSE
+}
+
 /**
- * Whether [name] can be the variable of an integral or derivative (d/dy): one lower-case letter.
- * e and i are left out, they are the constants.
+ * What is wrong with [name] as a variable, or null if it is fine: a variable is a single letter
+ * (any case, also Greek), because longer names would clash with implicit multiplication (xy = x·y).
  */
-fun isValidVariableName(name: String): Boolean = name.length == 1 && name[0] in 'a'..'z' && name != "e" && name != "i"
+fun variableNameProblem(name: String): VariableNameProblem? = when {
+    name.length != 1 || !name[0].isLetter() -> VariableNameProblem.NOT_A_LETTER
+    name == "e" || name == "i" || name == "π" -> VariableNameProblem.CONSTANT
+    name == "T" -> VariableNameProblem.TRANSPOSE
+    else -> null
+}
+
+fun isValidVariableName(name: String): Boolean = variableNameProblem(name) == null
 
 data class ConstantNode(val name: String) : MathNode() {
     override fun copy(): MathNode = ConstantNode(name)

@@ -1,5 +1,19 @@
 package com.vortessence.calculator.ui.screen
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.layout.imeAnimationTarget
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import kotlin.math.roundToInt
 import android.app.Activity
 import android.app.Application
 import android.os.Build
@@ -63,6 +77,13 @@ import com.vortessence.calculator.ui.theme.CalculatorTheme
 import com.vortessence.calculator.viewmodel.CalculatorUiState
 import com.vortessence.calculator.viewmodel.CalculatorViewModel
 import com.vortessence.calculator.viewmodel.PercentHint
+import com.vortessence.calculator.viewmodel.TypingNotice
+import com.vortessence.calculator.viewmodel.VariableHint
+import com.vortessence.calculator.core.math.type.VariableNameProblem
+import com.vortessence.calculator.ui.keypad.KeyAction
+import com.vortessence.calculator.ui.math.TypingInput
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import androidx.annotation.StringRes
@@ -156,6 +177,32 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
         canPaste = { clipboard.hasText() }
     )
 
+    // The abc key brings up the system keyboard, which types into the expression through an
+    // invisible field; the keypad makes room for it while it is up
+    val typingFocus = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
+    // The keypad and the keyboard trade places. The keypad gives up exactly as much height as the
+    // keyboard takes (see keypadHeightLeft), so the input line moves only when the keyboard is taller
+    // than the keypad, and then in step with it, however fast the keyboard slides.
+    @OptIn(ExperimentalLayoutApi::class)
+    val imeTarget = WindowInsets.imeAnimationTarget
+    val ime = WindowInsets.ime
+    val navigationBars = WindowInsets.navigationBars
+    val density = LocalDensity.current
+    /** The keyboard's height as far as the content is concerned: the navigation bar is below it already. */
+    fun imeHeight(insets: WindowInsets) = (insets.getBottom(density) - navigationBars.getBottom(density)).coerceAtLeast(0)
+    val isTyping = imeTarget.getBottom(density) > 0
+    // Whenever the keyboard is up, it types into the expression (it can also be up without the abc key,
+    // e.g. after the app was restored)
+    LaunchedEffect(isTyping) { if (isTyping) runCatching { typingFocus.requestFocus() } }
+    // A keyboard that is lower than the keypad leaves a rest of it showing; once it has arrived that goes
+    val keyboardArrived by remember { derivedStateOf { isTyping && imeHeight(ime) >= imeHeight(imeTarget) } }
+    val restShown by animateFloatAsState(
+        targetValue = if (keyboardArrived) 0f else 1f,
+        animationSpec = tween(durationMillis = KEYBOARD_SWAP_MILLIS, easing = FastOutSlowInEasing),
+        label = "keypad"
+    )
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -164,6 +211,8 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .consumeWindowInsets(paddingValues)
+                .imePadding()
         ) {
             // History of committed calculations (scrollable, newest at the bottom)
             LazyColumn(
@@ -223,16 +272,52 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
                         language = uiState.language,
                         onShowSteps = { viewModel.showSteps() },
                         percentHint = uiState.percentHint,
-                        onApplyPercentHint = { viewModel.applyPercentHint() }
+                        onApplyPercentHint = { viewModel.applyPercentHint() },
+                        variableHint = uiState.variableHint,
+                        onApplyVariableHint = { viewModel.applyVariableHint(it) }
                     )
                 }
             }
 
-            // Keypad with swipe navigation (Other, Main, Advanced)
-            CalculatorKeypad(
-                isLineEmpty = uiState.expression.isEmpty,
-                onKeyAction = { action -> viewModel.onKeyAction(action) }
+            TypingInput(
+                focusRequester = typingFocus,
+                onText = { viewModel.typeText(it) },
+                onBackspace = { viewModel.typeBackspace() },
+                onEnter = { viewModel.onKeyAction(KeyAction.Enter) }
             )
+
+            AnimatedVisibility(
+                visible = isTyping,
+                enter = expandVertically(tween(KEYBOARD_SWAP_MILLIS, easing = FastOutSlowInEasing), expandFrom = Alignment.Top) + fadeIn(),
+                exit = shrinkVertically(tween(KEYBOARD_SWAP_MILLIS, easing = FastOutSlowInEasing), shrinkTowards = Alignment.Top) + fadeOut()
+            ) {
+                TypingHint(uiState.typingNotice)
+            }
+
+            // Keypad with swipe navigation (Other, Main, Advanced). It stays composed (so it keeps
+            // its page) and gives its height up to the keyboard, from the bottom, as the keyboard takes it
+            Box(
+                modifier = Modifier
+                    .layout { measurable, constraints ->
+                        val placeable = measurable.measure(constraints)
+                        val left = (placeable.height - imeHeight(ime)).coerceAtLeast(0)
+                        layout(placeable.width, (left * restShown).roundToInt()) { placeable.placeRelative(0, 0) }
+                    }
+                    .clipToBounds()
+                    .then(if (isTyping && restShown == 0f) Modifier.clearAndSetSemantics { } else Modifier)
+            ) {
+                CalculatorKeypad(
+                    isLineEmpty = uiState.expression.isEmpty,
+                    onKeyAction = { action ->
+                        if (action is KeyAction.FreeVariable) {
+                            typingFocus.requestFocus()
+                            keyboard?.show()
+                        } else {
+                            viewModel.onKeyAction(action)
+                        }
+                    }
+                )
+            }
         }
     }
 
@@ -252,7 +337,7 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
         VariableDialog(
             initial = edit.name,
             onDismiss = { viewModel.dismissVariableEdit() },
-            onConfirm = { viewModel.setVariable(it) }
+            onLetter = { viewModel.setVariable(it) }
         )
     }
 
@@ -329,6 +414,8 @@ private fun LiveResultView(
     onShowSteps: () -> Unit,
     percentHint: PercentHint? = null,
     onApplyPercentHint: () -> Unit = {},
+    variableHint: VariableHint? = null,
+    onApplyVariableHint: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(horizontalAlignment = Alignment.End) {
@@ -433,8 +520,46 @@ private fun LiveResultView(
                 .clickable(onClick = onApplyPercentHint)
         )
     }
+    // d/dx(y²) is 0: offer the other variables of the body as the one meant
+    if (variableHint != null) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 2.dp)) {
+            for (name in variableHint.candidates.take(MAX_VARIABLE_HINTS)) {
+                Text(
+                    text = stringResource(
+                        if (variableHint.isDerivative) R.string.variable_hint_derivative else R.string.variable_hint_integral,
+                        name
+                    ),
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.clickable { onApplyVariableHint(name) }
+                )
+            }
+        }
+    }
     }
 }
+
+/** Shown while the system keyboard types: variables are single letters; or why the last letter was not taken. */
+@Composable
+private fun TypingHint(notice: TypingNotice?) {
+    val text = when (notice?.problem) {
+        VariableNameProblem.CONSTANT -> stringResource(R.string.variable_is_constant, notice.letter)
+        VariableNameProblem.TRANSPOSE -> stringResource(R.string.variable_is_transpose)
+        else -> stringResource(R.string.typing_hint)
+    }
+    Text(
+        text = text,
+        fontSize = 12.sp,
+        color = if (notice == null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp)
+    )
+}
+
+/** How long the keypad and the system keyboard take to trade places (about as long as the keyboard slides). */
+private const val KEYBOARD_SWAP_MILLIS = 280
+
+/** How many variables a hint offers; more would not fit beside each other. */
+private const val MAX_VARIABLE_HINTS = 2
 
 private val ResultForm.label: Int
     @StringRes get() = when (this) {

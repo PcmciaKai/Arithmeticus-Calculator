@@ -363,8 +363,13 @@
     <string name="matrix_insert">Insert</string>
     <string name="common_cancel">Cancel</string>
     <string name="variable_title">Variable</string>
-    <string name="variable_hint">One lower-case letter, not e or i</string>
-    <string name="common_ok">OK</string>
+    <string name="variable_prompt">Type a letter</string>
+    <string name="variable_is_constant">%1$s is a constant</string>
+    <string name="variable_is_transpose">T stands for the transpose of a matrix</string>
+    <string name="variable_hint_derivative">Differentiate by %1$s</string>
+    <string name="variable_hint_integral">Integrate over %1$s</string>
+    <string name="keypad_variable">Letter</string>
+    <string name="typing_hint">Letters are variables: ab means a · b. A function name and ( such as sin( or mean( starts that function.</string>
     <string name="notice_complex_on">Complex numbers are now on. You can switch them off in the settings.</string>
     <string name="message_copied">Copied</string>
     <string name="message_cant_paste">Can\'t paste \"%1$s\" as math</string>

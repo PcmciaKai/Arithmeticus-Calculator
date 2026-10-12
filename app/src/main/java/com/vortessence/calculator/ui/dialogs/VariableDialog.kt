@@ -1,8 +1,6 @@
 package com.vortessence.calculator.ui.dialogs
 
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
@@ -21,29 +19,28 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vortessence.calculator.R
-import com.vortessence.calculator.core.math.type.isValidVariableName
+import com.vortessence.calculator.core.math.type.VariableNameProblem
+import com.vortessence.calculator.core.math.type.variableNameProblem
 
 /**
- * Changes the variable of an integral or derivative (the x of dx). The field holds one
- * lower-case letter: typing another one replaces it.
+ * Asks for a variable: one letter from the system keyboard. The first letter that can be a
+ * variable is taken at once ([onLetter]); one that cannot (e, i, π, T) stays in the field with
+ * the reason, and anything that is no letter is ignored. [initial] is the current variable, if any.
  */
 @Composable
 fun VariableDialog(
     initial: String,
     onDismiss: () -> Unit,
-    onConfirm: (name: String) -> Unit
+    onLetter: (name: String) -> Unit
 ) {
     var text by remember { mutableStateOf(TextFieldValue(initial, selection = TextRange(0, initial.length))) }
-    val name = text.text
-    val isValid = isValidVariableName(name)
+    val problem = variableNameProblem(text.text)
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
@@ -54,28 +51,27 @@ fun VariableDialog(
             OutlinedTextField(
                 value = text,
                 onValueChange = { input ->
-                    val letter = input.text.lowercase().filter { it in 'a'..'z' }.takeLast(1)
+                    val letter = input.text.lastOrNull { it.isLetter() }?.toString() ?: ""
                     text = TextFieldValue(letter, selection = TextRange(letter.length))
+                    if (letter.isNotEmpty() && variableNameProblem(letter) == null) onLetter(letter)
                 },
                 singleLine = true,
-                isError = !isValid,
-                supportingText = { Text(stringResource(R.string.variable_hint)) },
+                isError = problem == VariableNameProblem.CONSTANT || problem == VariableNameProblem.TRANSPOSE,
+                supportingText = {
+                    Text(
+                        when (problem) {
+                            VariableNameProblem.CONSTANT -> stringResource(R.string.variable_is_constant, text.text)
+                            VariableNameProblem.TRANSPOSE -> stringResource(R.string.variable_is_transpose)
+                            else -> stringResource(R.string.variable_prompt)
+                        }
+                    )
+                },
                 textStyle = MaterialTheme.typography.headlineSmall.copy(fontSize = 26.sp, textAlign = TextAlign.Center),
-                keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.None,
-                    keyboardType = KeyboardType.Ascii,
-                    imeAction = ImeAction.Done
-                ),
-                keyboardActions = KeyboardActions(onDone = { if (isValid) onConfirm(name) }),
-                modifier = Modifier.width(160.dp).focusRequester(focusRequester)
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false),
+                modifier = Modifier.focusRequester(focusRequester)
             )
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(name) }, enabled = isValid) {
-                Text(stringResource(R.string.common_ok))
-            }
-        },
-        dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(stringResource(R.string.common_cancel))
             }

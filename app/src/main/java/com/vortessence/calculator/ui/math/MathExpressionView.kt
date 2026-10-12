@@ -404,17 +404,21 @@ private fun SlotContext.Slot(
 
 /**
  * Makes the variable label of a node (the x of dx) tappable in the editor: reports where it is to
- * the [CaretGeometry], which the editor asks first on a tap. [part] tells the labels of one node apart.
+ * the [CaretGeometry], which the editor asks first on a tap, and tints it so that it shows. Plain
+ * outside of an editor (history, steps). [part] tells the labels of one node apart.
  */
 @Composable
-private fun SlotContext.variableLabel(part: Int): Modifier {
+private fun SlotContext.variableLabel(part: Int, tint: Color = accentColor): Modifier {
     val geometry = caretGeometry ?: return Modifier
     val path = parentPath
     val index = nodeIndex
     DisposableEffect(geometry, path, index, part) {
         onDispose { geometry.removeVariableLabel(path, index, part) }
     }
-    return Modifier.onGloballyPositioned { geometry.setVariableLabel(path, index, part, it) }
+    return Modifier
+        .onGloballyPositioned { geometry.setVariableLabel(path, index, part, it) }
+        .background(tint.copy(alpha = 0.14f), RoundedCornerShape(4.dp))
+        .padding(horizontal = 2.dp)
 }
 
 /**
@@ -1063,8 +1067,9 @@ private fun IntegralView(node: IntegralNode, fontSize: TextUnit, slots: SlotCont
         }
         Spacer(modifier = Modifier.width(2.dp))
         slots.Slot(child = 2, string = node.integrand, fontSize = fontSize)
+        Spacer(modifier = Modifier.width((fontSize.value * 0.2f).dp))
         Text(
-            text = " d${node.variable}",
+            text = "d${node.variable}",
             fontSize = fontSize,
             fontWeight = FontWeight.Normal,
             color = slots.textColor,
@@ -1137,8 +1142,9 @@ private fun AntiderivativeView(node: AntiderivativeNode, fontSize: TextUnit, slo
         )
         Spacer(modifier = Modifier.width(2.dp))
         slots.Slot(child = 0, string = node.integrand, fontSize = fontSize)
+        Spacer(modifier = Modifier.width((fontSize.value * 0.2f).dp))
         Text(
-            text = " d${node.variable}",
+            text = "d${node.variable}",
             fontSize = fontSize,
             fontWeight = FontWeight.Normal,
             color = slots.textColor,

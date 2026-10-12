@@ -2,6 +2,9 @@ import android.app.Application
 import com.vortessence.calculator.ui.theme.ThemeMode
 import com.vortessence.calculator.core.math.context.MathIssue
 import com.vortessence.calculator.core.math.type.AnsNode
+import com.vortessence.calculator.core.math.type.ConstantNode
+import com.vortessence.calculator.core.math.type.VariableNameProblem
+import com.vortessence.calculator.viewmodel.TypingNotice
 import com.vortessence.calculator.core.math.type.AntiderivativeNode
 import com.vortessence.calculator.core.math.type.DerivativeNode
 import com.vortessence.calculator.core.math.type.IntegralNode
@@ -500,17 +503,21 @@ class CalculatorViewModelTest {
     }
 
     @Test
-    fun onlyOneLowerCaseLetterThatIsNoConstantIsAVariable() = runBlocking {
+    fun onlyOneLetterThatIsNoConstantOrTransposeIsAVariable() = runBlocking {
         val vm = newViewModel()
         vm.onKeyAction(KeyAction.Derivative)
         vm.editVariable(emptyList(), 0)
-        for (name in listOf("", "X", "xy", "1", "e", "i")) {
+        for (name in listOf("", "xy", "1", "e", "i", "π", "T")) {
             assertFalse("'$name'", vm.setVariable(name))
         }
         // Still open, nothing changed
         assertEquals("x", vm.uiState.value.variableEdit?.name)
         assertEquals("x", (vm.uiState.value.expression.nodeAt(0) as DerivativeNode).variable)
+        // Capitals and Greek letters are fine
+        assertTrue(vm.setVariable("A"))
+        assertEquals("A", (vm.uiState.value.expression.nodeAt(0) as DerivativeNode).variable)
 
+        vm.editVariable(emptyList(), 0)
         vm.dismissVariableEdit()
         assertNull(vm.uiState.value.variableEdit)
         // Only integrals and derivatives have a variable
@@ -520,6 +527,253 @@ class CalculatorViewModelTest {
         assertNull(vm.uiState.value.variableEdit)
         vm.editVariable(listOf(7, 7), 3)
         assertNull(vm.uiState.value.variableEdit)
+    }
+
+    @Test
+    fun typedLettersAreSingleLetterVariables() = runBlocking {
+        val vm = newViewModel()
+        vm.typeText("Ab")
+        assertEquals(listOf(VariableNode("A"), VariableNode("b")), vm.uiState.value.expression.nodes)
+        assertEquals(listOf(2), vm.uiState.value.cursorPath)
+        assertNull(vm.uiState.value.typingNotice)
+        // Greek letters are letters, too
+        vm.typeText("θ")
+        assertEquals(VariableNode("θ"), vm.uiState.value.expression.nodeAt(2))
+    }
+
+    @Test
+    fun typedTextIsEnteredLikeKeys() = runBlocking {
+        val vm = newViewModel()
+        vm.typeText("2x+3")
+        vm.awaitLiveResult()
+        assertEquals("2x + 3", vm.uiState.value.result!!.result.toString())
+
+        vm.onKeyAction(KeyAction.Clear)
+        vm.typeText("(1+2)*3")
+        vm.awaitLiveResult()
+        assertEquals("9", vm.uiState.value.result!!.result.toString())
+
+        // The decimal point
+        vm.onKeyAction(KeyAction.Clear)
+        vm.typeText("1.5+1.5")
+        vm.awaitLiveResult()
+        assertEquals("3", vm.uiState.value.result!!.result.toString())
+        // e and π are the constants, not variables
+        vm.onKeyAction(KeyAction.Clear)
+        vm.typeText("eπ")
+        assertEquals(listOf(ConstantNode("e"), ConstantNode("π")), vm.uiState.value.expression.nodes)
+        // What is no key is ignored
+        vm.onKeyAction(KeyAction.Clear)
+        vm.typeText(" ?#\n")
+        assertTrue(vm.uiState.value.expression.isEmpty)
+    }
+
+    @Test
+    fun typedLettersThatCannotBeVariablesAreRefusedWithAReason() = runBlocking {
+        val vm = newViewModel()
+        vm.typeText("xTy")
+        assertEquals(listOf(VariableNode("x"), VariableNode("y")), vm.uiState.value.expression.nodes)
+        // Several letters at once (pasted): the one dropped is still told, although y came after it
+        assertEquals(TypingNotice("T", VariableNameProblem.TRANSPOSE), vm.uiState.value.typingNotice)
+
+        vm.typeText("T")
+        assertEquals(TypingNotice("T", VariableNameProblem.TRANSPOSE), vm.uiState.value.typingNotice)
+        vm.typeText("i")
+        assertEquals(TypingNotice("i", VariableNameProblem.CONSTANT), vm.uiState.value.typingNotice)
+        assertEquals(2, vm.uiState.value.expression.length)
+        // The next text without such a letter clears it
+        vm.typeText("z")
+        assertNull(vm.uiState.value.typingNotice)
+    }
+
+    /** The nodes of the line, shown as short texts: functions by name, other nodes as they are written. */
+    private fun CalculatorViewModel.nodeNames(): List<String> = uiState.value.expression.nodes.map {
+        when (it) {
+            is FunctionNode -> "${it.name}()"
+            is ParenthesesNode -> "()"
+            is RadicalNode -> "sqrt"
+            else -> it.toString().trim()
+        }
+    }
+
+    @Test
+    fun aTypedFunctionNameAndParenthesisIsTheFunction() = runBlocking {
+        val vm = newViewModel()
+        vm.typeText("sin(0)+1")
+        assertEquals(listOf("sin()", "+", "1"), vm.nodeNames())
+        vm.awaitLiveResult()
+        assertEquals("1", vm.uiState.value.result!!.result.toString())
+        assertNull(vm.uiState.value.typingNotice)
+
+        vm.onKeyAction(KeyAction.Clear)
+        vm.typeText("asin(0)")
+        assertEquals(listOf("asin()"), vm.nodeNames())
+        // Any case; the function is written the way it is known
+        vm.onKeyAction(KeyAction.Clear)
+        vm.typeText("MEAN(1,2,6)")
+        assertEquals(listOf("mean()"), vm.nodeNames())
+        vm.awaitLiveResult()
+        assertEquals("3", vm.uiState.value.result!!.result.toString())
+    }
+
+    @Test
+    fun aFunctionTypedKeyByKeyIsTheFunction() = runBlocking {
+        val vm = newViewModel()
+        // The keyboard hands on one key at a time
+        for (key in " mean(1,2,6)+1") vm.typeText(key.toString())
+        assertEquals(listOf("mean()", "+", "1"), vm.nodeNames())
+    }
+
+    @Test
+    fun theTypedFunctionTakesItsArgumentsAndCloses() = runBlocking {
+        val vm = newViewModel()
+        vm.typeText("mean(1;2;6)*2")
+        assertEquals(listOf("mean()", "×", "2"), vm.nodeNames())
+        vm.awaitLiveResult()
+        assertEquals("6", vm.uiState.value.result!!.result.toString())
+
+        vm.onKeyAction(KeyAction.Clear)
+        vm.typeText("nCr(5,2)")
+        vm.awaitLiveResult()
+        assertEquals("10", vm.uiState.value.result!!.result.toString())
+
+        vm.onKeyAction(KeyAction.Clear)
+        vm.typeText("sqrt(9)")
+        assertEquals(listOf("sqrt"), vm.nodeNames())
+        vm.awaitLiveResult()
+        assertEquals("3", vm.uiState.value.result!!.result.toString())
+    }
+
+    @Test
+    fun lettersBeforeTheFunctionNameStayVariables() = runBlocking {
+        val vm = newViewModel()
+        vm.typeText("xsin(0)")
+        assertEquals(listOf("x", "sin()"), vm.nodeNames())
+        assertNull(vm.uiState.value.typingNotice)
+    }
+
+    @Test
+    fun otherWordsWithAParenthesisStayLetters() = runBlocking {
+        val vm = newViewModel()
+        vm.typeText("foo(")
+        assertEquals(listOf("f", "o", "o", "()"), vm.nodeNames())
+        vm.onKeyAction(KeyAction.Clear)
+        vm.typeText("x(")
+        assertEquals(listOf("x", "()"), vm.nodeNames())
+        // Not a word any more once something else was typed in between
+        vm.onKeyAction(KeyAction.Clear)
+        vm.typeText("sin2(")
+        assertEquals(listOf("s", "n", "2", "()"), vm.nodeNames())
+    }
+
+    @Test
+    fun anIThatWasLeftOutForAFunctionNameIsToldWhenNoFunctionComes() = runBlocking {
+        val vm = newViewModel()
+        // While s-i-n is typed the i is not told off, ...
+        vm.typeText("si")
+        assertNull(vm.uiState.value.typingNotice)
+        vm.typeText("n")
+        assertNull(vm.uiState.value.typingNotice)
+        // ... but it is when the word turns out to be no function
+        vm.onKeyAction(KeyAction.Clear)
+        vm.typeText("sit(")
+        assertEquals(listOf("s", "t", "()"), vm.nodeNames())
+        assertEquals(TypingNotice("i", VariableNameProblem.CONSTANT), vm.uiState.value.typingNotice)
+        // An i that cannot start a name is told at once
+        vm.onKeyAction(KeyAction.Clear)
+        vm.typeText("xi")
+        assertEquals(TypingNotice("i", VariableNameProblem.CONSTANT), vm.uiState.value.typingNotice)
+    }
+
+    @Test
+    fun backspaceKeepsTheTypedWordRight() = runBlocking {
+        val vm = newViewModel()
+        // sib, back, n: the word is sin again
+        vm.typeText("sib")
+        vm.typeBackspace()
+        vm.typeText("n(")
+        assertEquals(listOf("sin()"), vm.nodeNames())
+
+        // Taking back the left out i takes no node with it
+        vm.onKeyAction(KeyAction.Clear)
+        vm.typeText("si")
+        vm.typeBackspace()
+        assertEquals(listOf("s"), vm.nodeNames())
+        vm.typeBackspace()
+        assertEquals(emptyList<String>(), vm.nodeNames())
+        // Without a typed word it is the normal backspace
+        vm.typeText("5")
+        vm.typeBackspace()
+        assertEquals(emptyList<String>(), vm.nodeNames())
+    }
+
+    @Test
+    fun movingTheCursorEndsTheTypedWord() = runBlocking {
+        val vm = newViewModel()
+        vm.typeText("sin")
+        vm.onKeyAction(KeyAction.MoveLeft)
+        vm.onKeyAction(KeyAction.MoveRight)
+        vm.typeText("(")
+        assertEquals(listOf("s", "n", "()"), vm.nodeNames())
+    }
+
+    @Test
+    fun aCapitalVariableCanBeDefinedAndUsed() = runBlocking {
+        val vm = newViewModel()
+        vm.typeText("A")
+        vm.onKeyAction(KeyAction.Operator(":="))
+        vm.typeText("5")
+        vm.onKeyAction(KeyAction.Enter)
+        vm.awaitCommit()
+        assertEquals("A", vm.uiState.value.history[0].calculation.definedVariable)
+        vm.typeText("A*2")
+        vm.awaitLiveResult()
+        assertEquals("10", vm.uiState.value.result!!.result.toString())
+    }
+
+    @Test
+    fun aDerivativeWithoutItsVariableSuggestsTheOthers() = runBlocking {
+        val vm = newViewModel()
+        vm.onKeyAction(KeyAction.Derivative)
+        vm.onKeyAction(KeyAction.Variable("y"))
+        vm.awaitLiveResult()
+        assertEquals("0", vm.uiState.value.result!!.result.toString())
+        val hint = vm.uiState.value.variableHint!!
+        assertEquals(listOf("y"), hint.candidates)
+        assertTrue(hint.isDerivative)
+        assertEquals(0, hint.nodeIndex)
+
+        // A name the hint did not offer is no way around it
+        vm.applyVariableHint("z")
+        assertEquals("x", (vm.uiState.value.expression.nodeAt(0) as DerivativeNode).variable)
+
+        vm.applyVariableHint("y")
+        assertEquals("y", (vm.uiState.value.expression.nodeAt(0) as DerivativeNode).variable)
+        vm.awaitLiveResultText("1")
+        assertNull(vm.uiState.value.variableHint)
+    }
+
+    @Test
+    fun noSuggestionWhenTheVariableIsThereOrTheLineIsUnfinished() = runBlocking {
+        val vm = newViewModel()
+        // d/dx(x·y) is a partial derivative, nothing to correct
+        vm.onKeyAction(KeyAction.Derivative)
+        vm.onKeyAction(KeyAction.Variable("x"))
+        vm.onKeyAction(KeyAction.Variable("y"))
+        vm.awaitLiveResult()
+        assertNull(vm.uiState.value.variableHint)
+
+        // ∫ y dx while y is still being typed: "y +" is no question yet
+        vm.onKeyAction(KeyAction.Clear)
+        vm.onKeyAction(KeyAction.Antiderivative)
+        vm.onKeyAction(KeyAction.Variable("y"))
+        vm.onKeyAction(KeyAction.Operator("+"))
+        vm.awaitLiveResult()
+        assertNull(vm.uiState.value.variableHint)
+        vm.onKeyAction(KeyAction.Variable("y"))
+        vm.awaitLiveResult()
+        assertEquals(listOf("y"), vm.uiState.value.variableHint?.candidates)
+        assertFalse(vm.uiState.value.variableHint!!.isDerivative)
     }
 
     @Test
