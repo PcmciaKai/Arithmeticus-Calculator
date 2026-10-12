@@ -146,6 +146,10 @@ enum class StepRule {
     INTEGRAL_LOGARITHM,
     /** sin², cos², 1/(p + qx²), 1/√(p − qx²) */
     INTEGRAL_TABLE,
+    /** ∫1/√(a² + x²) dx = asinh(x/a) */
+    INTEGRAL_INVERSE_HYPERBOLIC_SINE,
+    /** ∫1/√(x² − a²) dx = ln|x + √(x² − a²)| */
+    INTEGRAL_LOG_ROOT,
     /** The integrand multiplied out */
     EXPAND_INTEGRAND,
     /** ∫ f(g(x))·g'(x) dx = ∫ f(u) du with u = g(x) */

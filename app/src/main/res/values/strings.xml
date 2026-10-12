@@ -123,6 +123,8 @@
     <string name="step_integral_csch">Integrate the hyperbolic cosecant</string>
     <string name="step_integral_logarithm">Integrate the logarithm</string>
     <string name="step_integral_table">Use a standard integral</string>
+    <string name="step_integral_inverse_hyperbolic_sine">Integrate one over the root of a square plus a number: the inverse hyperbolic sine</string>
+    <string name="step_integral_log_root">Integrate one over the root of a square minus a number: a logarithm (the same for positive and negative x)</string>
     <string name="step_expand_integrand">Multiply out the integrand</string>
     <string name="step_substitution">Substitute</string>
     <string name="step_back_substitution">Substitute back</string>

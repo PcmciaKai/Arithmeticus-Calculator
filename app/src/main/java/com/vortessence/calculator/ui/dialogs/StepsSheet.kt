@@ -541,6 +541,8 @@ private val StepRule.descriptionRes: Int
         StepRule.INTEGRAL_HYPERBOLIC_COSECANT -> R.string.step_integral_csch
         StepRule.INTEGRAL_LOGARITHM -> R.string.step_integral_logarithm
         StepRule.INTEGRAL_TABLE -> R.string.step_integral_table
+        StepRule.INTEGRAL_INVERSE_HYPERBOLIC_SINE -> R.string.step_integral_inverse_hyperbolic_sine
+        StepRule.INTEGRAL_LOG_ROOT -> R.string.step_integral_log_root
         StepRule.EXPAND_INTEGRAND -> R.string.step_expand_integrand
         StepRule.SUBSTITUTION -> R.string.step_substitution
         StepRule.BACK_SUBSTITUTION -> R.string.step_back_substitution
@@ -776,6 +778,8 @@ internal fun StepRule.formula(language: Language): String? {
         StepRule.INTEGRAL_SINE -> "\\int{sin(x)}{x} = −cos(x)"
         StepRule.INTEGRAL_COSINE -> "\\int{cos(x)}{x} = sin(x)"
         StepRule.INTEGRAL_TANGENT -> "\\int{tan(x)}{x} = −ln(|cos(x)|)"
+        StepRule.INTEGRAL_INVERSE_HYPERBOLIC_SINE -> "\\int{\\frac{1}{\\sqrt{a^2 + x^2}}}{x} = asinh(\\frac{x}{a})"
+        StepRule.INTEGRAL_LOG_ROOT -> "\\int{\\frac{1}{\\sqrt{x^2 − a^2}}}{x} = ln(|x + \\sqrt{x^2 − a^2}|)"
         StepRule.INTEGRAL_SECANT -> "\\int{sec(x)}{x} = ln(|sec(x) + tan(x)|)"
         StepRule.INTEGRAL_COSECANT -> "\\int{csc(x)}{x} = −ln(|csc(x) + cot(x)|)"
         StepRule.INTEGRAL_COTANGENT -> "\\int{cot(x)}{x} = ln(|sin(x)|)"

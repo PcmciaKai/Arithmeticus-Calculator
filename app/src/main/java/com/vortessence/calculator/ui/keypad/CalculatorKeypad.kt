@@ -962,15 +962,21 @@ private fun AlternatesRow(
                 if (alternate.icon != null) {
                     Icon(alternate.icon, contentDescription = alternate.label.text, tint = color, modifier = Modifier.size(26.dp))
                 } else {
+                    // The cells have a fixed size: a larger system font only grows the labels a little, and they never wrap
+                    val fontScale = LocalDensity.current.fontScale
+                    val compensation = minOf(fontScale, 1.15f) / fontScale
+                    val size = when (sharedLength ?: alternate.label.length) {
+                        in 6..Int.MAX_VALUE -> 13f
+                        4, 5 -> 16f
+                        else -> 22f
+                    }
                     Text(
                         text = alternate.label,
-                        fontSize = when {
-                            alternate.label.length > 5 -> 13.sp
-                            alternate.label.length > 3 -> 16.sp
-                            else -> 22.sp
-                        },
+                        fontSize = (size * compensation).sp,
                         fontWeight = FontWeight.Medium,
-                        color = color
+                        color = color,
+                        maxLines = 1,
+                        softWrap = false
                     )
                 }
             }

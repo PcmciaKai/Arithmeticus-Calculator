@@ -333,13 +333,13 @@ class EquationStepsTest {
         val input = ms(f("sin", x), pow(n("2")), plus, f("sin", x), eq, n("2"))
         val result = calculated(input)
         assertTrue(result.issues.isEmpty())
-        assertEquals("x =  − 4.712388978, x = 1.570796327, x = 7.853981634", result.result.toString())
+        assertEquals("x = (π)/(2) + 2πk, k ∈ ℤ", result.result.toString())
         // And the steps for it: u = sin x, u = 1 (u = −2 has no real solution)
         val solution = solution(input)!!
         assertTrue(StepRule.NO_REAL_SOLUTION in solution.steps.map { it.rule })
         assertEquals("x = (π)/(2) + 2πk, k ∈ ℤ", solution.result.toString())
         // cos x = 1 is touched at 2kπ too, with the same precision
-        assertEquals("x =  − 6.283185307, x = 0, x = 6.283185307", calculated(ms(f("cos", x), eq, n("1"))).result.toString())
+        assertEquals("x = 2πk, k ∈ ℤ", calculated(ms(f("cos", x), eq, n("1"))).result.toString())
         // A function that only comes close to 0 has no root
         assertEquals(listOf(com.vortessence.calculator.core.math.context.MathIssue.NO_REAL_SOLUTION),
             calculated(ms(f("cos", x), pow(n("2")), plus, n("1"), eq, n("0"))).issues)

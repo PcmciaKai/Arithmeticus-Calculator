@@ -586,6 +586,22 @@ object MathEngine {
             return truthResult(input, equation, true, ctx)
         }
 
+        // sin(x) = 1/2 repeats: x = π/6 + 2πk, … rather than the few solutions that were found
+        val periodic = EquationSteps.periodicSolutions(equation, targetVar, ctx)
+        if (periodic != null) {
+            val display = displayWriter(ctx)
+            return CalculationResult(
+                input = input,
+                result = display.write(periodic),
+                expression = equation,
+                numericValue = solutions.first().evaluateNumerically(),
+                issues = ctx.issues,
+                answer = answerWriter(ctx).write(solutions.first()),
+                unit = null,
+                decimalPlaces = ctx.decimalPlaces
+            )
+        }
+
         // 1.609… found numerically is ln(5) where the steps of the equation say so
         val shownSolutions = EquationSteps.exactSolutions(equation, targetVar, solutions, ctx)?.toCollection(LinkedHashSet()) ?: solutions
         val display = displayWriter(ctx)

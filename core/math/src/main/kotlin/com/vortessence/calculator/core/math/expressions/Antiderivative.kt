@@ -253,41 +253,66 @@ internal class Integrator(private val context: MathContext) {
         return null
     }
 
-    /** 1/(p + qx²) → atan, 1/√(p − qx²) → asin, √(p ∓ qx²); the results are angles in radians. */
+    /**
+     * 1/(p + qx²) → atan, 1/√(p − qx²) → asin, 1/√(p + qx²) → asinh (a logarithm where p is negative: asinh only goes with
+     * a positive p), √(p ∓ qx²); the angles are in radians. Under a root, a term in x does not matter: the square is completed,
+     * ax² + bx + c = a·u² + (c − b²/4a) with u = x + b/2a, so that √(x² + 2x + 5) is √(u² + 4).
+     */
     private fun quadratic(base: Expression, exponent: Expression, v: Variable): Expression? {
         if (context.angleUnit != AngleUnit.RADIANS) return null
         val coefficients = polynomialCoefficients(base, v) ?: return null
-        if (coefficients.keys.any { it != 0 && it != 2 }) return null
-        val p = coefficients[0]?.real?.value ?: return null
-        val q = coefficients[2]?.real?.value ?: return null
-        val pValue = coefficients.getValue(0)
-        val qValue = coefficients.getValue(2)
+        if (coefficients.keys.any { it !in 0..2 }) return null
+        val qValue = coefficients[2] ?: return null
+        val isRoot = exponent == Value.HALF || exponent == Value(-1L, 2L)
+        val linear = coefficients[1]
+        if (linear != null && !isRoot) return null
+        // u = x + h, p = c − q·h²
+        var u: Expression = v
+        var pValue = coefficients[0] ?: if (linear != null) Value.ZERO else return null
+        if (linear != null) {
+            val h = canonical(Multiplications(listOf(linear, inverse(Multiplications(listOf(Value.TWO, qValue)))))) as? Value ?: return null
+            u = canonical(Additions(listOf(v, h))) ?: return null
+            pValue = canonical(Additions(listOf(pValue, Multiplications(listOf(Value.MINUS_ONE, qValue, Power(h, Value.TWO)))))) as? Value ?: return null
+        }
+        val p = pValue.real.value
+        val q = qValue.real.value
+        if (p == 0.0 || q == 0.0) return null
         return when {
             exponent == Value.MINUS_ONE && p > 0 && q > 0 -> Multiplications(listOf(
                 Power(Multiplications(listOf(pValue, qValue)), Value(-1L, 2L)),
-                trig(TrigType.ATAN, Multiplications(listOf(v, Power(Multiplications(listOf(qValue, inverse(pValue))), Value.HALF))))
+                trig(TrigType.ATAN, Multiplications(listOf(u, Power(Multiplications(listOf(qValue, inverse(pValue))), Value.HALF))))
             ))
             exponent == Value(-1L, 2L) && p > 0 && q < 0 -> Multiplications(listOf(
                 Power(qValue.negate(), Value(-1L, 2L)),
-                trig(TrigType.ASIN, Multiplications(listOf(v, Power(Multiplications(listOf(qValue.negate(), inverse(pValue))), Value.HALF))))
+                trig(TrigType.ASIN, Multiplications(listOf(u, Power(Multiplications(listOf(qValue.negate(), inverse(pValue))), Value.HALF))))
+            ))
+            // ∫1/√(p + q·x²) = asinh(x·√(q/p))/√q
+            exponent == Value(-1L, 2L) && p > 0 && q > 0 -> Multiplications(listOf(
+                Power(qValue, Value(-1L, 2L)),
+                HyperbolicFunction(HyperbolicType.ASINH, Multiplications(listOf(u, Power(Multiplications(listOf(qValue, inverse(pValue))), Value.HALF))))
+            ))
+            // ∫1/√(q·x² − r) = ln|x·√q + √(q·x² − r)|/√q: the same for either sign of x (acosh is only for x > 0)
+            exponent == Value(-1L, 2L) && p < 0 && q > 0 -> Multiplications(listOf(
+                Power(qValue, Value(-1L, 2L)),
+                lnAbs(Additions(listOf(Multiplications(listOf(u, Power(qValue, Value.HALF))), Power(base, Value.HALF))))
             ))
             // ∫√(p − r·x²) = x/2·√(p − r·x²) + p/(2√r)·asin(x·√(r/p))
             exponent == Value.HALF && p > 0 && q < 0 -> {
                 val r = qValue.negate()
                 Additions(listOf(
-                    Multiplications(listOf(Value.HALF, v, Power(base, Value.HALF))),
+                    Multiplications(listOf(Value.HALF, u, Power(base, Value.HALF))),
                     Multiplications(listOf(
                         pValue, Value.HALF, Power(r, Value(-1L, 2L)),
-                        trig(TrigType.ASIN, Multiplications(listOf(v, Power(Multiplications(listOf(r, inverse(pValue))), Value.HALF))))
+                        trig(TrigType.ASIN, Multiplications(listOf(u, Power(Multiplications(listOf(r, inverse(pValue))), Value.HALF))))
                     ))
                 ))
             }
-            // ∫√(p + q·x²) = x/2·√(p + q·x²) + p/(2√q)·ln|x·√q + √(p + q·x²)|
-            exponent == Value.HALF && p > 0 && q > 0 -> Additions(listOf(
-                Multiplications(listOf(Value.HALF, v, Power(base, Value.HALF))),
+            // ∫√(p + q·x²) = x/2·√(p + q·x²) + p/(2√q)·ln|x·√q + √(p + q·x²)|, for a negative p as well
+            exponent == Value.HALF && q > 0 -> Additions(listOf(
+                Multiplications(listOf(Value.HALF, u, Power(base, Value.HALF))),
                 Multiplications(listOf(
                     pValue, Value.HALF, Power(qValue, Value(-1L, 2L)),
-                    lnAbs(Additions(listOf(Multiplications(listOf(v, Power(qValue, Value.HALF))), Power(base, Value.HALF))))
+                    lnAbs(Additions(listOf(Multiplications(listOf(u, Power(qValue, Value.HALF))), Power(base, Value.HALF))))
                 ))
             ))
             else -> null
@@ -652,7 +677,8 @@ internal class Integrator(private val context: MathContext) {
         private const val MAX_POLYNOMIAL_DEGREE = 8
         private const val TOLERANCE = 1e-7
         private const val MIN_CHECKED_POINTS = 3
-        private val SAMPLE_POINTS = listOf(0.37, 1.13, 2.71, -0.83, 0.52, -1.9, 3.3, 0.071)
+        // Some well outside of (−2, 2): 1/√(x² − 4) and the like are only defined there
+        private val SAMPLE_POINTS = listOf(0.37, 1.13, 2.71, -0.83, 0.52, -1.9, 3.3, 0.071, 4.4, -2.6, 6.1, -5.2)
         private val OTHER_VALUES = listOf(1.7, 0.6, 2.3, -1.1)
     }
 }

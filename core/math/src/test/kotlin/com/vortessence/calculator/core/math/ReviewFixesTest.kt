@@ -35,10 +35,10 @@ class ReviewFixesTest {
     fun equationsInDegreesAreSearchedOverSeveralPeriods() {
         val degrees = MathContext(angleUnit = AngleUnit.DEGREES)
         val result = clean(calc("cos(2x) = cos(x)", degrees).result.toString())
-        assertTrue(result, result.contains("x = 120") && result.contains("x = 360"))
-        // A root where the curve only touches 0 is found exactly: sin x = 1 at 90°
-        val touching = clean(calc("2sin(x)^2 - sin(x) - 1 = 0", degrees).result.toString())
-        assertTrue(touching, touching.contains("x = 90,"))
+        // 2x = ±x + 360k: x = 360k and x = 120k, which is x = 120k
+        assertEquals("x = 120k, k ∈ ℤ", result)
+        // A root where the curve only touches 0 is found exactly: sin x = 1 at 90° (with 210° and 330° it is 90° + 120°k)
+        assertEquals("x = 90 + 120k, k ∈ ℤ", clean(calc("2sin(x)^2 - sin(x) - 1 = 0", degrees).result.toString()))
     }
 
     @Test

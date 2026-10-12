@@ -72,6 +72,19 @@ internal object EquationSteps {
     }
 
     /**
+     * The general solution of a trigonometric equation, "x = π/6 + 2πk, x = 5π/6 + 2πk, k ∈ ℤ", from the steps of the equation
+     * where they end in one; null otherwise (then the solutions found numerically are what is shown). The steps check that every
+     * numerically found solution is one of the family.
+     */
+    fun periodicSolutions(equation: Equals, v: Variable, context: MathContext): Expression? {
+        if (context.mode != com.vortessence.calculator.core.math.context.CalculationMode.EXACT) return null
+        if (!equation.containsExpressionMatching { it is TrigonometricFunction && it.operand.containsVariable(v) }) return null
+        val result = steps(equation, v, context.copy())?.result as? Alternatives ?: return null
+        val last = result.equations.lastOrNull() as? TextExpression ?: return null
+        return result.takeIf { last.text.endsWith("∈ ℤ") }
+    }
+
+    /**
      * The exact form of the decimal [solutions] the calculator found numerically, e.g. ln(5) for 1.609…, from the
      * steps of the equation; the others stay. Null if the steps do not give the same values (then nothing changes).
      */

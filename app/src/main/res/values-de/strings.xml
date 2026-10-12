@@ -286,6 +286,8 @@
     <string name="step_integral_csch">Integriere den Kosekans hyperbolicus</string>
     <string name="step_integral_logarithm">Integriere den Logarithmus</string>
     <string name="step_integral_table">Verwende ein Grundintegral</string>
+    <string name="step_integral_inverse_hyperbolic_sine">Integriere eins durch die Wurzel aus Quadrat plus Zahl: der Areasinus hyperbolicus</string>
+    <string name="step_integral_log_root">Integriere eins durch die Wurzel aus Quadrat minus Zahl: ein Logarithmus (gleich für positives und negatives x)</string>
     <string name="step_expand_integrand">Multipliziere den Integranden aus</string>
     <string name="step_substitution">Substituiere</string>
     <string name="step_back_substitution">Resubstituiere</string>

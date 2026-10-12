@@ -288,7 +288,7 @@ internal object IntegralSteps {
             if (g is LiteralPower) {
                 // x^(1/2): x^(3/2)/(3/2), shown as powers until the end
                 val power = g.inner as? Power ?: return null
-                val a = integrator.linearSlope(power.base, v) ?: return null
+                val a = integrator.linearSlope(power.base, v) ?: return rootOfQuadratic(power)
                 val next = canonical(Additions(power.exponent, Value.ONE)) as? Value ?: return null
                 val divisor = canonical(Multiplications(next, a)) ?: return null
                 val raised = Power(power.base, next).let { if (next.isNegative || next.rational?.isFractional == true) LiteralPower(it) else it }
@@ -299,8 +299,7 @@ internal object IntegralSteps {
                 g is Power && !g.exponent.containsVariable(v) -> {
                     val u = g.base
                     // sin², cos² and the quadratic forms come from the calculator's table, simplified
-                    val a = integrator.linearSlope(u, v)
-                        ?: return integrator.basic(canonical(g) ?: g, v)?.let { canonical(it) }?.let { it to StepRule.INTEGRAL_TABLE }
+                    val a = integrator.linearSlope(u, v) ?: return rootOfQuadratic(g)
                     if (g.exponent == Value.MINUS_ONE) return divide(lnAbs(u), a) to StepRule.INTEGRAL_RECIPROCAL
                     val next = if (g.exponent is Value) canonical(Additions(g.exponent, Value.ONE)) ?: return null else Additions(g.exponent, Value.ONE)
                     val divisor = if (next is Value && a is Value) canonical(Multiplications(next, a)) ?: return null else product(next, a)
@@ -344,6 +343,26 @@ internal object IntegralSteps {
             return null
         }
 
+        /**
+         * 1/√(x² + a²) and 1/√(x² − a²): what the calculator integrates (a quadratic under a root) with a rule of its own where
+         * the square is x² ± a², otherwise a standard integral.
+         */
+        private fun rootOfQuadratic(power: Power): Pair<Expression, StepRule>? {
+            val (result, rule) = fromTable(power) ?: return null
+            // 1/√b is written as (√b)^(−1) or as b^(−1/2)
+            val inner = power.base
+            val base = when {
+                power.exponent == Value(-1L, 2L) -> inner
+                power.exponent == Value.MINUS_ONE && inner is Power && inner.exponent == Value.HALF -> inner.base
+                else -> return result to rule
+            }
+            val isSquarePlusNumber = base is Additions && base.operands.size == 2 &&
+                base.operands.any { it == Power(v, Value.TWO) } && base.operands.any { it is Value }
+            if (!isSquarePlusNumber) return result to rule
+            val number = (base as Additions).operands.first { it is Value } as Value
+            return result to if (number.isNegative) StepRule.INTEGRAL_LOG_ROOT else StepRule.INTEGRAL_INVERSE_HYPERBOLIC_SINE
+        }
+
         /** The calculator's table integral of [g], with a rule of its own or as a table value. */
         private fun fromTable(g: Expression, rule: StepRule = StepRule.INTEGRAL_TABLE): Pair<Expression, StepRule>? =
             integrator.basic(canonical(g) ?: g, v)?.let { canonical(it) }?.let { it to rule }
@@ -358,7 +377,8 @@ internal object IntegralSteps {
                 is Logarithm -> g.operand
                 else -> v
             }
-            return rewrite(rule, result, chainRule = rule != StepRule.INTEGRAL_TABLE && inner != v)
+            // A substitution u = ax + b only for a linear inner function (not for the quadratic under a root)
+            return rewrite(rule, result, chainRule = rule != StepRule.INTEGRAL_TABLE && inner != v && integrator.linearSlope(inner, v) != null)
         }
 
         /** Products and powers of sums multiplied out, e.g. ∫x(x + 1)² dx = ∫(x³ + 2x² + x) dx. */
