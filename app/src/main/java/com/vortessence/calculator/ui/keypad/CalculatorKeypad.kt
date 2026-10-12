@@ -375,19 +375,55 @@ fun CalculatorKeypad(
                         text = "sin",
                         buttonWidth = buttonWidth,
                         isAccent = true,
-                        alternates = listOf(alt("asin", KeyAction.Function("asin")))
+                        alternates = listOf(
+                            alt("asin", KeyAction.Function("asin")),
+                            alt("csc", KeyAction.Function("csc")),
+                            alt("acsc", KeyAction.Function("acsc"))
+                        ),
+                        upperAlternates = listOf(
+                            alt("sinh", KeyAction.Function("sinh")),
+                            alt("asinh", KeyAction.Function("asinh")),
+                            alt("csch", KeyAction.Function("csch")),
+                            alt("acsch", KeyAction.Function("acsch"))
+                        ),
+                        // The inverse; the dots tell that the popup has more
+                        hints = listOf(alt("asin", KeyAction.Function("asin")), KeyAlternate(AnnotatedString("…")) { })
                     ) { onKeyAction(KeyAction.Function("sin")) }
                     KeyButton(
                         text = "cos",
                         buttonWidth = buttonWidth,
                         isAccent = true,
-                        alternates = listOf(alt("acos", KeyAction.Function("acos")))
+                        alternates = listOf(
+                            alt("acos", KeyAction.Function("acos")),
+                            alt("sec", KeyAction.Function("sec")),
+                            alt("asec", KeyAction.Function("asec"))
+                        ),
+                        upperAlternates = listOf(
+                            alt("cosh", KeyAction.Function("cosh")),
+                            alt("acosh", KeyAction.Function("acosh")),
+                            alt("sech", KeyAction.Function("sech")),
+                            alt("asech", KeyAction.Function("asech"))
+                        ),
+                        // The inverse; the dots tell that the popup has more
+                        hints = listOf(alt("acos", KeyAction.Function("acos")), KeyAlternate(AnnotatedString("…")) { })
                     ) { onKeyAction(KeyAction.Function("cos")) }
                     KeyButton(
                         text = "tan",
                         buttonWidth = buttonWidth,
                         isAccent = true,
-                        alternates = listOf(alt("atan", KeyAction.Function("atan")))
+                        alternates = listOf(
+                            alt("atan", KeyAction.Function("atan")),
+                            alt("cot", KeyAction.Function("cot")),
+                            alt("acot", KeyAction.Function("acot"))
+                        ),
+                        upperAlternates = listOf(
+                            alt("tanh", KeyAction.Function("tanh")),
+                            alt("atanh", KeyAction.Function("atanh")),
+                            alt("coth", KeyAction.Function("coth")),
+                            alt("acoth", KeyAction.Function("acoth"))
+                        ),
+                        // The inverse; the dots tell that the popup has more
+                        hints = listOf(alt("atan", KeyAction.Function("atan")), KeyAlternate(AnnotatedString("…")) { })
                     ) { onKeyAction(KeyAction.Function("tan")) }
 
                     // Page 1 (cols 4..8)
@@ -610,6 +646,11 @@ private fun KeyButton(
     bgColor: Color? = null,
     textColor: Color? = null,
     alternates: List<KeyAlternate> = emptyList(),
+    /**
+     * A second row of the long-press popup, above the first (the main function and [alternates]): the finger
+     * slides up to it. Cell n of this row is above cell n of the first.
+     */
+    upperAlternates: List<KeyAlternate> = emptyList(),
     /** Stands for the main function in the long-press popup (instead of [text]). */
     popupIcon: ImageVector? = null,
     /** Stands for the main function in the long-press popup, instead of [text]. */
@@ -653,7 +694,7 @@ private fun KeyButton(
     var popupCellPx by remember { mutableFloatStateOf(0f) }
     var keyLeftInWindow by remember { mutableFloatStateOf(0f) }
     val windowWidth = LocalWindowInfo.current.containerSize.width
-    val gestureModifier = if (alternates.isEmpty()) {
+    val gestureModifier = if (alternates.isEmpty() && upperAlternates.isEmpty()) {
         Modifier.clickable(onClick = onClick)
     } else {
         val interactionSource = remember { MutableInteractionSource() }
@@ -661,7 +702,8 @@ private fun KeyButton(
         val currentOnClick by rememberUpdatedState(onClick)
         // The popup starts with the main function, preselected, so an accidental long press
         // does what a tap would have done
-        val popupEntries by rememberUpdatedState(listOf(KeyAlternate(popupLabel ?: AnnotatedString(text.orEmpty()), popupIcon, onClick)) + alternates)
+        val lowerEntries by rememberUpdatedState(listOf(KeyAlternate(popupLabel ?: AnnotatedString(text.orEmpty()), popupIcon, onClick)) + alternates)
+        val upperEntries by rememberUpdatedState(upperAlternates)
         Modifier
             .indication(interactionSource, LocalIndication.current)
             .pointerInput(cellPx) {
@@ -688,7 +730,11 @@ private fun KeyButton(
 
                     // Long press: the finger slides over the alternates, lifting it picks one
                     view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                    val count = popupEntries.size
+                    val lowerCount = lowerEntries.size
+                    val upperCount = upperEntries.size
+                    val count = maxOf(lowerCount, upperCount)
+                    // The upper row starts where the lower one ends: a cell and the gap to the key above the key's top
+                    val upperRowTop = -(cellPx * CELL_HEIGHT_FACTOR + POPUP_GAP.toPx())
                     // Opens to the side with more room (right by default); if the entries still do
                     // not fit there, their cells are narrowed so that they all stay reachable
                     val roomRight = windowWidth - keyLeftInWindow
@@ -701,11 +747,13 @@ private fun KeyButton(
                             val change = awaitPointerEvent().changes.firstOrNull { it.id == down.id } ?: break
                             change.consume()
                             if (!change.pressed) {
-                                popupSelection?.let { popupEntries.getOrNull(it)?.onSelect?.invoke() }
+                                popupSelection?.let { (lowerEntries + upperEntries).getOrNull(it)?.onSelect?.invoke() }
                                 break
                             }
                             val offset = if (popupOpensLeft) size.width - change.position.x else change.position.x
-                            val selection = (offset / popupCellPx).toInt().coerceIn(0, count - 1)
+                            val inUpperRow = upperCount > 0 && change.position.y < upperRowTop
+                            val column = (offset / popupCellPx).toInt().coerceIn(0, (if (inUpperRow) upperCount else lowerCount) - 1)
+                            val selection = if (inUpperRow) lowerCount + column else column
                             if (selection != popupSelection) {
                                 view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                                 popupSelection = selection
@@ -772,9 +820,10 @@ private fun KeyButton(
         popupSelection?.let { selected ->
             AlternatesPopup(
                 listOf(KeyAlternate(popupLabel ?: AnnotatedString(text.orEmpty()), popupIcon, onClick)) + alternates,
+                upperAlternates,
                 selected,
                 cellWidth = with(LocalDensity.current) { popupCellPx.toDp() },
-                cellHeight = buttonWidth * 0.8f,
+                cellHeight = buttonWidth * CELL_HEIGHT_FACTOR,
                 opensLeft = popupOpensLeft
             )
         }
@@ -846,51 +895,79 @@ private val MixedFractionIcon: ImageVector = ImageVector.Builder(
     }
 }.build()
 
-/** The functions of a long-pressed key (main one first), shown above it with one cell each. */
+/** A popup cell is this much of a key's width high. */
+private const val CELL_HEIGHT_FACTOR = 0.8f
+
+/** The space between a key and its popup. */
+private val POPUP_GAP = 6.dp
+
+/**
+ * The functions of a long-pressed key (main one first), shown above it with one cell each; [upper] is a second
+ * row above the first. [selected] counts the cells of [lower] and then those of [upper].
+ */
 @Composable
 private fun AlternatesPopup(
-    alternates: List<KeyAlternate>,
+    lower: List<KeyAlternate>,
+    upper: List<KeyAlternate>,
     selected: Int,
     cellWidth: Dp,
     cellHeight: Dp,
     opensLeft: Boolean
 ) {
-    val gapPx = with(LocalDensity.current) { 6.dp.roundToPx() }
+    val gapPx = with(LocalDensity.current) { POPUP_GAP.roundToPx() }
     val positionProvider = remember(gapPx, opensLeft) { AboveKeyPositionProvider(gapPx, opensLeft) }
     Popup(popupPositionProvider = positionProvider) {
-        Row(
+        Column(
             modifier = Modifier
                 .shadow(8.dp, RoundedCornerShape(14.dp))
                 .clip(RoundedCornerShape(14.dp))
-                .background(MaterialTheme.colorScheme.surfaceBright)
+                .background(MaterialTheme.colorScheme.surfaceBright),
+            // Opening to the left, the rows end above the key
+            horizontalAlignment = if (opensLeft) Alignment.End else Alignment.Start
         ) {
-            // Opening to the left, the main function is the rightmost cell (above the key)
-            val ordered = alternates.withIndex().let { if (opensLeft) it.reversed() else it.toList() }
-            ordered.forEach { (index, alternate) ->
-                val isSelected = index == selected
-                Box(
-                    modifier = Modifier
-                        .size(width = cellWidth, height = cellHeight)
-                        .padding(4.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent),
-                    contentAlignment = Alignment.Center
-                ) {
-                    val color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-                    if (alternate.icon != null) {
-                        Icon(alternate.icon, contentDescription = alternate.label.text, tint = color, modifier = Modifier.size(26.dp))
-                    } else {
-                        Text(
-                            text = alternate.label,
-                            fontSize = when {
-                                alternate.label.length > 5 -> 13.sp
-                                alternate.label.length > 3 -> 16.sp
-                                else -> 22.sp
-                            },
-                            fontWeight = FontWeight.Medium,
-                            color = color
-                        )
-                    }
+            if (upper.isNotEmpty()) AlternatesRow(upper, lower.size, selected, cellWidth, cellHeight, opensLeft)
+            AlternatesRow(lower, 0, selected, cellWidth, cellHeight, opensLeft)
+        }
+    }
+}
+
+/** One row of the popup; [firstIndex] is the position of its first cell in the popup's [selected] count. */
+@Composable
+private fun AlternatesRow(
+    alternates: List<KeyAlternate>,
+    firstIndex: Int,
+    selected: Int,
+    cellWidth: Dp,
+    cellHeight: Dp,
+    opensLeft: Boolean
+) {
+    Row {
+        // Opening to the left, the main function is the rightmost cell (above the key)
+        val ordered = alternates.withIndex().let { if (opensLeft) it.reversed() else it.toList() }
+        ordered.forEach { (index, alternate) ->
+            val isSelected = firstIndex + index == selected
+            Box(
+                modifier = Modifier
+                    .size(width = cellWidth, height = cellHeight)
+                    .padding(4.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent),
+                contentAlignment = Alignment.Center
+            ) {
+                val color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                if (alternate.icon != null) {
+                    Icon(alternate.icon, contentDescription = alternate.label.text, tint = color, modifier = Modifier.size(26.dp))
+                } else {
+                    Text(
+                        text = alternate.label,
+                        fontSize = when {
+                            alternate.label.length > 5 -> 13.sp
+                            alternate.label.length > 3 -> 16.sp
+                            else -> 22.sp
+                        },
+                        fontWeight = FontWeight.Medium,
+                        color = color
+                    )
                 }
             }
         }

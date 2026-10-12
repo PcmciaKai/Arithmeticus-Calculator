@@ -114,6 +114,7 @@ class MathWriter(
             is TrigonometricFunction -> {
                 result.append(FunctionNode(expr.type.symbol, writeExpr(if (degrees) inDegrees(expr) else expr.operand)))
             }
+            is HyperbolicFunction -> result.append(FunctionNode(expr.type.symbol, writeExpr(expr.operand)))
             is Logarithm -> {
                 val base = expr.base
                 when {

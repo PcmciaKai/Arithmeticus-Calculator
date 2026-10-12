@@ -13,6 +13,8 @@ import com.vortessence.calculator.core.math.expressions.MatrixExpression
 import com.vortessence.calculator.core.math.expressions.Multiplications
 import com.vortessence.calculator.core.math.expressions.Power
 import com.vortessence.calculator.core.math.expressions.TrigType
+import com.vortessence.calculator.core.math.expressions.HyperbolicFunction
+import com.vortessence.calculator.core.math.expressions.HyperbolicType
 import com.vortessence.calculator.core.math.expressions.TrigonometricFunction
 import com.vortessence.calculator.core.math.expressions.Value
 import com.vortessence.calculator.core.math.expressions.Variable
@@ -100,7 +102,7 @@ internal object DerivativeSteps {
         if (!e.containsVariable(v)) return true
         return when (e) {
             v -> true
-            is Additions, is Multiplications, is Power, is Logarithm, is TrigonometricFunction, is AbsoluteValue ->
+            is Additions, is Multiplications, is Power, is Logarithm, is TrigonometricFunction, is HyperbolicFunction, is AbsoluteValue ->
                 e.children.all { hasRules(it, v) }
             is Integral -> (e.variable == v || !e.integrand.containsVariable(v)) &&
                 hasRules(e.lowerBound, v) && hasRules(e.upperBound, v)
@@ -134,6 +136,7 @@ internal object DerivativeSteps {
                 is Power -> rewriteAsPower(u) ?: power(u, literal = false)
                 is Logarithm -> logarithm(u)
                 is TrigonometricFunction -> trigonometric(u)
+                is HyperbolicFunction -> hyperbolic(u)
                 is AbsoluteValue -> Rewrite(product(u.operand, Power(u, Value.MINUS_ONE)), StepRule.ABSOLUTE_VALUE)
                 is Integral -> integral(u)
                 else -> null
@@ -156,6 +159,7 @@ internal object DerivativeSteps {
                 power != null && !power.base.containsVariable(v) -> power.exponent to { w: Expression -> Power(power.base, w) }
                 e is Logarithm && !e.base.containsVariable(v) -> e.operand to { w: Expression -> Logarithm(e.base, w) }
                 e is TrigonometricFunction -> e.operand to { w: Expression -> TrigonometricFunction(e.type, w, e.angleUnit ?: context.angleUnit) }
+                e is HyperbolicFunction -> e.operand to { w: Expression -> HyperbolicFunction(e.type, w) }
                 e is AbsoluteValue -> e.operand to { w: Expression -> AbsoluteValue(w) }
                 else -> return null
             }
@@ -261,16 +265,21 @@ internal object DerivativeSteps {
         private fun trigonometric(u: TrigonometricFunction): Rewrite {
             val x = u.operand
             val unit = u.angleUnit ?: context.angleUnit
-            fun trig(type: TrigType) = TrigonometricFunction(type, x, unit)
-            val oneMinusXSquared = Additions(Value.ONE, product(Value.MINUS_ONE, Power(x, Value.TWO)))
-            val (rule, outer) = when (u.type) {
-                TrigType.SIN -> StepRule.SINE to trig(TrigType.COS)
-                TrigType.COS -> StepRule.COSINE to product(Value.MINUS_ONE, trig(TrigType.SIN))
-                TrigType.TAN -> StepRule.TANGENT to Power(trig(TrigType.COS), Value(-2L))
-                TrigType.ASIN -> StepRule.ARCSINE to Power(oneMinusXSquared, Value(-1L, 2L))
-                TrigType.ACOS -> StepRule.ARCCOSINE to product(Value.MINUS_ONE, Power(oneMinusXSquared, Value(-1L, 2L)))
-                TrigType.ATAN -> StepRule.ARCTANGENT to Power(Additions(Value.ONE, Power(x, Value.TWO)), Value.MINUS_ONE)
+            val rule = when (u.type) {
+                TrigType.SIN -> StepRule.SINE
+                TrigType.COS -> StepRule.COSINE
+                TrigType.TAN -> StepRule.TANGENT
+                TrigType.SEC -> StepRule.SECANT
+                TrigType.CSC -> StepRule.COSECANT
+                TrigType.COT -> StepRule.COTANGENT
+                TrigType.ASIN -> StepRule.ARCSINE
+                TrigType.ACOS -> StepRule.ARCCOSINE
+                TrigType.ATAN -> StepRule.ARCTANGENT
+                TrigType.ASEC -> StepRule.ARCSECANT
+                TrigType.ACSC -> StepRule.ARCCOSECANT
+                TrigType.ACOT -> StepRule.ARCCOTANGENT
             }
+            val outer = u.type.outerDerivative(x, unit)
             // With angles in degrees: sin's operand and the inverse functions' results are scaled
             val degreeFactor: Expression = when {
                 unit != AngleUnit.DEGREES -> Value.ONE
@@ -278,6 +287,24 @@ internal object DerivativeSteps {
                 else -> product(Constant.PI, Value(1L, 180L))
             }
             return Rewrite(product(outer, degreeFactor), rule)
+        }
+
+        private fun hyperbolic(u: HyperbolicFunction): Rewrite {
+            val rule = when (u.type) {
+                HyperbolicType.SINH -> StepRule.HYPERBOLIC_SINE
+                HyperbolicType.COSH -> StepRule.HYPERBOLIC_COSINE
+                HyperbolicType.TANH -> StepRule.HYPERBOLIC_TANGENT
+                HyperbolicType.SECH -> StepRule.HYPERBOLIC_SECANT
+                HyperbolicType.CSCH -> StepRule.HYPERBOLIC_COSECANT
+                HyperbolicType.COTH -> StepRule.HYPERBOLIC_COTANGENT
+                HyperbolicType.ASINH -> StepRule.INVERSE_HYPERBOLIC_SINE
+                HyperbolicType.ACOSH -> StepRule.INVERSE_HYPERBOLIC_COSINE
+                HyperbolicType.ATANH -> StepRule.INVERSE_HYPERBOLIC_TANGENT
+                HyperbolicType.ASECH -> StepRule.INVERSE_HYPERBOLIC_SECANT
+                HyperbolicType.ACSCH -> StepRule.INVERSE_HYPERBOLIC_COSECANT
+                HyperbolicType.ACOTH -> StepRule.INVERSE_HYPERBOLIC_COTANGENT
+            }
+            return Rewrite(u.type.outerDerivative(u.operand), rule)
         }
 
         private fun integral(u: Integral): Rewrite? {

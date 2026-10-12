@@ -95,6 +95,7 @@ internal object Differentiator {
             is Power -> power(e, v)
             is Logarithm -> logarithm(e, v)
             is TrigonometricFunction -> trigonometric(e, v)
+            is HyperbolicFunction -> hyperbolic(e, v)
             is Integral -> integral(e, v)
             // |u|' = u'·u/|u|
             is AbsoluteValue -> Multiplications(listOf(derivative(e.operand, v) ?: return null, e.operand, Power(e, Value.MINUS_ONE)))
@@ -145,16 +146,7 @@ internal object Differentiator {
         val u = e.operand
         val du = derivative(u, v) ?: return null
         val unit = e.angleUnit ?: MathContext.current().angleUnit
-        fun trig(type: TrigType) = TrigonometricFunction(type, u, unit)
-        val oneMinusUSquared = Additions(listOf(Value.ONE, Multiplications(listOf(Value.MINUS_ONE, Power(u, Value.TWO)))))
-        val outer: Expression = when (e.type) {
-            TrigType.SIN -> trig(TrigType.COS)
-            TrigType.COS -> Multiplications(listOf(Value.MINUS_ONE, trig(TrigType.SIN)))
-            TrigType.TAN -> Power(trig(TrigType.COS), Value(-2L))
-            TrigType.ASIN -> Power(oneMinusUSquared, Value(-1L, 2L))
-            TrigType.ACOS -> Multiplications(listOf(Value.MINUS_ONE, Power(oneMinusUSquared, Value(-1L, 2L))))
-            TrigType.ATAN -> Power(Additions(listOf(Value.ONE, Power(u, Value.TWO))), Value.MINUS_ONE)
-        }
+        val outer = e.type.outerDerivative(u, unit)
         // With angles in degrees: sin's operand and the inverse functions' results are scaled
         val degreeFactor: Expression = when {
             unit != AngleUnit.DEGREES -> Value.ONE
@@ -163,6 +155,11 @@ internal object Differentiator {
         }
         // The inner derivative first, so it reads 2x·cos(x²) rather than cos(x²)·2x
         return Multiplications(listOf(du, outer, degreeFactor))
+    }
+
+    private fun hyperbolic(e: HyperbolicFunction, v: Variable): Expression? {
+        val du = derivative(e.operand, v) ?: return null
+        return Multiplications(listOf(du, e.type.outerDerivative(e.operand)))
     }
 
     /** Fundamental theorem of calculus: (∫_a^b f(t) dt)' = f(b)·b' − f(a)·a'. */

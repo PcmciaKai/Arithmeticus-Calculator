@@ -8,6 +8,8 @@ import com.vortessence.calculator.core.math.context.AngleUnit
 import com.vortessence.calculator.core.math.expressions.AbsoluteValue
 import com.vortessence.calculator.core.math.expressions.Constant
 import com.vortessence.calculator.core.math.expressions.TrigType
+import com.vortessence.calculator.core.math.expressions.HyperbolicFunction
+import com.vortessence.calculator.core.math.expressions.HyperbolicType
 import com.vortessence.calculator.core.math.expressions.TrigonometricFunction
 import com.vortessence.calculator.core.math.expressions.Additions
 import com.vortessence.calculator.core.math.expressions.Antiderivative
@@ -447,9 +449,12 @@ internal object EquationSteps {
             amplitudeForm()?.let { return it }
             doubleAngle()?.let { return it }
             commonTrigonometricFactor()?.let { return it }
+            reciprocalEquation()?.let { return it }
+            reciprocalTrigonometric()?.let { return it }
             tangentAsQuotient()?.let { return it }
             pythagorean()?.let { return it }
             trigonometric()?.let { return it }
+            hyperbolic()?.let { return it }
             exponentialSubstitution()?.let { return it }
             trigonometricSubstitution()?.let { return it }
             val coefficients = polynomial() ?: return null
@@ -907,6 +912,85 @@ internal object EquationSteps {
                 }
             }
             return Match(StepRule.DOUBLE_ANGLE, mapOf(path to result), equation, result, showChange = false)
+        }
+
+        /** sec(u) = c ⇔ cos(u) = 1/c, csc(u) = c ⇔ sin(u) = 1/c and cot(u) = c ⇔ tan(u) = 1/c, for a constant c. */
+        private fun reciprocalEquation(): Match? {
+            if (right.containsVariable(v) || context.complexNumbers) return null
+            val isReciprocal = { e: Expression ->
+                e is TrigonometricFunction && e.type in listOf(TrigType.SEC, TrigType.CSC, TrigType.COT) &&
+                    e.operand.containsVariable(v) && (e.angleUnit ?: unit) == unit
+            }
+            isolate(isReciprocal)?.let { return it }
+            val function = left as? TrigonometricFunction ?: return null
+            if (!isReciprocal(function)) return null
+            val c = canonical(right) ?: return null
+            val base = when (function.type) {
+                TrigType.SEC -> TrigType.COS
+                TrigType.CSC -> TrigType.SIN
+                else -> TrigType.TAN
+            }
+            // 1/cos(u) and 1/sin(u) are never 0; cot(u) = 0 where cos(u) = 0
+            if (c.isZero && function.type != TrigType.COT) return noRealSolution()
+            val result = if (c.isZero) {
+                Equals(TrigonometricFunction(TrigType.COS, function.operand, unit), Value.ZERO)
+            } else {
+                Equals(TrigonometricFunction(base, function.operand, unit), canonical(Power(c, Value.MINUS_ONE)) ?: return null)
+            }
+            return Match(StepRule.RECIPROCAL_EQUATION, mapOf(path to result), equation, result, showChange = false)
+        }
+
+        /** sec(u) = 1/cos(u), csc(u) = 1/sin(u) and cot(u) = cos(u)/sin(u): then the equation is one of sine, cosine and tangent. */
+        private fun reciprocalTrigonometric(): Match? {
+            if (context.complexNumbers) return null
+            val reciprocals = listOf(TrigType.SEC, TrigType.CSC, TrigType.COT)
+            fun isReciprocal(e: Expression) = e is TrigonometricFunction && e.type in reciprocals && e.operand.containsVariable(v) && (e.angleUnit ?: unit) == unit
+            if (!equation.containsExpressionMatching { isReciprocal(it) }) return null
+            val result = equation.transform {
+                if (!isReciprocal(it)) return@transform it
+                val function = it as TrigonometricFunction
+                val u = function.operand
+                fun trig(type: TrigType) = TrigonometricFunction(type, u, unit)
+                when (function.type) {
+                    TrigType.SEC -> Power(trig(TrigType.COS), Value.MINUS_ONE)
+                    TrigType.CSC -> Power(trig(TrigType.SIN), Value.MINUS_ONE)
+                    else -> Multiplications(trig(TrigType.COS), Power(trig(TrigType.SIN), Value.MINUS_ONE))
+                }
+            }
+            return Match(StepRule.RECIPROCAL_TRIGONOMETRIC, mapOf(path to result), equation, result, showChange = false)
+        }
+
+        /**
+         * sinh(u) = c ⇔ u = asinh(c), tanh(u) = c ⇔ u = atanh(c), cosh(u) = c ⇔ u = ±acosh(c), and the same with the
+         * inverse of sech, csch and coth, which is what 1/c is for the others.
+         */
+        private fun hyperbolic(): Match? {
+            if (right.containsVariable(v) || context.complexNumbers) return null
+            val isHyperbolic = { e: Expression -> e is HyperbolicFunction && !e.type.isInverse && e.operand.containsVariable(v) }
+            isolate(isHyperbolic)?.let { return it }
+            val function = left as? HyperbolicFunction ?: return null
+            if (!isHyperbolic(function)) return null
+            val c = canonical(right) ?: return null
+            val numeric = c.evaluateNumerically()
+            if (!numeric.isFinite()) return null
+            val inverseType = when (function.type) {
+                HyperbolicType.SINH -> HyperbolicType.ASINH
+                HyperbolicType.COSH -> HyperbolicType.ACOSH
+                HyperbolicType.TANH -> HyperbolicType.ATANH
+                HyperbolicType.SECH -> HyperbolicType.ASECH
+                HyperbolicType.CSCH -> HyperbolicType.ACSCH
+                else -> HyperbolicType.ACOTH
+            }
+            if (!inverseType.acceptsArgument(numeric)) return noRealSolution()
+            val inverse = HyperbolicFunction(inverseType, c)
+            // asinh(3/4) = ln(2) where the calculator knows the value, otherwise asinh(…) stays
+            val exact = canonical(inverse)?.takeIf { e -> !(e is Value && e.rational == null) } ?: inverse
+            val twoSided = (function.type == HyperbolicType.COSH || function.type == HyperbolicType.SECH) && !exact.isZero
+            val equations = listOf(Equals(function.operand, exact)) +
+                (if (twoSided) listOf(Equals(function.operand, Multiplications(Value.MINUS_ONE, exact))) else emptyList())
+            val result: Expression = if (equations.size == 1) equations.single() else Alternatives(equations)
+            val notes = if (writtenForm(exact) != writtenForm(inverse)) listOf(Note(inverse, exact)) else emptyList()
+            return Match(StepRule.HYPERBOLIC_SOLUTION, mapOf(path to result), equation, result, notes = notes, showChange = false)
         }
 
         /** tan(u) = sin(u)/cos(u), where the equation has a sine or cosine as well. */

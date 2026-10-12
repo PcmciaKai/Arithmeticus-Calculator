@@ -107,6 +107,7 @@ internal class Integrator(private val context: MathContext) {
     private fun lnAbs(u: Expression) = Logarithm.ln(AbsoluteValue(u))
     private fun inverse(e: Expression) = Power(e, Value.MINUS_ONE)
     private fun trig(type: TrigType, u: Expression) = TrigonometricFunction(type, u, AngleUnit.RADIANS)
+    private fun hyperbolic(type: HyperbolicType, u: Expression) = HyperbolicFunction(type, u)
 
     /** Table integrals of a single function of a linear argument u = a·v + b (divided by a). */
     internal fun basic(f: Expression, v: Variable): Expression? {
@@ -117,6 +118,7 @@ internal class Integrator(private val context: MathContext) {
                 val exponent = f.exponent
                 if (!exponent.containsVariable(v)) {
                     squaredSineOrCosine(base, exponent, v)?.let { return it }
+                    squaredHyperbolic(base, exponent, v)?.let { return it }
                     val a = linearSlope(base, v) ?: return quadratic(base, exponent, v)
                     if (exponent == Value.MINUS_ONE) {
                         Multiplications(listOf(lnAbs(base), inverse(a)))
@@ -139,7 +141,28 @@ internal class Integrator(private val context: MathContext) {
                 val antiderivative = when (f.type) {
                     TrigType.SIN -> Multiplications(listOf(Value.MINUS_ONE, trig(TrigType.COS, u)))
                     TrigType.COS -> trig(TrigType.SIN, u)
-                    else -> Multiplications(listOf(Value.MINUS_ONE, lnAbs(trig(TrigType.COS, u))))
+                    TrigType.TAN -> Multiplications(listOf(Value.MINUS_ONE, lnAbs(trig(TrigType.COS, u))))
+                    TrigType.SEC -> lnAbs(Additions(listOf(trig(TrigType.SEC, u), trig(TrigType.TAN, u))))
+                    TrigType.CSC -> Multiplications(listOf(Value.MINUS_ONE, lnAbs(Additions(listOf(trig(TrigType.CSC, u), trig(TrigType.COT, u))))))
+                    TrigType.COT -> lnAbs(trig(TrigType.SIN, u))
+                    else -> return null
+                }
+                Multiplications(listOf(antiderivative, inverse(a)))
+            }
+            is HyperbolicFunction -> {
+                if (f.type.isInverse) return null
+                val u = f.operand
+                val a = linearSlope(u, v) ?: return null
+                val antiderivative = when (f.type) {
+                    HyperbolicType.SINH -> hyperbolic(HyperbolicType.COSH, u)
+                    HyperbolicType.COSH -> hyperbolic(HyperbolicType.SINH, u)
+                    // cosh is always positive
+                    HyperbolicType.TANH -> Logarithm.ln(hyperbolic(HyperbolicType.COSH, u))
+                    HyperbolicType.COTH -> lnAbs(hyperbolic(HyperbolicType.SINH, u))
+                    // ∫sech = atan(sinh), ∫csch = ln|tanh(u/2)|
+                    HyperbolicType.SECH -> trig(TrigType.ATAN, hyperbolic(HyperbolicType.SINH, u))
+                    HyperbolicType.CSCH -> lnAbs(hyperbolic(HyperbolicType.TANH, Multiplications(listOf(Value.HALF, u))))
+                    else -> return null
                 }
                 Multiplications(listOf(antiderivative, inverse(a)))
             }
@@ -157,14 +180,23 @@ internal class Integrator(private val context: MathContext) {
         }
     }
 
-    /** sin²(u) = (u − sin(u)cos(u))/2, cos²(u) = (u + sin(u)cos(u))/2 and tan²(u) = tan(u) − u, divided by a. */
+    /**
+     * sin²(u) = (u − sin(u)cos(u))/2, cos²(u) = (u + sin(u)cos(u))/2, tan²(u) = tan(u) − u, sec²(u) = tan(u),
+     * csc²(u) = −cot(u) and cot²(u) = −cot(u) − u, divided by a.
+     */
     private fun squaredSineOrCosine(base: Expression, exponent: Expression, v: Variable): Expression? {
         if (exponent != Value.TWO || base !is TrigonometricFunction || base.angleUnit != AngleUnit.RADIANS) return null
         val u = base.operand
         val a = linearSlope(u, v) ?: return null
-        // tan²(u) = sec²(u) − 1: (tan(u) − u)/a
-        if (base.type == TrigType.TAN) {
-            return Multiplications(listOf(Additions(listOf(trig(TrigType.TAN, u), Multiplications(listOf(Value.MINUS_ONE, u)))), inverse(a)))
+        fun divided(e: Expression) = Multiplications(listOf(e, inverse(a)))
+        fun minus(e: Expression) = Multiplications(listOf(Value.MINUS_ONE, e))
+        when (base.type) {
+            // tan²(u) = sec²(u) − 1
+            TrigType.TAN -> return divided(Additions(listOf(trig(TrigType.TAN, u), minus(u))))
+            TrigType.SEC -> return divided(trig(TrigType.TAN, u))
+            TrigType.CSC -> return divided(minus(trig(TrigType.COT, u)))
+            TrigType.COT -> return divided(Additions(listOf(minus(trig(TrigType.COT, u)), minus(u))))
+            else -> {}
         }
         val sign = when (base.type) {
             TrigType.SIN -> Value.MINUS_ONE
@@ -173,6 +205,52 @@ internal class Integrator(private val context: MathContext) {
         }
         val sinCos = Multiplications(listOf(sign, trig(TrigType.SIN, u), trig(TrigType.COS, u)))
         return Multiplications(listOf(Additions(listOf(u, sinCos)), inverse(Multiplications(listOf(Value.TWO, a)))))
+    }
+
+    /** sinh²(u) = (sinh(u)cosh(u) − u)/2, cosh²(u) = (sinh(u)cosh(u) + u)/2, tanh² = u − tanh, sech² = tanh, csch² = −coth, coth² = u − coth. */
+    private fun squaredHyperbolic(base: Expression, exponent: Expression, v: Variable): Expression? {
+        if (exponent != Value.TWO || base !is HyperbolicFunction || base.type.isInverse) return null
+        val u = base.operand
+        val a = linearSlope(u, v) ?: return null
+        fun divided(e: Expression) = Multiplications(listOf(e, inverse(a)))
+        fun minus(e: Expression) = Multiplications(listOf(Value.MINUS_ONE, e))
+        val sinhCosh = Multiplications(listOf(hyperbolic(HyperbolicType.SINH, u), hyperbolic(HyperbolicType.COSH, u)))
+        val half = inverse(Multiplications(listOf(Value.TWO, a)))
+        return when (base.type) {
+            HyperbolicType.SINH -> Multiplications(listOf(Additions(listOf(sinhCosh, minus(u))), half))
+            HyperbolicType.COSH -> Multiplications(listOf(Additions(listOf(sinhCosh, u)), half))
+            HyperbolicType.TANH -> divided(Additions(listOf(u, minus(hyperbolic(HyperbolicType.TANH, u)))))
+            HyperbolicType.SECH -> divided(hyperbolic(HyperbolicType.TANH, u))
+            HyperbolicType.CSCH -> divided(minus(hyperbolic(HyperbolicType.COTH, u)))
+            HyperbolicType.COTH -> divided(Additions(listOf(u, minus(hyperbolic(HyperbolicType.COTH, u)))))
+            else -> null
+        }
+    }
+
+    /** sec·tan = (sec)', csc·cot = −(csc)', sech·tanh = −(sech)' and csch·coth = −(csch)' of a linear argument. */
+    private fun derivativePair(e: Multiplications, v: Variable): Expression? {
+        if (e.operands.size != 2) return null
+        val (f, g) = e.operands
+        fun result(u: Expression, antiderivative: Expression, sign: Value): Expression? {
+            val a = linearSlope(u, v) ?: return null
+            return Multiplications(listOf(sign, antiderivative, inverse(a)))
+        }
+        if (f is TrigonometricFunction && g is TrigonometricFunction && f.operand == g.operand &&
+            f.angleUnit == AngleUnit.RADIANS && g.angleUnit == AngleUnit.RADIANS) {
+            return when (setOf(f.type, g.type)) {
+                setOf(TrigType.SEC, TrigType.TAN) -> result(f.operand, trig(TrigType.SEC, f.operand), Value.ONE)
+                setOf(TrigType.CSC, TrigType.COT) -> result(f.operand, trig(TrigType.CSC, f.operand), Value.MINUS_ONE)
+                else -> null
+            }
+        }
+        if (f is HyperbolicFunction && g is HyperbolicFunction && f.operand == g.operand) {
+            return when (setOf(f.type, g.type)) {
+                setOf(HyperbolicType.SECH, HyperbolicType.TANH) -> result(f.operand, hyperbolic(HyperbolicType.SECH, f.operand), Value.MINUS_ONE)
+                setOf(HyperbolicType.CSCH, HyperbolicType.COTH) -> result(f.operand, hyperbolic(HyperbolicType.CSCH, f.operand), Value.MINUS_ONE)
+                else -> null
+            }
+        }
+        return null
     }
 
     /** 1/(p + qx²) → atan, 1/√(p − qx²) → asin, √(p ∓ qx²); the results are angles in radians. */
@@ -525,7 +603,7 @@ internal class Integrator(private val context: MathContext) {
                 val remainder = integrate(canonical(Multiplications(listOf(dp, integratedG))) ?: continue, v, depth + 1) ?: continue
                 return Additions(listOf(Multiplications(listOf(p, integratedG)), Multiplications(listOf(Value.MINUS_ONE, remainder))))
             }
-            if (g is Logarithm || (g is TrigonometricFunction && g.type.isInverse)) {
+            if (g is Logarithm || (g is TrigonometricFunction && g.type.isInverse) || (g is HyperbolicFunction && g.type.isInverse)) {
                 // ∫ p·g = P·g − ∫ P·g'
                 val integratedP = canonical(integrate(p, v, depth + 1) ?: continue) ?: continue
                 val dg = Differentiator.derivative(g, v) ?: continue
@@ -540,6 +618,7 @@ internal class Integrator(private val context: MathContext) {
     internal fun isRepeatedlyIntegrable(g: Expression, v: Variable): Boolean = when (g) {
         is Power -> !g.base.containsVariable(v) && linearSlope(g.exponent, v) != null
         is TrigonometricFunction -> (g.type == TrigType.SIN || g.type == TrigType.COS) && linearSlope(g.operand, v) != null
+        is HyperbolicFunction -> (g.type == HyperbolicType.SINH || g.type == HyperbolicType.COSH) && linearSlope(g.operand, v) != null
         else -> false
     }
 

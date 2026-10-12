@@ -17,6 +17,7 @@ import com.vortessence.calculator.core.math.expressions.MatrixExpression
 import com.vortessence.calculator.core.math.expressions.Multiplications
 import com.vortessence.calculator.core.math.expressions.Power
 import com.vortessence.calculator.core.math.expressions.TrigType
+import com.vortessence.calculator.core.math.expressions.HyperbolicFunction
 import com.vortessence.calculator.core.math.expressions.TrigonometricFunction
 import com.vortessence.calculator.core.math.expressions.UnitExpression
 import com.vortessence.calculator.core.math.expressions.Value
@@ -315,9 +316,11 @@ internal object IntegralSteps {
                     return when (g.type) {
                         TrigType.SIN -> divide(product(Value.MINUS_ONE, trig(TrigType.COS, u)), a) to StepRule.INTEGRAL_SINE
                         TrigType.COS -> divide(trig(TrigType.SIN, u), a) to StepRule.INTEGRAL_COSINE
-                        else -> divide(product(Value.MINUS_ONE, lnAbs(trig(TrigType.COS, u))), a) to StepRule.INTEGRAL_TANGENT
+                        TrigType.TAN -> divide(product(Value.MINUS_ONE, lnAbs(trig(TrigType.COS, u))), a) to StepRule.INTEGRAL_TANGENT
+                        else -> fromTable(g)
                     }
                 }
+                g is HyperbolicFunction && !g.type.isInverse -> return fromTable(g)
                 g is Logarithm && !g.base.containsVariable(v) -> {
                     val u = g.operand
                     val a = integrator.linearSlope(u, v) ?: return null
@@ -328,12 +331,17 @@ internal object IntegralSteps {
             return null
         }
 
+        /** The calculator's table integral of [g], without a rule of its own. */
+        private fun fromTable(g: Expression): Pair<Expression, StepRule>? =
+            integrator.basic(canonical(g) ?: g, v)?.let { canonical(it) }?.let { it to StepRule.INTEGRAL_TABLE }
+
         private fun table(g: Expression): Match? {
             val (result, rule) = tableIntegral(g) ?: return null
             val inner = when (g) {
                 is LiteralPower -> (g.inner as? Power)?.base ?: v
                 is Power -> if (g.base.containsVariable(v)) g.base else g.exponent
                 is TrigonometricFunction -> g.operand
+                is HyperbolicFunction -> g.operand
                 is Logarithm -> g.operand
                 else -> v
             }
@@ -549,7 +557,7 @@ internal object IntegralSteps {
                 val (u, dv, du, vOfDv) = if (integrator.isRepeatedlyIntegrable(g, v) && p.containsVariable(v)) {
                     val integratedG = canonical(tableIntegral(g)?.first ?: continue) ?: continue
                     Parts(p, g, canonical(Differentiator.derivative(p, v) ?: continue) ?: continue, integratedG)
-                } else if (g is Logarithm || (g is TrigonometricFunction && g.type.isInverse)) {
+                } else if (g is Logarithm || (g is TrigonometricFunction && g.type.isInverse) || (g is HyperbolicFunction && g.type.isInverse)) {
                     val integratedP = integrator.antiderivative(p, v) ?: continue
                     Parts(g, p, canonical(Differentiator.derivative(g, v) ?: continue) ?: continue, integratedP)
                 } else {

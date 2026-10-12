@@ -32,6 +32,24 @@ enum class StepRule {
     ARCSINE,
     ARCCOSINE,
     ARCTANGENT,
+    SECANT,
+    COSECANT,
+    COTANGENT,
+    ARCSECANT,
+    ARCCOSECANT,
+    ARCCOTANGENT,
+    HYPERBOLIC_SINE,
+    HYPERBOLIC_COSINE,
+    HYPERBOLIC_TANGENT,
+    HYPERBOLIC_SECANT,
+    HYPERBOLIC_COSECANT,
+    HYPERBOLIC_COTANGENT,
+    INVERSE_HYPERBOLIC_SINE,
+    INVERSE_HYPERBOLIC_COSINE,
+    INVERSE_HYPERBOLIC_TANGENT,
+    INVERSE_HYPERBOLIC_SECANT,
+    INVERSE_HYPERBOLIC_COSECANT,
+    INVERSE_HYPERBOLIC_COTANGENT,
     /** |u|' = u'·u/|u| */
     ABSOLUTE_VALUE,
     /** √x = x^(1/2), 1/x = x⁻¹: a root or fraction written as a power, for the power rule */
@@ -270,6 +288,12 @@ enum class StepRule {
     AMPLITUDE_FORM,
     /** sin(u) = c ⇔ u = asin(c) + 2kπ or … */
     TRIG_GENERAL_SOLUTION,
+    /** sec(u) = c ⇔ cos(u) = 1/c */
+    RECIPROCAL_EQUATION,
+    /** sec(u) = 1/cos(u), csc(u) = 1/sin(u), cot(u) = cos(u)/sin(u) */
+    RECIPROCAL_TRIGONOMETRIC,
+    /** sinh(u) = c ⇔ u = asinh(c), cosh(u) = c ⇔ u = ±acosh(c), and so on */
+    HYPERBOLIC_SOLUTION,
     /** lim (a₂x² + a₁x)/(b₂x² + b₁x) = lim (a₂ + a₁/x)/(b₂ + b₁/x) */
     DIVIDE_BY_HIGHEST_POWER,
     /** c/xⁿ → 0 */

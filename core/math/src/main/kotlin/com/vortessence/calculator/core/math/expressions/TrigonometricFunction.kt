@@ -15,7 +15,53 @@ enum class TrigType(val symbol: String, val isInverse: Boolean) {
     TAN("tan", false),
     ASIN("asin", true),
     ACOS("acos", true),
-    ATAN("atan", true)
+    ATAN("atan", true),
+    SEC("sec", false),
+    CSC("csc", false),
+    COT("cot", false),
+    ASEC("asec", true),
+    ACSC("acsc", true),
+    ACOT("acot", true);
+
+    /** Whether [v] is inside the real domain of this inverse function (always true for the others). */
+    fun acceptsArgument(v: Double): Boolean = when (this) {
+        ASIN, ACOS -> abs(v) <= 1.0
+        ASEC, ACSC -> abs(v) >= 1.0
+        else -> true
+    }
+
+    /** The derivative of this function applied to [u] with respect to [u], before the chain rule and the degree factor. */
+    fun outerDerivative(u: Expression, unit: AngleUnit): Expression {
+        fun trig(type: TrigType) = TrigonometricFunction(type, u, unit)
+        fun minus(e: Expression): Expression = Multiplications(listOf(Value.MINUS_ONE, e))
+        val oneMinusUSquared = Additions(listOf(Value.ONE, Multiplications(listOf(Value.MINUS_ONE, Power(u, Value.TWO)))))
+        // 1/(|u|·√(u² − 1))
+        val secantSlope = Multiplications(listOf(
+            Power(AbsoluteValue(u), Value.MINUS_ONE),
+            Power(Additions(listOf(Power(u, Value.TWO), Value.MINUS_ONE)), Value(-1L, 2L))
+        ))
+        return when (this) {
+            SIN -> trig(COS)
+            COS -> minus(trig(SIN))
+            TAN -> Power(trig(COS), Value(-2L))
+            SEC -> Multiplications(listOf(trig(SEC), trig(TAN)))
+            CSC -> minus(Multiplications(listOf(trig(CSC), trig(COT))))
+            COT -> minus(Power(trig(CSC), Value.TWO))
+            ASIN -> Power(oneMinusUSquared, Value(-1L, 2L))
+            ACOS -> minus(Power(oneMinusUSquared, Value(-1L, 2L)))
+            ATAN -> Power(Additions(listOf(Value.ONE, Power(u, Value.TWO))), Value.MINUS_ONE)
+            ASEC -> secantSlope
+            ACSC -> minus(secantSlope)
+            ACOT -> minus(Power(Additions(listOf(Value.ONE, Power(u, Value.TWO))), Value.MINUS_ONE))
+        }
+    }
+
+    /** Whether this function has a pole at the angle (in radians) [v]: where its denominator vanishes. */
+    fun hasPoleAt(v: Double): Boolean = when (this) {
+        TAN, SEC -> abs(cos(v)) < 1e-15
+        CSC, COT -> abs(sin(v)) < 1e-15
+        else -> false
+    }
 }
 
 /**
@@ -67,11 +113,11 @@ class TrigonometricFunction(
         if (isConstant && op.containsImaginaryUnit()) return complexValue(op, context)
         if (isConstant) {
             val v = op.evaluateNumerically()
-            if (type.isInverse && type != TrigType.ATAN && abs(v) > 1.0) {
+            if (type.isInverse && !type.acceptsArgument(v)) {
                 context.stopWithError(MathIssue.TRIGONOMETRIC_DOMAIN)
                 return this
             }
-            if (type == TrigType.TAN && abs(cos(v)) < 1e-15) {
+            if (type.hasPoleAt(v)) {
                 context.stopWithError(MathIssue.DIVISION_BY_ZERO)
                 return this
             }
@@ -100,9 +146,9 @@ class TrigonometricFunction(
     }
 
     /**
-     * sin, cos and tan of atan(x) ± kπ (in radians), e.g. from a polar form 5·e^(i·atan(4/3)):
-     * cos(atan x) = 1/√(1 + x²), sin(atan x) = x/√(1 + x²), tan(atan x) = x; adding kπ flips
-     * the sign of sin and cos for odd k. Null for other operands.
+     * The circular functions of atan(x) ± kπ (in radians), e.g. from a polar form 5·e^(i·atan(4/3)):
+     * cos(atan x) = 1/√(1 + x²), sin(atan x) = x/√(1 + x²), tan(atan x) = x, and their reciprocals;
+     * adding kπ flips the sign of everything but tan and cot for odd k. Null for other operands.
      */
     private fun ofArctangent(op: Expression, context: MathContext): Expression? {
         val terms = if (op is Additions) op.operands else listOf(op)
@@ -126,9 +172,13 @@ class TrigonometricFunction(
         }
         val sign = if (oddShift) Value.MINUS_ONE else Value.ONE
         val inverseRoot = Power(Additions(listOf(Value.ONE, Power(x, Value.TWO))), Value(-1L, 2L))
+        val root = Power(Additions(listOf(Value.ONE, Power(x, Value.TWO))), Value.HALF)
         return when (type) {
             TrigType.SIN -> Multiplications.of(sign, x, inverseRoot)
             TrigType.COS -> Multiplications.of(sign, inverseRoot)
+            TrigType.SEC -> Multiplications.of(sign, root)
+            TrigType.CSC -> Multiplications.of(sign, root, Power(x, Value.MINUS_ONE))
+            TrigType.COT -> Power(x, Value.MINUS_ONE)
             else -> x
         }.canonicalize(context)
     }
@@ -148,6 +198,9 @@ class TrigonometricFunction(
             TrigType.SIN -> exactSin(k)
             TrigType.COS -> exactSin((k + 6L) % 24L)
             TrigType.TAN -> exactTan(k % 12L, context) ?: return null
+            TrigType.SEC -> exactCsc((k + 6L) % 24L, context) ?: return null
+            TrigType.CSC -> exactCsc(k, context) ?: return null
+            TrigType.COT -> exactCot(k % 12L, context) ?: return null
             else -> return null
         }
         return result.canonicalize(context)
@@ -194,8 +247,49 @@ class TrigonometricFunction(
         }
     }
 
+    /** csc(k * pi / 12) for k in 0..23, which is also sec((k − 6) * pi / 12). */
+    private fun exactCsc(k: Long, context: MathContext): Expression? {
+        val sqrt2 = Power(Value(2L), Value.HALF)
+        val sqrt3 = Power(Value(3L), Value.HALF)
+        val sqrt6 = Power(Value(6L), Value.HALF)
+        return when (k) {
+            0L, 12L -> {
+                context.stopWithError(MathIssue.DIVISION_BY_ZERO)
+                null
+            }
+            1L -> Additions(sqrt6, sqrt2) // √6 + √2
+            2L -> Value.TWO
+            3L -> sqrt2
+            4L -> Multiplications.of(Value(2L, 3L), sqrt3) // 2/√3
+            5L -> Additions(sqrt6, sqrt2.negate()) // √6 − √2
+            6L -> Value.ONE
+            in 7L..11L -> exactCsc(12L - k, context)
+            in 12L..23L -> exactCsc(k - 12L, context)?.negate()
+            else -> null
+        }
+    }
+
+    /** cot(k * pi / 12) for k in 0..11 (cot has period pi). */
+    private fun exactCot(k: Long, context: MathContext): Expression? {
+        val sqrt3 = Power(Value(3L), Value.HALF)
+        return when (k) {
+            0L -> {
+                context.stopWithError(MathIssue.DIVISION_BY_ZERO)
+                null
+            }
+            1L -> Additions(Value(2L), sqrt3) // 2 + √3
+            2L -> sqrt3
+            3L -> Value.ONE
+            4L -> Multiplications.of(Value(1L, 3L), sqrt3) // 1/√3 = √3/3
+            5L -> Additions(Value(2L), sqrt3.negate()) // 2 − √3
+            6L -> Value.ZERO
+            in 7L..11L -> exactCot(12L - k, context)?.negate() // cot(pi - x) = -cot(x)
+            else -> null
+        }
+    }
+
     /**
-     * asin/acos/atan of values whose result is a multiple of pi/12 (15°), e.g. asin(1/2) = pi/6.
+     * asin/acos/atan (and asec, acsc, acot) of values whose result is a multiple of pi/12 (15°), e.g. asin(1/2) = pi/6.
      * Only applied to exact operands so that decimal inputs stay decimal.
      */
     private fun tryExactInverse(op: Expression, unit: AngleUnit, context: MathContext): Expression? {
@@ -219,10 +313,14 @@ class TrigonometricFunction(
             context.stopWithError(MathIssue.UNDEFINED)
             return this
         }
+        val one = ComplexDouble(1.0, 0.0)
         val result = when (type) {
             TrigType.SIN -> z.sin()
             TrigType.COS -> z.cos()
-            else -> z.sin() / z.cos()
+            TrigType.TAN -> z.sin() / z.cos()
+            TrigType.SEC -> one / z.cos()
+            TrigType.CSC -> one / z.sin()
+            else -> z.cos() / z.sin()
         }
         if (!result.isFinite) {
             context.stopWithError(MathIssue.VALUES_TOO_LARGE)
@@ -241,6 +339,14 @@ class TrigonometricFunction(
             TrigType.ASIN -> asin(v) / toRadians
             TrigType.ACOS -> acos(v) / toRadians
             TrigType.ATAN -> atan(v) / toRadians
+            TrigType.SEC -> 1.0 / cos(v * toRadians)
+            TrigType.CSC -> 1.0 / sin(v * toRadians)
+            // cos/sin rather than 1/tan, so that cot(pi/2) is 0 instead of a division by a huge tan
+            TrigType.COT -> cos(v * toRadians) / sin(v * toRadians)
+            TrigType.ASEC -> acos(1.0 / v) / toRadians
+            TrigType.ACSC -> asin(1.0 / v) / toRadians
+            // The principal value of acot lies in (0, pi), so acot(0) = pi/2 and acot(−1) = 3pi/4
+            TrigType.ACOT -> atan2(1.0, v) / toRadians
         }
     }
 

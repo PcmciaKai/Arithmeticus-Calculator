@@ -5,7 +5,7 @@ import com.vortessence.calculator.core.math.type.*
 /**
  * A rule formula written in a small LaTeX-like notation, as a [MathString] that is drawn like
  * any other math (exponents raised, fractions as fractions):
- * - letters are variables, e the constant; sin, cos, tan, asin, acos, atan and ln followed by
+ * - letters are variables, e the constant; sin, cos, tan, sec, csc, cot, their inverses and hyperbolic forms (asin, sinh, asinh …) and ln followed by
  *   "(…)" are functions,
  * - `^x` or `^{…}` raises x or … to the power of the part before it,
  * - `\frac{a}{b}`, `\sqrt{x}`, `\sqrt[n]{x}`, `\log{a}{x}` (logₐ x), `|x|`,
@@ -149,6 +149,9 @@ private class FormulaParser(private val source: String) {
     }
 
     companion object {
-        private val FUNCTIONS = listOf("asin", "acos", "atan", "sin", "cos", "tan", "ln")
+        private val FUNCTIONS = listOf(
+            "asinh", "acosh", "atanh", "asech", "acsch", "acoth", "sinh", "cosh", "tanh", "sech", "csch", "coth",
+            "asin", "acos", "atan", "asec", "acsc", "acot", "sin", "cos", "tan", "sec", "csc", "cot", "ln"
+        )
     }
 }

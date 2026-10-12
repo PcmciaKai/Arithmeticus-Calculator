@@ -9,7 +9,7 @@ A free and open-source scientific calculator for Android with natural math input
 ## Features
 
 - **Natural display:** Fractions, exponents, roots and integrals rendered as proper math notation while you type
-- **Scientific functions:** Trigonometric and inverse trigonometric functions, logarithms, factorials, n-th roots
+- **Scientific functions:** Trigonometric functions with their reciprocals (sec, csc, cot), hyperbolic functions, all their inverses, logarithms, factorials, n-th roots
 - **Variables and functions:** Define your own variables and reuse them, also reuse the last result with 'Ans'
 - **Equation solving:** Single equations and systems of linear equations
 - **Matrices:** Transpose, inverse and determinant

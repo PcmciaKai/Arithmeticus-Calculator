@@ -29,6 +29,15 @@ class RuleFormulaTest {
     }
 
     @Test
+    fun reciprocalAndHyperbolicFunctionsAreFunctionsWithTheirFullName() {
+        for (name in listOf("sec", "csc", "cot", "asec", "acsc", "acot", "sinh", "cosh", "tanh", "sech", "csch", "coth", "asinh", "acosh", "atanh", "asech", "acsch", "acoth")) {
+            val node = ruleFormula("$name(x)").nodeAt(0)
+            assertTrue(name, node is FunctionNode)
+            assertEquals(name, (node as FunctionNode).name)
+        }
+    }
+
+    @Test
     fun functionsIntegralsAndText() {
         assertTrue(ruleFormula("sin(x)").nodeAt(0) is FunctionNode)
         assertTrue(ruleFormula("\\int{x^n}{x}").nodeAt(0) is AntiderivativeNode)

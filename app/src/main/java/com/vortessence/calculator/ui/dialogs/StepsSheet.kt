@@ -470,6 +470,24 @@ private val StepRule.descriptionRes: Int
         StepRule.ARCSINE -> R.string.step_arcsine
         StepRule.ARCCOSINE -> R.string.step_arccosine
         StepRule.ARCTANGENT -> R.string.step_arctangent
+        StepRule.SECANT -> R.string.step_secant
+        StepRule.COSECANT -> R.string.step_cosecant
+        StepRule.COTANGENT -> R.string.step_cotangent
+        StepRule.ARCSECANT -> R.string.step_arcsecant
+        StepRule.ARCCOSECANT -> R.string.step_arccosecant
+        StepRule.ARCCOTANGENT -> R.string.step_arccotangent
+        StepRule.HYPERBOLIC_SINE -> R.string.step_sinh
+        StepRule.HYPERBOLIC_COSINE -> R.string.step_cosh
+        StepRule.HYPERBOLIC_TANGENT -> R.string.step_tanh
+        StepRule.HYPERBOLIC_SECANT -> R.string.step_sech
+        StepRule.HYPERBOLIC_COSECANT -> R.string.step_csch
+        StepRule.HYPERBOLIC_COTANGENT -> R.string.step_coth
+        StepRule.INVERSE_HYPERBOLIC_SINE -> R.string.step_asinh
+        StepRule.INVERSE_HYPERBOLIC_COSINE -> R.string.step_acosh
+        StepRule.INVERSE_HYPERBOLIC_TANGENT -> R.string.step_atanh
+        StepRule.INVERSE_HYPERBOLIC_SECANT -> R.string.step_asech
+        StepRule.INVERSE_HYPERBOLIC_COSECANT -> R.string.step_acsch
+        StepRule.INVERSE_HYPERBOLIC_COTANGENT -> R.string.step_acoth
         StepRule.ABSOLUTE_VALUE -> R.string.step_absolute_value
         StepRule.FUNDAMENTAL_THEOREM -> R.string.step_fundamental_theorem
         StepRule.IMAGINARY_ROOT -> R.string.step_imaginary_root
@@ -543,6 +561,9 @@ private val StepRule.descriptionRes: Int
         StepRule.LOGARITHM_BOTH_SIDES -> R.string.step_logarithm_both_sides
         StepRule.SQUARE_BOTH_SIDES -> R.string.step_square_both_sides
         StepRule.TRIG_GENERAL_SOLUTION -> R.string.step_trig_general_solution
+        StepRule.RECIPROCAL_EQUATION -> R.string.step_reciprocal_equation
+        StepRule.RECIPROCAL_TRIGONOMETRIC -> R.string.step_reciprocal_trigonometric
+        StepRule.HYPERBOLIC_SOLUTION -> R.string.step_hyperbolic_solution
         StepRule.AMPLITUDE_FORM -> R.string.step_amplitude_form
         StepRule.DOUBLE_ANGLE -> R.string.step_double_angle
         StepRule.FACTOR_COMMON -> R.string.step_factor_common
@@ -664,12 +685,33 @@ internal fun StepRule.formula(language: Language): String? {
         StepRule.ARCSINE -> "(asin(x))′ = \\frac{1}{\\sqrt{1 − x^2}}"
         StepRule.ARCCOSINE -> "(acos(x))′ = −\\frac{1}{\\sqrt{1 − x^2}}"
         StepRule.ARCTANGENT -> "(atan(x))′ = \\frac{1}{1 + x^2}"
+        StepRule.SECANT -> "(sec(x))′ = sec(x)·tan(x)"
+        StepRule.COSECANT -> "(csc(x))′ = −csc(x)·cot(x)"
+        StepRule.COTANGENT -> "(cot(x))′ = −csc(x)^2"
+        StepRule.ARCSECANT -> "(asec(x))′ = \\frac{1}{|x|·\\sqrt{x^2 − 1}}"
+        StepRule.ARCCOSECANT -> "(acsc(x))′ = −\\frac{1}{|x|·\\sqrt{x^2 − 1}}"
+        StepRule.ARCCOTANGENT -> "(acot(x))′ = −\\frac{1}{1 + x^2}"
+        StepRule.HYPERBOLIC_SINE -> "(sinh(x))′ = cosh(x)"
+        StepRule.HYPERBOLIC_COSINE -> "(cosh(x))′ = sinh(x)"
+        StepRule.HYPERBOLIC_TANGENT -> "(tanh(x))′ = sech(x)^2"
+        StepRule.HYPERBOLIC_SECANT -> "(sech(x))′ = −sech(x)·tanh(x)"
+        StepRule.HYPERBOLIC_COSECANT -> "(csch(x))′ = −csch(x)·coth(x)"
+        StepRule.HYPERBOLIC_COTANGENT -> "(coth(x))′ = −csch(x)^2"
+        StepRule.INVERSE_HYPERBOLIC_SINE -> "(asinh(x))′ = \\frac{1}{\\sqrt{x^2 + 1}}"
+        StepRule.INVERSE_HYPERBOLIC_COSINE -> "(acosh(x))′ = \\frac{1}{\\sqrt{x^2 − 1}}"
+        StepRule.INVERSE_HYPERBOLIC_TANGENT -> "(atanh(x))′ = \\frac{1}{1 − x^2}"
+        StepRule.INVERSE_HYPERBOLIC_SECANT -> "(asech(x))′ = −\\frac{1}{x·\\sqrt{1 − x^2}}"
+        StepRule.INVERSE_HYPERBOLIC_COSECANT -> "(acsch(x))′ = −\\frac{1}{|x|·\\sqrt{x^2 + 1}}"
+        StepRule.INVERSE_HYPERBOLIC_COTANGENT -> "(acoth(x))′ = \\frac{1}{1 − x^2}"
         StepRule.ABSOLUTE_VALUE -> "|x|′ = \\frac{x}{|x|}"
         StepRule.FUNDAMENTAL_THEOREM -> "(\\intab{a}{x}{f(t)}{t})′ = f(x)"
         StepRule.COMBINE_POWERS -> "x^a·x^b = x^{a + b}"
         StepRule.DIVIDE_BY_FRACTION -> "\\frac{1}{\\frac{a}{b}} = \\frac{b}{a}"
         StepRule.EXTEND_FRACTIONS -> "\\frac{a}{b} = \\frac{a·c}{b·c}"
         StepRule.TANGENT_AS_FRACTION -> "tan(u) = \\frac{sin(u)}{cos(u)}"
+        StepRule.RECIPROCAL_EQUATION -> "sec(u) = c\\text{  ⇔  }cos(u) = \\frac{1}{c}\\text{,  }csc(u) = c\\text{  ⇔  }sin(u) = \\frac{1}{c}\\text{,  }cot(u) = c\\text{  ⇔  }tan(u) = \\frac{1}{c}"
+        StepRule.RECIPROCAL_TRIGONOMETRIC -> "sec(u) = \\frac{1}{cos(u)}\\text{,  }csc(u) = \\frac{1}{sin(u)}\\text{,  }cot(u) = \\frac{cos(u)}{sin(u)}"
+        StepRule.HYPERBOLIC_SOLUTION -> "sinh(u) = c\\text{  ⇔  }u = asinh(c)\\text{,  }cosh(u) = c\\text{  ⇔  }u = ±acosh(c)"
         StepRule.EXACT_TRIGONOMETRIC_VALUE -> "sin(\\frac{π}{6}) = \\frac{1}{2}\\text{,  }cos(\\frac{π}{3}) = \\frac{1}{2}\\text{,  }tan(\\frac{π}{4}) = 1"
         StepRule.LOGARITHM_OF_POWER -> "\\log{b}{b^n} = n"
         StepRule.EXPONENTIAL_OF_LOGARITHM -> "b^{\\log{b}{x}} = x"

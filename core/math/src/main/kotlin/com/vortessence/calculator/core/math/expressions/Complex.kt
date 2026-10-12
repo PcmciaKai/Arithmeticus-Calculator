@@ -103,6 +103,8 @@ internal class ComplexDouble(val re: Double, val im: Double) {
 
     fun sin() = ComplexDouble(sin(re) * cosh(im), cos(re) * sinh(im))
     fun cos() = ComplexDouble(cos(re) * cosh(im), -sin(re) * sinh(im))
+    fun sinh() = ComplexDouble(sinh(re) * cos(im), cosh(re) * sin(im))
+    fun cosh() = ComplexDouble(cosh(re) * cos(im), sinh(re) * sin(im))
 
     /**
      * a + b·i, with floating point noise removed: a part that is negligible next to the
