@@ -224,6 +224,8 @@
     <string name="settings_decimal_fixed">Always %1$d, e.g. %2$s</string>
     <string name="settings_digit_grouping">Digit grouping</string>
     <string name="settings_digit_grouping_desc">Show large numbers as 300 000</string>
+    <string name="settings_decimal_comma">Decimal comma</string>
+    <string name="settings_decimal_comma_desc">Show 1,5 instead of 1.5, independent of the language</string>
     <string name="settings_appearance">Appearance</string>
     <string name="settings_theme_system">System</string>
     <string name="settings_theme_light">Light</string>

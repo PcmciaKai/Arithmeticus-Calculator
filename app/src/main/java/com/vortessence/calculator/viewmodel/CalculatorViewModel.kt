@@ -1,5 +1,6 @@
 package com.vortessence.calculator.viewmodel
 
+import com.vortessence.calculator.ui.math.DecimalMark
 import android.app.Application
 import android.content.Context
 import androidx.core.content.edit
@@ -65,6 +66,8 @@ data class CalculatorUiState(
     val decimalPlaces: Int? = null,
     /** Show large numbers with digit groups (300 000); display only. */
     val digitGrouping: Boolean = true,
+    /** Show a decimal comma (1,5) instead of the point; display only, independent of the language. */
+    val decimalComma: Boolean = false,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val isGraphOpen: Boolean = false,
     /** Function or implicit curve shown in the graph, or null if the expression cannot be plotted. */
@@ -341,6 +344,8 @@ class CalculatorViewModel @JvmOverloads constructor(
         val form = ResultForm.entries.firstOrNull { it.name == savedForm } ?: ResultForm.EXACT
         val places = prefs?.getInt("decimal_places", -1)?.takeIf { it >= 0 }
         val grouping = prefs?.getBoolean("digit_grouping", true) ?: true
+        val decimalComma = prefs?.getBoolean("decimal_comma", false) ?: false
+        DecimalMark.comma = decimalComma
         val matrixRows = prefs?.getInt("matrix_rows", 2) ?: 2
         val matrixCols = prefs?.getInt("matrix_cols", 2) ?: 2
         val savedTheme = prefs?.getString("theme_mode", null)
@@ -353,6 +358,7 @@ class CalculatorViewModel @JvmOverloads constructor(
                 unitSystem = unitSystem,
                 decimalPlaces = places,
                 digitGrouping = grouping,
+                decimalComma = decimalComma,
                 themeMode = themeMode,
                 matrixRows = matrixRows,
                 matrixCols = matrixCols,
@@ -541,6 +547,12 @@ class CalculatorViewModel @JvmOverloads constructor(
     fun setDigitGrouping(enabled: Boolean) {
         prefs?.edit { putBoolean("digit_grouping", enabled) }
         _uiState.update { it.copy(digitGrouping = enabled) }
+    }
+
+    fun setDecimalComma(enabled: Boolean) {
+        prefs?.edit { putBoolean("decimal_comma", enabled) }
+        DecimalMark.comma = enabled
+        _uiState.update { it.copy(decimalComma = enabled) }
     }
 
     fun setThemeMode(mode: ThemeMode) {

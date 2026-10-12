@@ -445,7 +445,7 @@ private fun MathNodeView(
     when (node) {
         is NumberNode -> {
             Text(
-                text = displayText ?: node.text,
+                text = DecimalMark.display(displayText ?: node.text),
                 fontSize = fontSize,
                 fontWeight = FontWeight.Normal,
                 color = textColor,
@@ -511,7 +511,7 @@ private fun MathNodeView(
         is LineBreakNode -> {}
         is SeparatorNode -> {
             Text(
-                text = ", ",
+                text = DecimalMark.argumentSeparator,
                 fontSize = fontSize,
                 fontWeight = FontWeight.Normal,
                 color = textColor

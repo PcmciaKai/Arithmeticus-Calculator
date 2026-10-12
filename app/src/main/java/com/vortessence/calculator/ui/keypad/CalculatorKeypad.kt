@@ -1,5 +1,6 @@
 package com.vortessence.calculator.ui.keypad
 
+import com.vortessence.calculator.ui.math.DecimalMark
 import android.view.HapticFeedbackConstants
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
@@ -543,10 +544,11 @@ fun CalculatorKeypad(
 
                     // Page 1 (cols 4..8)
                     KeyButton(text = "0", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("0")) }
+                    // The key types a point either way: with a decimal comma it is only shown as a comma
                     KeyButton(
-                        text = ".",
+                        text = DecimalMark.display("."),
                         buttonWidth = buttonWidth,
-                        alternates = listOf(alt(",", KeyAction.Separator))
+                        alternates = listOf(alt(DecimalMark.argumentSeparator.trim(), KeyAction.Separator))
                     ) { onKeyAction(KeyAction.Number(".")) }
                     KeyButton(
                         buttonWidth = buttonWidth,

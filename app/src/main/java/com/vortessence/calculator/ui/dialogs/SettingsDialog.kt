@@ -26,6 +26,7 @@ fun SettingsDialog(
     unitSystem: UnitSystem,
     decimalPlaces: Int?,
     digitGrouping: Boolean,
+    decimalComma: Boolean,
     complexNumbers: Boolean,
     themeMode: ThemeMode,
     languageChoice: LanguageChoice,
@@ -33,6 +34,7 @@ fun SettingsDialog(
     onUnitSystemChange: (UnitSystem) -> Unit,
     onDecimalPlacesChange: (Int?) -> Unit,
     onDigitGroupingChange: (Boolean) -> Unit,
+    onDecimalCommaChange: (Boolean) -> Unit,
     onComplexNumbersChange: (Boolean) -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit,
     onLanguageChange: (LanguageChoice) -> Unit,
@@ -161,6 +163,21 @@ fun SettingsDialog(
                             )
                         }
                         Switch(checked = digitGrouping, onCheckedChange = onDigitGroupingChange)
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.settings_decimal_comma), fontWeight = FontWeight.Medium, fontSize = 15.sp)
+                            Text(
+                                stringResource(R.string.settings_decimal_comma_desc),
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(checked = decimalComma, onCheckedChange = onDecimalCommaChange)
                     }
                 }
 

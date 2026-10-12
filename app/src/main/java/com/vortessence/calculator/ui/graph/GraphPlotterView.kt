@@ -64,6 +64,7 @@ import com.vortessence.calculator.core.math.type.MathOp
 import com.vortessence.calculator.core.math.type.MathString
 import com.vortessence.calculator.core.math.type.OperatorNode
 import com.vortessence.calculator.core.math.type.VariableNode
+import com.vortessence.calculator.ui.math.DecimalMark
 import com.vortessence.calculator.ui.math.MathExpressionView
 import com.vortessence.calculator.ui.theme.AccentBlue
 import com.vortessence.calculator.ui.theme.AccentGreen
@@ -951,16 +952,16 @@ internal fun formatGraphNumber(value: Double, significantDigits: Int = 6): Strin
     if (abs(value) < 1e-9) return "0"
     val rounded = BigDecimal(value).round(java.math.MathContext(significantDigits)).stripTrailingZeros()
     val magnitude = abs(rounded.toDouble())
-    if (magnitude >= 1e-4 && magnitude < 1e7) return rounded.toPlainString()
+    if (magnitude >= 1e-4 && magnitude < 1e7) return DecimalMark.display(rounded.toPlainString())
     val exponent = rounded.precision() - rounded.scale() - 1
     val mantissa = rounded.movePointLeft(exponent).toPlainString()
-    return "$mantissa\u00D710${toSuperscript(exponent)}"
+    return "${DecimalMark.display(mantissa)}\u00D710${toSuperscript(exponent)}"
 }
 
 /** Short x-value for point labels: at most three decimals, so -10.996 does not become -11. */
 private fun formatKeyPointX(x: Double): String {
     if (abs(x) < 5e-4) return "0"
-    return "%.3f".format(Locale.US, x).trimEnd('0').trimEnd('.')
+    return DecimalMark.display("%.3f".format(Locale.US, x).trimEnd('0').trimEnd('.'))
 }
 
 private fun toSuperscript(n: Int): String {

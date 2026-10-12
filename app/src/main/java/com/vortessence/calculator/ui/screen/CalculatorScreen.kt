@@ -276,6 +276,7 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
             unitSystem = uiState.unitSystem,
             decimalPlaces = uiState.decimalPlaces,
             digitGrouping = uiState.digitGrouping,
+            decimalComma = uiState.decimalComma,
             complexNumbers = uiState.complexNumbers,
             themeMode = uiState.themeMode,
             languageChoice = remember(uiState.language, uiState.showSettingsDialog) { AppLanguage.choice(context) },
@@ -283,6 +284,7 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
             onUnitSystemChange = { viewModel.setUnitSystem(it) },
             onDecimalPlacesChange = { viewModel.setDecimalPlaces(it) },
             onDigitGroupingChange = { viewModel.setDigitGrouping(it) },
+            onDecimalCommaChange = { viewModel.setDecimalComma(it) },
             onComplexNumbersChange = { viewModel.setComplexNumbers(it) },
             onThemeModeChange = { viewModel.setThemeMode(it) },
             onLanguageChange = { choice -> (context as? Activity)?.let { AppLanguage.set(it, choice) } },
@@ -338,36 +340,64 @@ private fun LiveResultView(
         // The form actually shown: the chosen one, or exact if it does not apply here
         val shownForm = if (form in forms) form else ResultForm.EXACT
 
-        Row(
+        val shownResult = ResultFormatter.format(result, shownForm)
+        // The buttons stay on the left and the result on the right. When both do not fit on one
+        // line, the result moves to its own line below, so no part of the answer is hidden.
+        // A layout may measure each child only once, so the result is composed twice: the first
+        // copy is only measured, to learn its natural width, the second copy is the one shown.
+        val resultContent: @Composable () -> Unit = {
+            Text(
+                text = "= ",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Light,
+                color = MaterialTheme.colorScheme.primary
+            )
+            MathExpressionView(
+                mathString = shownResult,
+                fontSize = 24.sp,
+                textColor = MaterialTheme.colorScheme.onBackground
+            )
+        }
+        Layout(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            if (hasSteps) AnswerPill(stringResource(R.string.steps_title), selected = false, onClick = onShowSteps)
-            if (forms.size > 1) {
-                forms.forEach { option ->
-                    AnswerPill(stringResource(option.label), shownForm == option) { onFormChange(option) }
+            content = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    if (hasSteps) AnswerPill(stringResource(R.string.steps_title), selected = false, onClick = onShowSteps)
+                    if (forms.size > 1) {
+                        forms.forEach { option ->
+                            AnswerPill(stringResource(option.label), shownForm == option) { onFormChange(option) }
+                        }
+                    }
                 }
+                Row(verticalAlignment = Alignment.CenterVertically) { resultContent() }
+                // Scrolls sideways only if the result alone is wider than the screen
+                Row(
+                    modifier = Modifier
+                        .horizontalScroll(rememberScrollState())
+                        .pointerInput(shownResult) { detectTapGestures(onLongPress = { onCopy(shownResult) }) },
+                    verticalAlignment = Alignment.CenterVertically
+                ) { resultContent() }
             }
-            Spacer(modifier = Modifier.weight(1f))
-            val shownResult = ResultFormatter.format(result, shownForm)
-            Row(
-                modifier = Modifier
-                    .horizontalScroll(rememberScrollState(), reverseScrolling = true)
-                    .pointerInput(shownResult) { detectTapGestures(onLongPress = { onCopy(shownResult) }) },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "= ",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Light,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                MathExpressionView(
-                    mathString = shownResult,
-                    fontSize = 24.sp,
-                    textColor = MaterialTheme.colorScheme.onBackground
-                )
+        ) { measurables, constraints ->
+            val width = constraints.maxWidth
+            val gap = 6.dp.roundToPx()
+            val buttons = measurables[0].measure(Constraints(maxWidth = width))
+            val naturalWidth = measurables[1].measure(Constraints()).width
+            val result = measurables[2].measure(Constraints(maxWidth = width))
+            if (buttons.width + gap + naturalWidth <= width) {
+                val height = maxOf(buttons.height, result.height)
+                layout(width, height) {
+                    buttons.placeRelative(0, (height - buttons.height) / 2)
+                    result.placeRelative(width - result.width, (height - result.height) / 2)
+                }
+            } else {
+                layout(width, buttons.height + result.height) {
+                    buttons.placeRelative(0, 0)
+                    result.placeRelative(width - result.width, buttons.height)
+                }
             }
         }
     }
