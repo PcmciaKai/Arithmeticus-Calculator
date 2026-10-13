@@ -255,4 +255,14 @@ class SpecialFunctionTest {
         assertClose(value(f("lngamma", n("0.3"))), value(f("lnΓ", n("0.3"))))
         assertTrue(calc(f("erf", n("0.3"))).result.toString().startsWith("erf"))
     }
+
+    @Test
+    fun gammaStopsWhereTheResultNoLongerFitsANumber() {
+        // Γ(171) = 170! and Γ(171.5) still fit, the integers beyond and the half-integers beyond do not (they used to be a thousand-digit fraction)
+        assertEquals(listOf(MathIssue.VALUES_TOO_LARGE), calc(f("gamma", n("1000"))).issues)
+        assertEquals(listOf(MathIssue.VALUES_TOO_LARGE), calc(f("gamma", n("1000.5"))).issues)
+        assertEquals(listOf(MathIssue.VALUES_TOO_LARGE), calc(f("gamma", n("172.5"))).issues)
+        assertTrue(calc(f("gamma", n("171.5"))).isSuccess)
+        assertTrue(calc(f("gamma", n("171"))).isSuccess)
+    }
 }

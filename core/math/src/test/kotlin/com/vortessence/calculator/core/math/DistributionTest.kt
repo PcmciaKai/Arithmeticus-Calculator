@@ -3,6 +3,8 @@ package com.vortessence.calculator.core.math
 import com.vortessence.calculator.core.math.context.CalculationMode
 import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.context.MathIssue
+import com.vortessence.calculator.core.math.numbers.BigInt
+import com.vortessence.calculator.core.math.numbers.Rational
 import com.vortessence.calculator.core.math.numbers.SpecialMath
 import com.vortessence.calculator.core.math.type.*
 import kotlinx.coroutines.runBlocking
@@ -386,5 +388,102 @@ class DistributionTest {
                 previousChi = chi
             }
         }
+    }
+
+    @Test
+    fun largeCountsAreDecimalsNotWrongExactResults() {
+        // The exact fractions would be hundreds of digits long: a decimal is shown, and it is the right one
+        assertClose(0.03890837750398265, value("binompdf", "500", "0.3", "150"), 1e-12)
+        assertClose(0.06896457740497401, value("binompdf", "150", "0.3333", "50"), 1e-12)
+        assertClose(0.04349407047516401, value("binompdf", "400", "0.3", "120"), 1e-12)
+        assertClose(0.023026546149187352, value("poissonpdf", "300", "300"), 1e-11)
+        assertClose(0.02070242183006165, value("poissonpdf", "250.5", "260"), 1e-11)
+        assertClose(1.0012290136006881e-29, value("chisqpdf", "100.5", "299"), 1e-11)
+        for ((name, args) in listOf("binompdf" to listOf("500", "0.3", "150"), "poissonpdf" to listOf("300", "300"), "chisqpdf" to listOf("100.5", "299"))) {
+            val text = calc(call(name, *args.toTypedArray())).result.toString()
+            assertTrue("$name: $text", text.length < 40 && !text.contains("/"))
+        }
+        // A short exact result stays exact
+        assertEquals("63/256", exact("binompdf", "10", "0.5", "5"))
+        assertEquals("319/512", exact("binomcdf", "10", "0.5", "5"))
+    }
+
+    @Test
+    fun hugeBinomialAndPoissonProbabilitiesKeepTheirDigits() {
+        assertClose(0.0007978843613317501, SpecialMath.binomialPmf(1e6, 0.5, 500000.0), 1e-12)
+        assertClose(7.978845608026659e-07, SpecialMath.binomialPmf(1e12, 0.5, 5e11), 1e-11)
+        assertClose(2.5231325220201594e-08, SpecialMath.binomialPmf(1e15, 0.5, 5e14), 1e-9)
+        assertClose(0.0008705631546366808, SpecialMath.binomialPmf(1e6, 0.3, 300000.0), 1e-11)
+        assertClose(0.00039914186800791017, SpecialMath.binomialPmf(1e9, 0.001, 1e6), 1e-11)
+        assertClose(0.17945748213541912, SpecialMath.binomialPmf(30.0, 0.2, 6.0), 1e-13)
+        assertClose(0.17619705200195312, SpecialMath.binomialPmf(20.0, 0.5, 10.0), 1e-13)
+        assertClose(0.1848648188248634, SpecialMath.binomialPmf(100.0, 0.99, 98.0), 1e-12)
+        assertClose(0.012614611348721499, SpecialMath.poissonPmf(1000.0, 1000.0), 1e-12)
+        assertClose(0.00039894224715624404, SpecialMath.poissonPmf(1e6, 1e6), 1e-11)
+        assertClose(3.9894228040139945e-07, SpecialMath.poissonPmf(1e12, 1e12), 1e-11)
+        assertClose(0.012636055410679864, SpecialMath.poissonPmf(0.5, 3.0), 1e-13)
+        assertClose(1.4019028953083583e-25, SpecialMath.poissonPmf(1e4, 9000.0), 1e-10)
+        assertClose(0.020104872145676234, SpecialMath.poissonPmf(50.0, 60.0), 1e-13)
+        assertClose(0.006737946999085467, SpecialMath.poissonPmf(5.0, 0.0), 1e-14)
+    }
+
+    @Test
+    fun hugeFractionsConvertToDecimalsCorrectly() {
+        fun power(base: Long, exponent: Int) = (1..exponent).fold(BigInt.ONE) { acc, _ -> acc * base }
+        // Both numerator and denominator are beyond a double: the quotient of the two doubles would be NaN
+        assertClose(1.0, Rational.of(power(10, 400) + BigInt.ONE, power(10, 400)).toDouble(), 1e-15)
+        // 3^1000 is infinite as a double, 2^1000 is not: the quotient (1.5)^1000 used to come out as infinity
+        assertClose(1.2338405969061735e+176, Rational.of(power(3, 1000), power(2, 1000)).toDouble(), 1e-12)
+        // And the other way round: 2^1000/3^1000 used to be 0
+        assertClose(8.104774656527566e-177, Rational.of(power(2, 1000), power(3, 1000)).toDouble(), 1e-12)
+        // Where the quotient is not a double at all
+        assertEquals(Double.POSITIVE_INFINITY, Rational.of(power(10, 400), BigInt.ONE).toDouble(), 0.0)
+        assertEquals(0.0, Rational.of(BigInt.ONE, power(10, 400)).toDouble(), 0.0)
+        // Short fractions are as before
+        assertEquals(1.0 / 3.0, Rational.of(1L, 3L).toDouble(), 0.0)
+    }
+
+    @Test
+    fun betaOfLargeArguments() {
+        // B(200, 200) = Γ(200)²/Γ(400) is about 9.7×10⁻¹²²: exact mode used to say 0, numeric mode "too large"
+        assertClose(9.713217247611181e-122, value("beta", "200", "200"), 1e-10)
+        assertClose(9.713217247611181e-122, value("beta", "200", "200", mode = CalculationMode.NUMERIC), 1e-10)
+        // B(a, b) is about 1/a − γ for small a: just under 10⁴ for a = 0.0001
+        assertClose(9987.917251638047, value("beta", "0.0001", "100000"), 1e-9)
+        assertEquals("1/12", exact("beta", "2", "3"))
+        assertClose(1.0 / 12, value("beta", "2", "3", mode = CalculationMode.NUMERIC), 1e-13)
+        assertClose(Math.PI, value("beta", "0.5", "0.5", mode = CalculationMode.NUMERIC), 1e-13)
+        // Negative arguments, where ln Γ is not defined: B(−1/2, 2) = Γ(−1/2)·Γ(2)/Γ(3/2) = −4
+        assertClose(-4.0, value("beta", "-0.5", "2", mode = CalculationMode.NUMERIC), 1e-12)
+        assertClose(-4.0, value("beta", "-0.5", "2"), 1e-12)
+        assertEquals(listOf(MathIssue.UNDEFINED), issues("beta", "0", "2"))
+        assertEquals(listOf(MathIssue.UNDEFINED), issues("beta", "-2", "5"))
+    }
+
+    @Test
+    fun theLogarithmOfTheBetaFunctionKeepsItsDigitsForLargeArguments() {
+        assertClose(-138629444.05681732, SpecialMath.lnBeta(1e8, 1e8), 1e-13)
+        assertClose(-70226546.06878522, SpecialMath.lnBeta(1e8, 3e7), 1e-13)
+        // B(10⁶, 2) = 1/(10⁶·(10⁶ + 1))
+        assertClose(-Math.log(1e6) - Math.log(1e6 + 1), SpecialMath.lnBeta(1e6, 2.0), 1e-13)
+        assertClose(-891.5975491259757, SpecialMath.lnBeta(50.0, 1e9), 1e-12)
+        assertClose(-530.9482011382281, SpecialMath.lnBeta(300.0, 500.0), 1e-12)
+        assertClose(-16.602059876016597, SpecialMath.lnBeta(12.0, 12.0), 1e-12)
+        assertClose(Math.log(1.0 / 12), SpecialMath.lnBeta(2.0, 3.0), 1e-14)
+        assertTrue(SpecialMath.lnBeta(0.0, 2.0).isNaN())
+    }
+
+    @Test
+    fun theExactResultOfTheLargestCountsIsQuick() {
+        // Up to 500 trials the exact fractions are tried first: even for many digits in p that is a matter of milliseconds
+        val started = System.nanoTime()
+        for ((name, args) in listOf(
+            "binomcdf" to listOf("500", "0.123456789", "250"), "binompdf" to listOf("500", "0.123456789", "250"),
+            "poissoncdf" to listOf("499.5", "499"), "chisqcdf" to listOf("300.5", "600"), "chisqpdf" to listOf("100.5", "299")
+        )) {
+            val res = calc(call(name, *args.toTypedArray()))
+            assertTrue("$name: ${res.issues}", res.isSuccess)
+        }
+        assertTrue("took ${(System.nanoTime() - started) / 1_000_000} ms", System.nanoTime() - started < 3_000_000_000L)
     }
 }

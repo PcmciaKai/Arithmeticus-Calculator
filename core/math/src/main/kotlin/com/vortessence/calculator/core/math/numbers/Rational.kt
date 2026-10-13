@@ -86,7 +86,13 @@ class Rational private constructor(
         return if (isFractional) "$numerator/$denominator" else numerator.toString()
     }
 
-    fun toDouble(): Double = numerator.toDouble() / denominator.toDouble()
+    fun toDouble(): Double {
+        val n = numerator.toDouble()
+        val d = denominator.toDouble()
+        if (n.isFinite() && d.isFinite()) return n / d
+        // A numerator or denominator beyond the range of a double (e.g. 500!/2⁵⁰⁰): dividing the doubles would give NaN or 0
+        return java.math.BigDecimal(numerator.value).divide(java.math.BigDecimal(denominator.value), java.math.MathContext(30)).toDouble()
+    }
 
     companion object {
         val ZERO = Rational(BigInt.ZERO, BigInt.ONE)

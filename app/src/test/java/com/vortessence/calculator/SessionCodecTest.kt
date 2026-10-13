@@ -62,4 +62,19 @@ class SessionCodecTest {
         val decoded = SessionCodec.decode(lines.joinToString("\n"))!!
         assertEquals(listOf(good), decoded.entries)
     }
+
+    @Test
+    fun functionsWithSymbolsAndSeveralArgumentsSurviveTheSession() {
+        // Γ, ψ and lnΓ are the names of results; a function with several values (and a comma inside) is one node
+        val nodes = listOf(
+            com.vortessence.calculator.core.math.type.FunctionNode("Γ", ms(NumberNode("2"), NumberNode(".5"))),
+            com.vortessence.calculator.core.math.type.FunctionNode("ψ", ms(VariableNode("x"))),
+            com.vortessence.calculator.core.math.type.FunctionNode("lnΓ", ms(NumberNode("3"))),
+            com.vortessence.calculator.core.math.type.FunctionNode(
+                "binompdf", ms(NumberNode("1"), NumberNode("0"), com.vortessence.calculator.core.math.type.SeparatorNode, NumberNode("0"), NumberNode(".5"), com.vortessence.calculator.core.math.type.SeparatorNode, NumberNode("5"))
+            )
+        )
+        val session = SavedSession(ms(*nodes.toTypedArray()), listOf(SavedEntry(1, ms(*nodes.toTypedArray()), ResultForm.EXACT, plain)))
+        assertEquals(session, SessionCodec.decode(SessionCodec.encode(session))!!)
+    }
 }

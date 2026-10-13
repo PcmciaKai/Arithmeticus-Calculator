@@ -284,4 +284,75 @@ class NamedFunctionTest {
         val res = runBlocking { MathEngine.calculate(ms(listOf(DerivativeNode(body))), MathContext()) }
         assertTrue(res.issues.toString(), res.isSuccess)
     }
+
+    private fun numericMode(name: String, vararg arguments: String): CalculationResult =
+        runBlocking { MathEngine.calculate(call(name, *arguments), MathContext(mode = com.vortessence.calculator.core.math.context.CalculationMode.NUMERIC)) }
+
+    @Test
+    fun percentilesInNumericMode() {
+        // In numeric mode every number is a decimal; 50 and 37.5 are still read as the levels they are
+        assertEquals(2.0, numericMode("percentile", "50", "1", "2", "3").numericValue, 1e-12)
+        assertEquals(2.5, numericMode("quartile", "2", "1", "2", "3", "4").numericValue, 1e-12)
+        assertEquals(27.5, numericMode("percentile", "37.5", "15", "20", "35", "40", "50").numericValue, 1e-12)
+        assertEquals(listOf(MathIssue.WHOLE_NUMBERS_ONLY), numericMode("quartile", "1.5", "1", "2", "3").issues)
+        assertEquals(listOf(MathIssue.UNDEFINED), numericMode("percentile", "101", "1", "2", "3").issues)
+    }
+
+    @Test
+    fun theConjugateOfARealNumberNeedsNoImaginaryUnit() {
+        // With complex numbers off (the default) there is no i, and none is needed for conj(3)
+        assertEquals(3.0, numeric("conj", "3"), 0.0)
+        assertEquals(-2.5, numeric("conj", "-2.5"), 0.0)
+        assertEquals("3 - 4i", single("conj", ms(listOf(NumberNode("3"), OperatorNode(MathOp.PLUS), NumberNode("4"), ConstantNode("i")))).result.toString().replace("(", "").replace(")", "").replace("−", "-").trim())
+    }
+
+    @Test
+    fun roundingTooManyPlacesNumericallyIsUndefinedAtOnce() {
+        // trunc(x, 100000000) with x unknown used to be worked out digit by digit when plotted or solved
+        val started = System.nanoTime()
+        val function = com.vortessence.calculator.core.math.expressions.NamedFunction(
+            com.vortessence.calculator.core.math.expressions.NamedFunctionKind.TRUNC,
+            listOf(com.vortessence.calculator.core.math.expressions.Variable("x"), com.vortessence.calculator.core.math.expressions.Value(100000000L))
+        )
+        assertTrue(function.evaluateNumerically(mapOf(com.vortessence.calculator.core.math.expressions.Variable("x") to 1.5)).isNaN())
+        assertTrue((System.nanoTime() - started) < 1_000_000_000L)
+        assertEquals(1.23, com.vortessence.calculator.core.math.expressions.NamedFunction(
+            com.vortessence.calculator.core.math.expressions.NamedFunctionKind.TRUNC,
+            listOf(com.vortessence.calculator.core.math.expressions.Variable("x"), com.vortessence.calculator.core.math.expressions.Value(2L))
+        ).evaluateNumerically(mapOf(com.vortessence.calculator.core.math.expressions.Variable("x") to 1.2345)), 0.0)
+    }
+
+    @Test
+    fun functionsWithJumpsAreNotSolved() {
+        val x = VariableNode("x")
+        fun input(name: String, op: MathOp, right: String) = ms(listOf(FunctionNode(name, ms(listOf(x))), OperatorNode(op), NumberNode(right)))
+        // These used to give "no real solution" or a list of the jumps
+        assertEquals(listOf(MathIssue.CANT_SOLVE_GENERIC), calc(input("sign", MathOp.EQUALS, "1")).issues)
+        assertEquals(listOf(MathIssue.CANT_SOLVE_GENERIC), calc(input("trunc", MathOp.EQUALS, "2")).issues)
+        assertFalse(calc(input("frac", MathOp.EQUALS, "0.25")).isSuccess)
+        assertFalse(calc(input("floor", MathOp.GREATER, "2")).isSuccess)
+        assertFalse(calc(input("frac", MathOp.LESS, "0.5")).isSuccess)
+        assertFalse(calc(input("sign", MathOp.GREATER, "0")).isSuccess)
+        // A function without jumps still is
+        assertTrue(calc(ms(listOf(FunctionNode("mean", ms(listOf(x, SeparatorNode, NumberNode("3")))), OperatorNode(MathOp.EQUALS), NumberNode("5")))).isSuccess)
+    }
+
+    @Test
+    fun theProbabilityAndTheMeanOfADistributionCanBeSolvedFor() {
+        val p = VariableNode("p")
+        // binomcdf(10, p, 5) = 0.5: continuous in p, so it can be solved (p is about 0.5)
+        val input = ms(listOf(
+            FunctionNode("binomcdf", ms(listOf(NumberNode("1"), NumberNode("0"), SeparatorNode, p, SeparatorNode, NumberNode("5")))),
+            OperatorNode(MathOp.EQUALS), NumberNode("0.5")
+        ))
+        val res = calc(input)
+        assertTrue("${res.issues}", res.isSuccess)
+        assertEquals(0.5, res.numericValue, 0.06)
+        val count = ms(listOf(
+            FunctionNode("binomcdf", ms(listOf(NumberNode("1"), NumberNode("0"), SeparatorNode, NumberNode("0"), NumberNode("."), NumberNode("5"), SeparatorNode, VariableNode("k")))),
+            OperatorNode(MathOp.EQUALS), NumberNode("0.5")
+        ))
+        // In k (a count) it jumps: no solution to find by sign changes
+        assertFalse(calc(count).isSuccess)
+    }
 }

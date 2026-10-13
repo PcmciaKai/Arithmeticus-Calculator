@@ -150,7 +150,7 @@ class SpecialFunction(val type: SpecialType, val operand: Expression) : Expressi
     override fun toString(): String = "${type.functionName}($operand)"
 
     private companion object {
-        /** Γ(3000) = 2999!, as large as a factorial may be. */
-        const val MAX_ARGUMENT = 3000L
+        /** Γ(171) = 170! is the last one a number of the calculator can hold (about 1.8×10³⁰⁸), also Γ(171.5). */
+        const val MAX_ARGUMENT = 171L
     }
 }

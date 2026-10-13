@@ -115,8 +115,29 @@ enum class NamedFunctionKind(val functionName: String, val minArguments: Int, va
     /** The complex conjugate a − b·i of a + b·i. */
     CONJ("conj", 1, 1);
 
+    /**
+     * Whether this function has jumps or takes whole numbers only (floor, sign, nCr, …): searching for the points where an
+     * equation or inequality changes sign would find jumps as solutions, or none.
+     */
+    val isStepwise: Boolean get() = this in STEPWISE
+
+    /**
+     * Whether the function jumps in its argument number [index] (counted from 0): the probability p of binompdf and the mean
+     * λ of poissonpdf are continuous, the counts are not.
+     */
+    fun jumpsIn(index: Int): Boolean = this in STEPWISE && when (this) {
+        BINOMPDF, BINOMCDF -> index != 1
+        POISSONPDF, POISSONCDF -> index != 0
+        else -> true
+    }
+
     companion object {
         fun byName(name: String): NamedFunctionKind? = entries.firstOrNull { it.functionName == name }
+
+        private val STEPWISE = setOf(
+            ROUND, FLOOR, CEIL, TRUNC, FRAC, SIGN, MODE, GCD, LCM, NCR, NPR, MULTINOMIAL, FIB, NEXTPRIME, ISPRIME,
+            BINOMPDF, BINOMCDF, POISSONPDF, POISSONCDF
+        )
     }
 }
 
@@ -201,7 +222,7 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
             }
             // Written out above
             NamedFunctionKind.SUM, NamedFunctionKind.PROD, NamedFunctionKind.SUMSQ, NamedFunctionKind.HYPOT, NamedFunctionKind.BETA,
-            NamedFunctionKind.NORMALPDF, NamedFunctionKind.NORMALCDF, NamedFunctionKind.NORMALINV, NamedFunctionKind.TPDF, NamedFunctionKind.RE, NamedFunctionKind.IM, NamedFunctionKind.CONJ -> this
+            NamedFunctionKind.NORMALPDF, NamedFunctionKind.NORMALCDF, NamedFunctionKind.NORMALINV, NamedFunctionKind.TPDF, NamedFunctionKind.RE, NamedFunctionKind.IM, NamedFunctionKind.CONJ -> return this
         }.canonicalize(context)
     }
 
@@ -221,10 +242,7 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
         NamedFunctionKind.HYPOT -> Power.squareRoot(Additions(args.map { Power(it, Value.TWO) })).canonicalize(context)
         NamedFunctionKind.NORMALPDF, NamedFunctionKind.NORMALCDF, NamedFunctionKind.NORMALINV -> normal(args, context)
         NamedFunctionKind.TPDF -> studentDensity(args, context)
-        NamedFunctionKind.BETA -> {
-            fun gamma(x: Expression) = SpecialFunction(SpecialType.GAMMA, x)
-            Multiplications.of(gamma(args[0]), gamma(args[1]), Power(gamma(Additions(listOf(args[0], args[1]))), Value.MINUS_ONE)).canonicalize(context)
-        }
+        NamedFunctionKind.BETA -> beta(args, context)
         NamedFunctionKind.RE, NamedFunctionKind.IM, NamedFunctionKind.CONJ -> {
             val parts = complexParts(args[0])
             when {
@@ -232,10 +250,48 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
                 parts == null -> if (args[0].variables().isNotEmpty()) NamedFunction(kind, args) else fail(context, MathIssue.UNDEFINED)
                 kind == NamedFunctionKind.RE -> parts.first
                 kind == NamedFunctionKind.IM -> parts.second
+                // A real number is its own conjugate (and needs no i, so this works with complex numbers off)
+                parts.second.isZero -> parts.first
                 else -> complexOf(parts.first, parts.second.negate(), context)
             }
         }
         else -> null
+    }
+
+    /**
+     * The beta function Γ(a)·Γ(b)/Γ(a + b), written out so that it works with variables. For numbers it is exact where Γ is
+     * and the result stays short; a decimal (through ln Γ, which does not overflow) for large numbers and in numeric mode.
+     */
+    private fun beta(args: List<Expression>, context: MathContext): Expression {
+        fun gamma(x: Expression) = SpecialFunction(SpecialType.GAMMA, x)
+        val formula = Multiplications.of(gamma(args[0]), gamma(args[1]), Power(gamma(Additions(listOf(args[0], args[1]))), Value.MINUS_ONE))
+        if (args.any { it.variables().isNotEmpty() }) return formula.canonicalize(context)
+        val (a, b) = args.map { it.evaluateNumerically() }
+        val large = a > MAX_EXACT_DF || b > MAX_EXACT_DF
+        if (context.mode == CalculationMode.NUMERIC || large) return decimal(numeric(args), context)
+        return exactOrNull(formula, context, args) ?: decimal(numeric(args), context)
+    }
+
+    /** The value of this function for [args] (canonical numbers) as a decimal. */
+    private fun numeric(args: List<Expression>): Double = NamedFunction(kind, args).evaluateNumerically(emptyMap())
+
+    /**
+     * [expression] canonicalized, if that works out and the result is short enough to show as an exact result; otherwise null
+     * (nothing is reported then: the caller gives a decimal instead).
+     */
+    private fun exactOrNull(expression: Expression, context: MathContext, args: List<Expression>): Expression? {
+        val scratch = context.copy()
+        val result = expression.canonicalize(scratch)
+        if (scratch.shouldStop || context.shouldStop || hasHugeNumber(result)) return null
+        // The engine drops to decimals inside huge products (and may come out at 0 or infinity): only a result that agrees with the number is exact
+        val reference = numeric(args)
+        val value = result.evaluateNumerically()
+        if (!value.isFinite() || !reference.isFinite() || abs(value - reference) > 1e-9 * abs(reference) + 1e-300) return null
+        return result
+    }
+
+    private fun hasHugeNumber(e: Expression): Boolean = e.containsExpressionMatching { part ->
+        (part as? Value)?.rational?.let { it.numerator.value.bitLength() > MAX_EXACT_BITS || it.denominator.value.bitLength() > MAX_EXACT_BITS } == true
     }
 
     /** The normal distribution as the formulas it is made of, so it works with variables and can be differentiated. */
@@ -267,10 +323,12 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
         val freedom = if (df.variables().isEmpty()) df.evaluateNumerically() else null
         if (freedom != null && !(freedom > 0.0)) return fail(context, MathIssue.UNDEFINED)
         val large = freedom != null && freedom > MAX_EXACT_DF
-        if (x.variables().isEmpty() && freedom != null && (large || context.mode == CalculationMode.NUMERIC)) return decimal(evaluateNumerically(emptyMap()), context)
+        val constant = x.variables().isEmpty() && freedom != null
+        if (constant && (large || context.mode == CalculationMode.NUMERIC)) return decimal(numeric(args), context)
         // With a variable x the formula would overflow Γ for many degrees of freedom: it stays open and is calculated as a number
         if (large) return NamedFunction(kind, args)
-        return studentDensityFormula(x, df).canonicalize(context)
+        if (!constant) return studentDensityFormula(x, df).canonicalize(context)
+        return exactOrNull(studentDensityFormula(x, df), context, args) ?: decimal(numeric(args), context)
     }
 
     private fun decimal(value: Double, context: MathContext): Expression {
@@ -309,7 +367,7 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
                     }
                     return if (freedom == 2.0) Value.HALF else Value.ZERO
                 }
-                exactMode -> return chiSquareDensityFormula(first, df).canonicalize(context)
+                exactMode -> return exactOrNull(chiSquareDensityFormula(first, df), context, args) ?: decimal(numeric(args), context)
             }
             NamedFunctionKind.CHISQCDF -> {
                 if (x <= 0.0) return Value.ZERO
@@ -319,12 +377,12 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
                     val rate = Multiplications(listOf(Value.HALF, first))
                     val terms = (0 until half).map { j -> Multiplications(listOf(Power(rate, Value(j)), Value(Rational.of(BigInt.ONE, BigInt.factorial(j))))) }
                     val decay = Power(Constant.E, Multiplications(listOf(Value.MINUS_ONE, rate)))
-                    return Additions(listOf(Value.ONE, Multiplications(listOf(Value.MINUS_ONE, decay, Additions(terms))))).canonicalize(context)
+                    exactOrNull(Additions(listOf(Value.ONE, Multiplications(listOf(Value.MINUS_ONE, decay, Additions(terms))))), context, args)?.let { return it }
                 }
             }
             else -> {}
         }
-        return decimal(evaluateNumerically(emptyMap()), context)
+        return decimal(numeric(args), context)
     }
 
     /**
@@ -359,14 +417,7 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
             context.stopWithError(MathIssue.VALUES_TOO_LARGE)
             return null
         }
-        if (context.mode == CalculationMode.NUMERIC || size > BigInt(MAX_EXACT_TRIALS)) {
-            val value = evaluateNumerically(emptyMap())
-            if (value.isNaN()) {
-                context.stopWithError(MathIssue.UNDEFINED)
-                return null
-            }
-            return Value(Real(value))
-        }
+        if (context.mode == CalculationMode.NUMERIC || size > BigInt(MAX_EXACT_TRIALS)) return decimal(numeric(args), context)
         val k = count.toLong()
         if (binomial) {
             val n = trials!!.toLong()
@@ -377,7 +428,7 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
                 if (i > 0) Power(rate, Value(i)) else Value.ONE,
                 if (n - i > 0) Power(failure, Value(n - i)) else Value.ONE
             )
-            return if (cumulative) Additions((0..k).map { term(it) }) else term(k)
+            return exactOrNull(if (cumulative) Additions((0..k).map { term(it) }) else term(k), context, args) ?: decimal(numeric(args), context)
         }
         // e^(−λ)·λ^i/i!
         fun power(i: Long): Expression = Multiplications.of(
@@ -385,7 +436,16 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
             Value(Rational.of(BigInt.ONE, BigInt.factorial(i)))
         )
         val decay = Power(Constant.E, Multiplications.of(Value.MINUS_ONE, rate))
-        return Multiplications.of(decay, if (cumulative) Additions((0..k).map { power(it) }) else power(k))
+        return exactOrNull(Multiplications.of(decay, if (cumulative) Additions((0..k).map { power(it) }) else power(k)), context, args)
+            ?: decimal(numeric(args), context)
+    }
+
+    /** The decimal number [d] as the fraction it is written as (37.5 is 75/2, 1e-5 is 1/100000). */
+    private fun decimalAsRational(d: Double): Rational {
+        val decimal = BigDecimal.valueOf(d)
+        val unscaled = BigInt(decimal.unscaledValue())
+        val power = BigInt(BigInteger.TEN.pow(abs(decimal.scale())))
+        return if (decimal.scale() >= 0) Rational.of(unscaled, power) else Rational.of(unscaled * power)
     }
 
     /** The third standardized moment: the mean cubed deviation over the variance to the power 3/2. */
@@ -405,7 +465,8 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
 
     /** percentile(p, values...) or quartile(q, values...): linear interpolation between the sorted values (as spreadsheets do). */
     private fun percentile(args: List<Expression>, context: MathContext): Expression? {
-        val level = (args[0] as? Value)?.rational
+        // In numeric mode numbers are decimals: 37.5 is read as the fraction 75/2
+        val level = (args[0] as? Value)?.let { value -> value.rational ?: value.real.value.takeIf { it == 0.0 || abs(it) in 1e-12..1e6 }?.let { decimalAsRational(it) } }
         if (level == null || args[0].containsUnit()) {
             context.stopWithError(MathIssue.UNDEFINED)
             return null
@@ -607,7 +668,10 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
             NamedFunctionKind.PROD -> values.fold(1.0) { product, v -> product * v }
             NamedFunctionKind.SUMSQ -> values.sumOf { it * it }
             NamedFunctionKind.HYPOT -> sqrt(values.sumOf { it * it })
-            NamedFunctionKind.BETA -> exp(SpecialMath.lnGamma(values[0]) + SpecialMath.lnGamma(values[1]) - SpecialMath.lnGamma(values[0] + values[1]))
+            // Through ln Γ, which does not overflow; Γ itself for the arguments where that is not defined (negative ones)
+            NamedFunctionKind.BETA ->
+                if (values[0] > 0.0 && values[1] > 0.0) exp(SpecialMath.lnBeta(values[0], values[1]))
+                else SpecialMath.gamma(values[0]) * SpecialMath.gamma(values[1]) / SpecialMath.gamma(values[0] + values[1])
             NamedFunctionKind.PERCENTILE, NamedFunctionKind.QUARTILE -> {
                 val share = values[0] / (if (kind == NamedFunctionKind.QUARTILE) 4 else 100)
                 val sorted = values.drop(1).sorted()
@@ -660,7 +724,8 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
             NamedFunctionKind.FRAC -> values[0] - truncate(values[0])
             NamedFunctionKind.ROUND, NamedFunctionKind.TRUNC -> {
                 val places = values.getOrElse(1) { 0.0 }
-                if (places != floor(places) || values[0].isInfinite()) Double.NaN
+                // The same limit as for numbers: BigDecimal would work for minutes at 10⁸ places
+                if (places != floor(places) || abs(places) > MAX_PLACES.toLong() || values[0].isInfinite()) Double.NaN
                 else BigDecimal(values[0]).setScale(places.toInt(), roundingMode()).toDouble()
             }
             // Whole-number functions are only defined for whole numbers
@@ -706,9 +771,11 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
         const val MAX_PRIME_BITS = 256
         const val PRIME_CERTAINTY = 40
         /** Binomial and Poisson probabilities are exact up to here, decimals beyond (the exact fractions get huge). */
-        const val MAX_EXACT_TRIALS = 500L
+        const val MAX_EXACT_TRIALS = DistributionLimits.MAX_EXACT_TRIALS
         /** Student t and chi-square densities are exact formulas up to here, decimals beyond (Γ of large numbers is huge). */
-        const val MAX_EXACT_DF = 300.0
+        const val MAX_EXACT_DF = DistributionLimits.MAX_EXACT_DF
+        /** The numerator or denominator of an exact result has at most this many bits (about 77 digits): longer ones are shown as decimals. */
+        const val MAX_EXACT_BITS = 256
         /** The most trials a binomial or events a Poisson distribution may have (a double holds whole numbers up to 2^53). */
         const val MAX_TRIALS = 1_000_000_000_000_000L
         /** The most terms of a cumulative probability that are added up. */
@@ -770,3 +837,15 @@ internal fun chiSquareDensityFormula(x: Expression, df: Expression): Expression 
         Power(SpecialFunction(SpecialType.GAMMA, half), Value.MINUS_ONE)
     ))
 }
+
+/** Where the distribution functions stop giving exact results; shared with their steps. */
+internal object DistributionLimits {
+    /** Binomial and Poisson probabilities are exact up to here (trials or events), decimals beyond. */
+    const val MAX_EXACT_TRIALS = 500L
+    /** Student t and chi-square densities are exact formulas up to here (degrees of freedom), decimals beyond. */
+    const val MAX_EXACT_DF = 300.0
+}
+
+/** Whether this call jumps in [variable] (floor(x), nCr(x, 2), binompdf(10, 0.5, x)), so that it cannot be solved by looking for sign changes. */
+internal fun NamedFunction.jumpsIn(variable: Variable): Boolean =
+    arguments.withIndex().any { (index, argument) -> kind.jumpsIn(index) && argument.containsVariable(variable) }

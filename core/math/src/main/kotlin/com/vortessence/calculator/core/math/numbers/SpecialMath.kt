@@ -108,12 +108,46 @@ internal object SpecialMath {
     private val ACKLAM_C = doubleArrayOf(-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00, -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00)
     private val ACKLAM_D = doubleArrayOf(7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00, 3.754408661907416e+00)
 
-    /** P(X = k) for X binomial with [n] trials and success probability [p]; k and n are whole numbers. */
+    /**
+     * P(X = k) for X binomial with [n] trials and success probability [p]; k and n are whole numbers. Loader's algorithm
+     * (as in R): the factorials are cut into Stirling's formula and a small error term, so no huge numbers cancel.
+     */
     fun binomialPmf(n: Double, p: Double, k: Double): Double = when {
         k < 0.0 || k > n -> 0.0
         p == 0.0 -> if (k == 0.0) 1.0 else 0.0
         p == 1.0 -> if (k == n) 1.0 else 0.0
-        else -> exp(lnGamma(n + 1.0) - lnGamma(k + 1.0) - lnGamma(n - k + 1.0) + k * ln(p) + (n - k) * ln1p(-p))
+        k == 0.0 -> exp(n * ln1p(-p))
+        k == n -> exp(n * ln(p))
+        else -> {
+            val q = 1.0 - p
+            val logProbability = stirlingError(n) - stirlingError(k) - stirlingError(n - k) - deviance(k, n * p) - deviance(n - k, n * q)
+            exp(logProbability) * sqrt(n / (2.0 * PI * k * (n - k)))
+        }
+    }
+
+    /** ln(n!) − ln(√(2πn)·(n/e)ⁿ): the error of Stirling's formula, small and easy to calculate for large n. */
+    private fun stirlingError(n: Double): Double {
+        if (n <= 15.0) return lnGamma(n + 1.0) - (n + 0.5) * ln(n) + n - 0.5 * ln(2.0 * PI)
+        val square = n * n
+        return (1.0 / 12.0 - (1.0 / 360.0 - (1.0 / 1260.0 - (1.0 / 1680.0 - 1.0 / (1188.0 * square)) / square) / square) / square) / n
+    }
+
+    /** x·ln(x/m) + m − x, calculated without losing digits where x is close to m. */
+    private fun deviance(x: Double, m: Double): Double {
+        if (abs(x - m) < 0.1 * (x + m)) {
+            var v = (x - m) / (x + m)
+            var sum = (x - m) * v
+            if (abs(sum) < Double.MIN_VALUE) return sum
+            var term = 2.0 * x * v
+            v *= v
+            for (j in 1..1000) {
+                term *= v
+                val next = sum + term / (2 * j + 1)
+                if (next == sum) return next
+                sum = next
+            }
+        }
+        return x * ln(x / m) + m - x
     }
 
     /** P(X ≤ k) for a binomial X: the sum of the (positive) terms, which stays accurate in both tails. */
@@ -123,16 +157,35 @@ internal object SpecialMath {
         else -> minOf(1.0, (0..k.toInt()).sumOf { binomialPmf(n, p, it.toDouble()) })
     }
 
-    /** P(X = k) for X Poisson with mean [lambda]. */
+    /** P(X = k) for X Poisson with mean [lambda] (Loader's algorithm, like [binomialPmf]). */
     fun poissonPmf(lambda: Double, k: Double): Double = when {
         k < 0.0 -> 0.0
         lambda == 0.0 -> if (k == 0.0) 1.0 else 0.0
-        else -> exp(-lambda + k * ln(lambda) - lnGamma(k + 1.0))
+        k == 0.0 -> exp(-lambda)
+        else -> exp(-stirlingError(k) - deviance(k, lambda)) / sqrt(2.0 * PI * k)
     }
 
     /** P(X ≤ k) for a Poisson X. */
     fun poissonCdf(lambda: Double, k: Double): Double =
         if (k < 0.0) 0.0 else minOf(1.0, (0..k.toInt()).sumOf { poissonPmf(lambda, it.toDouble()) })
+
+    /** ln B(a, b) = ln Γ(a) + ln Γ(b) − ln Γ(a + b) for a, b > 0, without the huge cancelling terms for large arguments (as R does). */
+    fun lnBeta(a: Double, b: Double): Double {
+        if (a.isNaN() || b.isNaN() || !(a > 0.0) || !(b > 0.0)) return Double.NaN
+        val p = minOf(a, b)
+        val q = maxOf(a, b)
+        return when {
+            p >= 10.0 -> {
+                val correction = stirlingError(p) + stirlingError(q) - stirlingError(p + q)
+                -0.5 * ln(q) + 0.5 * ln(2.0 * PI) + correction + (p - 0.5) * ln(p / (p + q)) + q * ln1p(-p / (p + q))
+            }
+            q >= 10.0 -> {
+                val correction = stirlingError(q) - stirlingError(p + q)
+                lnGamma(p) + correction + p - p * ln(p + q) + (q - 0.5) * ln1p(-p / (p + q))
+            }
+            else -> lnGamma(a) + lnGamma(b) - lnGamma(a + b)
+        }
+    }
 
     private const val CF_EPSILON = 3e-16
     private const val CF_TINY = 1e-300

@@ -3,6 +3,7 @@ package com.vortessence.calculator.core.math.steps
 import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.expressions.Additions
 import com.vortessence.calculator.core.math.expressions.Constant
+import com.vortessence.calculator.core.math.expressions.DistributionLimits
 import com.vortessence.calculator.core.math.expressions.Expression
 import com.vortessence.calculator.core.math.expressions.Factorial
 import com.vortessence.calculator.core.math.expressions.Multiplications
@@ -29,8 +30,7 @@ internal object DistributionSteps {
     private const val MAX_STEPS = 80
     /** The most terms of a cumulative probability that are written out. */
     private const val MAX_WRITTEN_TERMS = 6L
-    /** As far as the calculator works with exact fractions. */
-    private const val MAX_EXACT = 500L
+    private const val MAX_EXACT = DistributionLimits.MAX_EXACT_TRIALS
 
     private val SUPPORTED = setOf(
         NamedFunctionKind.NORMALPDF, NamedFunctionKind.NORMALCDF, NamedFunctionKind.NORMALINV,
@@ -44,6 +44,8 @@ internal object DistributionSteps {
         val scratch = context.copy()
         val canonical = call.canonicalize(scratch)
         if (scratch.shouldStop) return null
+        // A decimal result (many trials, numeric mode) has no formula worked out to it
+        if (canonical is Value && canonical.rational == null) return null
         val target = displayForm(canonical, context)
         // The rules do not all get to the result; then it is one last step
         return attempt(call, target, context, simplify = true) ?: attempt(call, target, context, simplify = false)
@@ -87,7 +89,7 @@ internal object DistributionSteps {
     private fun density(call: NamedFunction, solution: Solver): Boolean {
         val (x, df) = call.arguments
         val freedom = df.evaluateNumerically()
-        if (!(freedom > 0.0 && freedom <= 300.0)) return false
+        if (!(freedom > 0.0 && freedom <= DistributionLimits.MAX_EXACT_DF)) return false
         if (call.kind == NamedFunctionKind.TPDF) {
             replaceAll(solution, StepRule.STUDENT_DENSITY, studentDensityFormula(x, df))
             return true

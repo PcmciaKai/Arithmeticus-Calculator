@@ -81,6 +81,12 @@ class Equals(
             }
         }
 
+        // A function with jumps (floor, sign, …) has its sign changes at the jumps, not where it is zero
+        if (polynomial.containsExpressionMatching { it is NamedFunction && it.jumpsIn(variable) }) {
+            context.stopWithError(MathIssue.CANT_SOLVE_GENERIC)
+            return emptySet()
+        }
+
         // Equal expressions written differently, e.g. a derivative and its simplified form or
         // sin²x + cos²x = 1: true for every value, not a list of numeric "solutions"
         if (sidesAgreeNumerically()) return setOf(variable)
