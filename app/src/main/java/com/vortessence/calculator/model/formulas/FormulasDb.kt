@@ -72,6 +72,12 @@ object FormulasDb {
         Formula(R.string.formula_binompdf_name, R.string.formula_binompdf_desc, R.string.category_distributions, ofValues("binompdf")),
         Formula(R.string.formula_binomcdf_name, R.string.formula_binomcdf_desc, R.string.category_distributions, ofValues("binomcdf")),
         Formula(R.string.formula_poissonpdf_name, R.string.formula_poissonpdf_desc, R.string.category_distributions, ofValues("poissonpdf")),
-        Formula(R.string.formula_poissoncdf_name, R.string.formula_poissoncdf_desc, R.string.category_distributions, ofValues("poissoncdf"))
+        Formula(R.string.formula_poissoncdf_name, R.string.formula_poissoncdf_desc, R.string.category_distributions, ofValues("poissoncdf")),
+        Formula(R.string.formula_tpdf_name, R.string.formula_tpdf_desc, R.string.category_distributions, ofValues("tpdf")),
+        Formula(R.string.formula_tcdf_name, R.string.formula_tcdf_desc, R.string.category_distributions, ofValues("tcdf")),
+        Formula(R.string.formula_tinv_name, R.string.formula_tinv_desc, R.string.category_distributions, ofValues("tinv")),
+        Formula(R.string.formula_chisqpdf_name, R.string.formula_chisqpdf_desc, R.string.category_distributions, ofValues("chisqpdf")),
+        Formula(R.string.formula_chisqcdf_name, R.string.formula_chisqcdf_desc, R.string.category_distributions, ofValues("chisqcdf")),
+        Formula(R.string.formula_chisqinv_name, R.string.formula_chisqinv_desc, R.string.category_distributions, ofValues("chisqinv"))
     )
 }

@@ -99,4 +99,18 @@ class DistributionStepsTest {
         assertTrue(runBlocking { MathEngine.hasSteps(call("binompdf", "10", "0.5", "5"), MathContext()) })
         assertFalse(runBlocking { MathEngine.hasSteps(call("binompdf", "5", "0", "2"), MathContext()) })
     }
+
+    @Test
+    fun studentAndChiSquareDensities() {
+        assertEquals(StepRule.STUDENT_DENSITY, rules("tpdf", "1.5", "5").first())
+        assertEndsWithTheResult("tpdf", "1.5", "5")
+        assertEquals(StepRule.CHI_SQUARE_DENSITY, rules("chisqpdf", "2", "4").first())
+        assertEndsWithTheResult("chisqpdf", "2", "4")
+        // No formula to show where the density is 0 or a decimal, and for the probabilities
+        assertNull(solution("chisqpdf", "-1", "4"))
+        assertNull(solution("chisqpdf", "0", "4"))
+        assertNull(solution("tpdf", "1", "100000"))
+        assertNull(solution("tcdf", "1", "5"))
+        assertNull(solution("chisqinv", "0.95", "3"))
+    }
 }

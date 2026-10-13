@@ -64,6 +64,10 @@ enum class StepRule {
     NORMAL_PROBABILITY,
     /** x = μ + σ·z with Φ(z) = p */
     NORMAL_QUANTILE,
+    /** The density of Student's t distribution: Γ((ν + 1)/2)/(√(νπ)·Γ(ν/2))·(1 + x²/ν)^(−(ν + 1)/2) */
+    STUDENT_DENSITY,
+    /** The density of the chi-square distribution: x^(k/2 − 1)·e^(−x/2)/(2^(k/2)·Γ(k/2)) */
+    CHI_SQUARE_DENSITY,
     /** P(X = k) = C(n, k)·pᵏ·(1 − p)ⁿ⁻ᵏ */
     BINOMIAL_PROBABILITY,
     /** P(X ≤ k) = P(0) + P(1) + … + P(k) for a binomial X */

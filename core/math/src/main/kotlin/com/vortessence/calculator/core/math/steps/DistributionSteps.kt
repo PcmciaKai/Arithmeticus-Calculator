@@ -13,7 +13,9 @@ import com.vortessence.calculator.core.math.expressions.Series
 import com.vortessence.calculator.core.math.expressions.Value
 import com.vortessence.calculator.core.math.expressions.Variable
 import com.vortessence.calculator.core.math.expressions.containsUnit
+import com.vortessence.calculator.core.math.expressions.chiSquareDensityFormula
 import com.vortessence.calculator.core.math.expressions.normalFormula
+import com.vortessence.calculator.core.math.expressions.studentDensityFormula
 import com.vortessence.calculator.core.math.numbers.BigInt
 import com.vortessence.calculator.core.math.numbers.Rational
 
@@ -32,7 +34,8 @@ internal object DistributionSteps {
 
     private val SUPPORTED = setOf(
         NamedFunctionKind.NORMALPDF, NamedFunctionKind.NORMALCDF, NamedFunctionKind.NORMALINV,
-        NamedFunctionKind.BINOMPDF, NamedFunctionKind.BINOMCDF, NamedFunctionKind.POISSONPDF, NamedFunctionKind.POISSONCDF
+        NamedFunctionKind.BINOMPDF, NamedFunctionKind.BINOMCDF, NamedFunctionKind.POISSONPDF, NamedFunctionKind.POISSONCDF,
+        NamedFunctionKind.TPDF, NamedFunctionKind.CHISQPDF
     )
 
     fun steps(e: Expression, context: MathContext): ExpressionSolution? {
@@ -52,6 +55,7 @@ internal object DistributionSteps {
         val done = when (call.kind) {
             NamedFunctionKind.NORMALPDF, NamedFunctionKind.NORMALCDF, NamedFunctionKind.NORMALINV -> normal(call, solution)
             NamedFunctionKind.BINOMPDF, NamedFunctionKind.BINOMCDF -> binomial(call, solution, context)
+            NamedFunctionKind.TPDF, NamedFunctionKind.CHISQPDF -> density(call, solution)
             else -> poisson(call, solution, context)
         }
         if (!done) return null
@@ -76,6 +80,21 @@ internal object DistributionSteps {
             else -> if (call.arguments.size < 3) return false else StepRule.NORMAL_QUANTILE
         }
         replaceAll(solution, rule, normalFormula(call.kind, call.arguments))
+        return true
+    }
+
+    /** The t and chi-square densities: the formula with the values put in, for as many degrees of freedom as the calculator keeps exact. */
+    private fun density(call: NamedFunction, solution: Solver): Boolean {
+        val (x, df) = call.arguments
+        val freedom = df.evaluateNumerically()
+        if (!(freedom > 0.0 && freedom <= 300.0)) return false
+        if (call.kind == NamedFunctionKind.TPDF) {
+            replaceAll(solution, StepRule.STUDENT_DENSITY, studentDensityFormula(x, df))
+            return true
+        }
+        // Below 0 and at 0 the density has no formula to show
+        if (!(x.evaluateNumerically() > 0.0)) return false
+        replaceAll(solution, StepRule.CHI_SQUARE_DENSITY, chiSquareDensityFormula(x, df))
         return true
     }
 

@@ -90,6 +90,18 @@ enum class NamedFunctionKind(val functionName: String, val minArguments: Int, va
     POISSONPDF("poissonpdf", 2, 2),
     /** poissoncdf(λ, k): the probability of at most k events when λ are expected. */
     POISSONCDF("poissoncdf", 2, 2),
+    /** tpdf(x, df): the density of Student's t distribution with df degrees of freedom. */
+    TPDF("tpdf", 2, 2),
+    /** tcdf(x, df): the probability of a value up to x. */
+    TCDF("tcdf", 2, 2),
+    /** tinv(p, df): the x with a probability p of a value up to it. */
+    TINV("tinv", 2, 2),
+    /** chisqpdf(x, df): the density of the chi-square distribution with df degrees of freedom. */
+    CHISQPDF("chisqpdf", 2, 2),
+    /** chisqcdf(x, df): the probability of a value up to x. */
+    CHISQCDF("chisqcdf", 2, 2),
+    /** chisqinv(p, df): the x with a probability p of a value up to it. */
+    CHISQINV("chisqinv", 2, 2),
     /** The beta function Γ(a)·Γ(b)/Γ(a + b). */
     BETA("beta", 2, 2),
     /** √(a² + b² + ...), the length of the vector (a, b, ...). */
@@ -175,6 +187,8 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
             }
             NamedFunctionKind.BINOMPDF, NamedFunctionKind.BINOMCDF, NamedFunctionKind.POISSONPDF, NamedFunctionKind.POISSONCDF ->
                 discrete(args, context) ?: return this
+            NamedFunctionKind.TCDF, NamedFunctionKind.TINV, NamedFunctionKind.CHISQPDF, NamedFunctionKind.CHISQCDF, NamedFunctionKind.CHISQINV ->
+                continuous(args, context) ?: return this
             NamedFunctionKind.ROUND, NamedFunctionKind.FLOOR, NamedFunctionKind.CEIL, NamedFunctionKind.TRUNC, NamedFunctionKind.FRAC -> {
                 val places = if (args.size == 2) {
                     wholeNumber(args[1])?.takeIf { it.compareTo(MAX_PLACES) <= 0 && it.compareTo(-MAX_PLACES) >= 0 }?.toLong()?.toInt()
@@ -187,7 +201,7 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
             }
             // Written out above
             NamedFunctionKind.SUM, NamedFunctionKind.PROD, NamedFunctionKind.SUMSQ, NamedFunctionKind.HYPOT, NamedFunctionKind.BETA,
-            NamedFunctionKind.NORMALPDF, NamedFunctionKind.NORMALCDF, NamedFunctionKind.NORMALINV, NamedFunctionKind.RE, NamedFunctionKind.IM, NamedFunctionKind.CONJ -> this
+            NamedFunctionKind.NORMALPDF, NamedFunctionKind.NORMALCDF, NamedFunctionKind.NORMALINV, NamedFunctionKind.TPDF, NamedFunctionKind.RE, NamedFunctionKind.IM, NamedFunctionKind.CONJ -> this
         }.canonicalize(context)
     }
 
@@ -206,6 +220,7 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
         NamedFunctionKind.SUMSQ -> Additions(args.map { Power(it, Value.TWO) }).canonicalize(context)
         NamedFunctionKind.HYPOT -> Power.squareRoot(Additions(args.map { Power(it, Value.TWO) })).canonicalize(context)
         NamedFunctionKind.NORMALPDF, NamedFunctionKind.NORMALCDF, NamedFunctionKind.NORMALINV -> normal(args, context)
+        NamedFunctionKind.TPDF -> studentDensity(args, context)
         NamedFunctionKind.BETA -> {
             fun gamma(x: Expression) = SpecialFunction(SpecialType.GAMMA, x)
             Multiplications.of(gamma(args[0]), gamma(args[1]), Power(gamma(Additions(listOf(args[0], args[1]))), Value.MINUS_ONE)).canonicalize(context)
@@ -240,6 +255,76 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
         val mean = mean(args).canonicalize()
         val squares = args.map { Power(Additions(it, mean.negate()), Value.TWO) }
         return Multiplications.of(Additions(squares), Value(1L, divisor))
+    }
+
+    /**
+     * tpdf as its formula, so it works with variables and can be differentiated; exact for the numbers where Γ is, a decimal
+     * where it would be a huge fraction (many degrees of freedom) and in numeric mode.
+     */
+    private fun studentDensity(args: List<Expression>, context: MathContext): Expression {
+        if (args.any { it.containsUnit() }) return fail(context, MathIssue.INVALID_UNIT)
+        val (x, df) = args
+        val freedom = if (df.variables().isEmpty()) df.evaluateNumerically() else null
+        if (freedom != null && !(freedom > 0.0)) return fail(context, MathIssue.UNDEFINED)
+        val large = freedom != null && freedom > MAX_EXACT_DF
+        if (x.variables().isEmpty() && freedom != null && (large || context.mode == CalculationMode.NUMERIC)) return decimal(evaluateNumerically(emptyMap()), context)
+        // With a variable x the formula would overflow Γ for many degrees of freedom: it stays open and is calculated as a number
+        if (large) return NamedFunction(kind, args)
+        return studentDensityFormula(x, df).canonicalize(context)
+    }
+
+    private fun decimal(value: Double, context: MathContext): Expression {
+        if (value.isNaN()) return fail(context, MathIssue.UNDEFINED)
+        if (value.isInfinite()) return fail(context, MathIssue.VALUES_TOO_LARGE)
+        return Value(Real(value))
+    }
+
+    /**
+     * The Student t and chi-square distributions beyond the density of t: a decimal, exact only where a closed form is
+     * short (chisqpdf, chisqcdf for even degrees of freedom, and the median of t).
+     */
+    private fun continuous(args: List<Expression>, context: MathContext): Expression? {
+        if (args.any { it.containsUnit() }) {
+            context.stopWithError(MathIssue.INVALID_UNIT)
+            return null
+        }
+        val (first, df) = args
+        val x = first.evaluateNumerically()
+        val freedom = df.evaluateNumerically()
+        val quantile = kind == NamedFunctionKind.TINV || kind == NamedFunctionKind.CHISQINV
+        if (x.isNaN() || !(freedom > 0.0) || (quantile && !(x > 0.0 && x < 1.0))) {
+            context.stopWithError(MathIssue.UNDEFINED)
+            return null
+        }
+        val exactMode = context.mode != CalculationMode.NUMERIC && freedom <= MAX_EXACT_DF
+        when (kind) {
+            NamedFunctionKind.TCDF -> if (x == 0.0) return Value.HALF
+            NamedFunctionKind.TINV -> if (x == 0.5) return Value.ZERO
+            NamedFunctionKind.CHISQPDF -> when {
+                x < 0.0 -> return Value.ZERO
+                x == 0.0 -> {
+                    if (freedom < 2.0) {
+                        context.stopWithError(MathIssue.UNDEFINED)
+                        return null
+                    }
+                    return if (freedom == 2.0) Value.HALF else Value.ZERO
+                }
+                exactMode -> return chiSquareDensityFormula(first, df).canonicalize(context)
+            }
+            NamedFunctionKind.CHISQCDF -> {
+                if (x <= 0.0) return Value.ZERO
+                // Even degrees of freedom: 1 − e^(−x/2)·(1 + x/2 + … + (x/2)^(k/2 − 1)/(k/2 − 1)!), like a Poisson probability
+                val half = wholeNumber(df)?.takeIf { exactMode && !it.isNegative && it.toLong() % 2 == 0L && it.toLong() <= 2 * MAX_EXACT_TRIALS }?.toLong()?.div(2)
+                if (half != null) {
+                    val rate = Multiplications(listOf(Value.HALF, first))
+                    val terms = (0 until half).map { j -> Multiplications(listOf(Power(rate, Value(j)), Value(Rational.of(BigInt.ONE, BigInt.factorial(j))))) }
+                    val decay = Power(Constant.E, Multiplications(listOf(Value.MINUS_ONE, rate)))
+                    return Additions(listOf(Value.ONE, Multiplications(listOf(Value.MINUS_ONE, decay, Additions(terms))))).canonicalize(context)
+                }
+            }
+            else -> {}
+        }
+        return decimal(evaluateNumerically(emptyMap()), context)
     }
 
     /**
@@ -563,6 +648,12 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
                     else -> if (k > MAX_TERMS) Double.NaN else SpecialMath.poissonCdf(parameter, k)
                 }
             }
+            NamedFunctionKind.TPDF -> SpecialMath.studentPdf(values[0], values[1])
+            NamedFunctionKind.TCDF -> SpecialMath.studentCdf(values[0], values[1])
+            NamedFunctionKind.TINV -> SpecialMath.studentInverse(values[0], values[1])
+            NamedFunctionKind.CHISQPDF -> SpecialMath.chiSquarePdf(values[0], values[1])
+            NamedFunctionKind.CHISQCDF -> SpecialMath.chiSquareCdf(values[0], values[1])
+            NamedFunctionKind.CHISQINV -> SpecialMath.chiSquareInverse(values[0], values[1])
             NamedFunctionKind.SIGN -> sign(values[0])
             NamedFunctionKind.FLOOR -> floor(values[0])
             NamedFunctionKind.CEIL -> ceil(values[0])
@@ -616,6 +707,8 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
         const val PRIME_CERTAINTY = 40
         /** Binomial and Poisson probabilities are exact up to here, decimals beyond (the exact fractions get huge). */
         const val MAX_EXACT_TRIALS = 500L
+        /** Student t and chi-square densities are exact formulas up to here, decimals beyond (Γ of large numbers is huge). */
+        const val MAX_EXACT_DF = 300.0
         /** The most trials a binomial or events a Poisson distribution may have (a double holds whole numbers up to 2^53). */
         const val MAX_TRIALS = 1_000_000_000_000_000L
         /** The most terms of a cumulative probability that are added up. */
@@ -654,4 +747,26 @@ internal fun normalFormula(kind: NamedFunctionKind, args: List<Expression>): Exp
         ))
         else -> Additions(listOfNotNull(mu, Multiplications(listOfNotNull(sigma, SpecialFunction(SpecialType.NORMALINV, x)))))
     }
+}
+
+/** The density of Student's t distribution at [x] with [df] degrees of freedom: Γ((ν + 1)/2) / (√(νπ)·Γ(ν/2)) · (1 + x²/ν)^(−(ν + 1)/2). */
+internal fun studentDensityFormula(x: Expression, df: Expression): Expression {
+    fun gamma(argument: Expression) = SpecialFunction(SpecialType.GAMMA, argument)
+    val plusOne = Additions(listOf(df, Value.ONE))
+    return Multiplications(listOf(
+        gamma(Multiplications(listOf(plusOne, Value.HALF))),
+        Power(Multiplications(listOf(Power(Multiplications(listOf(df, Constant.PI)), Value.HALF), gamma(Multiplications(listOf(df, Value.HALF))))), Value.MINUS_ONE),
+        Power(Additions(listOf(Value.ONE, Multiplications(listOf(Power(x, Value.TWO), Power(df, Value.MINUS_ONE))))), Multiplications(listOf(Value(-1L, 2L), plusOne)))
+    ))
+}
+
+/** The density of the chi-square distribution at [x] > 0 with [df] degrees of freedom: x^(k/2 − 1)·e^(−x/2) / (2^(k/2)·Γ(k/2)). */
+internal fun chiSquareDensityFormula(x: Expression, df: Expression): Expression {
+    val half = Multiplications(listOf(df, Value.HALF))
+    return Multiplications(listOf(
+        Power(x, Additions(listOf(half, Value.MINUS_ONE))),
+        Power(Constant.E, Multiplications(listOf(Value(-1L, 2L), x))),
+        Power(Power(Value.TWO, half), Value.MINUS_ONE),
+        Power(SpecialFunction(SpecialType.GAMMA, half), Value.MINUS_ONE)
+    ))
 }

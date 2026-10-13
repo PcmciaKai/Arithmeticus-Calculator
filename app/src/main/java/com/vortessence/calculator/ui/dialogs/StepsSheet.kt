@@ -495,6 +495,8 @@ private val StepRule.descriptionRes: Int
         StepRule.NORMAL_DENSITY -> R.string.step_normal_density
         StepRule.NORMAL_PROBABILITY -> R.string.step_normal_probability
         StepRule.NORMAL_QUANTILE -> R.string.step_normal_quantile
+        StepRule.STUDENT_DENSITY -> R.string.step_student_density
+        StepRule.CHI_SQUARE_DENSITY -> R.string.step_chi_square_density
         StepRule.BINOMIAL_PROBABILITY -> R.string.step_binomial_probability
         StepRule.BINOMIAL_CUMULATIVE -> R.string.step_binomial_cumulative
         StepRule.POISSON_PROBABILITY -> R.string.step_poisson_probability
@@ -741,6 +743,8 @@ internal fun StepRule.formula(language: Language): String? {
         StepRule.NORMAL_DENSITY -> "φ(x) = \\frac{1}{σ·\\sqrt{2π}}·e^{−\\frac{(x − μ)^2}{2σ^2}}"
         StepRule.NORMAL_PROBABILITY -> "Φ(x) = \\frac{1}{2}·erfc(−\\frac{x − μ}{σ·\\sqrt{2}})"
         StepRule.NORMAL_QUANTILE -> "x = μ + σ·z\\text{,  }Φ(z) = p"
+        StepRule.STUDENT_DENSITY -> "f(x) = \\frac{Γ(\\frac{ν + 1}{2})}{\\sqrt{ν·π}·Γ(\\frac{ν}{2})}·(1 + \\frac{x^2}{ν})^{−\\frac{ν + 1}{2}}"
+        StepRule.CHI_SQUARE_DENSITY -> "f(x) = \\frac{x^{\\frac{k}{2} − 1}·e^{−\\frac{x}{2}}}{2^{\\frac{k}{2}}·Γ(\\frac{k}{2})}"
         StepRule.BINOMIAL_PROBABILITY -> "P(X = k) = nCr(n, k)·p^k·(1 − p)^{n − k}"
         StepRule.BINOMIAL_CUMULATIVE -> "P(X ≤ k) = P(0) + P(1) + … + P(k)"
         StepRule.POISSON_PROBABILITY -> "P(X = k) = \\frac{λ^k}{k!}·e^{−λ}"

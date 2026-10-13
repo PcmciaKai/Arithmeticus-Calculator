@@ -45,6 +45,8 @@
     <string name="step_normal_density">Put the values into the density of the normal distribution</string>
     <string name="step_normal_probability">Write the normal probability with the error function</string>
     <string name="step_normal_quantile">Scale the quantile of the standard normal distribution</string>
+    <string name="step_student_density">Put the values into the density of the t distribution</string>
+    <string name="step_chi_square_density">Put the values into the density of the chi-square distribution</string>
     <string name="step_binomial_probability">Put the values into the binomial probability</string>
     <string name="step_binomial_cumulative">Add the binomial probabilities of 0 up to k</string>
     <string name="step_poisson_probability">Put the values into the Poisson probability</string>
@@ -390,6 +392,18 @@
     <string name="formula_poissonpdf_desc">poissonpdf(λ, k): the probability of exactly k events when λ are expected</string>
     <string name="formula_poissoncdf_name">Poisson probability (at most k)</string>
     <string name="formula_poissoncdf_desc">poissoncdf(λ, k): the probability of at most k events when λ are expected</string>
+    <string name="formula_tpdf_name">Student t density</string>
+    <string name="formula_tpdf_desc">tpdf(x, df): the density of the t distribution with df degrees of freedom</string>
+    <string name="formula_tcdf_name">Student t probability (up to x)</string>
+    <string name="formula_tcdf_desc">tcdf(x, df): the probability of a value up to x in the t distribution with df degrees of freedom</string>
+    <string name="formula_tinv_name">Student t quantile</string>
+    <string name="formula_tinv_desc">tinv(p, df): the x with the probability p for a value up to it, for 0 &lt; p &lt; 1. Gives the critical values of confidence intervals and t tests</string>
+    <string name="formula_chisqpdf_name">Chi-square density</string>
+    <string name="formula_chisqpdf_desc">chisqpdf(x, df): the density of the chi-square distribution with df degrees of freedom</string>
+    <string name="formula_chisqcdf_name">Chi-square probability (up to x)</string>
+    <string name="formula_chisqcdf_desc">chisqcdf(x, df): the probability of a value up to x in the chi-square distribution with df degrees of freedom</string>
+    <string name="formula_chisqinv_name">Chi-square quantile</string>
+    <string name="formula_chisqinv_desc">chisqinv(p, df): the x with the probability p for a value up to it, for 0 &lt; p &lt; 1. Gives the critical values of chi-square tests</string>
     <string name="category_statistics">Statistics</string>
     <string name="category_combinatorics">Combinatorics</string>
     <string name="category_numbers">Numbers</string>

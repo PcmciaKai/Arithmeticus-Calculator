@@ -133,6 +133,18 @@
     <string name="formula_poissonpdf_desc">poissonpdf(λ, k): die Wahrscheinlichkeit für genau k Ereignisse bei einem Erwartungswert λ</string>
     <string name="formula_poissoncdf_name">Poisson-Verteilung (höchstens k)</string>
     <string name="formula_poissoncdf_desc">poissoncdf(λ, k): die Wahrscheinlichkeit für höchstens k Ereignisse bei einem Erwartungswert λ</string>
+    <string name="formula_tpdf_name">t-Verteilung, Dichte</string>
+    <string name="formula_tpdf_desc">tpdf(x, df): die Dichte der t-Verteilung mit df Freiheitsgraden</string>
+    <string name="formula_tcdf_name">t-Verteilung, Wahrscheinlichkeit (bis x)</string>
+    <string name="formula_tcdf_desc">tcdf(x, df): die Wahrscheinlichkeit für einen Wert bis x in der t-Verteilung mit df Freiheitsgraden</string>
+    <string name="formula_tinv_name">t-Verteilung, Quantil</string>
+    <string name="formula_tinv_desc">tinv(p, df): das x, bis zu dem ein Wert mit der Wahrscheinlichkeit p liegt, für 0 &lt; p &lt; 1. Liefert die kritischen Werte für Konfidenzintervalle und t-Tests</string>
+    <string name="formula_chisqpdf_name">Chi-Quadrat-Verteilung, Dichte</string>
+    <string name="formula_chisqpdf_desc">chisqpdf(x, df): die Dichte der Chi-Quadrat-Verteilung mit df Freiheitsgraden</string>
+    <string name="formula_chisqcdf_name">Chi-Quadrat-Verteilung, Wahrscheinlichkeit (bis x)</string>
+    <string name="formula_chisqcdf_desc">chisqcdf(x, df): die Wahrscheinlichkeit für einen Wert bis x in der Chi-Quadrat-Verteilung mit df Freiheitsgraden</string>
+    <string name="formula_chisqinv_name">Chi-Quadrat-Verteilung, Quantil</string>
+    <string name="formula_chisqinv_desc">chisqinv(p, df): das x, bis zu dem ein Wert mit der Wahrscheinlichkeit p liegt, für 0 &lt; p &lt; 1. Liefert die kritischen Werte für Chi-Quadrat-Tests</string>
     <string name="category_statistics">Statistik</string>
     <string name="category_combinatorics">Kombinatorik</string>
     <string name="category_numbers">Zahlen</string>
@@ -281,6 +293,8 @@
     <string name="step_normal_density">Setze die Werte in die Dichte der Normalverteilung ein</string>
     <string name="step_normal_probability">Schreibe die Normalverteilung mit der Fehlerfunktion</string>
     <string name="step_normal_quantile">Skaliere das Quantil der Standardnormalverteilung</string>
+    <string name="step_student_density">Setze die Werte in die Dichte der t-Verteilung ein</string>
+    <string name="step_chi_square_density">Setze die Werte in die Dichte der Chi-Quadrat-Verteilung ein</string>
     <string name="step_binomial_probability">Setze die Werte in die Binomialwahrscheinlichkeit ein</string>
     <string name="step_binomial_cumulative">Addiere die Binomialwahrscheinlichkeiten von 0 bis k</string>
     <string name="step_poisson_probability">Setze die Werte in die Poisson-Wahrscheinlichkeit ein</string>

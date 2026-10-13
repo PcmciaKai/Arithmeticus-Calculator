@@ -96,12 +96,24 @@ internal object Differentiator {
             is Logarithm -> logarithm(e, v)
             is TrigonometricFunction -> trigonometric(e, v)
             is HyperbolicFunction -> hyperbolic(e, v)
+            is NamedFunction -> namedFunction(e, v)
             is SpecialFunction -> Multiplications(listOf(derivative(e.operand, v) ?: return null, e.type.outerDerivative(e.operand) ?: return null))
             is Integral -> integral(e, v)
             // |u|' = u'·u/|u|
             is AbsoluteValue -> Multiplications(listOf(derivative(e.operand, v) ?: return null, e.operand, Power(e, Value.MINUS_ONE)))
             else -> null
         }
+    }
+
+    /** The probability of a t or chi-square distribution has the density as its slope. */
+    private fun namedFunction(e: NamedFunction, v: Variable): Expression? {
+        val density = when (e.kind) {
+            NamedFunctionKind.TCDF -> NamedFunctionKind.TPDF
+            NamedFunctionKind.CHISQCDF -> NamedFunctionKind.CHISQPDF
+            else -> return null
+        }
+        if (e.arguments[1].containsVariable(v)) return null
+        return Multiplications(listOf(derivative(e.arguments[0], v) ?: return null, NamedFunction(density, e.arguments)))
     }
 
     private fun power(e: Power, v: Variable): Expression? {

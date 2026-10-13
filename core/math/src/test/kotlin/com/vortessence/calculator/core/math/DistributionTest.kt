@@ -6,6 +6,7 @@ import com.vortessence.calculator.core.math.context.MathIssue
 import com.vortessence.calculator.core.math.numbers.SpecialMath
 import com.vortessence.calculator.core.math.type.*
 import kotlinx.coroutines.runBlocking
+import kotlin.math.pow
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -168,5 +169,222 @@ class DistributionTest {
         assertTrue(calc(call("binompdf", "10", "p", "3")).isSuccess)
         assertTrue(calc(call("normalcdf", "x")).isSuccess)
         assertTrue(calc(call("poissonpdf", "l", "2")).isSuccess)
+    }
+
+    @Test
+    fun studentTInFloatingPoint() {
+        // Closed forms for whole degrees of freedom
+        assertClose(0.9607818798761502, SpecialMath.studentCdf(1.96, 10.0))
+        assertClose(0.027245049671188126, SpecialMath.studentCdf(-2.5, 5.0))
+        assertClose(0.6742760175759246, SpecialMath.studentCdf(0.5, 3.0))
+        assertClose(0.8975836176504333, SpecialMath.studentCdf(3.0, 1.0))
+        assertClose(0.21132486540518713, SpecialMath.studentCdf(-1.0, 2.0))
+        assertClose(0.999718998188642, SpecialMath.studentCdf(10.0, 4.0))
+        // (the closed form for odd degrees of freedom loses digits here; this is the tail integrated numerically)
+        assertClose(1.1067408404700081e-05, SpecialMath.studentCdf(-8.0, 9.0), 1e-12)
+        assertClose(0.5395058772960201, SpecialMath.studentCdf(0.1, 31.0))
+        // Numerical integration for the others
+        assertClose(0.8760817734568515, SpecialMath.studentCdf(1.5, 2.5))
+        assertClose(0.2525278109369254, SpecialMath.studentCdf(-0.7, 7.5))
+        assertClose(0.957442340488167, SpecialMath.studentCdf(2.2, 4.5))
+        // Many degrees of freedom: the t distribution is nearly the normal one
+        assertClose(SpecialMath.inverseNormal(0.975), SpecialMath.studentInverse(0.975, 1e9), 1e-7)
+        assertClose(0.3183098861837906, SpecialMath.studentPdf(0.0, 1.0))
+        assertClose(0.1591549430918953, SpecialMath.studentPdf(1.0, 1.0))
+        assertClose(0.124517344646355, SpecialMath.studentPdf(1.5, 5.0))
+        assertClose(0.3400943856052354, SpecialMath.studentPdf(0.3, 2.5))
+        assertClose(0.06114576632121823, SpecialMath.studentPdf(-2.0, 10.0))
+    }
+
+    @Test
+    fun studentQuantilesInFloatingPoint() {
+        assertClose(2.228138851986274, SpecialMath.studentInverse(0.975, 10.0), 1e-11)
+        assertClose(12.706204736174694, SpecialMath.studentInverse(0.975, 1.0), 1e-11)
+        assertClose(4.302652729749459, SpecialMath.studentInverse(0.975, 2.0), 1e-11)
+        assertClose(63.65674116287124, SpecialMath.studentInverse(0.995, 1.0), 1e-11)
+        assertClose(4.540702858568109, SpecialMath.studentInverse(0.99, 3.0), 1e-11)
+        assertClose(2.5705818356363146, SpecialMath.studentInverse(0.975, 5.0), 1e-11)
+        assertClose(2.0422724563012338, SpecialMath.studentInverse(0.975, 30.0), 1e-11)
+        assertClose(1.5332062740589438, SpecialMath.studentInverse(0.9, 4.0), 1e-11)
+        assertClose(0.2631668613520226, SpecialMath.studentInverse(0.6, 7.0), 1e-11)
+        assertClose(3.929633264626472, SpecialMath.studentInverse(0.999, 12.0), 1e-11)
+        assertClose(-2.228138851986274, SpecialMath.studentInverse(0.025, 10.0), 1e-11)
+        assertEquals(0.0, SpecialMath.studentInverse(0.5, 7.0), 0.0)
+        assertTrue(SpecialMath.studentInverse(0.0, 7.0).isNaN())
+        assertTrue(SpecialMath.studentInverse(0.5, 0.0).isNaN())
+        // The quantile undoes the probability, also far out in the tail and for few degrees of freedom
+        for ((p, df) in listOf(1e-10 to 3.0, 1e-6 to 0.5, 0.3 to 100.0, 0.999 to 1.5)) {
+            assertClose(p, SpecialMath.studentCdf(SpecialMath.studentInverse(p, df), df), 1e-9)
+        }
+    }
+
+    @Test
+    fun chiSquareInFloatingPoint() {
+        assertClose(0.9499564787512949, SpecialMath.chiSquareCdf(3.84, 1.0))
+        assertClose(0.8282028557032669, SpecialMath.chiSquareCdf(5.0, 3.0))
+        assertClose(0.9498909385885376, SpecialMath.chiSquareCdf(18.3, 10.0))
+        assertClose(0.6321205588285577, SpecialMath.chiSquareCdf(2.0, 2.0))
+        assertClose(0.999083171138544, SpecialMath.chiSquareCdf(100.0, 60.0))
+        assertClose(0.0078767067673704, SpecialMath.chiSquareCdf(0.5, 5.0))
+        assertClose(0.775710995165596, SpecialMath.chiSquareCdf(30.0, 25.0))
+        assertClose(0.7307442128278664, SpecialMath.chiSquareCdf(7.0, 5.5))
+        assertClose(0.3672305482097608, SpecialMath.chiSquareCdf(3.0, 4.5))
+        assertEquals(0.0, SpecialMath.chiSquareCdf(0.0, 4.0), 0.0)
+        assertClose(0.18393972058572114, SpecialMath.chiSquarePdf(2.0, 2.0))
+        assertClose(0.24197072451914325, SpecialMath.chiSquarePdf(1.0, 1.0))
+        assertClose(0.1673476201113224, SpecialMath.chiSquarePdf(3.0, 4.0))
+        assertClose(0.07322491280963248, SpecialMath.chiSquarePdf(5.0, 3.0))
+        assertClose(0.02139972988062509, SpecialMath.chiSquarePdf(0.5, 5.5))
+        assertEquals(0.0, SpecialMath.chiSquarePdf(-1.0, 3.0), 0.0)
+    }
+
+    @Test
+    fun chiSquareQuantilesInFloatingPoint() {
+        assertClose(3.8414588206941227, SpecialMath.chiSquareInverse(0.95, 1.0), 1e-11)
+        assertClose(5.991464547107977, SpecialMath.chiSquareInverse(0.95, 2.0), 1e-11)
+        assertClose(18.307038053275143, SpecialMath.chiSquareInverse(0.95, 10.0), 1e-11)
+        assertClose(12.832501994030014, SpecialMath.chiSquareInverse(0.975, 5.0), 1e-11)
+        assertClose(15.086272469388984, SpecialMath.chiSquareInverse(0.99, 5.0), 1e-11)
+        assertClose(3.9402991361190605, SpecialMath.chiSquareInverse(0.05, 10.0), 1e-11)
+        assertClose(2.3659738843753377, SpecialMath.chiSquareInverse(0.5, 3.0), 1e-11)
+        assertClose(0.09080403553897612, SpecialMath.chiSquareInverse(0.001, 4.0), 1e-11)
+        assertClose(45.31474661812568, SpecialMath.chiSquareInverse(0.999, 20.0), 1e-11)
+        assertClose(63.167121005726315, SpecialMath.chiSquareInverse(0.9, 50.0), 1e-11)
+        assertTrue(SpecialMath.chiSquareInverse(1.0, 3.0).isNaN())
+        for ((p, df) in listOf(1e-12 to 1.0, 1e-6 to 0.3, 0.999999 to 200.0)) {
+            assertClose(p, SpecialMath.chiSquareCdf(SpecialMath.chiSquareInverse(p, df), df), 1e-8)
+        }
+    }
+
+    @Test
+    fun studentTFunctions() {
+        assertClose(2.228138851986274, value("tinv", "0.975", "10"), 1e-11)
+        assertClose(0.9607818798761502, value("tcdf", "1.96", "10"))
+        assertClose(0.9607818798761502, value("tcdf", "1.96", "10", mode = CalculationMode.NUMERIC))
+        assertEquals("1/2", exact("tcdf", "0", "7"))
+        assertEquals("0", exact("tinv", "0.5", "7"))
+        assertClose(0.3183098861837906, value("tpdf", "0", "1"))
+        // The density is exact where the gamma function is: 1/π, and 1/(2π) at 1
+        assertEquals("1/π", exact("tpdf", "0", "1"))
+        assertClose(0.1591549430918953, value("tpdf", "1", "1"))
+        assertClose(0.124517344646355, value("tpdf", "1.5", "5"))
+        assertClose(0.124517344646355, value("tpdf", "1.5", "5", mode = CalculationMode.NUMERIC))
+        // Many degrees of freedom are decimals
+        assertClose(0.39894128303877335, value("tpdf", "0", "100000"), 1e-9)
+        assertEquals(listOf(MathIssue.UNDEFINED), issues("tpdf", "1", "0"))
+        assertEquals(listOf(MathIssue.UNDEFINED), issues("tcdf", "1", "-3"))
+        assertEquals(listOf(MathIssue.UNDEFINED), issues("tinv", "1", "5"))
+        assertEquals(listOf(MathIssue.UNDEFINED), issues("tinv", "0", "5"))
+        assertEquals(listOf(MathIssue.ARGUMENT_COUNT), issues("tcdf", "1"))
+    }
+
+    @Test
+    fun chiSquareFunctions() {
+        assertClose(18.307038053275143, value("chisqinv", "0.95", "10"), 1e-11)
+        assertClose(0.9499564787512949, value("chisqcdf", "3.84", "1"))
+        assertClose(0.7307442128278664, value("chisqcdf", "7", "5.5"))
+        // Even degrees of freedom are exact: 1 − e^(−1)·(1 + 1) for x = 2, k = 4 is 1 − 2/e
+        val even = calc(call("chisqcdf", "2", "4"))
+        assertTrue("${even.issues}", even.isSuccess)
+        assertTrue(even.result.toString(), even.result.toString().contains("e"))
+        assertClose(1 - 2 / Math.E, even.numericValue)
+        assertClose(0.6321205588285577, value("chisqcdf", "2", "2"))
+        assertClose(0.6321205588285577, value("chisqcdf", "2", "2", mode = CalculationMode.NUMERIC))
+        assertEquals("0", exact("chisqcdf", "-1", "4"))
+        // The density: e^(−1)/2 at x = 2 for 2 degrees of freedom
+        val pdf = calc(call("chisqpdf", "2", "2"))
+        assertTrue("${pdf.issues}", pdf.isSuccess)
+        assertTrue(pdf.result.toString(), pdf.result.toString().contains("e"))
+        assertClose(0.18393972058572114, pdf.numericValue)
+        assertClose(0.24197072451914325, value("chisqpdf", "1", "1"))
+        assertClose(0.1673476201113224, value("chisqpdf", "3", "4"))
+        assertClose(0.02139972988062509, value("chisqpdf", "0.5", "5.5"))
+        assertEquals("0", exact("chisqpdf", "-1", "3"))
+        assertEquals("0", exact("chisqpdf", "0", "3"))
+        assertEquals("1/2", exact("chisqpdf", "0", "2"))
+        assertEquals(listOf(MathIssue.UNDEFINED), issues("chisqpdf", "0", "1"))
+        assertEquals(listOf(MathIssue.UNDEFINED), issues("chisqcdf", "1", "0"))
+        assertEquals(listOf(MathIssue.UNDEFINED), issues("chisqinv", "1", "3"))
+    }
+
+    @Test
+    fun theProbabilitiesOfTAndChiSquareAreDifferentiatedToTheirDensities() {
+        val x = VariableNode("x")
+        val t = calc(ms(DerivativeNode(ms(FunctionNode("tcdf", ms(x, SeparatorNode, NumberNode("5")))), ms(NumberNode("1")))))
+        assertTrue("${t.issues}", t.isSuccess)
+        assertClose(SpecialMath.studentPdf(1.0, 5.0), t.numericValue)
+        val chi = calc(ms(DerivativeNode(ms(FunctionNode("chisqcdf", ms(x, SeparatorNode, NumberNode("3")))), ms(NumberNode("2")))))
+        assertTrue("${chi.issues}", chi.isSuccess)
+        assertClose(SpecialMath.chiSquarePdf(2.0, 3.0), chi.numericValue)
+        // The density of t itself is a formula
+        val density = calc(ms(DerivativeNode(ms(FunctionNode("tpdf", ms(x, SeparatorNode, NumberNode("3")))), ms(NumberNode("1")))))
+        assertTrue("${density.issues}", density.isSuccess)
+        val h = 1e-6
+        assertEquals((SpecialMath.studentPdf(1.0 + h, 3.0) - SpecialMath.studentPdf(1.0 - h, 3.0)) / (2 * h), density.numericValue, 1e-8)
+    }
+
+    @Test
+    fun hugeDegreesOfFreedomKeepTheirDigits() {
+        // Student t: the Cornish-Fisher expansion of the quantile is exact to ν⁻⁴ there
+        val z = SpecialMath.inverseNormal(0.975)
+        val nu = 1e6
+        val expansion = z + (z * z * z + z) / (4 * nu) + (5 * z.pow(5) + 16 * z.pow(3) + 3 * z) / (96 * nu * nu) +
+            (3 * z.pow(7) + 19 * z.pow(5) + 17 * z.pow(3) - 15 * z) / (384 * nu * nu * nu)
+        assertClose(expansion, SpecialMath.studentInverse(0.975, nu), 1e-12)
+        assertClose(z + (z * z * z + z) / (4 * 1e9), SpecialMath.studentInverse(0.975, 1e9), 1e-12)
+        // The density at 0 of t is φ(0)·(1 − 1/(4ν) + 1/(32ν²) …)
+        assertClose(0.3989422804014327 * (1 - 1 / (4 * 1e8) + 1 / (32 * 1e16)), SpecialMath.studentPdf(0.0, 1e8), 1e-13)
+        // Chi-square at its mean: ½ plus the skewness term of the Edgeworth expansion, with the next one in 1/k
+        val k = 1e6
+        assertEquals(0.5 + 0.3989422804014327 * Math.sqrt(8 / k) / 6, SpecialMath.chiSquareCdf(k, k), 1e-6)
+        // No jump where the formulas for large arguments take over (a = df/2 = 30)
+        for (df in listOf(0.0, 1.0, 2.5)) {
+            val below = 60.0 - 1e-9 + df * 0
+            assertClose(SpecialMath.studentCdf(0.8, below), SpecialMath.studentCdf(0.8, below + 2e-9), 1e-8)
+            assertClose(SpecialMath.studentPdf(0.8, below), SpecialMath.studentPdf(0.8, below + 2e-9), 1e-8)
+            assertClose(SpecialMath.chiSquareCdf(55.0 + df, below), SpecialMath.chiSquareCdf(55.0 + df, below + 2e-9), 1e-8)
+        }
+    }
+
+    @Test
+    fun quantilesUndoTheProbabilitiesEverywhere() {
+        val degrees = listOf(0.1, 0.5, 1.0, 1.5, 2.0, 3.0, 7.0, 10.0, 29.9, 30.0, 60.0, 100.0, 1000.0, 1e5, 1e7)
+        val probabilities = listOf(1e-12, 1e-8, 1e-4, 0.01, 0.1, 0.3, 0.5, 0.7, 0.9, 0.99, 0.9999, 1 - 1e-8, 1 - 1e-12)
+        val started = System.nanoTime()
+        for (df in degrees) {
+            for (p in probabilities) {
+                val t = SpecialMath.studentInverse(p, df)
+                assertTrue("tinv($p, $df) = $t", t.isFinite())
+                val back = SpecialMath.studentCdf(t, df)
+                // Close to 1 the probability itself has few digits: compare the tail that is the smaller one
+                assertEquals("tcdf(tinv($p, $df))", minOf(p, 1 - p), minOf(back, 1 - back), minOf(p, 1 - p) * 1e-6 + 1e-15)
+                // Even a chi-square variable with this many degrees of freedom
+                val x = SpecialMath.chiSquareInverse(p, df)
+                assertTrue("chisqinv($p, $df) = $x", x.isFinite() && x > 0.0)
+                val chi = SpecialMath.chiSquareCdf(x, df)
+                assertEquals("chisqcdf(chisqinv($p, $df))", minOf(p, 1 - p), minOf(chi, 1 - chi), minOf(p, 1 - p) * 1e-6 + 1e-15)
+            }
+        }
+        // Not a calculation that takes a noticeable time
+        assertTrue("took ${(System.nanoTime() - started) / 1_000_000} ms", System.nanoTime() - started < 5_000_000_000L)
+    }
+
+    @Test
+    fun probabilitiesStayBetween0And1AndGrow() {
+        for (df in listOf(0.1, 0.5, 1.0, 2.0, 5.5, 20.0, 59.9, 60.1, 200.0, 5000.0, 1e6)) {
+            var previousT = 0.0
+            var previousChi = 0.0
+            for (step in 0..400) {
+                val x = -50.0 + step * 0.25
+                val t = SpecialMath.studentCdf(x, df)
+                assertTrue("tcdf($x, $df) = $t", t in 0.0..1.0)
+                assertTrue("tcdf($x, $df) = $t is below $previousT", t >= previousT - 1e-14)
+                previousT = t
+                val chi = SpecialMath.chiSquareCdf(x + 50.0, df)
+                assertTrue("chisqcdf(${x + 50.0}, $df) = $chi", chi in 0.0..1.0)
+                assertTrue("chisqcdf(${x + 50.0}, $df) = $chi is below $previousChi", chi >= previousChi - 1e-14)
+                previousChi = chi
+            }
+        }
     }
 }

@@ -578,9 +578,10 @@ class CalculatorViewModelTest {
 
         vm.typeText("T")
         assertEquals(TypingNotice("T", VariableNameProblem.TRANSPOSE), vm.uiState.value.typingNotice)
-        vm.typeText("i")
+        // After a digit the i cannot continue a function name (Ti could be the start of tinv), so it is refused at once
+        vm.typeText("1i")
         assertEquals(TypingNotice("i", VariableNameProblem.CONSTANT), vm.uiState.value.typingNotice)
-        assertEquals(2, vm.uiState.value.expression.length)
+        assertEquals(3, vm.uiState.value.expression.length)
         // The next text without such a letter clears it
         vm.typeText("z")
         assertNull(vm.uiState.value.typingNotice)
