@@ -492,6 +492,16 @@ private val StepRule.descriptionRes: Int
         StepRule.LOG_GAMMA_FUNCTION -> R.string.step_lngamma
         StepRule.ERROR_FUNCTION -> R.string.step_erf
         StepRule.COMPLEMENTARY_ERROR_FUNCTION -> R.string.step_erfc
+        StepRule.NORMAL_DENSITY -> R.string.step_normal_density
+        StepRule.NORMAL_PROBABILITY -> R.string.step_normal_probability
+        StepRule.NORMAL_QUANTILE -> R.string.step_normal_quantile
+        StepRule.BINOMIAL_PROBABILITY -> R.string.step_binomial_probability
+        StepRule.BINOMIAL_CUMULATIVE -> R.string.step_binomial_cumulative
+        StepRule.POISSON_PROBABILITY -> R.string.step_poisson_probability
+        StepRule.POISSON_CUMULATIVE -> R.string.step_poisson_cumulative
+        StepRule.BINOMIAL_COEFFICIENT -> R.string.step_binomial_coefficient
+        StepRule.FACTORIAL -> R.string.step_factorial
+        StepRule.WRITE_OUT_SUM -> R.string.step_write_out_sum
         StepRule.ABSOLUTE_VALUE -> R.string.step_absolute_value
         StepRule.FUNDAMENTAL_THEOREM -> R.string.step_fundamental_theorem
         StepRule.IMAGINARY_ROOT -> R.string.step_imaginary_root
@@ -728,6 +738,16 @@ internal fun StepRule.formula(language: Language): String? {
         StepRule.LOG_GAMMA_FUNCTION -> "(lnΓ(x))′ = ψ(x)"
         StepRule.ERROR_FUNCTION -> "(erf(x))′ = \\frac{2}{\\sqrt{π}}·e^{−x^2}"
         StepRule.COMPLEMENTARY_ERROR_FUNCTION -> "(erfc(x))′ = −\\frac{2}{\\sqrt{π}}·e^{−x^2}"
+        StepRule.NORMAL_DENSITY -> "φ(x) = \\frac{1}{σ·\\sqrt{2π}}·e^{−\\frac{(x − μ)^2}{2σ^2}}"
+        StepRule.NORMAL_PROBABILITY -> "Φ(x) = \\frac{1}{2}·erfc(−\\frac{x − μ}{σ·\\sqrt{2}})"
+        StepRule.NORMAL_QUANTILE -> "x = μ + σ·z\\text{,  }Φ(z) = p"
+        StepRule.BINOMIAL_PROBABILITY -> "P(X = k) = nCr(n, k)·p^k·(1 − p)^{n − k}"
+        StepRule.BINOMIAL_CUMULATIVE -> "P(X ≤ k) = P(0) + P(1) + … + P(k)"
+        StepRule.POISSON_PROBABILITY -> "P(X = k) = \\frac{λ^k}{k!}·e^{−λ}"
+        StepRule.POISSON_CUMULATIVE -> "P(X ≤ k) = P(0) + P(1) + … + P(k)"
+        StepRule.BINOMIAL_COEFFICIENT -> "nCr(n, k) = \\frac{n!}{k!·(n − k)!}"
+        StepRule.FACTORIAL -> "n! = 1·2·…·n"
+        StepRule.WRITE_OUT_SUM -> "f(0) + f(1) + … + f(k)"
         StepRule.ABSOLUTE_VALUE -> "|x|′ = \\frac{x}{|x|}"
         StepRule.FUNDAMENTAL_THEOREM -> "(\\intab{a}{x}{f(t)}{t})′ = f(x)"
         StepRule.COMBINE_POWERS -> "x^a·x^b = x^{a + b}"

@@ -655,7 +655,7 @@ class CalculatorViewModelTest {
     @Test
     fun namesOfTheMoreFunctionsCanBeTyped() = runBlocking {
         val vm = newViewModel()
-        for (name in listOf("exp", "cbrt", "range", "percentile", "sign", "hypot", "conj", "mode", "prod", "fib")) {
+        for (name in listOf("exp", "cbrt", "range", "percentile", "sign", "hypot", "conj", "mode", "prod", "fib", "normalcdf", "normalinv", "binompdf", "poissoncdf")) {
             vm.onKeyAction(KeyAction.Clear)
             vm.typeText("$name(")
             assertEquals(listOf("$name()"), vm.nodeNames())

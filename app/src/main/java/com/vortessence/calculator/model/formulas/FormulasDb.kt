@@ -65,6 +65,13 @@ object FormulasDb {
         Formula(R.string.formula_digamma_name, R.string.formula_digamma_desc, R.string.category_special, ofValues("digamma")),
         Formula(R.string.formula_beta_name, R.string.formula_beta_desc, R.string.category_special, ofTwo("beta")),
         Formula(R.string.formula_erf_name, R.string.formula_erf_desc, R.string.category_special, ofValues("erf")),
-        Formula(R.string.formula_erfc_name, R.string.formula_erfc_desc, R.string.category_special, ofValues("erfc"))
+        Formula(R.string.formula_erfc_name, R.string.formula_erfc_desc, R.string.category_special, ofValues("erfc")),
+        Formula(R.string.formula_normalpdf_name, R.string.formula_normalpdf_desc, R.string.category_distributions, ofValues("normalpdf")),
+        Formula(R.string.formula_normalcdf_name, R.string.formula_normalcdf_desc, R.string.category_distributions, ofValues("normalcdf")),
+        Formula(R.string.formula_normalinv_name, R.string.formula_normalinv_desc, R.string.category_distributions, ofValues("normalinv")),
+        Formula(R.string.formula_binompdf_name, R.string.formula_binompdf_desc, R.string.category_distributions, ofValues("binompdf")),
+        Formula(R.string.formula_binomcdf_name, R.string.formula_binomcdf_desc, R.string.category_distributions, ofValues("binomcdf")),
+        Formula(R.string.formula_poissonpdf_name, R.string.formula_poissonpdf_desc, R.string.category_distributions, ofValues("poissonpdf")),
+        Formula(R.string.formula_poissoncdf_name, R.string.formula_poissoncdf_desc, R.string.category_distributions, ofValues("poissoncdf"))
     )
 }

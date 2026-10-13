@@ -1,9 +1,11 @@
 package com.vortessence.calculator.core.math.expressions
 
+import com.vortessence.calculator.core.math.context.CalculationMode
 import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.context.MathIssue
 import com.vortessence.calculator.core.math.numbers.BigInt
 import com.vortessence.calculator.core.math.numbers.Rational
+import com.vortessence.calculator.core.math.numbers.Real
 import com.vortessence.calculator.core.math.numbers.SpecialMath
 import java.math.BigDecimal
 import java.math.BigInteger
@@ -74,6 +76,20 @@ enum class NamedFunctionKind(val functionName: String, val minArguments: Int, va
     FRAC("frac", 1, 1),
     /** −1, 0 or 1 for a negative, zero or positive number. */
     SIGN("sign", 1, 1),
+    /** normalpdf(x) or normalpdf(x, μ, σ): the density of the normal distribution; standard (μ = 0, σ = 1) without μ and σ. */
+    NORMALPDF("normalpdf", 1, 3),
+    /** normalcdf(x) or normalcdf(x, μ, σ): the probability of a value up to x. */
+    NORMALCDF("normalcdf", 1, 3),
+    /** normalinv(p) or normalinv(p, μ, σ): the x with a probability p of a value up to it. */
+    NORMALINV("normalinv", 1, 3),
+    /** binompdf(n, p, k): the probability of exactly k successes in n trials. */
+    BINOMPDF("binompdf", 3, 3),
+    /** binomcdf(n, p, k): the probability of at most k successes in n trials. */
+    BINOMCDF("binomcdf", 3, 3),
+    /** poissonpdf(λ, k): the probability of exactly k events when λ are expected. */
+    POISSONPDF("poissonpdf", 2, 2),
+    /** poissoncdf(λ, k): the probability of at most k events when λ are expected. */
+    POISSONCDF("poissoncdf", 2, 2),
     /** The beta function Γ(a)·Γ(b)/Γ(a + b). */
     BETA("beta", 2, 2),
     /** √(a² + b² + ...), the length of the vector (a, b, ...). */
@@ -157,6 +173,8 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
                     is Whole.Failed -> return fail(context, outcome.issue)
                 }
             }
+            NamedFunctionKind.BINOMPDF, NamedFunctionKind.BINOMCDF, NamedFunctionKind.POISSONPDF, NamedFunctionKind.POISSONCDF ->
+                discrete(args, context) ?: return this
             NamedFunctionKind.ROUND, NamedFunctionKind.FLOOR, NamedFunctionKind.CEIL, NamedFunctionKind.TRUNC, NamedFunctionKind.FRAC -> {
                 val places = if (args.size == 2) {
                     wholeNumber(args[1])?.takeIf { it.compareTo(MAX_PLACES) <= 0 && it.compareTo(-MAX_PLACES) >= 0 }?.toLong()?.toInt()
@@ -169,7 +187,7 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
             }
             // Written out above
             NamedFunctionKind.SUM, NamedFunctionKind.PROD, NamedFunctionKind.SUMSQ, NamedFunctionKind.HYPOT, NamedFunctionKind.BETA,
-            NamedFunctionKind.RE, NamedFunctionKind.IM, NamedFunctionKind.CONJ -> this
+            NamedFunctionKind.NORMALPDF, NamedFunctionKind.NORMALCDF, NamedFunctionKind.NORMALINV, NamedFunctionKind.RE, NamedFunctionKind.IM, NamedFunctionKind.CONJ -> this
         }.canonicalize(context)
     }
 
@@ -187,6 +205,7 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
         NamedFunctionKind.PROD -> Multiplications.of(*args.toTypedArray()).canonicalize(context)
         NamedFunctionKind.SUMSQ -> Additions(args.map { Power(it, Value.TWO) }).canonicalize(context)
         NamedFunctionKind.HYPOT -> Power.squareRoot(Additions(args.map { Power(it, Value.TWO) })).canonicalize(context)
+        NamedFunctionKind.NORMALPDF, NamedFunctionKind.NORMALCDF, NamedFunctionKind.NORMALINV -> normal(args, context)
         NamedFunctionKind.BETA -> {
             fun gamma(x: Expression) = SpecialFunction(SpecialType.GAMMA, x)
             Multiplications.of(gamma(args[0]), gamma(args[1]), Power(gamma(Additions(listOf(args[0], args[1]))), Value.MINUS_ONE)).canonicalize(context)
@@ -204,6 +223,15 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
         else -> null
     }
 
+    /** The normal distribution as the formulas it is made of, so it works with variables and can be differentiated. */
+    private fun normal(args: List<Expression>, context: MathContext): Expression {
+        if (args.size == 2) return fail(context, MathIssue.ARGUMENT_COUNT)
+        if (args.any { it.containsUnit() }) return fail(context, MathIssue.INVALID_UNIT)
+        val sigma = args.getOrNull(2)
+        if (sigma != null && sigma.variables().isEmpty() && !(sigma.evaluateNumerically() > 0.0)) return fail(context, MathIssue.UNDEFINED)
+        return normalFormula(kind, args).canonicalize(context)
+    }
+
     private fun mean(args: List<Expression>): Expression =
         Multiplications.of(Additions(args), Value(1L, args.size.toLong()))
 
@@ -212,6 +240,67 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
         val mean = mean(args).canonicalize()
         val squares = args.map { Power(Additions(it, mean.negate()), Value.TWO) }
         return Multiplications.of(Additions(squares), Value(1L, divisor))
+    }
+
+    /**
+     * binompdf, binomcdf, poissonpdf or poissoncdf: exact (a fraction, or a fraction times e^(−λ)) for a moderate number
+     * of trials or events, a decimal otherwise and in numeric mode. Null (with an error) if the values do not fit.
+     */
+    private fun discrete(args: List<Expression>, context: MathContext): Expression? {
+        if (args.any { it.containsUnit() }) {
+            context.stopWithError(MathIssue.INVALID_UNIT)
+            return null
+        }
+        val binomial = kind == NamedFunctionKind.BINOMPDF || kind == NamedFunctionKind.BINOMCDF
+        val cumulative = kind == NamedFunctionKind.BINOMCDF || kind == NamedFunctionKind.POISSONCDF
+        val trials = if (binomial) wholeNumber(args[0]) else null
+        val rate = args[if (binomial) 1 else 0]
+        val count = wholeNumber(args[if (binomial) 2 else 1])
+        if ((binomial && trials == null) || count == null) {
+            context.stopWithError(MathIssue.WHOLE_NUMBERS_ONLY)
+            return null
+        }
+        val r = rate.evaluateNumerically()
+        val validRate = if (binomial) r in 0.0..1.0 else r >= 0.0
+        if (!validRate || (trials != null && trials.isNegative)) {
+            context.stopWithError(MathIssue.UNDEFINED)
+            return null
+        }
+        // Outside of what can happen
+        if (count.isNegative) return Value.ZERO
+        if (trials != null && count > trials) return if (cumulative) Value.ONE else Value.ZERO
+        val size = (trials ?: count)
+        if (cumulative && count > BigInt(MAX_TERMS) || size > BigInt(MAX_TRIALS)) {
+            context.stopWithError(MathIssue.VALUES_TOO_LARGE)
+            return null
+        }
+        if (context.mode == CalculationMode.NUMERIC || size > BigInt(MAX_EXACT_TRIALS)) {
+            val value = evaluateNumerically(emptyMap())
+            if (value.isNaN()) {
+                context.stopWithError(MathIssue.UNDEFINED)
+                return null
+            }
+            return Value(Real(value))
+        }
+        val k = count.toLong()
+        if (binomial) {
+            val n = trials!!.toLong()
+            val failure = Additions(listOf(Value.ONE, rate.negate()))
+            // C(n, i)·p^i·(1 − p)^(n − i), leaving out a power of 0 (p = 0 and i = 0 would be 0⁰)
+            fun term(i: Long): Expression = Multiplications.of(
+                Value(BigInt.binomial(n, i)),
+                if (i > 0) Power(rate, Value(i)) else Value.ONE,
+                if (n - i > 0) Power(failure, Value(n - i)) else Value.ONE
+            )
+            return if (cumulative) Additions((0..k).map { term(it) }) else term(k)
+        }
+        // e^(−λ)·λ^i/i!
+        fun power(i: Long): Expression = Multiplications.of(
+            if (i > 0) Power(rate, Value(i)) else Value.ONE,
+            Value(Rational.of(BigInt.ONE, BigInt.factorial(i)))
+        )
+        val decay = Power(Constant.E, Multiplications.of(Value.MINUS_ONE, rate))
+        return Multiplications.of(decay, if (cumulative) Additions((0..k).map { power(it) }) else power(k))
     }
 
     /** The third standardized moment: the mean cubed deviation over the variance to the power 3/2. */
@@ -295,8 +384,13 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
     private fun sortedByValue(args: List<Expression>, context: MathContext): List<Expression>? =
         keyedByValue(args, context)?.sortedBy { it.second }?.map { it.first }
 
-    private fun wholeNumber(expr: Expression): BigInt? =
-        (expr as? Value)?.rational?.takeIf { !it.isFractional }?.numerator
+    /** The whole number [expr] is, or null; in numeric mode numbers are decimals (2.0), which count where they are whole. */
+    private fun wholeNumber(expr: Expression): BigInt? {
+        val value = expr as? Value ?: return null
+        value.rational?.let { return it.takeIf { r -> !r.isFractional }?.numerator }
+        val d = value.real.value
+        return if (d == floor(d) && abs(d) <= MAX_EXACT_DOUBLE) BigInt(d.toLong()) else null
+    }
 
     private sealed interface Whole {
         class Result(val number: BigInt) : Whole
@@ -442,6 +536,33 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
                 val variance = squares() / n
                 if (variance == 0.0) Double.NaN else values.sumOf { (it - mean) * (it - mean) * (it - mean) } / n / (variance * sqrt(variance))
             }
+            NamedFunctionKind.NORMALPDF, NamedFunctionKind.NORMALCDF, NamedFunctionKind.NORMALINV -> {
+                val mu = values.getOrElse(1) { 0.0 }
+                val sigma = values.getOrElse(2) { 1.0 }
+                val z = (values[0] - mu) / sigma
+                when {
+                    n == 2 || !(sigma > 0.0) -> Double.NaN
+                    kind == NamedFunctionKind.NORMALPDF -> exp(-z * z / 2) / (sigma * sqrt(2 * PI))
+                    kind == NamedFunctionKind.NORMALCDF -> 0.5 * SpecialMath.erfc(-z / sqrt(2.0))
+                    else -> mu + sigma * SpecialMath.inverseNormal(values[0])
+                }
+            }
+            NamedFunctionKind.BINOMPDF, NamedFunctionKind.BINOMCDF, NamedFunctionKind.POISSONPDF, NamedFunctionKind.POISSONCDF -> {
+                val binomial = kind == NamedFunctionKind.BINOMPDF || kind == NamedFunctionKind.BINOMCDF
+                val k = values[if (binomial) 2 else 1]
+                val parameter = values[if (binomial) 1 else 0]
+                // The trials and the count are whole numbers; the probability or mean is not
+                val whole = k == floor(k) && (!binomial || values[0] == floor(values[0]))
+                val sizeOk = if (binomial) values[0] in 0.0..MAX_TRIALS.toDouble() else k <= MAX_TRIALS
+                val valid = whole && sizeOk && (if (binomial) parameter in 0.0..1.0 else parameter >= 0.0)
+                when {
+                    !valid -> Double.NaN
+                    kind == NamedFunctionKind.BINOMPDF -> SpecialMath.binomialPmf(values[0], parameter, k)
+                    kind == NamedFunctionKind.BINOMCDF -> if (k > MAX_TERMS && k < values[0]) Double.NaN else SpecialMath.binomialCdf(values[0], parameter, k)
+                    kind == NamedFunctionKind.POISSONPDF -> SpecialMath.poissonPmf(parameter, k)
+                    else -> if (k > MAX_TERMS) Double.NaN else SpecialMath.poissonCdf(parameter, k)
+                }
+            }
             NamedFunctionKind.SIGN -> sign(values[0])
             NamedFunctionKind.FLOOR -> floor(values[0])
             NamedFunctionKind.CEIL -> ceil(values[0])
@@ -493,6 +614,12 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
         const val MAX_FIBONACCI = 10_000L
         const val MAX_PRIME_BITS = 256
         const val PRIME_CERTAINTY = 40
+        /** Binomial and Poisson probabilities are exact up to here, decimals beyond (the exact fractions get huge). */
+        const val MAX_EXACT_TRIALS = 500L
+        /** The most trials a binomial or events a Poisson distribution may have (a double holds whole numbers up to 2^53). */
+        const val MAX_TRIALS = 1_000_000_000_000_000L
+        /** The most terms of a cumulative probability that are added up. */
+        const val MAX_TERMS = 200_000L
         /** Whole numbers up to here (2^53) are exact as a Double. */
         const val MAX_EXACT_DOUBLE = 9.007199254740992E15
         val MAX_PLACES = BigInt(100L)
@@ -501,5 +628,30 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
             NamedFunctionKind.MEAN, NamedFunctionKind.SUM, NamedFunctionKind.PROD,
             NamedFunctionKind.RE, NamedFunctionKind.IM, NamedFunctionKind.ARG, NamedFunctionKind.CONJ
         )
+    }
+}
+
+/**
+ * The formula behind normalpdf, normalcdf or normalinv with the arguments [args] (x, and μ and σ if given), as a textbook
+ * writes it: without a μ and σ the standard normal distribution, so no "− 0" or "÷ 1" in it.
+ */
+internal fun normalFormula(kind: NamedFunctionKind, args: List<Expression>): Expression {
+    val x = args[0]
+    val mu = args.getOrNull(1)
+    val sigma = args.getOrNull(2)
+    val deviation = if (mu == null) x else Additions(listOf(x, mu.negate()))
+    val rootOfTwoPi = Power(Multiplications(listOf(Value.TWO, Constant.PI)), Value.HALF)
+    return when (kind) {
+        // e^(−(x − μ)²/(2σ²)) / (σ·√(2π))
+        NamedFunctionKind.NORMALPDF -> Multiplications(listOf(
+            Power(if (sigma == null) rootOfTwoPi else Multiplications(listOf(sigma, rootOfTwoPi)), Value.MINUS_ONE),
+            Power(Constant.E, Multiplications(listOfNotNull(Value(-1L, 2L), Power(deviation, Value.TWO), sigma?.let { Power(it, Value(-2L)) })))
+        ))
+        // erfc(−z/√2)/2 with z = (x − μ)/σ: no 1 + erf, which loses the small values far to the left
+        NamedFunctionKind.NORMALCDF -> Multiplications(listOf(
+            Value.HALF,
+            SpecialFunction(SpecialType.ERFC, Multiplications(listOfNotNull(Value.MINUS_ONE, deviation, sigma?.let { Power(it, Value.MINUS_ONE) }, Power(Value.TWO, Value(-1L, 2L)))))
+        ))
+        else -> Additions(listOfNotNull(mu, Multiplications(listOfNotNull(sigma, SpecialFunction(SpecialType.NORMALINV, x)))))
     }
 }

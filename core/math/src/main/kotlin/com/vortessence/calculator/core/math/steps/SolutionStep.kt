@@ -58,6 +58,26 @@ enum class StepRule {
     ERROR_FUNCTION,
     /** erfc(u)' = −2/√π·e^(−u²)·u' */
     COMPLEMENTARY_ERROR_FUNCTION,
+    /** φ(x) = e^(−(x − μ)²/(2σ²)) / (σ√(2π)) */
+    NORMAL_DENSITY,
+    /** Φ(x) = erfc(−(x − μ)/(σ√2))/2 */
+    NORMAL_PROBABILITY,
+    /** x = μ + σ·z with Φ(z) = p */
+    NORMAL_QUANTILE,
+    /** P(X = k) = C(n, k)·pᵏ·(1 − p)ⁿ⁻ᵏ */
+    BINOMIAL_PROBABILITY,
+    /** P(X ≤ k) = P(0) + P(1) + … + P(k) for a binomial X */
+    BINOMIAL_CUMULATIVE,
+    /** P(X = k) = e^(−λ)·λᵏ/k! */
+    POISSON_PROBABILITY,
+    /** P(X ≤ k) = P(0) + P(1) + … + P(k) for a Poisson X */
+    POISSON_CUMULATIVE,
+    /** C(n, k) = n!/(k!·(n − k)!) */
+    BINOMIAL_COEFFICIENT,
+    /** n! = 1·2·…·n */
+    FACTORIAL,
+    /** Σ f(i) = f(0) + f(1) + … + f(k) */
+    WRITE_OUT_SUM,
     /** |u|' = u'·u/|u| */
     ABSOLUTE_VALUE,
     /** √x = x^(1/2), 1/x = x⁻¹: a root or fraction written as a power, for the power rule */

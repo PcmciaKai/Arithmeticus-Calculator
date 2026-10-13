@@ -47,6 +47,7 @@ import com.vortessence.calculator.core.math.solvers.PlotCurve
 import com.vortessence.calculator.core.math.steps.ArithmeticSteps
 import com.vortessence.calculator.core.math.steps.BothSides
 import com.vortessence.calculator.core.math.steps.DerivativeSteps
+import com.vortessence.calculator.core.math.steps.DistributionSteps
 import com.vortessence.calculator.core.math.steps.EquationSteps
 import com.vortessence.calculator.core.math.steps.InequalitySteps
 import com.vortessence.calculator.core.math.steps.MatrixSteps
@@ -287,7 +288,7 @@ object MathEngine {
                     is EquationSystem -> SystemSteps.steps(parsed, execContext)
                     is Inequality -> InequalitySteps.steps(parsed, execContext)
                     is Equals -> parsed.variables().takeIf { it.isNotEmpty() }?.let { vars -> pickVariable(vars).let { v -> EquationSteps.steps(parsed, v, execContext) ?: AbsoluteSplitSteps.steps(parsed, v, execContext) } }
-                    else -> MatrixSteps.steps(parsed, execContext) ?: ExpressionSteps.steps(parsed, execContext) ?: ArithmeticSteps.steps(asTyped, execContext)
+                    else -> MatrixSteps.steps(parsed, execContext) ?: DistributionSteps.steps(parsed, execContext) ?: ExpressionSteps.steps(parsed, execContext) ?: ArithmeticSteps.steps(asTyped, execContext)
                 }
                 if (solution == null || execContext.shouldStop || execContext.issues.isNotEmpty()) return@steps null
                 val display = displayWriter(execContext)

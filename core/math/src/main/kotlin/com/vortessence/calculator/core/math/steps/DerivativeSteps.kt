@@ -106,8 +106,8 @@ internal object DerivativeSteps {
             v -> true
             is Additions, is Multiplications, is Power, is Logarithm, is TrigonometricFunction, is HyperbolicFunction, is AbsoluteValue ->
                 e.children.all { hasRules(it, v) }
-            // The digamma would need the trigamma
-            is SpecialFunction -> e.type.outerDerivative(e.operand) != null && hasRules(e.operand, v)
+            // The digamma would need the trigamma, and the normal quantile has no rule of its own
+            is SpecialFunction -> specialRule(e.type) != null && e.type.outerDerivative(e.operand) != null && hasRules(e.operand, v)
             is Integral -> (e.variable == v || !e.integrand.containsVariable(v)) &&
                 hasRules(e.lowerBound, v) && hasRules(e.upperBound, v)
             else -> false
@@ -313,16 +313,8 @@ internal object DerivativeSteps {
             return Rewrite(u.type.outerDerivative(u.operand), rule)
         }
 
-        private fun special(u: SpecialFunction): Rewrite? {
-            val rule = when (u.type) {
-                SpecialType.GAMMA -> StepRule.GAMMA_FUNCTION
-                SpecialType.LNGAMMA -> StepRule.LOG_GAMMA_FUNCTION
-                SpecialType.ERF -> StepRule.ERROR_FUNCTION
-                SpecialType.ERFC -> StepRule.COMPLEMENTARY_ERROR_FUNCTION
-                SpecialType.DIGAMMA -> return null
-            }
-            return Rewrite(u.type.outerDerivative(u.operand) ?: return null, rule)
-        }
+        private fun special(u: SpecialFunction): Rewrite? =
+            Rewrite(u.type.outerDerivative(u.operand) ?: return null, specialRule(u.type) ?: return null)
 
         private fun integral(u: Integral): Rewrite? {
             // Differentiating under the integral sign is not supported
@@ -338,6 +330,15 @@ internal object DerivativeSteps {
             )
             return Rewrite(Additions.of(*terms.toTypedArray()), StepRule.FUNDAMENTAL_THEOREM)
         }
+    }
+
+    /** The rule for the derivative of a special function, null for those that have none. */
+    private fun specialRule(type: SpecialType): StepRule? = when (type) {
+        SpecialType.GAMMA -> StepRule.GAMMA_FUNCTION
+        SpecialType.LNGAMMA -> StepRule.LOG_GAMMA_FUNCTION
+        SpecialType.ERF -> StepRule.ERROR_FUNCTION
+        SpecialType.ERFC -> StepRule.COMPLEMENTARY_ERROR_FUNCTION
+        SpecialType.DIGAMMA, SpecialType.NORMALINV -> null
     }
 
     /** A factor u⁻ⁿ, i.e. one that is written in a denominator. */
