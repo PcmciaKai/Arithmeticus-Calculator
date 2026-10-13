@@ -197,6 +197,10 @@ class MathParser {
                         "ln" -> Logarithm.ln(arg)
                         "log", "log10" -> Logarithm.log10(arg)
                         "sqrt" -> Power.squareRoot(arg)
+                        "gamma" -> SpecialFunction(SpecialType.GAMMA, arg)
+                        "lngamma" -> SpecialFunction(SpecialType.LNGAMMA, arg)
+                        "erf" -> SpecialFunction(SpecialType.ERF, arg)
+                        "erfc" -> SpecialFunction(SpecialType.ERFC, arg)
                         "cbrt" -> Power.nthRoot(Value(3L), arg)
                         "exp" -> Power(Constant.E, arg)
                         // Radians to degrees and back, whatever the angle setting says

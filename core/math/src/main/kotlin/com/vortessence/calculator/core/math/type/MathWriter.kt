@@ -115,6 +115,7 @@ class MathWriter(
                 result.append(FunctionNode(expr.type.symbol, writeExpr(if (degrees) inDegrees(expr) else expr.operand)))
             }
             is HyperbolicFunction -> result.append(FunctionNode(expr.type.symbol, writeExpr(expr.operand)))
+            is SpecialFunction -> result.append(FunctionNode(expr.type.functionName, writeExpr(expr.operand)))
             is Logarithm -> {
                 val base = expr.base
                 when {

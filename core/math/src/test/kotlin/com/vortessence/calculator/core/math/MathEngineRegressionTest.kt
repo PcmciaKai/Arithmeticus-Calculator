@@ -184,7 +184,7 @@ class MathEngineRegressionTest {
     @Test
     fun invalidInputIsReportedInsteadOfSilentlyReinterpreted() {
         assertTrue(calc(ms(fn("foo", op(MathOp.MINUS), n("2")))).issues.contains(MathIssue.UNKNOWN_FUNCTION))
-        assertTrue(calc(ms(n("3.5"), op(MathOp.FACTORIAL))).issues.contains(MathIssue.UNDEFINED))
+        assertTrue(calc(ms(ParenthesesNode(ms(op(MathOp.MINUS), n("3"))), op(MathOp.FACTORIAL))).issues.contains(MathIssue.UNDEFINED))
         assertTrue(calc(ms(n("2"), op(MathOp.PLUS))).issues.contains(MathIssue.SYNTAX_ERROR))
         assertTrue(calc(ms(op(MathOp.MULTIPLY), n("3"))).issues.contains(MathIssue.SYNTAX_ERROR))
         assertTrue(calc(ms(frac(ms(n("1")), ms()))).issues.contains(MathIssue.SYNTAX_ERROR))

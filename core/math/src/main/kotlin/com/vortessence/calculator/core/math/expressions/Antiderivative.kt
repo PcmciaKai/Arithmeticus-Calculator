@@ -128,7 +128,7 @@ internal class Integrator(private val context: MathContext) {
                     }
                 } else if (!base.containsVariable(v)) {
                     // c^u: c^u / (a·ln c)
-                    val a = linearSlope(exponent, v) ?: return null
+                    val a = linearSlope(exponent, v) ?: return gaussian(base, exponent, v)
                     Multiplications(listOf(f, inverse(Multiplications(listOf(a, Logarithm.ln(base))))))
                 } else {
                     null
@@ -178,6 +178,22 @@ internal class Integrator(private val context: MathContext) {
             }
             else -> null
         }
+    }
+
+    /** ∫ e^(−k·v²) dv = √π/(2√k) · erf(√k·v) for k > 0 (e^(k·v²) with k > 0 has no such form). */
+    private fun gaussian(base: Expression, exponent: Expression, v: Variable): Expression? {
+        if (base != Constant.E) return null
+        val second = canonical(Differentiator.derivative(Differentiator.derivative(exponent, v) ?: return null, v) ?: return null) ?: return null
+        if (second.containsVariable(v) || second.isZero) return null
+        // exponent = A·v² exactly, and A < 0
+        val a = canonical(Multiplications.of(Value.HALF, second)) ?: return null
+        val rest = canonical(Additions(listOf(exponent, Multiplications.of(Value.MINUS_ONE, a, Power(v, Value.TWO))))) ?: return null
+        if (!rest.isZero || a.evaluateNumerically() >= 0.0) return null
+        val root = Power.squareRoot(Multiplications.of(Value.MINUS_ONE, a))
+        return Multiplications(listOf(
+            Power(Constant.PI, Value.HALF), Value.HALF, inverse(root),
+            SpecialFunction(SpecialType.ERF, Multiplications(listOf(root, v)))
+        ))
     }
 
     /**

@@ -3,9 +3,13 @@ package com.vortessence.calculator.core.math.expressions
 import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.context.MathIssue
 import com.vortessence.calculator.core.math.numbers.BigInt
+import com.vortessence.calculator.core.math.numbers.SpecialMath
 import kotlin.math.floor
 
-/** n! of a whole number n ≥ 0. With a variable (n! in a sum) it stays symbolic until n is known. */
+/**
+ * n! of a whole number n ≥ 0. With a variable (n! in a sum) it stays symbolic until n is known.
+ * Other numbers go by the gamma function, x! = Γ(x + 1): (1/2)! = √π/2.
+ */
 class Factorial(val operand: Expression) : Expression() {
 
     override val children: List<Expression> get() = listOf(operand)
@@ -34,8 +38,10 @@ class Factorial(val operand: Expression) : Expression() {
             }
         }
         return when {
+            // Not a whole number: Γ(x + 1), which is undefined for the negative whole numbers
+            n == null && !canonical.containsImaginaryUnit() && canonical.partWithUnit() == null && !isWholeNumber(canonical) ->
+                SpecialFunction(SpecialType.GAMMA, Additions(listOf(canonical, Value.ONE))).canonicalize(context)
             n == null -> {
-                // Negative, fractional or symbolic arguments are not supported
                 context.stopWithError(MathIssue.UNDEFINED)
                 this
             }
@@ -49,11 +55,18 @@ class Factorial(val operand: Expression) : Expression() {
 
     override fun evaluateNumerically(bindings: Map<Variable, Double>): Double {
         val n = operand.evaluateNumerically(bindings)
-        if (n.isNaN() || n < 0.0 || n != floor(n)) return Double.NaN
+        if (n.isNaN()) return Double.NaN
+        if (n != floor(n)) return SpecialMath.gamma(n + 1.0)
+        if (n < 0.0) return Double.NaN
         if (n > MAX_DOUBLE_FACTORIAL) return Double.POSITIVE_INFINITY
         var result = 1.0
         for (k in 2..n.toInt()) result *= k
         return result
+    }
+
+    private fun isWholeNumber(e: Expression): Boolean {
+        val d = e.evaluateNumerically()
+        return d == floor(d)
     }
 
     override fun equals(other: Any?): Boolean = other is Factorial && operand == other.operand

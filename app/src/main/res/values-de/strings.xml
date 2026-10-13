@@ -107,10 +107,21 @@
     <string name="formula_arg_desc">Winkel der Zahl zur positiven reellen Achse im Bogenmaß, von −π (ausgeschlossen) bis π</string>
     <string name="formula_conj_name">Konjugiert komplexe Zahl</string>
     <string name="formula_conj_desc">a − b·i für a + b·i</string>
+    <string name="formula_gamma_name">Gammafunktion Γ</string>
+    <string name="formula_gamma_desc">Γ(x) setzt die Fakultät auf nicht ganze Zahlen fort: Γ(n + 1) = n!. Exakt für ganze und halbe Zahlen</string>
+    <string name="formula_lngamma_name">Log-Gamma ln Γ</string>
+    <string name="formula_lngamma_desc">ln Γ(x) für x > 0; bleibt klein, wo Γ(x) zu groß wird</string>
+    <string name="formula_beta_name">Beta-Funktion</string>
+    <string name="formula_beta_desc">B(a, b) = Γ(a)·Γ(b) / Γ(a + b)</string>
+    <string name="formula_erf_name">Fehlerfunktion erf</string>
+    <string name="formula_erf_desc">2/√π · ∫₀ˣ e^(−t²) dt, Grundlage der Normalverteilung</string>
+    <string name="formula_erfc_name">Komplementäre Fehlerfunktion erfc</string>
+    <string name="formula_erfc_desc">1 − erf(x), auch für große x genau</string>
     <string name="category_statistics">Statistik</string>
     <string name="category_combinatorics">Kombinatorik</string>
     <string name="category_numbers">Zahlen</string>
     <string name="category_complex">Komplexe Zahlen</string>
+    <string name="category_special">Spezielle Funktionen</string>
     <string name="formulas_title">Formeln</string>
     <string name="formulas_search">Suchen (Abweichung, runden, nCr)...</string>
     <string name="constant_category_math">Mathematisch</string>

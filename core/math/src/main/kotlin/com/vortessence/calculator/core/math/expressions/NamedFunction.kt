@@ -4,12 +4,14 @@ import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.context.MathIssue
 import com.vortessence.calculator.core.math.numbers.BigInt
 import com.vortessence.calculator.core.math.numbers.Rational
+import com.vortessence.calculator.core.math.numbers.SpecialMath
 import java.math.BigDecimal
 import java.math.BigInteger
 import java.math.RoundingMode
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.ceil
+import kotlin.math.exp
 import kotlin.math.floor
 import kotlin.math.sign
 import kotlin.math.sqrt
@@ -72,6 +74,8 @@ enum class NamedFunctionKind(val functionName: String, val minArguments: Int, va
     FRAC("frac", 1, 1),
     /** −1, 0 or 1 for a negative, zero or positive number. */
     SIGN("sign", 1, 1),
+    /** The beta function Γ(a)·Γ(b)/Γ(a + b). */
+    BETA("beta", 2, 2),
     /** √(a² + b² + ...), the length of the vector (a, b, ...). */
     HYPOT("hypot", 2),
     /** The real part of a complex number. */
@@ -164,7 +168,7 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
                 if (kind == NamedFunctionKind.FRAC) Additions(listOf(args[0], rounded.negate())) else rounded
             }
             // Written out above
-            NamedFunctionKind.SUM, NamedFunctionKind.PROD, NamedFunctionKind.SUMSQ, NamedFunctionKind.HYPOT,
+            NamedFunctionKind.SUM, NamedFunctionKind.PROD, NamedFunctionKind.SUMSQ, NamedFunctionKind.HYPOT, NamedFunctionKind.BETA,
             NamedFunctionKind.RE, NamedFunctionKind.IM, NamedFunctionKind.CONJ -> this
         }.canonicalize(context)
     }
@@ -183,6 +187,10 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
         NamedFunctionKind.PROD -> Multiplications.of(*args.toTypedArray()).canonicalize(context)
         NamedFunctionKind.SUMSQ -> Additions(args.map { Power(it, Value.TWO) }).canonicalize(context)
         NamedFunctionKind.HYPOT -> Power.squareRoot(Additions(args.map { Power(it, Value.TWO) })).canonicalize(context)
+        NamedFunctionKind.BETA -> {
+            fun gamma(x: Expression) = SpecialFunction(SpecialType.GAMMA, x)
+            Multiplications.of(gamma(args[0]), gamma(args[1]), Power(gamma(Additions(listOf(args[0], args[1]))), Value.MINUS_ONE)).canonicalize(context)
+        }
         NamedFunctionKind.RE, NamedFunctionKind.IM, NamedFunctionKind.CONJ -> {
             val parts = complexParts(args[0])
             when {
@@ -420,6 +428,7 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
             NamedFunctionKind.PROD -> values.fold(1.0) { product, v -> product * v }
             NamedFunctionKind.SUMSQ -> values.sumOf { it * it }
             NamedFunctionKind.HYPOT -> sqrt(values.sumOf { it * it })
+            NamedFunctionKind.BETA -> exp(SpecialMath.lnGamma(values[0]) + SpecialMath.lnGamma(values[1]) - SpecialMath.lnGamma(values[0] + values[1]))
             NamedFunctionKind.PERCENTILE, NamedFunctionKind.QUARTILE -> {
                 val share = values[0] / (if (kind == NamedFunctionKind.QUARTILE) 4 else 100)
                 val sorted = values.drop(1).sorted()

@@ -120,7 +120,7 @@ internal object InequalitySolver {
     /** Sin, cos ... repeat forever, matrices and the like are no real functions of one number. */
     private fun unsupported(e: Expression): Boolean =
         e is TrigonometricFunction || e is MatrixExpression || e is UnitExpression || e is Derivative || e is Antiderivative ||
-            e is Integral || e is Limit || e is Series || e is Factorial || e is Modulo || e.containsImaginaryUnit() && e !is Value
+            e is Integral || e is Limit || e is Series || e is Factorial || e is SpecialFunction || e is Modulo || e.containsImaginaryUnit() && e !is Value
 
     /** The real solutions of [equation] for [v]; empty if there are none, null if they cannot be found. */
     private fun realRoots(equation: Equals, v: Variable, context: MathContext): List<Expression>? {

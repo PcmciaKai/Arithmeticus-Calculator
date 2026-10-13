@@ -349,10 +349,21 @@
     <string name="formula_arg_desc">The angle of the number to the positive real axis in radians, from −π (excluded) to π</string>
     <string name="formula_conj_name">Complex conjugate</string>
     <string name="formula_conj_desc">a − b·i for a + b·i</string>
+    <string name="formula_gamma_name">Gamma function Γ</string>
+    <string name="formula_gamma_desc">Γ(x) continues the factorial to numbers that are not whole: Γ(n + 1) = n!. Exact for whole and half numbers</string>
+    <string name="formula_lngamma_name">Log-gamma ln Γ</string>
+    <string name="formula_lngamma_desc">ln Γ(x) for x > 0; stays small where Γ(x) gets too large</string>
+    <string name="formula_beta_name">Beta function</string>
+    <string name="formula_beta_desc">B(a, b) = Γ(a)·Γ(b) / Γ(a + b)</string>
+    <string name="formula_erf_name">Error function erf</string>
+    <string name="formula_erf_desc">2/√π · ∫₀ˣ e^(−t²) dt, the basis of the normal distribution</string>
+    <string name="formula_erfc_name">Complementary error function erfc</string>
+    <string name="formula_erfc_desc">1 − erf(x), also accurate for large x</string>
     <string name="category_statistics">Statistics</string>
     <string name="category_combinatorics">Combinatorics</string>
     <string name="category_numbers">Numbers</string>
     <string name="category_complex">Complex numbers</string>
+    <string name="category_special">Special functions</string>
     <string name="formulas_title">Formulas</string>
     <string name="formulas_search">Search (deviation, round, nCr)...</string>
     <string name="constant_category_math">Mathematical</string>

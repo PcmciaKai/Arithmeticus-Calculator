@@ -216,7 +216,9 @@ class NewFunctionsTest {
     @Test
     fun factorialStaysSymbolicWithVariables() {
         assertResult("120", calc(n("5"), op(MathOp.FACTORIAL)))
-        assertEquals(listOf(MathIssue.UNDEFINED), calc(n("2.5"), op(MathOp.FACTORIAL)).issues)
+        // Not whole: Γ(x + 1); the negative whole numbers have no factorial
+        assertValue(3.323350970447843, calc(n("2.5"), op(MathOp.FACTORIAL)), 1e-9)
+        assertEquals(listOf(MathIssue.UNDEFINED), calc(paren(minus, n("2")), op(MathOp.FACTORIAL)).issues)
         assertResult("6", calc(paren(n("1"), plus, n("2")), op(MathOp.FACTORIAL)))
     }
 
