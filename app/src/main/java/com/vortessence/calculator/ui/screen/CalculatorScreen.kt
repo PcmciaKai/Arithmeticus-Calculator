@@ -83,6 +83,7 @@ import com.vortessence.calculator.core.math.type.VariableNameProblem
 import com.vortessence.calculator.ui.keypad.KeyAction
 import com.vortessence.calculator.ui.math.TypingInput
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -193,8 +194,12 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
     fun imeHeight(insets: WindowInsets) = (insets.getBottom(density) - navigationBars.getBottom(density)).coerceAtLeast(0)
     val isTyping = imeTarget.getBottom(density) > 0
     // Whenever the keyboard is up, it types into the expression (it can also be up without the abc key,
-    // e.g. after the app was restored)
-    LaunchedEffect(isTyping) { if (isTyping) runCatching { typingFocus.requestFocus() } }
+    // e.g. after the app was restored). Once it is down the field lets go of the focus: a field that
+    // keeps it brings the keyboard back by itself when the app returns from the background.
+    val focusManager = LocalFocusManager.current
+    LaunchedEffect(isTyping) {
+        if (isTyping) runCatching { typingFocus.requestFocus() } else focusManager.clearFocus()
+    }
     // A keyboard that is lower than the keypad leaves a rest of it showing; once it has arrived that goes
     val keyboardArrived by remember { derivedStateOf { isTyping && imeHeight(ime) >= imeHeight(imeTarget) } }
     val restShown by animateFloatAsState(

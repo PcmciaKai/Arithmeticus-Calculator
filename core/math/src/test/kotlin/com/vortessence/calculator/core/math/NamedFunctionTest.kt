@@ -2,6 +2,8 @@ package com.vortessence.calculator.core.math
 
 import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.context.MathIssue
+import com.vortessence.calculator.core.math.expressions.containsUnit
+import com.vortessence.calculator.core.math.expressions.withUnitsAsSiFactors
 import com.vortessence.calculator.core.math.type.*
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
@@ -110,5 +112,176 @@ class NamedFunctionTest {
     @Test
     fun plainTextWithCommas() {
         assertEquals("stdev(1, 2, 3)", MathText.toPlainText(call("stdev", "1", "2", "3")))
+    }
+
+    private fun exactComplex(name: String, vararg arguments: String): String {
+        val res = runBlocking { MathEngine.calculate(call(name, *arguments), MathContext(complexNumbers = true)) }
+        assertTrue("$name: ${res.issues}", res.isSuccess)
+        return res.result.toString()
+    }
+
+    private fun single(name: String, argument: MathString): CalculationResult =
+        runBlocking { MathEngine.calculate(ms(listOf(FunctionNode(name, argument))), MathContext(complexNumbers = true)) }
+
+    @Test
+    fun modeRangeAndTotals() {
+        assertEquals(4.0, numeric("mode", "1", "4", "4", "2"), 0.0)
+        // Several values occurring equally often: the first of them
+        assertEquals(3.0, numeric("mode", "3", "1", "1", "3"), 0.0)
+        assertEquals(listOf(MathIssue.UNDEFINED), issues("mode", "1", "2", "3"))
+        assertEquals(6.5, numeric("range", "4", "-2.5", "3"), 0.0)
+        assertEquals("10", exact("sum", "1", "2", "3", "4"))
+        assertEquals("24", exact("prod", "1", "2", "3", "4"))
+        assertEquals("30", exact("sumsq", "1", "2", "3", "4"))
+        assertEquals("5", exact("hypot", "3", "4"))
+        assertEquals("13", exact("hypot", "3", "4", "12"))
+    }
+
+    @Test
+    fun arithmeticFunctionsWorkWithVariables() {
+        val res = calc(call("sum", "x", "x", "2"))
+        assertTrue(res.issues.toString(), res.isSuccess)
+        // Written out, not kept as sum(...)
+        assertFalse(res.answer!!.nodes.any { it is FunctionNode })
+        assertTrue(calc(call("hypot", "x", "4")).isSuccess)
+    }
+
+    @Test
+    fun percentilesInterpolate() {
+        // 15, 20, 35, 40, 50: the 40th percentile is at position 0.4 · 4 = 1.6
+        val data = arrayOf("15", "20", "35", "40", "50")
+        assertEquals("29", exact("percentile", "40", *data))
+        assertEquals(15.0, numeric("percentile", "0", *data), 0.0)
+        assertEquals(50.0, numeric("percentile", "100", *data), 0.0)
+        assertEquals(35.0, numeric("percentile", "50", *data), 0.0)
+        assertEquals(numeric("median", "1", "2", "3", "10"), numeric("percentile", "50", "10", "1", "3", "2"), 1e-12)
+        assertEquals(20.0, numeric("quartile", "1", *data), 0.0)
+        assertEquals(27.5, numeric("percentile", "37.5", *data), 0.0)
+        assertEquals(35.0, numeric("quartile", "2", *data), 0.0)
+        assertEquals(40.0, numeric("quartile", "3", *data), 0.0)
+        assertEquals(listOf(MathIssue.UNDEFINED), issues("percentile", "101", *data))
+        assertEquals(listOf(MathIssue.UNDEFINED), issues("quartile", "5", *data))
+        assertEquals(listOf(MathIssue.WHOLE_NUMBERS_ONLY), issues("quartile", "1.5", *data))
+        assertEquals(listOf(MathIssue.ARGUMENT_COUNT), issues("percentile", "50"))
+    }
+
+    @Test
+    fun skewness() {
+        assertEquals(0.0, numeric("skew", "1", "2", "3"), 1e-12)
+        // 1, 1, 4: mean 2, deviations -1, -1, 2: m2 = 2, m3 = 2 -> 2 / 2^1.5
+        assertEquals(2.0 / Math.pow(2.0, 1.5), numeric("skew", "1", "1", "4"), 1e-12)
+        assertEquals(listOf(MathIssue.UNDEFINED), issues("skew", "2", "2", "2"))
+        assertEquals(listOf(MathIssue.ARGUMENT_COUNT), issues("skew", "1", "2"))
+    }
+
+    @Test
+    fun signTruncAndFraction() {
+        assertEquals(-1.0, numeric("sign", "-3.5"), 0.0)
+        assertEquals(0.0, numeric("sign", "0"), 0.0)
+        assertEquals(1.0, numeric("sign", "0.001"), 0.0)
+        assertEquals(-2.0, numeric("trunc", "-2.75"), 0.0)
+        assertEquals(3.14, numeric("trunc", "3.14159", "2"), 0.0)
+        assertEquals(-0.75, numeric("frac", "-2.75"), 0.0)
+        assertEquals("(3)/(4)", exact("frac", "2.75"))
+        val pi = ms(listOf(FunctionNode("frac", ms(listOf(ConstantNode("π"))))))
+        assertEquals(Math.PI - 3, calc(pi).numericValue!!, 1e-12)
+    }
+
+    @Test
+    fun combinatoricsAndPrimes() {
+        // 4! / (2! 1! 1!) = 12
+        assertEquals("12", exact("multinomial", "2", "1", "1"))
+        assertEquals("1", exact("multinomial", "5"))
+        assertEquals(listOf(MathIssue.UNDEFINED), issues("multinomial", "2", "-1"))
+        assertEquals("0", exact("fib", "0"))
+        assertEquals("55", exact("fib", "10"))
+        assertEquals("12586269025", exact("fib", "50"))
+        assertEquals(-8.0, numeric("fib", "-6"), 0.0)
+        assertEquals("5", exact("fib", "-5"))
+        assertEquals(listOf(MathIssue.VALUES_TOO_LARGE), issues("fib", "100000"))
+        assertEquals("2", exact("nextprime", "-5"))
+        assertEquals("11", exact("nextprime", "7"))
+        assertEquals("1009", exact("nextprime", "1000"))
+        assertEquals("1", exact("isprime", "97"))
+        assertEquals("0", exact("isprime", "91"))
+        assertEquals("0", exact("isprime", "1"))
+        assertEquals("1", exact("isprime", "2"))
+        assertEquals(listOf(MathIssue.WHOLE_NUMBERS_ONLY), issues("isprime", "2.5"))
+    }
+
+    @Test
+    fun complexParts() {
+        val z = listOf(NumberNode("3"), OperatorNode(MathOp.PLUS), NumberNode("4"), ConstantNode("i"))
+        assertEquals("3", single("re", ms(z)).result.toString())
+        assertEquals("4", single("im", ms(z)).result.toString())
+        assertEquals("3 - 4i", single("conj", ms(z)).result.toString().replace("(", "").replace(")", "").replace("−", "-"))
+        assertEquals(Math.atan2(4.0, 3.0), single("arg", ms(z)).numericValue!!, 1e-12)
+        // Real numbers
+        assertEquals("0", exactComplex("arg", "5"))
+        assertEquals("π", exactComplex("arg", "-5"))
+        assertEquals("5", exactComplex("re", "5"))
+        assertEquals("0", exactComplex("im", "5"))
+        assertEquals(listOf(MathIssue.UNDEFINED), issues("arg", "0"))
+    }
+
+    private fun withUnit(vararg values: Pair<String, String>): MathString {
+        val argument = mutableListOf<MathNode>()
+        values.forEachIndexed { i, (number, unit) ->
+            if (i > 0) argument.add(SeparatorNode)
+            argument.add(NumberNode(number))
+            argument.add(UnitNode(unit))
+        }
+        return ms(argument)
+    }
+
+    @Test
+    fun newStatisticsKeepUnits() {
+        val range = single("range", withUnit("2" to "m", "5" to "m", "100" to "cm"))
+        assertTrue(range.issues.toString(), range.isSuccess)
+        assertTrue(range.expression.containsUnit())
+        assertEquals(4.0, single("range", withUnit("2" to "m", "5" to "m", "100" to "cm")).expression.withUnitsAsSiFactors().evaluateNumerically(), 1e-12)
+        val sum = single("sum", withUnit("2" to "m", "50" to "cm"))
+        assertEquals(2.5, sum.expression.withUnitsAsSiFactors().evaluateNumerically(), 1e-12)
+        val hypot = single("hypot", withUnit("3" to "m", "400" to "cm"))
+        assertEquals(5.0, hypot.expression.withUnitsAsSiFactors().evaluateNumerically(), 1e-12)
+        assertEquals(1.0, single("sign", withUnit("3" to "m")).numericValue!!, 0.0)
+        assertEquals(listOf(MathIssue.INVALID_UNIT), single("trunc", withUnit("3" to "m")).issues)
+        val mode = single("mode", withUnit("1" to "m", "5" to "m", "100" to "cm"))
+        assertTrue(mode.issues.toString(), mode.isSuccess)
+        // Mixed dimensions cannot be compared
+        assertEquals(listOf(MathIssue.INVALID_UNIT), single("range", withUnit("2" to "m", "5" to "s")).issues)
+    }
+
+    @Test
+    fun skewnessOfValuesWithAUnitHasNone() {
+        val res = single("skew", withUnit("1" to "m", "1" to "m", "4" to "m"))
+        assertTrue(res.issues.toString(), res.isSuccess)
+        assertEquals(2.0 / Math.pow(2.0, 1.5), res.numericValue!!, 1e-12)
+        assertFalse(res.expression.containsUnit())
+    }
+
+    @Test
+    fun exponentialRootAndAngleConversion() {
+        fun value(name: String, argument: String): Double {
+            val res = single(name, ms(listOf(NumberNode(argument))))
+            assertTrue("$name: ${res.issues}", res.isSuccess)
+            return res.numericValue!!
+        }
+        assertEquals(Math.E, value("exp", "1"), 1e-12)
+        assertEquals("1", single("exp", ms(listOf(NumberNode("0")))).result.toString())
+        assertEquals(-2.0, value("cbrt", "-8"), 1e-12)
+        assertEquals("2", single("cbrt", ms(listOf(NumberNode("8")))).result.toString())
+        assertEquals(180.0, value("deg", "${Math.PI}"), 1e-9)
+        assertEquals(Math.PI / 2, value("rad", "90"), 1e-12)
+        val exactDegrees = single("deg", ms(listOf(ConstantNode("π"))))
+        assertEquals("180", exactDegrees.result.toString())
+        assertEquals("π", single("rad", ms(listOf(NumberNode("180")))).result.toString())
+    }
+
+    @Test
+    fun exponentialCanBeDifferentiated() {
+        val body = ms(listOf(FunctionNode("exp", ms(listOf(VariableNode("x"))))))
+        val res = runBlocking { MathEngine.calculate(ms(listOf(DerivativeNode(body))), MathContext()) }
+        assertTrue(res.issues.toString(), res.isSuccess)
     }
 }

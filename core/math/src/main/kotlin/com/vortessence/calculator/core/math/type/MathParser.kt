@@ -197,6 +197,11 @@ class MathParser {
                         "ln" -> Logarithm.ln(arg)
                         "log", "log10" -> Logarithm.log10(arg)
                         "sqrt" -> Power.squareRoot(arg)
+                        "cbrt" -> Power.nthRoot(Value(3L), arg)
+                        "exp" -> Power(Constant.E, arg)
+                        // Radians to degrees and back, whatever the angle setting says
+                        "deg" -> Multiplications(listOf(arg, Value(180L), Power(Constant.PI, Value.MINUS_ONE)))
+                        "rad" -> Multiplications(listOf(arg, Constant.PI, Value(1L, 180L)))
                         "abs" -> AbsoluteValue(arg)
                         "det" -> Determinant(arg)
                         "rref" -> RowReduced(arg)

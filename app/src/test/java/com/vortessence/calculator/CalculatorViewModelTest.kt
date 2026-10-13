@@ -653,6 +653,22 @@ class CalculatorViewModelTest {
     }
 
     @Test
+    fun namesOfTheMoreFunctionsCanBeTyped() = runBlocking {
+        val vm = newViewModel()
+        for (name in listOf("exp", "cbrt", "range", "percentile", "sign", "hypot", "conj", "mode", "prod", "fib")) {
+            vm.onKeyAction(KeyAction.Clear)
+            vm.typeText("$name(")
+            assertEquals(listOf("$name()"), vm.nodeNames())
+            assertNull(vm.uiState.value.typingNotice)
+        }
+        // Names that start with i are only in the formula picker: the i is refused as the imaginary unit
+        vm.onKeyAction(KeyAction.Clear)
+        vm.typeText("im(")
+        assertEquals(listOf("m", "()"), vm.nodeNames())
+        assertEquals(TypingNotice("i", VariableNameProblem.CONSTANT), vm.uiState.value.typingNotice)
+    }
+
+    @Test
     fun otherWordsWithAParenthesisStayLetters() = runBlocking {
         val vm = newViewModel()
         vm.typeText("foo(")
