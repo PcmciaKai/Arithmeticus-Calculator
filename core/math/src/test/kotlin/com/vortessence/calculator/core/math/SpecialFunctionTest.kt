@@ -123,7 +123,7 @@ class SpecialFunctionTest {
         val res = calc(f("gamma", n("0.3")))
         assertTrue("${res.issues}", res.isSuccess)
         assertClose(2.991568987687590, res.numericValue, 1e-12)
-        assertTrue(res.result.toString().contains("gamma"))
+        assertTrue(res.result.toString(), res.result.toString().contains("Γ"))
         assertClose(2.991568987687590, value(f("gamma", n("0.3")), mode = CalculationMode.NUMERIC), 1e-12)
         assertClose(Math.sqrt(Math.PI), value(f("gamma", n("0.5")), mode = CalculationMode.NUMERIC))
         assertEquals(24.0, value(f("gamma", n("5")), mode = CalculationMode.NUMERIC), 0.0)
@@ -233,5 +233,26 @@ class SpecialFunctionTest {
         assertEquals(listOf(MathIssue.CANT_DIFFERENTIATE), calc(DerivativeNode(ms(f("digamma", x)))).issues)
         assertClose(0.42278433509846713, value(f("digamma", n("2"))))
         assertEquals(listOf(MathIssue.UNDEFINED), calc(f("digamma", n("0"))).issues)
+    }
+
+    @Test
+    fun gammaAndDigammaAreWrittenAsGreekLettersAndReadBothWays() {
+        // Typed as gamma( and digamma(, results and steps write Γ( and ψ(
+        val typed = calc(f("gamma", n("0.3")))
+        assertTrue(typed.result.toString(), typed.result.toString().startsWith("Γ"))
+        val digamma = calc(f("digamma", n("0.3")))
+        assertTrue(digamma.result.toString(), digamma.result.toString().startsWith("ψ"))
+        // And what is written can be read back (Ans, the history), as can the Γ key's function
+        assertClose(2.991568987687590, value(f("Γ", n("0.3"))), 1e-12)
+        assertClose(value(f("digamma", n("2"))), value(f("ψ", n("2"))))
+        assertEquals(exact(f("gamma", n("6"))), exact(f("Γ", n("6"))))
+        // The derivative reads Γ(x)·ψ(x)
+        val derivative = calc(DerivativeNode(ms(f("gamma", VariableNode("x")))))
+        val text = derivative.result.toString()
+        assertTrue(text, text.contains("Γ") && text.contains("ψ"))
+        // lngamma is written lnΓ and read back; erf keeps its name
+        assertTrue(calc(f("lngamma", n("0.3"))).result.toString().startsWith("lnΓ"))
+        assertClose(value(f("lngamma", n("0.3"))), value(f("lnΓ", n("0.3"))))
+        assertTrue(calc(f("erf", n("0.3"))).result.toString().startsWith("erf"))
     }
 }

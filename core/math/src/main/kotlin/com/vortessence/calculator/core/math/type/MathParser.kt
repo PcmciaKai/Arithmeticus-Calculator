@@ -169,7 +169,8 @@ class MathParser {
                 }
                 is FunctionNode -> {
                     val arg = parseSlot(node.argument)
-                    val fnExpr = when (node.name.lowercase()) {
+                    // Γ, lnΓ and ψ are how results write gamma, lngamma and digamma (lower-cased Γ would be γ, Euler's constant)
+                    val fnExpr = when (when (node.name) { "Γ" -> "gamma"; "lnΓ" -> "lngamma"; "ψ" -> "digamma"; else -> node.name.lowercase() }) {
                         "sin" -> TrigonometricFunction(TrigType.SIN, arg)
                         "cos" -> TrigonometricFunction(TrigType.COS, arg)
                         "tan" -> TrigonometricFunction(TrigType.TAN, arg)

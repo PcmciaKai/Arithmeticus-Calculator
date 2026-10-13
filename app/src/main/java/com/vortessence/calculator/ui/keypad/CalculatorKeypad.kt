@@ -307,7 +307,7 @@ fun CalculatorKeypad(
                         text = "!",
                         buttonWidth = buttonWidth,
                         isAccent = true,
-                        alternates = listOf(alt("%", KeyAction.Operator("%")), alt("mod", KeyAction.Operator("mod")), alt("Γ", KeyAction.Function("gamma")))
+                        alternates = listOf(alt("%", KeyAction.Operator("%")), alt("mod", KeyAction.Operator("mod")), alt("Γ", KeyAction.Function("Γ")))
                     ) { onKeyAction(KeyAction.Operator("!")) }
                     KeyButton(
                         text = "□²",

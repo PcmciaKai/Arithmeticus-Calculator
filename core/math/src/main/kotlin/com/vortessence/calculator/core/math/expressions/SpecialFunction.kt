@@ -8,13 +8,17 @@ import com.vortessence.calculator.core.math.numbers.Rational
 import com.vortessence.calculator.core.math.numbers.Real
 import com.vortessence.calculator.core.math.numbers.SpecialMath
 
-enum class SpecialType(val functionName: String) {
+/**
+ * [functionName] is what can be typed (gamma(, lngamma(, digamma(); [symbol] is how results and steps write it:
+ * Γ(x), lnΓ(x) and ψ(x), where there is one.
+ */
+enum class SpecialType(val functionName: String, val symbol: String = functionName) {
     /** Γ(x), which continues the factorial: Γ(n + 1) = n!. */
-    GAMMA("gamma"),
+    GAMMA("gamma", "Γ"),
     /** ln Γ(x) for x > 0, which stays small where Γ(x) overflows. */
-    LNGAMMA("lngamma"),
+    LNGAMMA("lngamma", "lnΓ"),
     /** ψ(x) = Γ'(x)/Γ(x), the slope of ln Γ. */
-    DIGAMMA("digamma"),
+    DIGAMMA("digamma", "ψ"),
     /** The error function, 2/√π · ∫₀ˣ e^(−t²) dt. */
     ERF("erf"),
     /** 1 − erf(x). */
