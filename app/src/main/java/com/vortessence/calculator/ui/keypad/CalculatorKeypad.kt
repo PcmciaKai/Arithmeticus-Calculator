@@ -22,7 +22,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowRightAlt
 import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.automirrored.filled.KeyboardReturn
 import androidx.compose.material.icons.automirrored.filled.MenuBook
@@ -449,7 +448,7 @@ fun CalculatorKeypad(
                         content = { IconLabel(Icons.Default.Straighten, stringResource(R.string.keypad_units), stringResource(R.string.keypad_units)) },
                         popupIcon = Icons.Default.Straighten,
                         alternates = listOf(
-                            KeyAlternate(AnnotatedString("→"), Icons.AutoMirrored.Filled.ArrowRightAlt) { onKeyAction(KeyAction.Convert) }
+                            KeyAlternate(AnnotatedString("→"), ConvertArrowIcon) { onKeyAction(KeyAction.Convert) }
                         )
                     ) { onKeyAction(KeyAction.OpenUnits) }
                     KeyButton(
@@ -837,6 +836,31 @@ private val InfinityIcon: ImageVector = ImageVector.Builder(
         curveTo(2.5f, 9.2f, 4.2f, 11f, 6.5f, 11f)
         curveTo(8.6f, 11f, 10.2f, 9.4f, 12f, 7f)
         close()
+    }
+}.build()
+
+/**
+ * The unit conversion arrow, drawn as a path like [InfinityIcon]: the Material arrow leaves a wide
+ * margin around a thin shape, and looks small beside the other popup symbols.
+ */
+private val ConvertArrowIcon: ImageVector = ImageVector.Builder(
+    name = "ConvertArrow",
+    defaultWidth = 24.dp,
+    defaultHeight = 14.dp,
+    viewportWidth = 24f,
+    viewportHeight = 14f
+).apply {
+    path(
+        stroke = SolidColor(Color.Black),
+        strokeLineWidth = 2.2f,
+        strokeLineCap = StrokeCap.Round,
+        strokeLineJoin = StrokeJoin.Round
+    ) {
+        moveTo(2.5f, 7f)
+        lineTo(21.5f, 7f)
+        moveTo(15.5f, 1.5f)
+        lineTo(21.5f, 7f)
+        lineTo(15.5f, 12.5f)
     }
 }.build()
 
