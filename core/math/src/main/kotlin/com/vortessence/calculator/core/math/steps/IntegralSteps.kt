@@ -18,6 +18,7 @@ import com.vortessence.calculator.core.math.expressions.Multiplications
 import com.vortessence.calculator.core.math.expressions.Power
 import com.vortessence.calculator.core.math.expressions.TrigType
 import com.vortessence.calculator.core.math.expressions.HyperbolicFunction
+import com.vortessence.calculator.core.math.expressions.SpecialFunction
 import com.vortessence.calculator.core.math.expressions.HyperbolicType
 import com.vortessence.calculator.core.math.expressions.TrigonometricFunction
 import com.vortessence.calculator.core.math.expressions.UnitExpression
@@ -306,7 +307,8 @@ internal object IntegralSteps {
                     return divide(Power(u, next), divisor) to StepRule.INTEGRAL_POWER
                 }
                 g is Power && !g.base.containsVariable(v) -> {
-                    val a = integrator.linearSlope(g.exponent, v) ?: return null
+                    val a = integrator.linearSlope(g.exponent, v)
+                        ?: return integrator.gaussian(g.base, g.exponent, v)?.let { canonical(it) }?.let { it to StepRule.INTEGRAL_GAUSSIAN }
                     val divisor = if (g.base == Constant.E) a else product(a, Logarithm.ln(g.base))
                     return divide(g, divisor) to StepRule.INTEGRAL_EXPONENTIAL
                 }
@@ -333,6 +335,7 @@ internal object IntegralSteps {
                         else -> StepRule.INTEGRAL_HYPERBOLIC_COSECANT
                     })
                 }
+                g is SpecialFunction -> return fromTable(g)
                 g is Logarithm && !g.base.containsVariable(v) -> {
                     val u = g.operand
                     val a = integrator.linearSlope(u, v) ?: return null
@@ -374,6 +377,7 @@ internal object IntegralSteps {
                 is Power -> if (g.base.containsVariable(v)) g.base else g.exponent
                 is TrigonometricFunction -> g.operand
                 is HyperbolicFunction -> g.operand
+                is SpecialFunction -> g.operand
                 is Logarithm -> g.operand
                 else -> v
             }

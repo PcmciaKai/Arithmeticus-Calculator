@@ -488,6 +488,10 @@ private val StepRule.descriptionRes: Int
         StepRule.INVERSE_HYPERBOLIC_SECANT -> R.string.step_asech
         StepRule.INVERSE_HYPERBOLIC_COSECANT -> R.string.step_acsch
         StepRule.INVERSE_HYPERBOLIC_COTANGENT -> R.string.step_acoth
+        StepRule.GAMMA_FUNCTION -> R.string.step_gamma
+        StepRule.LOG_GAMMA_FUNCTION -> R.string.step_lngamma
+        StepRule.ERROR_FUNCTION -> R.string.step_erf
+        StepRule.COMPLEMENTARY_ERROR_FUNCTION -> R.string.step_erfc
         StepRule.ABSOLUTE_VALUE -> R.string.step_absolute_value
         StepRule.FUNDAMENTAL_THEOREM -> R.string.step_fundamental_theorem
         StepRule.IMAGINARY_ROOT -> R.string.step_imaginary_root
@@ -539,6 +543,7 @@ private val StepRule.descriptionRes: Int
         StepRule.INTEGRAL_HYPERBOLIC_COTANGENT -> R.string.step_integral_coth
         StepRule.INTEGRAL_HYPERBOLIC_SECANT -> R.string.step_integral_sech
         StepRule.INTEGRAL_HYPERBOLIC_COSECANT -> R.string.step_integral_csch
+        StepRule.INTEGRAL_GAUSSIAN -> R.string.step_integral_gaussian
         StepRule.INTEGRAL_LOGARITHM -> R.string.step_integral_logarithm
         StepRule.INTEGRAL_TABLE -> R.string.step_integral_table
         StepRule.INTEGRAL_INVERSE_HYPERBOLIC_SINE -> R.string.step_integral_inverse_hyperbolic_sine
@@ -719,6 +724,10 @@ internal fun StepRule.formula(language: Language): String? {
         StepRule.INVERSE_HYPERBOLIC_SECANT -> "(asech(x))′ = −\\frac{1}{x·\\sqrt{1 − x^2}}"
         StepRule.INVERSE_HYPERBOLIC_COSECANT -> "(acsch(x))′ = −\\frac{1}{|x|·\\sqrt{x^2 + 1}}"
         StepRule.INVERSE_HYPERBOLIC_COTANGENT -> "(acoth(x))′ = \\frac{1}{1 − x^2}"
+        StepRule.GAMMA_FUNCTION -> "(gamma(x))′ = gamma(x)·digamma(x)"
+        StepRule.LOG_GAMMA_FUNCTION -> "(lngamma(x))′ = digamma(x)"
+        StepRule.ERROR_FUNCTION -> "(erf(x))′ = \\frac{2}{\\sqrt{π}}·e^{−x^2}"
+        StepRule.COMPLEMENTARY_ERROR_FUNCTION -> "(erfc(x))′ = −\\frac{2}{\\sqrt{π}}·e^{−x^2}"
         StepRule.ABSOLUTE_VALUE -> "|x|′ = \\frac{x}{|x|}"
         StepRule.FUNDAMENTAL_THEOREM -> "(\\intab{a}{x}{f(t)}{t})′ = f(x)"
         StepRule.COMBINE_POWERS -> "x^a·x^b = x^{a + b}"
@@ -789,6 +798,7 @@ internal fun StepRule.formula(language: Language): String? {
         StepRule.INTEGRAL_HYPERBOLIC_COTANGENT -> "\\int{coth(x)}{x} = ln(|sinh(x)|)"
         StepRule.INTEGRAL_HYPERBOLIC_SECANT -> "\\int{sech(x)}{x} = atan(sinh(x))"
         StepRule.INTEGRAL_HYPERBOLIC_COSECANT -> "\\int{csch(x)}{x} = ln(|tanh(\\frac{x}{2})|)"
+        StepRule.INTEGRAL_GAUSSIAN -> "\\int{e^{−a·x^2}}{x} = \\frac{\\sqrt{π}}{2·\\sqrt{a}}·erf(\\sqrt{a}·x)"
         StepRule.INTEGRAL_LOGARITHM -> "\\int{ln(x)}{x} = x·ln(x) − x"
         StepRule.SUBSTITUTION -> "\\int{f(g(x))·g′(x)}{x} = \\int{f(u)}{u}"
         StepRule.BY_PARTS -> "\\int{u}{v} = u·v − \\int{v}{u}"

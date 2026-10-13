@@ -7,6 +7,7 @@ import kotlin.math.floor
 import kotlin.math.ln
 import kotlin.math.pow
 import kotlin.math.sin
+import kotlin.math.tan
 import kotlin.math.sqrt
 
 /** The gamma function and the error function in floating point, accurate to about 14 digits. */
@@ -56,6 +57,24 @@ internal object SpecialMath {
         var sum = LANCZOS[0]
         for (i in 1 until LANCZOS.size) sum += LANCZOS[i] / (shifted + i)
         return sum
+    }
+
+    /** ψ(x) = Γ'(x)/Γ(x); NaN at 0 and the negative whole numbers. */
+    fun digamma(x: Double): Double {
+        if (x.isNaN() || (x <= 0.0 && x == floor(x))) return Double.NaN
+        // ψ(1 − x) − ψ(x) = π·cot(πx)
+        if (x < 0.5) return digamma(1.0 - x) - PI / tan(PI * x)
+        // ψ(x) = ψ(x + 1) − 1/x up to where the asymptotic series is accurate
+        var shifted = x
+        var result = 0.0
+        while (shifted < 10.0) {
+            result -= 1.0 / shifted
+            shifted += 1.0
+        }
+        val inverse = 1.0 / shifted
+        val square = inverse * inverse
+        return result + ln(shifted) - 0.5 * inverse -
+            square * (1.0 / 12 - square * (1.0 / 120 - square * (1.0 / 252 - square * (1.0 / 240 - square * (1.0 / 132 - square * (691.0 / 32760 - square / 12))))))
     }
 
     /** The error function 2/√π · ∫₀ˣ e^(−t²) dt. */

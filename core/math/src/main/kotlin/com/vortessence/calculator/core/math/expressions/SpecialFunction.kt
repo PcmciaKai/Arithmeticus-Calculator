@@ -13,6 +13,8 @@ enum class SpecialType(val functionName: String) {
     GAMMA("gamma"),
     /** ln Γ(x) for x > 0, which stays small where Γ(x) overflows. */
     LNGAMMA("lngamma"),
+    /** ψ(x) = Γ'(x)/Γ(x), the slope of ln Γ. */
+    DIGAMMA("digamma"),
     /** The error function, 2/√π · ∫₀ˣ e^(−t²) dt. */
     ERF("erf"),
     /** 1 − erf(x). */
@@ -21,23 +23,27 @@ enum class SpecialType(val functionName: String) {
     fun evaluate(v: Double): Double = when (this) {
         GAMMA -> SpecialMath.gamma(v)
         LNGAMMA -> SpecialMath.lnGamma(v)
+        DIGAMMA -> SpecialMath.digamma(v)
         ERF -> SpecialMath.erf(v)
         ERFC -> SpecialMath.erfc(v)
     }
 
-    /** The derivative with respect to the operand [u], or null where it would need a function we do not have (digamma). */
+    /** The derivative with respect to the operand [u], or null where it would need a function we do not have (trigamma). */
     fun outerDerivative(u: Expression): Expression? = when (this) {
         ERF, ERFC -> {
             // erf'(u) = 2/√π · e^(−u²)
             val gauss = Multiplications.of(Value.TWO, Power(Constant.PI, Value(-1L, 2L)), Power(Constant.E, Multiplications.of(Value.MINUS_ONE, Power(u, Value.TWO))))
             if (this == ERF) gauss else Multiplications.of(Value.MINUS_ONE, gauss)
         }
-        GAMMA, LNGAMMA -> null
+        // Γ' = Γ·ψ and (ln Γ)' = ψ
+        GAMMA -> Multiplications.of(SpecialFunction(GAMMA, u), SpecialFunction(DIGAMMA, u))
+        LNGAMMA -> SpecialFunction(DIGAMMA, u)
+        DIGAMMA -> null
     }
 }
 
 /**
- * gamma, lngamma, erf and erfc of a plain number. They have exact values only in a few places
+ * gamma, lngamma, digamma, erf and erfc of a plain number. They have exact values only in a few places
  * (Γ of whole and half-integers, erf(0)); everywhere else a number stays as the function in exact
  * mode and is calculated in numeric mode.
  */
@@ -61,8 +67,13 @@ class SpecialFunction(val type: SpecialType, val operand: Expression) : Expressi
         val v = op.evaluateNumerically()
         if (v.isNaN()) return fail(context, MathIssue.UNDEFINED)
         val rational = (op as? Value)?.rational
+        // erf and erfc go to their limits at ±∞
+        if (v.isInfinite() && (type == SpecialType.ERF || type == SpecialType.ERFC)) {
+            val limit = if (type == SpecialType.ERF) Math.signum(v).toLong() else 1L - Math.signum(v).toLong()
+            return Value(limit)
+        }
         // Poles and the domain of ln Γ
-        if (type == SpecialType.GAMMA && v <= 0.0 && v == Math.floor(v)) return fail(context, MathIssue.UNDEFINED)
+        if ((type == SpecialType.GAMMA || type == SpecialType.DIGAMMA) && v <= 0.0 && v == Math.floor(v)) return fail(context, MathIssue.UNDEFINED)
         if (type == SpecialType.LNGAMMA && v <= 0.0) return fail(context, MathIssue.UNDEFINED)
 
         if (context.mode == CalculationMode.NUMERIC) {
@@ -92,6 +103,7 @@ class SpecialFunction(val type: SpecialType, val operand: Expression) : Expressi
             SpecialType.ERFC -> if (x.isZero) Value.ONE else null
             SpecialType.LNGAMMA -> if (x == Rational.ONE || x == Rational.of(2L)) Value.ZERO else null
             SpecialType.GAMMA -> gamma(x, context)
+            SpecialType.DIGAMMA -> null
         }
     }
 

@@ -50,6 +50,14 @@ enum class StepRule {
     INVERSE_HYPERBOLIC_SECANT,
     INVERSE_HYPERBOLIC_COSECANT,
     INVERSE_HYPERBOLIC_COTANGENT,
+    /** gamma(u)' = gamma(u)·digamma(u)·u' */
+    GAMMA_FUNCTION,
+    /** lngamma(u)' = digamma(u)·u' */
+    LOG_GAMMA_FUNCTION,
+    /** erf(u)' = 2/√π·e^(−u²)·u' */
+    ERROR_FUNCTION,
+    /** erfc(u)' = −2/√π·e^(−u²)·u' */
+    COMPLEMENTARY_ERROR_FUNCTION,
     /** |u|' = u'·u/|u| */
     ABSOLUTE_VALUE,
     /** √x = x^(1/2), 1/x = x⁻¹: a root or fraction written as a power, for the power rule */
@@ -142,6 +150,8 @@ enum class StepRule {
     INTEGRAL_HYPERBOLIC_COTANGENT,
     INTEGRAL_HYPERBOLIC_SECANT,
     INTEGRAL_HYPERBOLIC_COSECANT,
+    /** ∫ e^(−a·x²) dx = √π/(2√a)·erf(√a·x) */
+    INTEGRAL_GAUSSIAN,
     /** ∫ ln(x) dx = x·ln(x) − x */
     INTEGRAL_LOGARITHM,
     /** sin², cos², 1/(p + qx²), 1/√(p − qx²) */

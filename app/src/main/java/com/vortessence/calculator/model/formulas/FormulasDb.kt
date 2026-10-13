@@ -62,6 +62,7 @@ object FormulasDb {
         Formula(R.string.formula_conj_name, R.string.formula_conj_desc, R.string.category_complex, ofValues("conj")),
         Formula(R.string.formula_gamma_name, R.string.formula_gamma_desc, R.string.category_special, ofValues("gamma")),
         Formula(R.string.formula_lngamma_name, R.string.formula_lngamma_desc, R.string.category_special, ofValues("lngamma")),
+        Formula(R.string.formula_digamma_name, R.string.formula_digamma_desc, R.string.category_special, ofValues("digamma")),
         Formula(R.string.formula_beta_name, R.string.formula_beta_desc, R.string.category_special, ofTwo("beta")),
         Formula(R.string.formula_erf_name, R.string.formula_erf_desc, R.string.category_special, ofValues("erf")),
         Formula(R.string.formula_erfc_name, R.string.formula_erfc_desc, R.string.category_special, ofValues("erfc"))

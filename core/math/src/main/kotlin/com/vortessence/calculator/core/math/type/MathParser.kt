@@ -199,6 +199,7 @@ class MathParser {
                         "sqrt" -> Power.squareRoot(arg)
                         "gamma" -> SpecialFunction(SpecialType.GAMMA, arg)
                         "lngamma" -> SpecialFunction(SpecialType.LNGAMMA, arg)
+                        "digamma" -> SpecialFunction(SpecialType.DIGAMMA, arg)
                         "erf" -> SpecialFunction(SpecialType.ERF, arg)
                         "erfc" -> SpecialFunction(SpecialType.ERFC, arg)
                         "cbrt" -> Power.nthRoot(Value(3L), arg)

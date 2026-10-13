@@ -201,4 +201,37 @@ class SpecialFunctionTest {
         assertTrue("${definite.issues}", definite.isSuccess)
         assertClose(0.746824132812427, definite.numericValue, 1e-9)
     }
+
+    @Test
+    fun digammaInFloatingPoint() {
+        assertClose(-0.5772156649015329, SpecialMath.digamma(1.0))
+        assertClose(0.42278433509846713, SpecialMath.digamma(2.0))
+        assertClose(2.2517525890667214, SpecialMath.digamma(10.0))
+        assertClose(4.600161852738087, SpecialMath.digamma(100.0))
+        assertClose(-1.9635100260214235, SpecialMath.digamma(0.5))
+        assertClose(0.703156640645243, SpecialMath.digamma(2.5))
+        assertClose(0.03648997397857645, SpecialMath.digamma(-0.5), 1e-12)
+        assertClose(1.1031566406452438, SpecialMath.digamma(-2.5), 1e-12)
+        assertClose(1.1671535394164323, SpecialMath.digamma(3.7), 1e-9)
+        assertClose(-10.423754940411077, SpecialMath.digamma(0.1), 1e-12)
+        assertTrue(SpecialMath.digamma(0.0).isNaN())
+        assertTrue(SpecialMath.digamma(-4.0).isNaN())
+    }
+
+    @Test
+    fun gammaAndLnGammaAreDifferentiatedWithTheDigamma() {
+        val x = VariableNode("x")
+        // Γ'(2) = Γ(2)·ψ(2)
+        val gamma = calc(DerivativeNode(ms(f("gamma", x)), ms(n("2"))))
+        assertTrue("${gamma.issues}", gamma.isSuccess)
+        assertClose(0.42278433509846713, gamma.numericValue)
+        val lnGamma = calc(DerivativeNode(ms(f("lngamma", x)), ms(n("1"))))
+        assertClose(-0.5772156649015329, lnGamma.numericValue)
+        // With the chain rule: d/dx Γ(2x) = 2·Γ(2x)·ψ(2x) at x = 1
+        val chain = calc(DerivativeNode(ms(f("gamma", n("2"), x)), ms(n("1"))))
+        assertClose(2 * 0.42278433509846713, chain.numericValue)
+        assertEquals(listOf(MathIssue.CANT_DIFFERENTIATE), calc(DerivativeNode(ms(f("digamma", x)))).issues)
+        assertClose(0.42278433509846713, value(f("digamma", n("2"))))
+        assertEquals(listOf(MathIssue.UNDEFINED), calc(f("digamma", n("0"))).issues)
+    }
 }

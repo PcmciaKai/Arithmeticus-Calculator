@@ -166,6 +166,15 @@ internal class Integrator(private val context: MathContext) {
                 }
                 Multiplications(listOf(antiderivative, inverse(a)))
             }
+            is SpecialFunction -> {
+                // ∫erf(u) = (u·erf(u) + e^(−u²)/√π)/a and ∫erfc(u) = (u·erfc(u) − e^(−u²)/√π)/a
+                if (f.type != SpecialType.ERF && f.type != SpecialType.ERFC) return null
+                val u = f.operand
+                val a = linearSlope(u, v) ?: return null
+                val gauss = Multiplications(listOf(Power(Constant.E, Multiplications(listOf(Value.MINUS_ONE, Power(u, Value.TWO)))), Power(Constant.PI, Value(-1L, 2L))))
+                val sign = if (f.type == SpecialType.ERF) Value.ONE else Value.MINUS_ONE
+                Multiplications(listOf(Additions(listOf(Multiplications(listOf(u, f)), Multiplications(listOf(sign, gauss)))), inverse(a)))
+            }
             is Logarithm -> {
                 if (f.base.containsVariable(v)) return null
                 // ∫ log_b(u) = (u·ln u − u) / (a·ln b)
@@ -181,14 +190,15 @@ internal class Integrator(private val context: MathContext) {
     }
 
     /** ∫ e^(−k·v²) dv = √π/(2√k) · erf(√k·v) for k > 0 (e^(k·v²) with k > 0 has no such form). */
-    private fun gaussian(base: Expression, exponent: Expression, v: Variable): Expression? {
+    internal fun gaussian(base: Expression, exponent: Expression, v: Variable): Expression? {
         if (base != Constant.E) return null
         val second = canonical(Differentiator.derivative(Differentiator.derivative(exponent, v) ?: return null, v) ?: return null) ?: return null
         if (second.containsVariable(v) || second.isZero) return null
         // exponent = A·v² exactly, and A < 0
         val a = canonical(Multiplications.of(Value.HALF, second)) ?: return null
         val rest = canonical(Additions(listOf(exponent, Multiplications.of(Value.MINUS_ONE, a, Power(v, Value.TWO))))) ?: return null
-        if (!rest.isZero || a.evaluateNumerically() >= 0.0) return null
+        // A must be a known negative number (with y in e^(−y·x²) the sign is not known)
+        if (!rest.isZero || a.variables().isNotEmpty() || !(a.evaluateNumerically() < 0.0)) return null
         val root = Power.squareRoot(Multiplications.of(Value.MINUS_ONE, a))
         return Multiplications(listOf(
             Power(Constant.PI, Value.HALF), Value.HALF, inverse(root),

@@ -27,6 +27,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -283,6 +284,8 @@ class CalculatorViewModel @JvmOverloads constructor(
                     for (entry in saved.entries) {
                         launch {
                             val restored = restoreEntry(entry)
+                            // Cleared (AC) while this one was being calculated: it stays gone
+                            if (!isActive) return@launch
                             if (restored == null) {
                                 unrestoredEntries = unrestoredEntries + entry
                             } else {
@@ -1549,6 +1552,8 @@ class CalculatorViewModel @JvmOverloads constructor(
     fun clearAll() {
         restoreJob?.cancel() // do not bring back what was just cleared
         unrestoredEntries = emptyList()
+        // Nothing is left to wait for: the empty history is to be saved at once, not after the cancelled job has wound up
+        sessionRestored = true
         _uiState.update {
             it.copy(
                 expression = MathString(),

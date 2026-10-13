@@ -14,6 +14,8 @@ import com.vortessence.calculator.core.math.expressions.Multiplications
 import com.vortessence.calculator.core.math.expressions.Power
 import com.vortessence.calculator.core.math.expressions.TrigType
 import com.vortessence.calculator.core.math.expressions.HyperbolicFunction
+import com.vortessence.calculator.core.math.expressions.SpecialFunction
+import com.vortessence.calculator.core.math.expressions.SpecialType
 import com.vortessence.calculator.core.math.expressions.HyperbolicType
 import com.vortessence.calculator.core.math.expressions.TrigonometricFunction
 import com.vortessence.calculator.core.math.expressions.Value
@@ -104,6 +106,8 @@ internal object DerivativeSteps {
             v -> true
             is Additions, is Multiplications, is Power, is Logarithm, is TrigonometricFunction, is HyperbolicFunction, is AbsoluteValue ->
                 e.children.all { hasRules(it, v) }
+            // The digamma would need the trigamma
+            is SpecialFunction -> e.type.outerDerivative(e.operand) != null && hasRules(e.operand, v)
             is Integral -> (e.variable == v || !e.integrand.containsVariable(v)) &&
                 hasRules(e.lowerBound, v) && hasRules(e.upperBound, v)
             else -> false
@@ -137,6 +141,7 @@ internal object DerivativeSteps {
                 is Logarithm -> logarithm(u)
                 is TrigonometricFunction -> trigonometric(u)
                 is HyperbolicFunction -> hyperbolic(u)
+                is SpecialFunction -> special(u)
                 is AbsoluteValue -> Rewrite(product(u.operand, Power(u, Value.MINUS_ONE)), StepRule.ABSOLUTE_VALUE)
                 is Integral -> integral(u)
                 else -> null
@@ -160,6 +165,7 @@ internal object DerivativeSteps {
                 e is Logarithm && !e.base.containsVariable(v) -> e.operand to { w: Expression -> Logarithm(e.base, w) }
                 e is TrigonometricFunction -> e.operand to { w: Expression -> TrigonometricFunction(e.type, w, e.angleUnit ?: context.angleUnit) }
                 e is HyperbolicFunction -> e.operand to { w: Expression -> HyperbolicFunction(e.type, w) }
+                e is SpecialFunction -> e.operand to { w: Expression -> SpecialFunction(e.type, w) }
                 e is AbsoluteValue -> e.operand to { w: Expression -> AbsoluteValue(w) }
                 else -> return null
             }
@@ -305,6 +311,17 @@ internal object DerivativeSteps {
                 HyperbolicType.ACOTH -> StepRule.INVERSE_HYPERBOLIC_COTANGENT
             }
             return Rewrite(u.type.outerDerivative(u.operand), rule)
+        }
+
+        private fun special(u: SpecialFunction): Rewrite? {
+            val rule = when (u.type) {
+                SpecialType.GAMMA -> StepRule.GAMMA_FUNCTION
+                SpecialType.LNGAMMA -> StepRule.LOG_GAMMA_FUNCTION
+                SpecialType.ERF -> StepRule.ERROR_FUNCTION
+                SpecialType.ERFC -> StepRule.COMPLEMENTARY_ERROR_FUNCTION
+                SpecialType.DIGAMMA -> return null
+            }
+            return Rewrite(u.type.outerDerivative(u.operand) ?: return null, rule)
         }
 
         private fun integral(u: Integral): Rewrite? {

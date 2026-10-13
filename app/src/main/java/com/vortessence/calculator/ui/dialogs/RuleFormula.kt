@@ -138,11 +138,10 @@ private class FormulaParser(private val source: String) {
 
     /** A function such as sin(…), or a single letter. */
     private fun word(): MathNode {
-        for (name in FUNCTIONS) {
-            if (source.startsWith("$name(", pos)) {
-                pos += name.length + 1
-                return FunctionNode(name, MathString(sequence(until = ')')))
-            }
+        // The longest name that fits (gamma( at lngamma( is the log-gamma, not a gamma after l and n)
+        FUNCTIONS.filter { source.startsWith("$it(", pos) }.maxByOrNull { it.length }?.let { name ->
+            pos += name.length + 1
+            return FunctionNode(name, MathString(sequence(until = ')')))
         }
         val c = source[pos++]
         return if (c == 'e') ConstantNode("e") else VariableNode(c.toString())
@@ -151,7 +150,8 @@ private class FormulaParser(private val source: String) {
     companion object {
         private val FUNCTIONS = listOf(
             "asinh", "acosh", "atanh", "asech", "acsch", "acoth", "sinh", "cosh", "tanh", "sech", "csch", "coth",
-            "asin", "acos", "atan", "asec", "acsc", "acot", "sin", "cos", "tan", "sec", "csc", "cot", "ln"
+            "asin", "acos", "atan", "asec", "acsc", "acot", "sin", "cos", "tan", "sec", "csc", "cot", "ln",
+            "digamma", "lngamma", "gamma", "erfc", "erf"
         )
     }
 }

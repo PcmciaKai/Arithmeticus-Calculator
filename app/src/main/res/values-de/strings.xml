@@ -111,6 +111,8 @@
     <string name="formula_gamma_desc">Γ(x) setzt die Fakultät auf nicht ganze Zahlen fort: Γ(n + 1) = n!. Exakt für ganze und halbe Zahlen</string>
     <string name="formula_lngamma_name">Log-Gamma ln Γ</string>
     <string name="formula_lngamma_desc">ln Γ(x) für x > 0; bleibt klein, wo Γ(x) zu groß wird</string>
+    <string name="formula_digamma_name">Digamma ψ</string>
+    <string name="formula_digamma_desc">ψ(x) = Γ\'(x)/Γ(x), die Steigung von ln Γ(x). Sie tritt in der Ableitung von gamma auf</string>
     <string name="formula_beta_name">Beta-Funktion</string>
     <string name="formula_beta_desc">B(a, b) = Γ(a)·Γ(b) / Γ(a + b)</string>
     <string name="formula_erf_name">Fehlerfunktion erf</string>
@@ -256,6 +258,11 @@
     <string name="step_asech">Leite den Areasekans hyperbolicus ab</string>
     <string name="step_acsch">Leite den Areakosekans hyperbolicus ab</string>
     <string name="step_acoth">Leite den Areakotangens hyperbolicus ab</string>
+    <string name="step_gamma">Leite die Gammafunktion ab</string>
+    <string name="step_lngamma">Leite die Log-Gamma-Funktion ab</string>
+    <string name="step_erf">Leite die Fehlerfunktion ab</string>
+    <string name="step_erfc">Leite die komplementäre Fehlerfunktion ab</string>
+    <string name="step_integral_gaussian">Integriere die Gauß-Funktion (sie ergibt die Fehlerfunktion)</string>
     <string name="step_absolute_value">Leite den Betrag ab</string>
     <string name="step_fundamental_theorem">Wende den Hauptsatz der Differential- und Integralrechnung an</string>
     <string name="step_imaginary_root">Ziehe die Wurzel aus einer negativen Zahl</string>

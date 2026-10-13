@@ -37,6 +37,11 @@
     <string name="step_asech">Differentiate the inverse hyperbolic secant</string>
     <string name="step_acsch">Differentiate the inverse hyperbolic cosecant</string>
     <string name="step_acoth">Differentiate the inverse hyperbolic cotangent</string>
+    <string name="step_gamma">Differentiate the gamma function</string>
+    <string name="step_lngamma">Differentiate the log-gamma function</string>
+    <string name="step_erf">Differentiate the error function</string>
+    <string name="step_erfc">Differentiate the complementary error function</string>
+    <string name="step_integral_gaussian">Integrate the Gaussian function (it gives the error function)</string>
     <string name="step_absolute_value">Differentiate the absolute value</string>
     <string name="step_fundamental_theorem">Apply the fundamental theorem of calculus</string>
     <string name="step_imaginary_root">Take the root of a negative number</string>
@@ -353,6 +358,8 @@
     <string name="formula_gamma_desc">Γ(x) continues the factorial to numbers that are not whole: Γ(n + 1) = n!. Exact for whole and half numbers</string>
     <string name="formula_lngamma_name">Log-gamma ln Γ</string>
     <string name="formula_lngamma_desc">ln Γ(x) for x > 0; stays small where Γ(x) gets too large</string>
+    <string name="formula_digamma_name">Digamma ψ</string>
+    <string name="formula_digamma_desc">ψ(x) = Γ\'(x)/Γ(x), the slope of ln Γ(x). It appears in the derivative of gamma</string>
     <string name="formula_beta_name">Beta function</string>
     <string name="formula_beta_desc">B(a, b) = Γ(a)·Γ(b) / Γ(a + b)</string>
     <string name="formula_erf_name">Error function erf</string>
