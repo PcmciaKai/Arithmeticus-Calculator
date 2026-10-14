@@ -78,6 +78,9 @@ object FormulasDb {
         Formula(R.string.formula_tinv_name, R.string.formula_tinv_desc, R.string.category_distributions, ofValues("tinv")),
         Formula(R.string.formula_chisqpdf_name, R.string.formula_chisqpdf_desc, R.string.category_distributions, ofValues("chisqpdf")),
         Formula(R.string.formula_chisqcdf_name, R.string.formula_chisqcdf_desc, R.string.category_distributions, ofValues("chisqcdf")),
-        Formula(R.string.formula_chisqinv_name, R.string.formula_chisqinv_desc, R.string.category_distributions, ofValues("chisqinv"))
+        Formula(R.string.formula_chisqinv_name, R.string.formula_chisqinv_desc, R.string.category_distributions, ofValues("chisqinv")),
+        Formula(R.string.formula_rand_name, R.string.formula_rand_desc, R.string.category_random, ofValues("rand")),
+        Formula(R.string.formula_randint_name, R.string.formula_randint_desc, R.string.category_random, ofTwo("randint")),
+        Formula(R.string.formula_randnorm_name, R.string.formula_randnorm_desc, R.string.category_random, ofValues("randnorm"))
     )
 }

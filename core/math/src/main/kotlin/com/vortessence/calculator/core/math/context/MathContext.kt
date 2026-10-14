@@ -21,7 +21,9 @@ class MathContext(
     /** Whether i and complex results (√−1 = i, ln(−1) = iπ) are allowed. */
     var complexNumbers: Boolean = false,
     /** The language of the texts the calculation produces: error messages, notes in the steps. */
-    var language: Language = Language.ENGLISH
+    var language: Language = Language.ENGLISH,
+    /** The seed of the line: its random numbers (rand(), randint(a, b), ...) are a function of it, so they stay the same as long as the seed does. */
+    var randomSeed: Long = 0L
 ) {
     private val _issues = mutableListOf<MathIssue>()
     val issues: List<MathIssue> get() = _issues
@@ -50,7 +52,7 @@ class MathContext(
         get() = System.currentTimeMillis() > deadlineMillis
 
     fun copy(): MathContext {
-        val copy = MathContext(mode, angleUnit, maxPrecision, unitSystem, decimalPlaces, ans, variables, complexNumbers, language)
+        val copy = MathContext(mode, angleUnit, maxPrecision, unitSystem, decimalPlaces, ans, variables, complexNumbers, language, randomSeed)
         copy._issues.addAll(_issues)
         copy.isCancelled.set(isCancelled.get())
         copy.deadlineMillis = deadlineMillis

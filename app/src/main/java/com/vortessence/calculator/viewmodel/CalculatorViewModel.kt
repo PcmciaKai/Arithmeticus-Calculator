@@ -93,6 +93,11 @@ data class CalculatorUiState(
     val showComplexNotice: Boolean = false,
     /** The language of the texts the calculation produces (and the app is shown in). */
     val language: Language = Language.ENGLISH,
+    /**
+     * The seed of the line being typed: its random numbers (rand(), ...) are a function of it, so they stay the same while the
+     * line is edited and are the ones that are kept with the result when it is committed. A new line gets a new seed.
+     */
+    val randomSeed: Long = 0L,
     /** The integral or derivative whose variable is being changed (a tap on its dx), or null. */
     val variableEdit: VariableEdit? = null,
     /** Why a letter typed on the system keyboard was not taken (see [CalculatorViewModel.typeText]); null after the next typing that had no such letter. */
@@ -166,7 +171,9 @@ data class HistoryEntry(val id: Long, val calculation: CalculationResult, val fo
 class CalculatorViewModel @JvmOverloads constructor(
     application: Application,
     private val liveResultDelayMillis: Long = 120L,
-    sessionStore: SessionStore? = null
+    sessionStore: SessionStore? = null,
+    /** Where the seeds of the lines come from (tests give numbers that are known). */
+    private val seedSource: () -> Long = { kotlin.random.Random.nextLong() }
 ) : AndroidViewModel(application) {
 
     private val prefs = try {
@@ -212,7 +219,7 @@ class CalculatorViewModel @JvmOverloads constructor(
 
     init {
         loadSettings()
-        _uiState.update { it.copy(language = AppLanguage.current(application)) }
+        _uiState.update { it.copy(language = AppLanguage.current(application), randomSeed = seedSource()) }
         restoreSession()
         observeLiveResult()
         observeSession()
@@ -236,7 +243,7 @@ class CalculatorViewModel @JvmOverloads constructor(
                     val context = input.snapshot.toMathContext()
                     val res = MathEngine.calculate(input.expression, context)
                     _uiState.update {
-                        if (it.expression == input.expression) {
+                        if (it.isFor(input)) {
                             it.copy(
                                 result = res, showResultError = false, hasSteps = false, transforms = emptyList(), percentHint = null,
                                 // Not while the line is unfinished: d/dx(y + is not yet a question
@@ -245,7 +252,7 @@ class CalculatorViewModel @JvmOverloads constructor(
                         } else it
                     }
                     percentHint(input.expression, res, context)?.let { hint ->
-                        _uiState.update { if (it.expression == input.expression) it.copy(percentHint = hint) else it }
+                        _uiState.update { if (it.isFor(input)) it.copy(percentHint = hint) else it }
                     }
                     // Finding out whether there are steps can take as long as the calculation: the
                     // result is shown first, the "Steps" pill follows
@@ -254,11 +261,11 @@ class CalculatorViewModel @JvmOverloads constructor(
                         val solution = MathEngine.steps(input.expression, context)
                         cachedSteps = CachedSteps(input, solution)
                         if (solution != null) {
-                            _uiState.update { if (it.expression == input.expression) it.copy(hasSteps = true) else it }
+                            _uiState.update { if (it.isFor(input)) it.copy(hasSteps = true) else it }
                         }
                         val forms = MathEngine.transforms(input.expression, context)
                         if (forms.isNotEmpty()) {
-                            _uiState.update { if (it.expression == input.expression) it.copy(transforms = forms) else it }
+                            _uiState.update { if (it.isFor(input)) it.copy(transforms = forms) else it }
                         }
                     }
                 }
@@ -276,7 +283,10 @@ class CalculatorViewModel @JvmOverloads constructor(
             return
         }
         nextHistoryId = (saved.entries.maxOfOrNull { it.id } ?: -1L) + 1
-        _uiState.update { it.copy(expression = saved.expression, cursorPath = listOf(saved.expression.length)) }
+        // The line goes on with the seed it had, so that its random numbers do not change by closing the app
+        _uiState.update {
+            it.copy(expression = saved.expression, cursorPath = listOf(saved.expression.length), randomSeed = if (saved.randomSeed != 0L) saved.randomSeed else it.randomSeed)
+        }
         restoreJob = viewModelScope.launch {
             try {
                 // Each entry shows up as soon as it is calculated, in its place (newest first)
@@ -345,7 +355,7 @@ class CalculatorViewModel @JvmOverloads constructor(
             synchronized(saveLock) {
                 if (counter > lastSavedCounter) {
                     lastSavedCounter = counter
-                    sessionStore.save(SessionCodec.encode(SavedSession(state.expression, entries)))
+                    sessionStore.save(SessionCodec.encode(SavedSession(state.expression, entries, state.randomSeed)))
                 }
             }
         }
@@ -356,8 +366,11 @@ class CalculatorViewModel @JvmOverloads constructor(
 
     private class CachedSteps(val input: LiveInput, val solution: Solution?)
 
+    /** Whether this is still the line [input] was calculated for: the same expression with the same seed (its random numbers). */
+    private fun CalculatorUiState.isFor(input: LiveInput) = expression == input.expression && randomSeed == input.snapshot.randomSeed
+
     private fun CalculatorUiState.snapshot() =
-        CalculationSnapshot(angleUnit, unitSystem, decimalPlaces, ans(), variables(), complexNumbers, language)
+        CalculationSnapshot(angleUnit, unitSystem, decimalPlaces, ans(), variables(), complexNumbers, language, randomSeed)
 
     /** Ans is the most recently committed result, not the live result of this line. */
     private fun CalculatorUiState.ans(): MathString? =
@@ -1022,11 +1035,16 @@ class CalculatorViewModel @JvmOverloads constructor(
     }
 
     fun selectHistoryItem(item: CalculationResult) {
+        // The line is typed again: its random numbers are drawn again
+        val nextSeed = seedSource()
         _uiState.update {
             it.copy(
                 expression = item.input.copy(),
                 cursorPath = listOf(item.input.length),
-                selectionRange = null
+                selectionRange = null,
+                // Not the result of the line that was there: its numbers are another draw
+                result = null,
+                randomSeed = nextSeed
             )
         }
     }
@@ -1540,11 +1558,13 @@ class CalculatorViewModel @JvmOverloads constructor(
     }
 
     fun clearLine() {
+        val nextSeed = seedSource()
         _uiState.update {
             it.copy(
                 expression = MathString(),
                 cursorPath = listOf(0),
-                selectionRange = null
+                selectionRange = null,
+                randomSeed = nextSeed
             )
         }
     }
@@ -1554,12 +1574,14 @@ class CalculatorViewModel @JvmOverloads constructor(
         unrestoredEntries = emptyList()
         // Nothing is left to wait for: the empty history is to be saved at once, not after the cancelled job has wound up
         sessionRestored = true
+        val nextSeed = seedSource()
         _uiState.update {
             it.copy(
                 expression = MathString(),
                 cursorPath = listOf(0),
                 selectionRange = null,
-                history = emptyList()
+                history = emptyList(),
+                randomSeed = nextSeed
             )
         }
     }
@@ -1640,6 +1662,7 @@ class CalculatorViewModel @JvmOverloads constructor(
     fun commit() {
         val state = _uiState.value
         val expr = state.expression
+        val seed = state.randomSeed
         if (expr.isEmpty) return
 
         // While the saved history is being restored, variables and Ans are incomplete: wait for it,
@@ -1649,12 +1672,12 @@ class CalculatorViewModel @JvmOverloads constructor(
         commitJob = viewModelScope.launch {
             restoreJob?.join()
             val current = _uiState.value
-            if (current.expression != expr) return@launch // edited meanwhile
+            if (current.expression != expr || current.randomSeed != seed) return@launch // edited meanwhile
             val snapshot = current.snapshot()
             // Reuse the live result if it is up to date, otherwise calculate right away
             val res = current.result?.takeIf { !wasRestoring && it.input == expr }
                 ?: MathEngine.calculate(expr, snapshot.toMathContext())
-            if (_uiState.value.expression != expr) return@launch // edited meanwhile
+            if (_uiState.value.expression != expr || _uiState.value.randomSeed != seed) return@launch // edited meanwhile
             if (!res.isSuccess) {
                 _uiState.update { it.copy(result = res, showResultError = true) }
                 return@launch
@@ -1662,13 +1685,16 @@ class CalculatorViewModel @JvmOverloads constructor(
             // Taken outside of update: it runs again when another update comes in between
             val id = nextHistoryId++
             val relevant = snapshot.relevantTo(expr)
+            // The entry keeps the seed it was calculated with; the next line has a seed of its own
+            val nextSeed = seedSource()
             _uiState.update {
                 it.copy(
                     history = listOf(HistoryEntry(id, res, it.resultForm, relevant)) + it.history,
                     expression = MathString(),
                     cursorPath = listOf(0),
                     selectionRange = null,
-                    result = null
+                    result = null,
+                    randomSeed = nextSeed
                 )
             }
         }

@@ -26,7 +26,12 @@ data class CalculationSnapshot(
     val variables: Map<String, MathString>,
     val complexNumbers: Boolean,
     /** The language of the texts the calculation produces; not part of a saved entry: those are calculated in the language of the day. */
-    val language: Language = Language.ENGLISH
+    val language: Language = Language.ENGLISH,
+    /**
+     * The seed of the line: its random numbers are a function of it, so a history entry that is calculated again (after the
+     * app was closed, or after a setting changed) has the numbers it had.
+     */
+    val randomSeed: Long = 0L
 ) {
     // Always exact; decimal display is a matter of the result form
     fun toMathContext() = MathContext(
@@ -37,7 +42,8 @@ data class CalculationSnapshot(
         ans = ans,
         variables = variables,
         complexNumbers = complexNumbers,
-        language = language
+        language = language,
+        randomSeed = randomSeed
     )
 
     /**

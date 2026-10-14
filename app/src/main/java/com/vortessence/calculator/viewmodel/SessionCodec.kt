@@ -10,7 +10,7 @@ import com.vortessence.calculator.core.math.type.ResultForm
 data class SavedEntry(val id: Long, val input: MathString, val form: ResultForm, val snapshot: CalculationSnapshot)
 
 /** The calculator as the app was closed: the line being typed and the history, newest first. */
-data class SavedSession(val expression: MathString, val entries: List<SavedEntry>)
+data class SavedSession(val expression: MathString, val entries: List<SavedEntry>, val randomSeed: Long = 0L)
 
 /**
  * Where the [SavedSession] is kept between runs of the app. Only the inputs are saved, not the
@@ -32,13 +32,15 @@ object SessionCodec {
 
     fun encode(session: SavedSession): String = buildString {
         appendLine(HEADER)
-        appendLine("line\t${MathStringCodec.encode(session.expression)}")
+        appendLine("line\t${MathStringCodec.encode(session.expression)}\t${session.randomSeed}")
         for (entry in session.entries) {
             val s = entry.snapshot
             val fields = mutableListOf(
                 "entry", entry.id.toString(), entry.form.name, s.angleUnit.name, s.unitSystem.name,
                 s.decimalPlaces?.toString() ?: NONE, if (s.complexNumbers) "1" else "0",
-                MathStringCodec.encode(entry.input), s.ans?.let { MathStringCodec.encode(it) } ?: NONE
+                MathStringCodec.encode(entry.input), s.ans?.let { MathStringCodec.encode(it) } ?: NONE,
+                // The seed of the line, before the variables (an entry from before it has none, and an even number of fields after the ninth)
+                s.randomSeed.toString()
             )
             for ((name, value) in s.variables) {
                 fields.add(MathStringCodec.quote(name))
@@ -53,23 +55,30 @@ object SessionCodec {
         val lines = text.lines()
         if (lines.firstOrNull() != HEADER) return null
         var expression = MathString()
+        var seed = 0L
         val entries = mutableListOf<SavedEntry>()
         for (line in lines.drop(1)) {
             val fields = line.split('\t')
             when (fields[0]) {
-                "line" -> expression = fields.getOrNull(1)?.let { MathStringCodec.decode(it) } ?: MathString()
+                "line" -> {
+                    expression = fields.getOrNull(1)?.let { MathStringCodec.decode(it) } ?: MathString()
+                    seed = fields.getOrNull(2)?.toLongOrNull() ?: 0L
+                }
                 "entry" -> decodeEntry(fields)?.let { entries.add(it) }
             }
         }
-        return SavedSession(expression, entries)
+        return SavedSession(expression, entries, seed)
     }
 
     private fun decodeEntry(fields: List<String>): SavedEntry? {
-        // entry, id, form, angle, units, places, complex, input, ans, then pairs of name and value
-        if (fields.size < 9 || (fields.size - 9) % 2 != 0) return null
+        // entry, id, form, angle, units, places, complex, input, ans, the seed (not in older versions), then pairs of name and value
+        if (fields.size < 9) return null
+        val hasSeed = (fields.size - 9) % 2 == 1
+        val first = if (hasSeed) 10 else 9
+        if ((fields.size - first) % 2 != 0) return null
         return try {
             val variables = LinkedHashMap<String, MathString>()
-            for (i in 9 until fields.size step 2) {
+            for (i in first until fields.size step 2) {
                 variables[MathStringCodec.unquote(fields[i]) ?: return null] = MathStringCodec.decode(fields[i + 1]) ?: return null
             }
             val ans = if (fields[8] == NONE) null else MathStringCodec.decode(fields[8]) ?: return null
@@ -83,7 +92,8 @@ object SessionCodec {
                     decimalPlaces = if (fields[5] == NONE) null else fields[5].toInt(),
                     ans = ans,
                     variables = variables,
-                    complexNumbers = fields[6] == "1"
+                    complexNumbers = fields[6] == "1",
+                    randomSeed = if (hasSeed) fields[9].toLong() else 0L
                 )
             )
         } catch (e: IllegalArgumentException) {

@@ -63,6 +63,7 @@ val LocalDigitGrouping = staticCompositionLocalOf { false }
  *
  * @param path The caret path prefix of [mathString] within the editor's root string.
  * @param verticalPadding Space above and below the row(s).
+ * @param hidePlaceholder Draw no placeholder box for an empty string: it is empty on purpose (the () of rand()).
  */
 @Composable
 fun MathExpressionView(
@@ -75,7 +76,8 @@ fun MathExpressionView(
     accentColor: Color = MaterialTheme.colorScheme.primary,
     caretGeometry: CaretGeometry? = null,
     path: List<Int> = emptyList(),
-    verticalPadding: Dp = 4.dp
+    verticalPadding: Dp = 4.dp,
+    hidePlaceholder: Boolean = false
 ) {
     // The theme's line height (24sp) would give small text, e.g. a fraction in an exponent, a
     // line far taller than its letters: wide gaps, and a minus that is not level with the bar.
@@ -83,7 +85,7 @@ fun MathExpressionView(
     val style = LocalTextStyle.current
     val lineHeight = if (fontSize.value < MAX_SCALED_LINE_HEIGHT_SP) fontSize else style.lineHeight
     CompositionLocalProvider(LocalTextStyle provides style.copy(lineHeight = lineHeight)) {
-        MathExpressionLayout(mathString, modifier, cursorPath, selectionRange, fontSize, textColor, accentColor, caretGeometry, path, verticalPadding)
+        MathExpressionLayout(mathString, modifier, cursorPath, selectionRange, fontSize, textColor, accentColor, caretGeometry, path, verticalPadding, hidePlaceholder)
     }
 }
 
@@ -101,7 +103,8 @@ private fun MathExpressionLayout(
     accentColor: Color,
     caretGeometry: CaretGeometry?,
     path: List<Int>,
-    verticalPadding: Dp
+    verticalPadding: Dp,
+    hidePlaceholder: Boolean
 ) {
     if (caretGeometry != null) {
         DisposableEffect(caretGeometry, path) {
@@ -118,7 +121,8 @@ private fun MathExpressionLayout(
         accentColor = accentColor,
         caretGeometry = caretGeometry,
         path = path,
-        groupedDigits = if (LocalDigitGrouping.current) groupDigits(mathString.nodes) else emptyMap()
+        groupedDigits = if (LocalDigitGrouping.current) groupDigits(mathString.nodes) else emptyMap(),
+        hidePlaceholder = hidePlaceholder
     )
     val breaks = mathString.nodes.indices.filter { mathString.nodes[it] is LineBreakNode }
     val stringModifier = modifier
@@ -159,7 +163,8 @@ private class ExpressionRow(
     val accentColor: Color,
     val caretGeometry: CaretGeometry?,
     val path: List<Int>,
-    val groupedDigits: Map<Int, String>
+    val groupedDigits: Map<Int, String>,
+    val hidePlaceholder: Boolean = false
 ) {
     /**
      * The nodes start until end, followed by the line break at [end] unless this is the last
@@ -202,7 +207,7 @@ private class ExpressionRow(
                 when {
                     showCursorAtStart ->
                         BlinkingCursor(fontSize, accentColor, Modifier.centeredMathAxis().alignBy(MathAxis))
-                    isOnlyLine -> EmptySlotPlaceholder(fontSize = fontSize, color = textColor)
+                    isOnlyLine && !hidePlaceholder -> EmptySlotPlaceholder(fontSize = fontSize, color = textColor)
                     // An empty line keeps the height of a line
                     else -> Spacer(Modifier.size(width = 0.dp, height = Dp(fontSize.value * 0.9f)).centeredMathAxis().alignBy(MathAxis))
                 }
@@ -385,7 +390,8 @@ private fun SlotContext.Slot(
     modifier: Modifier = Modifier,
     verticalPadding: Dp = 4.dp,
     textColor: Color = this.textColor,
-    accentColor: Color = this.accentColor
+    accentColor: Color = this.accentColor,
+    hidePlaceholder: Boolean = false
 ) {
     val isFocused = focusedChildIdx == child
     MathExpressionView(
@@ -398,7 +404,8 @@ private fun SlotContext.Slot(
         accentColor = accentColor,
         caretGeometry = caretGeometry,
         path = parentPath + listOf(nodeIndex, child),
-        verticalPadding = verticalPadding
+        verticalPadding = verticalPadding,
+        hidePlaceholder = hidePlaceholder
     )
 }
 
@@ -607,7 +614,9 @@ private fun MathNodeView(
                     fontSize = argumentFontSize,
                     modifier = if (isAbsoluteValue) onAxis else onAxis.stretchyParentheses(textColor, argumentFontSize, isFlat(node.argument)),
                     // Room above and below for the parentheses, in proportion to the text
-                    verticalPadding = (argumentFontSize.value * 0.04f).dp
+                    verticalPadding = (argumentFontSize.value * 0.04f).dp,
+                    // rand() has no argument: an empty slot is how it is written, not a gap to fill
+                    hidePlaceholder = node.name.lowercase() == "rand" && node.argument.isEmpty
                 )
             }
         }

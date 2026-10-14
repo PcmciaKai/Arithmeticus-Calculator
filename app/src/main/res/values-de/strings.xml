@@ -145,12 +145,19 @@
     <string name="formula_chisqcdf_desc">chisqcdf(x, df): die Wahrscheinlichkeit für einen Wert bis x in der Chi-Quadrat-Verteilung mit df Freiheitsgraden</string>
     <string name="formula_chisqinv_name">Chi-Quadrat-Verteilung, Quantil</string>
     <string name="formula_chisqinv_desc">chisqinv(p, df): das x, bis zu dem ein Wert mit der Wahrscheinlichkeit p liegt, für 0 &lt; p &lt; 1. Liefert die kritischen Werte für Chi-Quadrat-Tests</string>
+    <string name="formula_rand_name">Zufallszahl</string>
+    <string name="formula_rand_desc">rand(): eine Zufallszahl von 0 bis (ausschließlich) 1. Sie wird einmal pro Zeile gezogen: Sie bleibt beim Bearbeiten der Zeile gleich und wird mit dem Ergebnis im Verlauf gespeichert</string>
+    <string name="formula_randint_name">Zufällige ganze Zahl</string>
+    <string name="formula_randint_desc">randint(a, b): eine zufällige ganze Zahl von a bis b, beide eingeschlossen. Wird wie rand() einmal pro Zeile gezogen</string>
+    <string name="formula_randnorm_name">Zufallszahl (normalverteilt)</string>
+    <string name="formula_randnorm_desc">randnorm(μ, σ): eine normalverteilte Zufallszahl; ohne μ und σ die Standardnormalverteilung (μ = 0, σ = 1). Wird einmal pro Zeile gezogen</string>
     <string name="category_statistics">Statistik</string>
     <string name="category_combinatorics">Kombinatorik</string>
     <string name="category_numbers">Zahlen</string>
     <string name="category_complex">Komplexe Zahlen</string>
     <string name="category_special">Spezielle Funktionen</string>
     <string name="category_distributions">Verteilungen</string>
+    <string name="category_random">Zufallszahlen</string>
     <string name="formulas_title">Formeln</string>
     <string name="formulas_search">Suchen (Abweichung, runden, nCr)...</string>
     <string name="constant_category_math">Mathematisch</string>

@@ -281,6 +281,8 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
      */
     private fun exactOrNull(expression: Expression, context: MathContext, args: List<Expression>): Expression? {
         val scratch = context.copy()
+        // Working it out must not take noticeably long: it is tried for every live result, and thrown away if it grows too big
+        scratch.deadlineMillis = minOf(scratch.deadlineMillis, System.currentTimeMillis() + EXACT_BUDGET_MILLIS)
         val result = expression.canonicalize(scratch)
         if (scratch.shouldStop || context.shouldStop || hasHugeNumber(result)) return null
         // The engine drops to decimals inside huge products (and may come out at 0 or infinity): only a result that agrees with the number is exact
@@ -421,6 +423,9 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
         val k = count.toLong()
         if (binomial) {
             val n = trials!!.toLong()
+            // The fractions have about n times the digits of p: where they are too long to show, a decimal at once
+            val digits = (rate as? Value)?.rational?.let { maxOf(it.numerator.value.bitLength(), it.denominator.value.bitLength()) } ?: 64
+            if (n * digits > 4 * MAX_EXACT_BITS) return decimal(numeric(args), context)
             val failure = Additions(listOf(Value.ONE, rate.negate()))
             // C(n, i)·p^i·(1 − p)^(n − i), leaving out a power of 0 (p = 0 and i = 0 would be 0⁰)
             fun term(i: Long): Expression = Multiplications.of(
@@ -776,6 +781,8 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
         const val MAX_EXACT_DF = DistributionLimits.MAX_EXACT_DF
         /** The numerator or denominator of an exact result has at most this many bits (about 77 digits): longer ones are shown as decimals. */
         const val MAX_EXACT_BITS = 256
+        /** The time the exact form of a distribution may take before the decimal is given instead. */
+        const val EXACT_BUDGET_MILLIS = 150L
         /** The most trials a binomial or events a Poisson distribution may have (a double holds whole numbers up to 2^53). */
         const val MAX_TRIALS = 1_000_000_000_000_000L
         /** The most terms of a cumulative probability that are added up. */

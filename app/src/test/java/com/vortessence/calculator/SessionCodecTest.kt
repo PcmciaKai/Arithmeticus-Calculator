@@ -4,6 +4,7 @@ import com.vortessence.calculator.core.math.context.AngleUnit
 import com.vortessence.calculator.core.math.context.UnitSystem
 import com.vortessence.calculator.core.math.type.FractionNode
 import com.vortessence.calculator.core.math.type.MathString
+import com.vortessence.calculator.core.math.type.MathStringCodec
 import com.vortessence.calculator.core.math.type.NumberNode
 import com.vortessence.calculator.core.math.type.ResultForm
 import com.vortessence.calculator.core.math.type.TextNode
@@ -76,5 +77,41 @@ class SessionCodecTest {
         )
         val session = SavedSession(ms(*nodes.toTypedArray()), listOf(SavedEntry(1, ms(*nodes.toTypedArray()), ResultForm.EXACT, plain)))
         assertEquals(session, SessionCodec.decode(SessionCodec.encode(session))!!)
+    }
+
+    @Test
+    fun theSeedsOfTheLineAndOfTheEntriesRoundTrip() {
+        val withSeed = plain.copy(randomSeed = -1234567890123456789L)
+        val variables = plain.copy(randomSeed = 99L, variables = linkedMapOf("a" to ms(NumberNode("2")), "b" to ms(VariableNode("x"))))
+        val session = SavedSession(
+            ms(NumberNode("5")),
+            listOf(SavedEntry(2, ms(NumberNode("1")), ResultForm.EXACT, withSeed), SavedEntry(1, ms(VariableNode("a")), ResultForm.DECIMAL, variables)),
+            randomSeed = Long.MIN_VALUE
+        )
+        val decoded = SessionCodec.decode(SessionCodec.encode(session))!!
+        assertEquals(session, decoded)
+        assertEquals(-1234567890123456789L, decoded.entries[0].snapshot.randomSeed)
+        assertEquals(99L, decoded.entries[1].snapshot.randomSeed)
+        assertEquals(listOf("a", "b"), decoded.entries[1].snapshot.variables.keys.toList())
+    }
+
+    @Test
+    fun aSessionFromBeforeTheSeedsIsStillRead() {
+        // The saved text of an earlier version: no seed on the line, none on the entries (an even number of fields after the ninth)
+        val one = MathStringCodec.encode(ms(NumberNode("1")))
+        val a = MathStringCodec.encode(ms(VariableNode("a")))
+        val two = MathStringCodec.encode(ms(NumberNode("2")))
+        val old = listOf(
+            "calculator-session 1",
+            "line\t$one",
+            "entry\t7\tEXACT\tRADIANS\tMETRIC\t-\t0\t$one\t-",
+            "entry\t3\tDECIMAL\tDEGREES\tMETRIC\t4\t1\t$a\t-\t${MathStringCodec.quote("a")}\t$two"
+        ).joinToString("\n")
+        val decoded = SessionCodec.decode(old)!!
+        assertEquals(0L, decoded.randomSeed)
+        assertEquals(listOf(7L, 3L), decoded.entries.map { it.id })
+        assertTrue(decoded.entries.all { it.snapshot.randomSeed == 0L })
+        assertEquals(listOf("a"), decoded.entries[1].snapshot.variables.keys.toList())
+        assertEquals("2", decoded.entries[1].snapshot.variables["a"].toString())
     }
 }

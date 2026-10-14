@@ -21,6 +21,20 @@ class MathParser {
      * empty lines are ignored, so a trailing line break does not change the meaning.
      */
     fun parse(string: MathString): Expression {
+        // The random numbers are counted in the order they are met in this input (see RandomNumber)
+        val previousCount = randomCalls.get()
+        randomCalls.set(0)
+        try {
+            return parseInput(string)
+        } finally {
+            randomCalls.set(previousCount)
+        }
+    }
+
+    /** How many random numbers the input being parsed on this thread has had so far; the parser is shared by calculations on several threads. */
+    private val randomCalls = ThreadLocal.withInitial { 0 }
+
+    private fun parseInput(string: MathString): Expression {
         if (string.nodes.none { it is LineBreakNode }) return parseLine(string)
         val lines = mutableListOf(MathString())
         for (node in string.nodes) {
@@ -162,6 +176,14 @@ class MathParser {
                     val atUpper = f.substituteVariables(mapOf(v to parseSlot(node.upper)))
                     val atLower = f.substituteVariables(mapOf(v to parseSlot(node.lower)))
                     tokens.add(Token.ValueToken(Additions(listOf(atUpper, Multiplications(listOf(Value.MINUS_ONE, atLower))))))
+                }
+                is FunctionNode if RandomKind.byName(node.name.lowercase()) != null -> {
+                    val kind = RandomKind.byName(node.name.lowercase())!!
+                    // rand() has no arguments, which is an empty slot, not one empty argument
+                    val arguments = if (node.argument.isEmpty) emptyList() else splitArguments(node.argument).map { parseSlot(it) }
+                    val index = randomCalls.get()
+                    randomCalls.set(index + 1)
+                    tokens.add(Token.ValueToken(RandomNumber(kind, arguments, MathContext.current().randomSeed, index)))
                 }
                 is FunctionNode if NamedFunctionKind.byName(node.name) != null -> {
                     val arguments = splitArguments(node.argument).map { parseSlot(it) }

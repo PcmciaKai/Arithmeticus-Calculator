@@ -58,8 +58,9 @@ class CalculatorViewModelTest {
     private val viewModels = mutableListOf<CalculatorViewModel>()
 
     /** Creates a ViewModel whose background work is shut down after the test. */
-    private fun newViewModel(store: SessionStore? = null): CalculatorViewModel =
-        CalculatorViewModel(Application(), liveResultDelayMillis = 0, sessionStore = store).also { viewModels.add(it) }
+    private fun newViewModel(store: SessionStore? = null, seeds: (() -> Long)? = null): CalculatorViewModel =
+        (if (seeds == null) CalculatorViewModel(Application(), liveResultDelayMillis = 0, sessionStore = store)
+        else CalculatorViewModel(Application(), liveResultDelayMillis = 0, sessionStore = store, seedSource = seeds)).also { viewModels.add(it) }
 
     private class MemorySessionStore(text: String? = null) : SessionStore {
         // Saved from a background thread
@@ -1994,5 +1995,118 @@ class CalculatorViewModelTest {
         vm.awaitCommit()
         vm.saveSession()
         newViewModel(store).awaitHistory(1)
+    }
+
+    /** Seeds that are known: 100, 101, 102, ... */
+    private fun countingSeeds(start: Long = 100L): () -> Long {
+        var next = start
+        return { next++ }
+    }
+
+    @Test
+    fun aRandomNumberStaysTheSameWhileTheLineIsEditedAndIsTheOneThatIsCommitted() = runBlocking {
+        val vm = newViewModel(seeds = countingSeeds())
+        vm.typeText("rand(")
+        vm.typeText(")")
+        vm.awaitLiveResult()
+        val shown = vm.uiState.value.result!!.numericValue
+        assertTrue(shown in 0.0..1.0)
+        // Editing the line does not draw again
+        vm.onKeyAction(KeyAction.Operator("+"))
+        vm.type("0")
+        vm.awaitLiveResult()
+        assertEquals(shown, vm.uiState.value.result!!.numericValue, 1e-12)
+        // Enter keeps the number that was shown
+        vm.onKeyAction(KeyAction.Enter)
+        vm.awaitCommit()
+        vm.awaitHistory(1)
+        assertEquals(shown, vm.uiState.value.history[0].calculation.numericValue, 1e-12)
+    }
+
+    @Test
+    fun theNextLineGetsNewRandomNumbers() = runBlocking {
+        val vm = newViewModel(seeds = countingSeeds())
+        val seeds = mutableListOf(vm.uiState.value.randomSeed)
+        val numbers = mutableListOf<Double>()
+        repeat(3) {
+            vm.typeText("rand(")
+            vm.typeText(")")
+            vm.awaitLiveResult()
+            numbers.add(vm.uiState.value.result!!.numericValue)
+            vm.onKeyAction(KeyAction.Enter)
+            vm.awaitCommit()
+            seeds.add(vm.uiState.value.randomSeed)
+        }
+        assertEquals(4, seeds.toSet().size)
+        assertEquals(3, numbers.toSet().size)
+        // C and AC start a line of their own as well
+        val before = vm.uiState.value.randomSeed
+        vm.typeText("5")
+        vm.onKeyAction(KeyAction.Clear)
+        assertNotEquals(before, vm.uiState.value.randomSeed)
+        val afterC = vm.uiState.value.randomSeed
+        vm.onKeyAction(KeyAction.Clear)
+        assertNotEquals(afterC, vm.uiState.value.randomSeed)
+    }
+
+    @Test
+    fun aRandomNumberInTheHistoryIsTheSameAfterTheAppWasClosed() = runBlocking {
+        val store = MemorySessionStore()
+        val first = newViewModel(store, countingSeeds())
+        first.typeText("rand(")
+        first.typeText(")")
+        first.onKeyAction(KeyAction.Operator("+"))
+        first.typeText("randint(")
+        first.type("1")
+        first.onKeyAction(KeyAction.Separator)
+        first.type("1", "0", "0")
+        first.awaitLiveResult()
+        val shown = first.uiState.value.result!!.numericValue
+        first.onKeyAction(KeyAction.Enter)
+        first.awaitCommit()
+        first.awaitHistory(1)
+        first.saveSession()
+
+        val reopened = newViewModel(store, countingSeeds(5000L))
+        reopened.awaitHistory(1)
+        assertEquals(shown, reopened.uiState.value.history[0].calculation.numericValue, 1e-12)
+        assertEquals(first.uiState.value.history[0].calculation.result.toString(), reopened.uiState.value.history[0].calculation.result.toString())
+    }
+
+    @Test
+    fun theLineBeingTypedKeepsItsRandomNumbersAcrossARestart() = runBlocking {
+        val store = MemorySessionStore()
+        val first = newViewModel(store, countingSeeds())
+        first.typeText("rand(")
+        first.typeText(")")
+        first.awaitLiveResult()
+        val shown = first.uiState.value.result!!.numericValue
+        first.saveSession()
+
+        val reopened = newViewModel(store, countingSeeds(5000L))
+        reopened.awaitLiveResult()
+        assertEquals(shown, reopened.uiState.value.result!!.numericValue, 1e-12)
+    }
+
+    @Test
+    fun usingAHistoryEntryAgainDrawsAgain() = runBlocking {
+        val vm = newViewModel(seeds = countingSeeds())
+        vm.typeText("rand(")
+        vm.typeText(")")
+        vm.awaitLiveResult()
+        val first = vm.uiState.value.result!!.numericValue
+        vm.onKeyAction(KeyAction.Enter)
+        vm.awaitCommit()
+        vm.awaitHistory(1)
+        // Tapping the entry puts the line (not its number) back
+        vm.selectHistoryItem(vm.uiState.value.history[0].calculation)
+        vm.awaitLiveResult()
+        assertNotEquals(first, vm.uiState.value.result!!.numericValue, 0.0)
+        vm.onKeyAction(KeyAction.Enter)
+        vm.awaitCommit()
+        vm.awaitHistory(2)
+        // The entries keep their own numbers
+        assertEquals(first, vm.uiState.value.history[1].calculation.numericValue, 1e-12)
+        assertNotEquals(first, vm.uiState.value.history[0].calculation.numericValue, 0.0)
     }
 }

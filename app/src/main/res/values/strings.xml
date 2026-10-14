@@ -404,12 +404,19 @@
     <string name="formula_chisqcdf_desc">chisqcdf(x, df): the probability of a value up to x in the chi-square distribution with df degrees of freedom</string>
     <string name="formula_chisqinv_name">Chi-square quantile</string>
     <string name="formula_chisqinv_desc">chisqinv(p, df): the x with the probability p for a value up to it, for 0 &lt; p &lt; 1. Gives the critical values of chi-square tests</string>
+    <string name="formula_rand_name">Random number</string>
+    <string name="formula_rand_desc">rand(): a random number from 0 up to (not including) 1. It is drawn once per line: it stays the same while you edit the line, and it is kept with the result in the history</string>
+    <string name="formula_randint_name">Random whole number</string>
+    <string name="formula_randint_desc">randint(a, b): a random whole number from a to b, both included. Drawn once per line, like rand()</string>
+    <string name="formula_randnorm_name">Random number (normal distribution)</string>
+    <string name="formula_randnorm_desc">randnorm(μ, σ): a random number of the normal distribution; without μ and σ the standard one (μ = 0, σ = 1). Drawn once per line</string>
     <string name="category_statistics">Statistics</string>
     <string name="category_combinatorics">Combinatorics</string>
     <string name="category_numbers">Numbers</string>
     <string name="category_complex">Complex numbers</string>
     <string name="category_special">Special functions</string>
     <string name="category_distributions">Distributions</string>
+    <string name="category_random">Random numbers</string>
     <string name="formulas_title">Formulas</string>
     <string name="formulas_search">Search (deviation, round, nCr)...</string>
     <string name="constant_category_math">Mathematical</string>
