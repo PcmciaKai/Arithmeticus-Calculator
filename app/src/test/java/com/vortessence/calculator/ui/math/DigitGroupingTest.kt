@@ -36,4 +36,16 @@ class DigitGroupingTest {
         assertEquals("10${sep}000 + 99${sep}999",
             display(NumberNode("10000"), OperatorNode(MathOp.PLUS), NumberNode("99999")))
     }
+
+    @Test
+    fun numbersInAnotherBaseAreGroupedByFour() {
+        assertEquals("0xDEAD${sep}BEEF", display(NumberNode("0xDEADBEEF")))
+        assertEquals("0b1111${sep}0000", display(NumberNode("0b11110000")))
+        // Typed: the prefix and one node per digit
+        assertEquals("0xDEAD${sep}BEEF", display(NumberNode("0x"), *"DEADBEEF".map { NumberNode(it.toString()) }.toTypedArray()))
+        // Octal in threes
+        assertEquals("0o12${sep}345${sep}670", display(NumberNode("0o12345670")))
+        // Short numbers stay together
+        assertEquals("0xFFFF", display(NumberNode("0xFFFF")))
+    }
 }

@@ -171,6 +171,19 @@
     <string name="category_distributions">Verteilungen</string>
     <string name="category_random">Zufallszahlen</string>
     <string name="category_vectors">Vektoren</string>
+    <string name="category_bitwise">Bitweise</string>
+    <string name="formula_and_name">AND</string>
+    <string name="formula_and_desc">Bits, die in beiden ganzen Zahlen gesetzt sind: and(12, 10) = 8</string>
+    <string name="formula_or_name">OR</string>
+    <string name="formula_or_desc">Bits, die in mindestens einer gesetzt sind: or(12, 10) = 14</string>
+    <string name="formula_xor_name">XOR</string>
+    <string name="formula_xor_desc">Bits, die in genau einer gesetzt sind: xor(12, 10) = 6</string>
+    <string name="formula_not_name">NOT</string>
+    <string name="formula_not_desc">Alle Bits umgedreht, −n − 1: not(5) = −6</string>
+    <string name="formula_shl_name">Linksschieben</string>
+    <string name="formula_shl_desc">n·2ᵏ: shl(1, 4) = 16 (auch n &lt;&lt; k)</string>
+    <string name="formula_shr_name">Rechtsschieben</string>
+    <string name="formula_shr_desc">⌊n/2ᵏ⌋: shr(16, 2) = 4 (auch n &gt;&gt; k)</string>
     <string name="keypad_matrix">Matrix oder Vektor</string>
     <string name="formulas_title">Formeln</string>
     <string name="formulas_search">Suchen (Abweichung, runden, nCr)...</string>
@@ -251,6 +264,10 @@
     <string name="keypad_enter">Eingabe</string>
     <string name="keypad_new_line">neue Zeile</string>
     <string name="keypad_settings">Optionen</string>
+    <string name="keypad_number_base">Zahlensystem</string>
+    <string name="result_form_hex">HEX</string>
+    <string name="result_form_oct">OCT</string>
+    <string name="result_form_bin">BIN</string>
     <string name="settings_session">Sitzung</string>
     <string name="settings_session_desc">Zeile und Verlauf in einer Datei speichern oder eine öffnen</string>
     <string name="settings_session_save">Speichern…</string>

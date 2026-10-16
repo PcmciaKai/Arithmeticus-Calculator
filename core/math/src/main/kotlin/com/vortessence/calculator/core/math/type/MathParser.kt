@@ -371,6 +371,9 @@ class MathParser {
      * (which results produced in numeric mode may contain).
      */
     private fun parseNumberString(str: String): Value {
+        // 0xFF, 0b1010, 0o17
+        val base = NumberBase.of(str)
+        if (base != NumberBase.DECIMAL) return parseBaseNumber(str, base)
         // Tolerate digit-group separators (300 000) in case grouped text is ever reused
         val normalized = str.filterNot { it == ' ' || it == '\u202F' || it == '\u2009' }.replace('−', '-')
         val decimal = try {
@@ -393,6 +396,16 @@ class MathParser {
         } else {
             Value(Rational.of(unscaled * BigInt(BigInteger.TEN.pow(-scale))))
         }
+    }
+
+    /** A whole number written with a prefix in [base]: 0xFF = 255. */
+    private fun parseBaseNumber(str: String, base: NumberBase): Value {
+        val digits = str.substring(base.prefix.length).filterNot { it == ' ' || it == '\u202F' || it == '\u2009' }
+        if (digits.isEmpty() || !digits.all { base.isDigit(it) }) {
+            syntaxError()
+            return Value.ZERO
+        }
+        return Value(BigInt(BigInteger(digits, base.radix)))
     }
 
     private class TokenParser(val tokens: List<Token>) {
@@ -437,6 +450,11 @@ class MathParser {
                     }
                     MathOp.FACTORIAL, MathOp.PERCENT -> left
                     MathOp.MODULO -> Modulo(left, right)
+                    MathOp.AND -> NamedFunction(NamedFunctionKind.BIT_AND, listOf(left, right))
+                    MathOp.OR -> NamedFunction(NamedFunctionKind.BIT_OR, listOf(left, right))
+                    MathOp.XOR -> NamedFunction(NamedFunctionKind.BIT_XOR, listOf(left, right))
+                    MathOp.SHIFT_LEFT -> NamedFunction(NamedFunctionKind.SHIFT_LEFT, listOf(left, right))
+                    MathOp.SHIFT_RIGHT -> NamedFunction(NamedFunctionKind.SHIFT_RIGHT, listOf(left, right))
                     // Definitions are split off by MathEngine; anywhere else ":=" is invalid
                     MathOp.DEFINE -> {
                         syntaxError()

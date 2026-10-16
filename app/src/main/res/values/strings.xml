@@ -436,6 +436,19 @@
     <string name="category_distributions">Distributions</string>
     <string name="category_random">Random numbers</string>
     <string name="category_vectors">Vectors</string>
+    <string name="category_bitwise">Bitwise</string>
+    <string name="formula_and_name">AND</string>
+    <string name="formula_and_desc">Bits set in both whole numbers: and(12, 10) = 8</string>
+    <string name="formula_or_name">OR</string>
+    <string name="formula_or_desc">Bits set in at least one: or(12, 10) = 14</string>
+    <string name="formula_xor_name">XOR</string>
+    <string name="formula_xor_desc">Bits set in exactly one: xor(12, 10) = 6</string>
+    <string name="formula_not_name">NOT</string>
+    <string name="formula_not_desc">All bits flipped, −n − 1: not(5) = −6</string>
+    <string name="formula_shl_name">Shift left</string>
+    <string name="formula_shl_desc">n·2ᵏ: shl(1, 4) = 16 (also n &lt;&lt; k)</string>
+    <string name="formula_shr_name">Shift right</string>
+    <string name="formula_shr_desc">⌊n/2ᵏ⌋: shr(16, 2) = 4 (also n &gt;&gt; k)</string>
     <string name="keypad_matrix">Matrix or vector</string>
     <string name="formulas_title">Formulas</string>
     <string name="formulas_search">Search (deviation, round, nCr)...</string>
@@ -516,6 +529,10 @@
     <string name="keypad_enter">Enter</string>
     <string name="keypad_new_line">new line</string>
     <string name="keypad_settings">Settings</string>
+    <string name="keypad_number_base">Number base</string>
+    <string name="result_form_hex">HEX</string>
+    <string name="result_form_oct">OCT</string>
+    <string name="result_form_bin">BIN</string>
     <string name="settings_session">Session</string>
     <string name="settings_session_desc">Save the line and the history to a file, or open one</string>
     <string name="settings_session_save">Save…</string>

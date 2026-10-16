@@ -63,6 +63,8 @@ data class CalculatorUiState(
      * committed with Enter. Calculations themselves are always exact.
      */
     val resultForm: ResultForm = ResultForm.EXACT,
+    /** The keypad: scientific, or programmer keys for numbers in a base (see [InputMode]). */
+    val inputMode: InputMode = InputMode.DECIMAL,
     val angleUnit: AngleUnit = AngleUnit.RADIANS,
     /** Units that results with units are expressed in. */
     val unitSystem: UnitSystem = UnitSystem.METRIC,
@@ -549,9 +551,12 @@ class CalculatorViewModel @JvmOverloads constructor(
         val savedTheme = prefs?.getString("theme_mode", null)
         val themeMode = ThemeMode.entries.firstOrNull { it.name == savedTheme } ?: ThemeMode.SYSTEM
         val complexNumbers = prefs?.getBoolean("complex_numbers", false) ?: false
+        val savedMode = prefs?.getString("input_mode", null)
+        val inputMode = InputMode.entries.firstOrNull { it.name == savedMode } ?: InputMode.DECIMAL
         _uiState.update {
             it.copy(
                 resultForm = form,
+                inputMode = inputMode,
                 angleUnit = angle,
                 unitSystem = unitSystem,
                 decimalPlaces = places,
@@ -568,7 +573,7 @@ class CalculatorViewModel @JvmOverloads constructor(
     fun onKeyAction(action: KeyAction) {
         endTypedWord()
         when (action) {
-            is KeyAction.Number -> insertNode(NumberNode(action.digit))
+            is KeyAction.Number -> typeDigits(action.digit)
             is KeyAction.Operator -> {
                 if (action.opSymbol == "÷" || action.opSymbol == "/") {
                     insertDivision()
@@ -586,6 +591,11 @@ class CalculatorViewModel @JvmOverloads constructor(
                         "!" -> MathOp.FACTORIAL
                         "%" -> MathOp.PERCENT
                         "mod" -> MathOp.MODULO
+                        "AND" -> MathOp.AND
+                        "OR" -> MathOp.OR
+                        "XOR" -> MathOp.XOR
+                        "<<" -> MathOp.SHIFT_LEFT
+                        ">>" -> MathOp.SHIFT_RIGHT
                         else -> MathOp.PLUS
                     }
                     insertNode(OperatorNode(op))
@@ -738,6 +748,23 @@ class CalculatorViewModel @JvmOverloads constructor(
     fun setResultForm(form: ResultForm) {
         prefs?.edit { putString("result_form", form.name) }
         _uiState.update { it.copy(resultForm = form) }
+    }
+
+    /**
+     * Switches the keypad. The results follow: a programmer mode with a base shows them in it (as a form that can still be
+     * changed), and leaving it takes that form away again.
+     */
+    fun setInputMode(mode: InputMode) {
+        prefs?.edit { putString("input_mode", mode.name) }
+        val form = _uiState.value.resultForm
+        val keepsForm = form.numberBase == null
+        val newForm = when {
+            mode.base != NumberBase.DECIMAL -> mode.resultForm
+            keepsForm -> form
+            else -> ResultForm.EXACT
+        }
+        if (newForm != form) prefs?.edit { putString("result_form", newForm.name) }
+        _uiState.update { it.copy(inputMode = mode, resultForm = newForm) }
     }
 
     /** A fixed number of decimal places, or null for automatic. */
@@ -1248,6 +1275,63 @@ class CalculatorViewModel @JvmOverloads constructor(
         return current
     }
 
+    /**
+     * What a digit key types: a digit of the number the cursor is in, or the start of a new one. Numbers in another base start
+     * with their prefix (0x, 0b, 0o), which is put in by itself: typing F in the hexadecimal mode on an empty line gives 0xF.
+     * A key that does not fit (8 in a binary number) does nothing, and so does one in front of a prefix.
+     */
+    private fun typeDigits(digits: String) {
+        digits.forEach { typeDigit(it) }
+    }
+
+    private fun typeDigit(digit: Char) {
+        val state = _uiState.value
+        val base = state.inputMode.base
+        val range = state.selectionRange
+        if (range != null && !range.isEmpty()) {
+            // Replaces the selection by the start of a new number
+            if (!base.isDigit(digit) && digit != '.') return
+            if (base != NumberBase.DECIMAL) insertNode(NumberNode(base.prefix))
+            insertNode(NumberNode(digit.toString()))
+            return
+        }
+        val path = state.cursorPath
+        val target = getTargetString(state.expression, path)
+        val pos = path.last().coerceIn(0, target.length)
+        // The run of number nodes the cursor is in or next to
+        var start = pos
+        while (start > 0 && target.nodeAt(start - 1) is NumberNode) start--
+        var end = pos
+        while (end < target.length && target.nodeAt(end) is NumberNode) end++
+        val run = (start until end).joinToString("") { (target.nodeAt(it) as NumberNode).text }
+        val runBase = NumberBase.of(run)
+        when {
+            // In a number that has its prefix: only its own digits, and not in front of the prefix
+            runBase != NumberBase.DECIMAL -> {
+                if (pos > start && runBase.isDigit(digit)) insertNode(NumberNode(digit.uppercaseChar().toString()))
+            }
+            base == NumberBase.DECIMAL -> if (digit.isDigit() || digit == '.') insertNode(NumberNode(digit.toString()))
+            !base.isDigit(digit) -> Unit
+            start == end -> {
+                insertNode(NumberNode(base.prefix))
+                insertNode(NumberNode(digit.toString()))
+            }
+            // Inside or in front of a decimal number (typed before the mode was switched): not the place for a digit of another base
+            pos != end -> Unit
+            // A decimal number in front of the cursor becomes a number of this base
+            else -> {
+                val value = run.takeIf { it.all(Char::isDigit) }?.toBigIntegerOrNull() ?: return
+                val root = state.expression.copy()
+                val string = getTargetString(root, path)
+                for (i in end - 1 downTo start) string.removeAt(i)
+                val converted = listOf(NumberNode(base.prefix)) + value.toString(base.radix).uppercase().map { NumberNode(it.toString()) }
+                string.insertAll(start, converted)
+                _uiState.update { it.copy(expression = root, cursorPath = path.dropLast(1) + (start + converted.size), selectionRange = null) }
+                insertNode(NumberNode(digit.toString()))
+            }
+        }
+    }
+
     private fun insertNode(node: MathNode) {
         val root = _uiState.value.expression.copy()
         val path = _uiState.value.cursorPath
@@ -1563,6 +1647,18 @@ class CalculatorViewModel @JvmOverloads constructor(
         _uiState.update { it.copy(expression = root, cursorPath = newPath, selectionRange = null) }
     }
 
+    /**
+     * The prefix of a number in another base (0x) is no use without its digits: after something was deleted at [pos] in
+     * [target], a prefix right before it that no digit follows is deleted too. Returns where the cursor goes.
+     */
+    private fun removeBarePrefix(target: MathString, pos: Int): Int {
+        val before = if (pos > 0) target.nodeAt(pos - 1) else null
+        val isPrefix = before is NumberNode && NumberBase.entries.any { it.prefix.isNotEmpty() && it.prefix == before.text }
+        if (!isPrefix || (pos < target.length && target.nodeAt(pos) is NumberNode)) return pos
+        target.removeAt(pos - 1)
+        return pos - 1
+    }
+
     private fun deleteAtCursor() {
         val range = _uiState.value.selectionRange
         val root = _uiState.value.expression.copy()
@@ -1578,7 +1674,7 @@ class CalculatorViewModel @JvmOverloads constructor(
                 }
             }
             val containerPath = if (path.isNotEmpty()) path.subList(0, path.size - 1) else emptyList()
-            val newPath = containerPath + start
+            val newPath = containerPath + removeBarePrefix(target, start)
             _uiState.update { it.copy(expression = root, cursorPath = newPath, selectionRange = null) }
             return
         }
@@ -1591,10 +1687,11 @@ class CalculatorViewModel @JvmOverloads constructor(
                 return
             }
             target.removeAt(pos - 1)
+            val newPos = removeBarePrefix(target, pos - 1)
             _uiState.update {
                 it.copy(
                     expression = root,
-                    cursorPath = path.toMutableList().apply { this[lastIndex] = pos - 1 },
+                    cursorPath = path.toMutableList().apply { this[lastIndex] = newPos },
                     selectionRange = null
                 )
             }

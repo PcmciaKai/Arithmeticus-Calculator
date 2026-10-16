@@ -113,7 +113,19 @@ enum class NamedFunctionKind(val functionName: String, val minArguments: Int, va
     /** The angle of a complex number to the positive real axis, in radians from −π (excluded) to π. */
     ARG("arg", 1, 1),
     /** The complex conjugate a − b·i of a + b·i. */
-    CONJ("conj", 1, 1);
+    CONJ("conj", 1, 1),
+    /** The bits that are set in both whole numbers (also written a AND b). */
+    BIT_AND("and", 2, 2),
+    /** The bits that are set in one of them (a OR b). */
+    BIT_OR("or", 2, 2),
+    /** The bits that are set in exactly one of them (a XOR b). */
+    BIT_XOR("xor", 2, 2),
+    /** All bits flipped: −n − 1 (two's complement, as for numbers of any size). */
+    BIT_NOT("not", 1, 1),
+    /** shl(n, k) = n·2ᵏ (a negative k shifts right); also written n << k. */
+    SHIFT_LEFT("shl", 2, 2),
+    /** shr(n, k) = ⌊n/2ᵏ⌋ (a negative k shifts left); also written n >> k. */
+    SHIFT_RIGHT("shr", 2, 2);
 
     /**
      * Whether this function has jumps or takes whole numbers only (floor, sign, nCr, …): searching for the points where an
@@ -136,6 +148,7 @@ enum class NamedFunctionKind(val functionName: String, val minArguments: Int, va
 
         private val STEPWISE = setOf(
             ROUND, FLOOR, CEIL, TRUNC, FRAC, SIGN, MODE, GCD, LCM, NCR, NPR, MULTINOMIAL, FIB, NEXTPRIME, ISPRIME,
+            BIT_AND, BIT_OR, BIT_XOR, BIT_NOT, SHIFT_LEFT, SHIFT_RIGHT,
             BINOMPDF, BINOMCDF, POISSONPDF, POISSONCDF
         )
     }
@@ -199,7 +212,9 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
             }
             NamedFunctionKind.ARG -> argument(args[0], context) ?: return this
             NamedFunctionKind.GCD, NamedFunctionKind.LCM, NamedFunctionKind.NCR, NamedFunctionKind.NPR,
-            NamedFunctionKind.MULTINOMIAL, NamedFunctionKind.FIB, NamedFunctionKind.NEXTPRIME, NamedFunctionKind.ISPRIME -> {
+            NamedFunctionKind.MULTINOMIAL, NamedFunctionKind.FIB, NamedFunctionKind.NEXTPRIME, NamedFunctionKind.ISPRIME,
+            NamedFunctionKind.BIT_AND, NamedFunctionKind.BIT_OR, NamedFunctionKind.BIT_XOR, NamedFunctionKind.BIT_NOT,
+            NamedFunctionKind.SHIFT_LEFT, NamedFunctionKind.SHIFT_RIGHT -> {
                 val numbers = args.map { wholeNumber(it) ?: return fail(context, MathIssue.WHOLE_NUMBERS_ONLY) }
                 when (val outcome = wholeNumberFunction(numbers)) {
                     is Whole.Result -> Value(outcome.number)
@@ -605,6 +620,24 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
                     else -> result(BigInt(first.value.nextProbablePrime()))
                 }
             }
+            NamedFunctionKind.BIT_AND -> result(BigInt(first.value.and(numbers[1].value)))
+            NamedFunctionKind.BIT_OR -> result(BigInt(first.value.or(numbers[1].value)))
+            NamedFunctionKind.BIT_XOR -> result(BigInt(first.value.xor(numbers[1].value)))
+            NamedFunctionKind.BIT_NOT -> result(BigInt(first.value.not()))
+            NamedFunctionKind.SHIFT_LEFT, NamedFunctionKind.SHIFT_RIGHT -> {
+                val count = numbers[1]
+                val left = (kind == NamedFunctionKind.SHIFT_LEFT) == !count.isNegative
+                if (count.abs() > BigInt(MAX_SHIFT)) {
+                    // Nothing is left of a number shifted right that far (or all ones, for a negative one); 0 stays 0 either way
+                    return when {
+                        first == BigInt.ZERO -> result(BigInt.ZERO)
+                        left -> tooLarge()
+                        else -> result(if (first.isNegative) BigInt(-1L) else BigInt.ZERO)
+                    }
+                }
+                val bits = count.abs().toLong().toInt()
+                result(BigInt(if (left) first.value.shiftLeft(bits) else first.value.shiftRight(bits)))
+            }
             else -> undefined()
         }
     }
@@ -789,6 +822,8 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
         const val MAX_TERMS = 200_000L
         /** Whole numbers up to here (2^53) are exact as a Double. */
         const val MAX_EXACT_DOUBLE = 9.007199254740992E15
+        /** The most places a number is shifted by: 2^10000 has about 3000 digits. */
+        const val MAX_SHIFT = 10_000L
         val MAX_PLACES = BigInt(100L)
         /** The functions that are meaningful for complex numbers. */
         val COMPLEX_KINDS = setOf(

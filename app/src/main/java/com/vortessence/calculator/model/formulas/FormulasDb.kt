@@ -87,6 +87,12 @@ object FormulasDb {
         Formula(R.string.formula_norm_name, R.string.formula_norm_desc, R.string.category_vectors, ofValues("norm")),
         Formula(R.string.formula_angle_name, R.string.formula_angle_desc, R.string.category_vectors, ofTwo("angle")),
         Formula(R.string.formula_proj_name, R.string.formula_proj_desc, R.string.category_vectors, ofTwo("proj")),
-        Formula(R.string.formula_unitvec_name, R.string.formula_unitvec_desc, R.string.category_vectors, ofValues("unitvec"))
+        Formula(R.string.formula_unitvec_name, R.string.formula_unitvec_desc, R.string.category_vectors, ofValues("unitvec")),
+        Formula(R.string.formula_and_name, R.string.formula_and_desc, R.string.category_bitwise, ofTwo("and")),
+        Formula(R.string.formula_or_name, R.string.formula_or_desc, R.string.category_bitwise, ofTwo("or")),
+        Formula(R.string.formula_xor_name, R.string.formula_xor_desc, R.string.category_bitwise, ofTwo("xor")),
+        Formula(R.string.formula_not_name, R.string.formula_not_desc, R.string.category_bitwise, ofValues("not")),
+        Formula(R.string.formula_shl_name, R.string.formula_shl_desc, R.string.category_bitwise, ofTwo("shl")),
+        Formula(R.string.formula_shr_name, R.string.formula_shr_desc, R.string.category_bitwise, ofTwo("shr"))
     )
 }

@@ -287,7 +287,8 @@ private class ExpressionRow(
  * Digit-grouped display text for the number nodes in [nodes], by node index. A number may be
  * one node ("300000", results) or one node per digit (typed input), so grouping looks at each
  * whole run of number nodes. Integer parts with more than four digits get a narrow space
- * between groups of three (300 000; 4-digit numbers stay 1234, following SI conventions).
+ * between groups of three (300 000; 4-digit numbers stay 1234, following SI conventions). The digits of a
+ * number in another base are grouped by four (0xDEAD BEEF, 0b1111 0000), by three in octal.
  */
 internal fun groupDigits(nodes: List<MathNode>): Map<Int, String> {
     val result = HashMap<Int, String>()
@@ -301,12 +302,15 @@ internal fun groupDigits(nodes: List<MathNode>): Map<Int, String> {
         while (i < nodes.size && nodes[i] is NumberNode) i++
         val run = start until i
         val full = run.joinToString("") { (nodes[it] as NumberNode).text }
-        val integerStart = if (full.startsWith("-")) 1 else 0
+        // A number in another base has its prefix (0x) and then its digits, in groups of four (of three for octal)
+        val base = NumberBase.of(full)
+        val integerStart = if (base != NumberBase.DECIMAL) base.prefix.length else if (full.startsWith("-")) 1 else 0
         var integerEnd = integerStart
-        while (integerEnd < full.length && full[integerEnd].isDigit()) integerEnd++
+        while (integerEnd < full.length && (if (base != NumberBase.DECIMAL) base.isDigit(full[integerEnd]) else full[integerEnd].isDigit())) integerEnd++
         if (integerEnd - integerStart <= 4) continue
-        // Character positions (in the whole run) that start a new group of three
-        val breaks = (integerStart + 1 until integerEnd).filter { (integerEnd - it) % 3 == 0 }.toSet()
+        val groupSize = if (base == NumberBase.OCTAL) 3 else if (base != NumberBase.DECIMAL) 4 else 3
+        // Character positions (in the whole run) that start a new group
+        val breaks = (integerStart + 1 until integerEnd).filter { (integerEnd - it) % groupSize == 0 }.toSet()
         var offset = 0
         for (index in run) {
             val text = (nodes[index] as NumberNode).text

@@ -34,6 +34,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
@@ -57,7 +58,10 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
@@ -72,6 +76,7 @@ import androidx.compose.ui.res.stringResource
 import com.vortessence.calculator.R
 import com.vortessence.calculator.core.math.type.MathString
 import com.vortessence.calculator.model.formulas.FormulasDb
+import com.vortessence.calculator.viewmodel.InputMode
 
 sealed class KeyAction {
     data class Number(val digit: String) : KeyAction()
@@ -177,6 +182,8 @@ private val HINT_POSITIONS = listOf(Alignment.BottomStart, Alignment.BottomCente
 fun CalculatorKeypad(
     modifier: Modifier = Modifier,
     isLineEmpty: Boolean = true,
+    inputMode: InputMode = InputMode.DECIMAL,
+    onInputModeChange: (InputMode) -> Unit = {},
     onKeyAction: (KeyAction) -> Unit
 ) {
     val coroutineScope = rememberCoroutineScope()
@@ -192,6 +199,16 @@ fun CalculatorKeypad(
         val colStepPx = with(density) { (buttonWidth + spacing).toPx() }
         val mainPagePx = (LEFT_COLUMNS * colStepPx).roundToInt()
         val scrollState = rememberScrollState()
+        val programmer = inputMode.programmer
+
+        // A digit key (0 to 9, and A to F of the programmer pages): dimmed where the mode has no such digit
+        val digitKey: @Composable (String) -> Unit = { digit ->
+            KeyButton(text = digit, buttonWidth = buttonWidth, enabled = inputMode.hasDigit(digit)) { onKeyAction(KeyAction.Number(digit)) }
+        }
+        // An operator key of the programmer pages
+        val bitKey: @Composable (String) -> Unit = { symbol ->
+            KeyButton(text = symbol, buttonWidth = buttonWidth, isAccent = true, textSize = PROGRAMMER_KEY_TEXT) { onKeyAction(KeyAction.Operator(symbol)) }
+        }
 
         // The page the keypad rests on (0 left, 1 main, 2 right); a swipe moves at most one page from it
         var restingPage by remember { mutableIntStateOf(1) }
@@ -263,37 +280,41 @@ fun CalculatorKeypad(
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             // Page indicator dots
-            Row(
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 2.dp)
-            ) {
-                for (page in 0 until 3) {
-                    val isSelected = currentPage == page
-                    Box(
-                        modifier = Modifier
-                            .padding(horizontal = 4.dp)
-                            .size(if (isSelected) 7.dp else 5.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
-                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f)
-                            )
-                            .clickable {
-                                val target = when (page) {
-                                    0 -> 0
-                                    2 -> scrollState.maxValue
-                                    else -> mainPagePx
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 2.dp)
+                ) {
+                    for (page in 0 until 3) {
+                        val isSelected = currentPage == page
+                        Box(
+                            modifier = Modifier
+                                .padding(horizontal = 4.dp)
+                                .size(if (isSelected) 7.dp else 5.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
+                                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f)
+                                )
+                                .clickable {
+                                    val target = when (page) {
+                                        0 -> 0
+                                        2 -> scrollState.maxValue
+                                        else -> mainPagePx
+                                    }
+                                    restingPage = page
+                                    coroutineScope.launch {
+                                        scrollState.animateScrollTo(target)
+                                    }
                                 }
-                                restingPage = page
-                                coroutineScope.launch {
-                                    scrollState.animateScrollTo(target)
-                                }
-                            }
-                    )
+                        )
+                    }
                 }
+                // The mode of the keypad: the decimal keys, or the programmer keys for numbers in a base
+                InputModeChip(inputMode, onInputModeChange, Modifier.align(Alignment.CenterEnd))
             }
 
             // Continuous horizontal scroll container containing all 11 columns across 4 rows
@@ -306,35 +327,48 @@ fun CalculatorKeypad(
                 // Row 1
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing)) {
                     // Page 0 (cols 0..3)
-                    KeyButton(
-                        text = "!",
-                        buttonWidth = buttonWidth,
-                        isAccent = true,
-                        alternates = listOf(alt("%", KeyAction.Operator("%")), alt("mod", KeyAction.Operator("mod")), alt("Γ", KeyAction.Function("Γ")))
-                    ) { onKeyAction(KeyAction.Operator("!")) }
-                    KeyButton(
-                        text = "□²",
-                        buttonWidth = buttonWidth,
-                        isAccent = true,
-                        alternates = listOf(alt(scriptLabel("□", sup = "n"), KeyAction.Power), alt(scriptLabel("□", sup = "−1"), KeyAction.Reciprocal))
-                    ) { onKeyAction(KeyAction.Square) }
-                    KeyButton(
-                        text = "√□",
-                        buttonWidth = buttonWidth,
-                        isAccent = true,
-                        alternates = listOf(alt("ⁿ√□", KeyAction.NthRoot))
-                    ) { onKeyAction(KeyAction.Sqrt) }
-                    KeyButton(
-                        text = "log",
-                        buttonWidth = buttonWidth,
-                        isAccent = true,
-                        alternates = listOf(alt("ln", KeyAction.Function("ln")), alt(scriptLabel("log", sub = "n"), KeyAction.LogBase))
-                    ) { onKeyAction(KeyAction.Function("log")) }
+                    if (!programmer) {
+                        // Long press: percent, remainder and Γ; the bitwise operators are in the row above them (the programmer
+                        // pages have them as keys)
+                        KeyButton(
+                            text = "!",
+                            buttonWidth = buttonWidth,
+                            isAccent = true,
+                            alternates = listOf(alt("%", KeyAction.Operator("%")), alt("mod", KeyAction.Operator("mod")), alt("Γ", KeyAction.Function("Γ"))),
+                            upperAlternates = listOf(
+                                alt("AND", KeyAction.Operator("AND")),
+                                alt("OR", KeyAction.Operator("OR")),
+                                alt("XOR", KeyAction.Operator("XOR")),
+                                alt("NOT", KeyAction.Function("not"))
+                            ),
+                            hints = listOf(alt("%", KeyAction.Operator("%")), alt("mod", KeyAction.Operator("mod")), KeyAlternate(AnnotatedString("…")) { })
+                        ) { onKeyAction(KeyAction.Operator("!")) }
+                        KeyButton(
+                            text = "□²",
+                            buttonWidth = buttonWidth,
+                            isAccent = true,
+                            alternates = listOf(alt(scriptLabel("□", sup = "n"), KeyAction.Power), alt(scriptLabel("□", sup = "−1"), KeyAction.Reciprocal))
+                        ) { onKeyAction(KeyAction.Square) }
+                        KeyButton(
+                            text = "√□",
+                            buttonWidth = buttonWidth,
+                            isAccent = true,
+                            alternates = listOf(alt("ⁿ√□", KeyAction.NthRoot))
+                        ) { onKeyAction(KeyAction.Sqrt) }
+                        KeyButton(
+                            text = "log",
+                            buttonWidth = buttonWidth,
+                            isAccent = true,
+                            alternates = listOf(alt("ln", KeyAction.Function("ln")), alt(scriptLabel("log", sub = "n"), KeyAction.LogBase))
+                        ) { onKeyAction(KeyAction.Function("log")) }
 
+                    } else {
+                        digitKey("A"); digitKey("B"); digitKey("C"); digitKey("D")
+                    }
                     // Page 1 (cols 4..8)
-                    KeyButton(text = "7", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("7")) }
-                    KeyButton(text = "8", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("8")) }
-                    KeyButton(text = "9", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("9")) }
+                    digitKey("7")
+                    digitKey("8")
+                    digitKey("9")
                     KeyButton(
                         text = "( )",
                         buttonWidth = buttonWidth,
@@ -359,91 +393,95 @@ fun CalculatorKeypad(
                 // Row 2
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing)) {
                     // Page 0 (cols 0..3)
-                    // Matrices and vectors (a matrix of one column or one row): the key shows a bracketed grid. Its popup has
-                    // the matrix functions in the lower row and the vector functions above them
-                    KeyButton(
-                        content = { Icon(MatrixIcon, contentDescription = stringResource(R.string.keypad_matrix), tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(28.dp)) },
-                        buttonWidth = buttonWidth,
-                        isAccent = true,
-                        alternates = listOf(
-                            alt(scriptLabel("A", sup = "T"), KeyAction.Transpose),
-                            alt("det", KeyAction.Function("det")),
-                            alt("rref", KeyAction.Function("rref")),
-                            alt("eig", KeyAction.Function("eig"))
-                        ),
-                        upperAlternates = listOf(
-                            alt("dot", KeyAction.Insert(FormulasDb.ofTwo("dot"))),
-                            alt("cross", KeyAction.Insert(FormulasDb.ofTwo("cross"))),
-                            alt("norm", KeyAction.Function("norm")),
-                            alt("angle", KeyAction.Insert(FormulasDb.ofTwo("angle"))),
-                            alt("unitvec", KeyAction.Function("unitvec"))
-                        ),
-                        popupIcon = MatrixIcon,
-                        // The most common one; the dots tell that the popup has more (det, rref, eig, the vector functions), as for sin
-                        hints = listOf(
-                            alt(scriptLabel("A", sup = "T"), KeyAction.Transpose),
-                            KeyAlternate(AnnotatedString("…")) { }
-                        )
-                    ) { onKeyAction(KeyAction.Matrix) }
-                    KeyButton(
-                        text = "sin",
-                        buttonWidth = buttonWidth,
-                        isAccent = true,
-                        alternates = listOf(
-                            alt("asin", KeyAction.Function("asin")),
-                            alt("csc", KeyAction.Function("csc")),
-                            alt("acsc", KeyAction.Function("acsc"))
-                        ),
-                        upperAlternates = listOf(
-                            alt("sinh", KeyAction.Function("sinh")),
-                            alt("asinh", KeyAction.Function("asinh")),
-                            alt("csch", KeyAction.Function("csch")),
-                            alt("acsch", KeyAction.Function("acsch"))
-                        ),
-                        // The inverse; the dots tell that the popup has more
-                        hints = listOf(alt("asin", KeyAction.Function("asin")), KeyAlternate(AnnotatedString("…")) { })
-                    ) { onKeyAction(KeyAction.Function("sin")) }
-                    KeyButton(
-                        text = "cos",
-                        buttonWidth = buttonWidth,
-                        isAccent = true,
-                        alternates = listOf(
-                            alt("acos", KeyAction.Function("acos")),
-                            alt("sec", KeyAction.Function("sec")),
-                            alt("asec", KeyAction.Function("asec"))
-                        ),
-                        upperAlternates = listOf(
-                            alt("cosh", KeyAction.Function("cosh")),
-                            alt("acosh", KeyAction.Function("acosh")),
-                            alt("sech", KeyAction.Function("sech")),
-                            alt("asech", KeyAction.Function("asech"))
-                        ),
-                        // The inverse; the dots tell that the popup has more
-                        hints = listOf(alt("acos", KeyAction.Function("acos")), KeyAlternate(AnnotatedString("…")) { })
-                    ) { onKeyAction(KeyAction.Function("cos")) }
-                    KeyButton(
-                        text = "tan",
-                        buttonWidth = buttonWidth,
-                        isAccent = true,
-                        alternates = listOf(
-                            alt("atan", KeyAction.Function("atan")),
-                            alt("cot", KeyAction.Function("cot")),
-                            alt("acot", KeyAction.Function("acot"))
-                        ),
-                        upperAlternates = listOf(
-                            alt("tanh", KeyAction.Function("tanh")),
-                            alt("atanh", KeyAction.Function("atanh")),
-                            alt("coth", KeyAction.Function("coth")),
-                            alt("acoth", KeyAction.Function("acoth"))
-                        ),
-                        // The inverse; the dots tell that the popup has more
-                        hints = listOf(alt("atan", KeyAction.Function("atan")), KeyAlternate(AnnotatedString("…")) { })
-                    ) { onKeyAction(KeyAction.Function("tan")) }
+                    if (!programmer) {
+                        // Matrices and vectors (a matrix of one column or one row): the key shows a bracketed grid. Its popup has
+                        // the matrix functions in the lower row and the vector functions above them
+                        KeyButton(
+                            content = { Icon(MatrixIcon, contentDescription = stringResource(R.string.keypad_matrix), tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(28.dp)) },
+                            buttonWidth = buttonWidth,
+                            isAccent = true,
+                            alternates = listOf(
+                                alt(scriptLabel("A", sup = "T"), KeyAction.Transpose),
+                                alt("det", KeyAction.Function("det")),
+                                alt("rref", KeyAction.Function("rref")),
+                                alt("eig", KeyAction.Function("eig"))
+                            ),
+                            upperAlternates = listOf(
+                                alt("dot", KeyAction.Insert(FormulasDb.ofTwo("dot"))),
+                                alt("cross", KeyAction.Insert(FormulasDb.ofTwo("cross"))),
+                                alt("norm", KeyAction.Function("norm")),
+                                alt("angle", KeyAction.Insert(FormulasDb.ofTwo("angle"))),
+                                alt("unitvec", KeyAction.Function("unitvec"))
+                            ),
+                            popupIcon = MatrixIcon,
+                            // The most common one; the dots tell that the popup has more (det, rref, eig, the vector functions), as for sin
+                            hints = listOf(
+                                alt(scriptLabel("A", sup = "T"), KeyAction.Transpose),
+                                KeyAlternate(AnnotatedString("…")) { }
+                            )
+                        ) { onKeyAction(KeyAction.Matrix) }
+                        KeyButton(
+                            text = "sin",
+                            buttonWidth = buttonWidth,
+                            isAccent = true,
+                            alternates = listOf(
+                                alt("asin", KeyAction.Function("asin")),
+                                alt("csc", KeyAction.Function("csc")),
+                                alt("acsc", KeyAction.Function("acsc"))
+                            ),
+                            upperAlternates = listOf(
+                                alt("sinh", KeyAction.Function("sinh")),
+                                alt("asinh", KeyAction.Function("asinh")),
+                                alt("csch", KeyAction.Function("csch")),
+                                alt("acsch", KeyAction.Function("acsch"))
+                            ),
+                            // The inverse; the dots tell that the popup has more
+                            hints = listOf(alt("asin", KeyAction.Function("asin")), KeyAlternate(AnnotatedString("…")) { })
+                        ) { onKeyAction(KeyAction.Function("sin")) }
+                        KeyButton(
+                            text = "cos",
+                            buttonWidth = buttonWidth,
+                            isAccent = true,
+                            alternates = listOf(
+                                alt("acos", KeyAction.Function("acos")),
+                                alt("sec", KeyAction.Function("sec")),
+                                alt("asec", KeyAction.Function("asec"))
+                            ),
+                            upperAlternates = listOf(
+                                alt("cosh", KeyAction.Function("cosh")),
+                                alt("acosh", KeyAction.Function("acosh")),
+                                alt("sech", KeyAction.Function("sech")),
+                                alt("asech", KeyAction.Function("asech"))
+                            ),
+                            // The inverse; the dots tell that the popup has more
+                            hints = listOf(alt("acos", KeyAction.Function("acos")), KeyAlternate(AnnotatedString("…")) { })
+                        ) { onKeyAction(KeyAction.Function("cos")) }
+                        KeyButton(
+                            text = "tan",
+                            buttonWidth = buttonWidth,
+                            isAccent = true,
+                            alternates = listOf(
+                                alt("atan", KeyAction.Function("atan")),
+                                alt("cot", KeyAction.Function("cot")),
+                                alt("acot", KeyAction.Function("acot"))
+                            ),
+                            upperAlternates = listOf(
+                                alt("tanh", KeyAction.Function("tanh")),
+                                alt("atanh", KeyAction.Function("atanh")),
+                                alt("coth", KeyAction.Function("coth")),
+                                alt("acoth", KeyAction.Function("acoth"))
+                            ),
+                            // The inverse; the dots tell that the popup has more
+                            hints = listOf(alt("atan", KeyAction.Function("atan")), KeyAlternate(AnnotatedString("…")) { })
+                        ) { onKeyAction(KeyAction.Function("tan")) }
 
+                    } else {
+                        digitKey("E"); digitKey("F"); bitKey("AND"); bitKey("OR")
+                    }
                     // Page 1 (cols 4..8)
-                    KeyButton(text = "4", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("4")) }
-                    KeyButton(text = "5", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("5")) }
-                    KeyButton(text = "6", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("6")) }
+                    digitKey("4")
+                    digitKey("5")
+                    digitKey("6")
                     // Long press: a plus or minus as a superscript, for a limit from one side (x → 0⁺)
                     KeyButton(
                         text = "+", buttonWidth = buttonWidth, isOp = true,
@@ -473,43 +511,49 @@ fun CalculatorKeypad(
                 // Row 3
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing)) {
                     // Page 0 (cols 0..3)
-                    // Long press: definite integral, derivative, derivative at a point. In the
-                    // popup the definite integral shows its bounds to tell it from the indefinite one.
-                    val derivative = alt("d/dx", KeyAction.Derivative)
-                    KeyButton(
-                        text = "∫dx",
-                        buttonWidth = buttonWidth,
-                        isAccent = true,
-                        alternates = listOf(
-                            alt(scriptLabel("∫", sup = "b", sub = "a") + AnnotatedString("dx"), KeyAction.Integral),
-                            derivative,
-                            alt(scriptLabel("d/dx", sub = "x=a"), KeyAction.DerivativeAt)
-                        ),
-                        // More labels do not fit on the key
-                        hints = listOf(derivative)
-                    ) { onKeyAction(KeyAction.Antiderivative) }
-                    KeyButton(
-                        text = "Σ",
-                        buttonWidth = buttonWidth,
-                        isAccent = true,
-                        alternates = listOf(alt("∏", KeyAction.Product), alt("lim", KeyAction.Limit))
-                    ) { onKeyAction(KeyAction.Sum) }
-                    KeyButton(
-                        text = "i",
-                        buttonWidth = buttonWidth,
-                        isAccent = true,
-                        alternates = listOf(alt("r∠θ", KeyAction.Polar))
-                    ) { onKeyAction(KeyAction.ImaginaryUnit) }
-                    KeyButton(
-                        text = "π",
-                        buttonWidth = buttonWidth,
-                        alternates = listOf(KeyAlternate(AnnotatedString(stringResource(R.string.keypad_infinity)), InfinityIcon) { onKeyAction(KeyAction.Constant("∞")) })
-                    ) { onKeyAction(KeyAction.Constant("π")) }
+                    if (!programmer) {
+                        // Long press: definite integral, derivative, derivative at a point. In the
+                        // popup the definite integral shows its bounds to tell it from the indefinite one.
+                        val derivative = alt("d/dx", KeyAction.Derivative)
+                        KeyButton(
+                            text = "∫dx",
+                            buttonWidth = buttonWidth,
+                            isAccent = true,
+                            alternates = listOf(
+                                alt(scriptLabel("∫", sup = "b", sub = "a") + AnnotatedString("dx"), KeyAction.Integral),
+                                derivative,
+                                alt(scriptLabel("d/dx", sub = "x=a"), KeyAction.DerivativeAt)
+                            ),
+                            // More labels do not fit on the key
+                            hints = listOf(derivative)
+                        ) { onKeyAction(KeyAction.Antiderivative) }
+                        KeyButton(
+                            text = "Σ",
+                            buttonWidth = buttonWidth,
+                            isAccent = true,
+                            alternates = listOf(alt("∏", KeyAction.Product), alt("lim", KeyAction.Limit))
+                        ) { onKeyAction(KeyAction.Sum) }
+                        KeyButton(
+                            text = "i",
+                            buttonWidth = buttonWidth,
+                            isAccent = true,
+                            alternates = listOf(alt("r∠θ", KeyAction.Polar))
+                        ) { onKeyAction(KeyAction.ImaginaryUnit) }
+                        KeyButton(
+                            text = "π",
+                            buttonWidth = buttonWidth,
+                            alternates = listOf(KeyAlternate(AnnotatedString(stringResource(R.string.keypad_infinity)), InfinityIcon) { onKeyAction(KeyAction.Constant("∞")) })
+                        ) { onKeyAction(KeyAction.Constant("π")) }
 
+                    } else {
+                        bitKey("XOR")
+                        KeyButton(text = "NOT", buttonWidth = buttonWidth, isAccent = true, textSize = PROGRAMMER_KEY_TEXT) { onKeyAction(KeyAction.Function("not")) }
+                        bitKey("<<"); bitKey(">>")
+                    }
                     // Page 1 (cols 4..8)
-                    KeyButton(text = "1", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("1")) }
-                    KeyButton(text = "2", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("2")) }
-                    KeyButton(text = "3", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("3")) }
+                    digitKey("1")
+                    digitKey("2")
+                    digitKey("3")
                     KeyButton(text = "×", buttonWidth = buttonWidth, isOp = true) { onKeyAction(KeyAction.Operator("×")) }
                     // Long press for a mixed number and an inline "÷"; not hinted on the key, the
                     // popup tells them apart by showing the main function as a fraction
@@ -562,28 +606,39 @@ fun CalculatorKeypad(
                         buttonWidth = buttonWidth,
                         content = { IconLabel(Icons.Default.Keyboard, "abc", stringResource(R.string.keypad_variable)) }
                     ) { onKeyAction(KeyAction.FreeVariable) }
-                    KeyButton(text = "e", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Constant("e")) }
-
+                    // The same keys on every page of the mode: e is of no use to whole numbers, so mod takes its place
+                    if (!programmer) {
+                        KeyButton(text = "e", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Constant("e")) }
+                    } else {
+                        KeyButton(text = "mod", buttonWidth = buttonWidth, isAccent = true, textSize = PROGRAMMER_KEY_TEXT) { onKeyAction(KeyAction.Operator("mod")) }
+                    }
                     // Page 1 (cols 4..8)
-                    KeyButton(text = "0", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("0")) }
-                    // The key types a point either way: with a decimal comma it is only shown as a comma
-                    KeyButton(
-                        text = DecimalMark.display("."),
-                        buttonWidth = buttonWidth,
-                        alternates = listOf(alt(DecimalMark.argumentSeparator.trim(), KeyAction.Separator))
-                    ) { onKeyAction(KeyAction.Number(".")) }
-                    KeyButton(
-                        buttonWidth = buttonWidth,
-                        isAccent = true,
-                        content = {
-                            Text(
-                                text = scriptLabel("×10", sup = "□"),
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
-                        }
-                    ) { onKeyAction(KeyAction.EE) }
+                    digitKey("0")
+                    if (programmer) {
+                        // Whole numbers have no point and no ×10ⁿ: two keys for typing several digits at once
+                        KeyButton(text = "00", buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number("00")) }
+                        val many = if (inputMode == InputMode.HEXADECIMAL) "FF" else "000"
+                        KeyButton(text = many, buttonWidth = buttonWidth) { onKeyAction(KeyAction.Number(many)) }
+                    } else {
+                        // The key types a point either way: with a decimal comma it is only shown as a comma
+                        KeyButton(
+                            text = DecimalMark.display("."),
+                            buttonWidth = buttonWidth,
+                            alternates = listOf(alt(DecimalMark.argumentSeparator.trim(), KeyAction.Separator))
+                        ) { onKeyAction(KeyAction.Number(".")) }
+                        KeyButton(
+                            buttonWidth = buttonWidth,
+                            isAccent = true,
+                            content = {
+                                Text(
+                                    text = scriptLabel("×10", sup = "□"),
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
+                        ) { onKeyAction(KeyAction.EE) }
+                    }
                     KeyButton(
                         icon = {
                             Icon(
@@ -608,6 +663,43 @@ fun CalculatorKeypad(
                         content = { IconLabel(Icons.Default.Settings, stringResource(R.string.keypad_settings), stringResource(R.string.keypad_settings)) }
                     ) { onKeyAction(KeyAction.OpenSettings) }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * The mode of the keypad (DEC, HEX, OCT, BIN) as a small chip that opens a menu with the modes. Thin on purpose: it shares
+ * the row of the page dots, which should stay about as high as it was.
+ */
+@Composable
+private fun InputModeChip(mode: InputMode, onChange: (InputMode) -> Unit, modifier: Modifier = Modifier) {
+    var expanded by remember { mutableStateOf(false) }
+    val description = "${stringResource(R.string.keypad_number_base)}: ${mode.label}"
+    Box(modifier = modifier) {
+        Surface(
+            modifier = Modifier.clickable { expanded = true }.semantics { contentDescription = description },
+            shape = RoundedCornerShape(6.dp),
+            color = if (mode.programmer) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        ) {
+            Text(
+                text = "${mode.label} ▾",
+                fontSize = 9.sp,
+                lineHeight = 9.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
+            )
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            InputMode.entries.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option.label, fontWeight = if (option == mode) FontWeight.Bold else FontWeight.Normal) },
+                    onClick = {
+                        expanded = false
+                        onChange(option)
+                    }
+                )
             }
         }
     }
@@ -649,6 +741,10 @@ private fun KeyButton(
     popupLabel: AnnotatedString? = null,
     /** The long-press functions hinted on the key (the popup shows all of them). */
     hints: List<KeyAlternate> = alternates,
+    /** A key that does nothing in the current mode (the digit 8 of a binary number) is dimmed and does not react. */
+    enabled: Boolean = true,
+    /** The size of [text], where the length of the text should not decide it (the names of the operators next to each other). */
+    textSize: TextUnit? = null,
     onClick: () -> Unit
 ) {
     val defaultBg = when {
@@ -765,8 +861,7 @@ private fun KeyButton(
             .onGloballyPositioned { keyLeftInWindow = it.positionInWindow().x }
             .clip(RoundedCornerShape(16.dp))
             .background(defaultBg)
-            .then(touchFeedback)
-            .then(gestureModifier),
+            .then(if (enabled) touchFeedback.then(gestureModifier) else Modifier.alpha(DISABLED_KEY_ALPHA)),
         contentAlignment = Alignment.Center
     ) {
         if (content != null) {
@@ -774,7 +869,7 @@ private fun KeyButton(
         } else if (text != null) {
             Text(
                 text = text,
-                fontSize = if (text.length > 3) 14.sp else if (text.length > 2) 16.sp else 24.sp,
+                fontSize = textSize ?: if (text.length > 3) 14.sp else if (text.length > 2) 16.sp else 24.sp,
                 fontWeight = if (isOp || bgColor != null) FontWeight.Bold else FontWeight.Medium,
                 color = defaultText
             )
@@ -821,6 +916,12 @@ private fun KeyButton(
         }
     }
 }
+
+/** The size of the names of the operators on the programmer keys (AND, OR, XOR, NOT, <<, >>, mod). */
+private val PROGRAMMER_KEY_TEXT = 18.sp
+
+/** How faint a key is that does nothing in the current mode. */
+private const val DISABLED_KEY_ALPHA = 0.35f
 
 /**
  * The infinity symbol, drawn as a path: font glyphs of ∞ differ in size from device to device

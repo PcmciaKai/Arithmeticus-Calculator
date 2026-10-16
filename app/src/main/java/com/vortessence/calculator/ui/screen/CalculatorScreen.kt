@@ -366,6 +366,8 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
             ) {
                 CalculatorKeypad(
                     isLineEmpty = uiState.expression.isEmpty,
+                    inputMode = uiState.inputMode,
+                    onInputModeChange = { viewModel.setInputMode(it) },
                     onKeyAction = { action ->
                         if (action is KeyAction.FreeVariable) {
                             typingFocus.requestFocus()
@@ -628,6 +630,9 @@ private val ResultForm.label: Int
         ResultForm.SCIENTIFIC -> R.string.result_form_scientific
         ResultForm.MIXED -> R.string.result_form_mixed
         ResultForm.POLAR -> R.string.result_form_polar
+        ResultForm.HEX -> R.string.result_form_hex
+        ResultForm.OCT -> R.string.result_form_oct
+        ResultForm.BIN -> R.string.result_form_bin
     }
 
 @Composable

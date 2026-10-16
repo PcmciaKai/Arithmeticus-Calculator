@@ -22,6 +22,17 @@ object MathText {
      * understood, e.g. "-12.5", "1 234" or "3.2e-4".
      */
     fun fromPlainText(text: String): MathString? {
+        BASE_NUMBER.matchEntire(text.trim())?.let { match ->
+            val (sign, prefix, digits) = match.destructured
+            val base = NumberBase.of(prefix)
+            val clean = digits.filterNot { it == ' ' || it == '_' }
+            if (clean.isEmpty() || !clean.all { base.isDigit(it) }) return null
+            val nodes = mutableListOf<MathNode>()
+            if (sign.isNotEmpty()) nodes.add(OperatorNode(MathOp.MINUS))
+            nodes.add(NumberNode(base.prefix))
+            clean.forEach { nodes.add(NumberNode(it.uppercaseChar().toString())) }
+            return MathString(nodes)
+        }
         val match = NUMBER.matchEntire(text.trim()) ?: return null
         val (sign, mantissa, exponent) = match.destructured
         val digits = numberDigits(mantissa.filterNot { it == ' ' || it == '_' || it == ' ' || it == ' ' }) ?: return null
@@ -57,11 +68,20 @@ object MathText {
      */
     fun splitNumbers(string: MathString): MathString = MathString(string.nodes.flatMap { node ->
         when {
-            node is NumberNode && node.text.length > 1 -> node.text.map { NumberNode(it.toString(), node.approximate) }
+            node is NumberNode && node.text.length > 1 -> {
+                // 0xFF: the prefix stays a node of its own, which is what typing it makes
+                val base = NumberBase.of(node.text)
+                val prefix = base.prefix.takeIf { it.isNotEmpty() }
+                (if (prefix != null) listOf(NumberNode(prefix)) else emptyList()) +
+                    node.text.removePrefix(prefix ?: "").map { NumberNode(it.toString(), node.approximate) }
+            }
             node.subStrings.isEmpty() -> listOf(node)
             else -> listOf(node.subStrings.foldIndexed(node) { i, acc, child -> acc.replaceSubString(i, splitNumbers(child)) })
         }
     })
+
+    /** Optional sign, the prefix 0x, 0b or 0o (either case) and the digits, which may be grouped by spaces or underscores. */
+    private val BASE_NUMBER = Regex("""([-−]?)\+?(0[xXbBoO])([0-9a-fA-F][0-9a-fA-F _]*)""")
 
     /** Optional sign, digits (grouped by spaces, commas or underscores) and an optional exponent. */
     private val NUMBER = Regex("""([-−]?)\+?(\d[\d ,_  ]*(?:\.\d*)?|\.\d+)(?:[eE]([+\-−]?\d+))?""")
@@ -127,6 +147,11 @@ object MathText {
         MathOp.FACTORIAL -> "!"
         MathOp.PERCENT -> "%"
         MathOp.MODULO -> " mod "
+        MathOp.AND -> " AND "
+        MathOp.OR -> " OR "
+        MathOp.XOR -> " XOR "
+        MathOp.SHIFT_LEFT -> " << "
+        MathOp.SHIFT_RIGHT -> " >> "
         MathOp.CONVERT -> " -> "
         MathOp.DEFINE -> " := "
         MathOp.LESS -> " < "

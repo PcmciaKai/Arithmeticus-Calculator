@@ -34,6 +34,9 @@ import com.vortessence.calculator.viewmodel.SavedEntry
 import com.vortessence.calculator.viewmodel.SavedSession
 import com.vortessence.calculator.viewmodel.SessionCodec
 import com.vortessence.calculator.viewmodel.SessionStore
+import com.vortessence.calculator.viewmodel.InputMode
+import com.vortessence.calculator.core.math.type.ResultForm
+import com.vortessence.calculator.core.math.type.ResultFormatter
 import com.vortessence.calculator.viewmodel.SessionMessage
 import com.vortessence.calculator.core.math.context.AngleUnit
 import com.vortessence.calculator.core.math.context.UnitSystem
@@ -2300,4 +2303,145 @@ class CalculatorViewModelTest {
             attempts++
         }
     }
+
+    private fun CalculatorViewModel.line() = uiState.value.expression.toString()
+
+    @Test
+    fun digitsOfAnotherBaseStartWithTheirPrefix() = runBlocking {
+        val vm = newViewModel()
+        vm.setInputMode(InputMode.HEXADECIMAL)
+        vm.type("F", "F")
+        assertEquals("0xFF", vm.line())
+        vm.onKeyAction(KeyAction.Operator("AND"))
+        vm.type("0", "F")
+        assertEquals("0xFF AND 0x0F", vm.line())
+        vm.awaitLiveResultText("15")
+    }
+
+    @Test
+    fun aDigitThatIsNotOfTheBaseTypesNothing() = runBlocking {
+        val vm = newViewModel()
+        vm.setInputMode(InputMode.BINARY)
+        vm.type("1", "0", "2", "F", "1")
+        assertEquals("0b101", vm.line())
+        // The same inside a number that has a prefix, in another mode
+        vm.setInputMode(InputMode.DECIMAL)
+        vm.type("5")
+        assertEquals("0b101", vm.line())
+        vm.type("1")
+        assertEquals("0b1011", vm.line())
+    }
+
+    @Test
+    fun aDecimalNumberTurnsIntoTheBaseOfTheMode() = runBlocking {
+        val vm = newViewModel()
+        vm.type("1", "2")
+        vm.setInputMode(InputMode.HEXADECIMAL)
+        vm.type("F")
+        assertEquals("0xCF", vm.line())
+    }
+
+    @Test
+    fun theNumberOfAnotherBaseCanBeDeletedWithItsPrefix() = runBlocking {
+        val vm = newViewModel()
+        vm.setInputMode(InputMode.OCTAL)
+        vm.type("7", "7")
+        vm.onKeyAction(KeyAction.Backspace)
+        assertEquals("0o7", vm.line())
+        vm.onKeyAction(KeyAction.Backspace)
+        // The prefix goes with the last digit
+        assertEquals("", vm.line())
+        assertEquals(listOf(0), vm.uiState.value.cursorPath)
+    }
+
+    @Test
+    fun thePrefixIsKeptWhenDigitsAreLeft() = runBlocking {
+        val vm = newViewModel()
+        vm.setInputMode(InputMode.HEXADECIMAL)
+        vm.type("1", "F")
+        vm.onKeyAction(KeyAction.MoveLeft)
+        vm.onKeyAction(KeyAction.Backspace)
+        assertEquals("0xF", vm.line())
+    }
+
+    @Test
+    fun theModeDecidesHowResultsAreShown() = runBlocking {
+        val vm = newViewModel()
+        assertEquals(ResultForm.EXACT, vm.uiState.value.resultForm)
+        vm.setInputMode(InputMode.HEXADECIMAL)
+        assertEquals(ResultForm.HEX, vm.uiState.value.resultForm)
+        vm.setInputMode(InputMode.BINARY)
+        assertEquals(ResultForm.BIN, vm.uiState.value.resultForm)
+        // Back to decimal: the base form goes, the other forms are the user's
+        vm.setInputMode(InputMode.DECIMAL)
+        assertEquals(ResultForm.EXACT, vm.uiState.value.resultForm)
+        vm.setResultForm(ResultForm.SCIENTIFIC)
+        vm.setInputMode(InputMode.DECIMAL)
+        assertEquals(ResultForm.SCIENTIFIC, vm.uiState.value.resultForm)
+    }
+
+    @Test
+    fun aCommittedEntryKeepsTheBaseItWasShownIn() = runBlocking {
+        val store = MemorySessionStore()
+        val vm = newViewModel(store)
+        vm.setInputMode(InputMode.HEXADECIMAL)
+        vm.type("F", "F")
+        vm.onKeyAction(KeyAction.Enter)
+        vm.awaitCommit()
+        assertEquals(ResultForm.HEX, vm.uiState.value.history[0].form)
+        vm.saveSession()
+        val reopened = newViewModel(store)
+        reopened.awaitHistory(1)
+        assertEquals("0xFF", reopened.uiState.value.history[0].calculation.input.toString())
+        assertEquals(ResultForm.HEX, reopened.uiState.value.history[0].form)
+    }
+
+    @Test
+    fun deletingTheDigitsWithASelectionTakesThePrefixAlong() = runBlocking {
+        val vm = newViewModel()
+        vm.setInputMode(InputMode.HEXADECIMAL)
+        vm.type("F", "F")
+        // Selecting the digits only (the prefix is the first node) and deleting them
+        vm.setSelection(emptyList(), 1..2)
+        vm.onKeyAction(KeyAction.Backspace)
+        assertEquals("", vm.line())
+        assertEquals(listOf(0), vm.uiState.value.cursorPath)
+    }
+
+    @Test
+    fun aDigitOfAnotherBaseIsNotPutInsideADecimalNumber() = runBlocking {
+        val vm = newViewModel()
+        vm.type("1", "2", "3")
+        vm.onKeyAction(KeyAction.MoveLeft)
+        vm.setInputMode(InputMode.HEXADECIMAL)
+        vm.type("A")
+        assertEquals("123", vm.line())
+    }
+
+    @Test
+    fun lettersAreNoDigitsInTheDecimalMode() = runBlocking {
+        val vm = newViewModel()
+        vm.type("1", "F")
+        assertEquals("1", vm.line())
+    }
+
+    @Test
+    fun aPastedHexResultCanBeEditedLikeATypedOne() = runBlocking {
+        val vm = newViewModel()
+        vm.setInputMode(InputMode.HEXADECIMAL)
+        vm.type("F", "F")
+        vm.onKeyAction(KeyAction.Enter)
+        vm.awaitCommit()
+        // What a long press on the result copies: the number in one node, 0xFF
+        val shown = ResultFormatter.format(vm.uiState.value.history[0].calculation, ResultForm.HEX)
+        assertTrue(vm.paste(shown))
+        assertEquals("0xFF", vm.line())
+        // It is the prefix and the digits again: a digit goes after them, and the prefix goes with the last digit
+        vm.type("1")
+        assertEquals("0xFF1", vm.line())
+        vm.awaitLiveResultText("4081")
+        repeat(4) { vm.onKeyAction(KeyAction.Backspace) }
+        assertEquals("", vm.line())
+    }
+
 }

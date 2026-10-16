@@ -8,29 +8,38 @@ sealed class MathNode {
 }
 
 enum class MathOp(val symbol: String, val precedence: Int) {
-    PLUS("+", 1),
-    MINUS("−", 1),
-    MULTIPLY("×", 2),
-    DIVIDE("÷", 2),
-    EQUALS("=", 0),
-    FACTORIAL("!", 3),
-    /** Postfix percent: 5% = 5/100. */
-    PERCENT("%", 3),
-    /** Remainder of a division, with the sign of the divisor: 7 mod 3 = 1, −7 mod 3 = 2. */
-    MODULO("mod", 2),
-    /** Unit conversion, e.g. "5 km → mi". Binds weakest of all operators. */
+    // From the weakest to the strongest: the bitwise operators bind tighter than "=" (a AND b = c is (a AND b) = c) and weaker than
+    // the arithmetic, shifts between them, as in C
     CONVERT("→", -1),
+    PLUS("+", 5),
+    MINUS("−", 5),
+    MULTIPLY("×", 6),
+    DIVIDE("÷", 6),
+    EQUALS("=", 0),
+    FACTORIAL("!", 7),
+    /** Postfix percent: 5% = 5/100. */
+    PERCENT("%", 7),
+    /** Remainder of a division, with the sign of the divisor: 7 mod 3 = 1, −7 mod 3 = 2. */
+    MODULO("mod", 6),
     /** Definition of a variable, "a := 2x²". Only valid right after the variable at the start of a line. */
     DEFINE(":=", -2),
     /** Inequalities, e.g. "x² − 4 > 0": like "=" they split a line into two sides. */
     LESS("<", 0),
     GREATER(">", 0),
     LESS_EQUAL("≤", 0),
-    GREATER_EQUAL("≥", 0)
+    GREATER_EQUAL("≥", 0),
+    /** Bitwise operators on whole numbers: 12 AND 10 = 8, 12 OR 3 = 15, 12 XOR 10 = 6 (negative numbers as in two's complement). */
+    OR("OR", 1),
+    XOR("XOR", 2),
+    AND("AND", 3),
+    /** Shifts: 1 << 4 = 16 (times 2ⁿ), 16 >> 2 = 4 (the floor of the division by 2ⁿ). */
+    SHIFT_LEFT("<<", 4),
+    SHIFT_RIGHT(">>", 4)
 }
 
 /**
- * Digits (and a decimal point). [approximate] marks the digits of a floating point result, e.g.
+ * Digits (and a decimal point). A whole number in another base is a run of nodes that starts with its prefix, 0x, 0b or 0o (a node of its own),
+ * then the digits: 0xFF, 0b1010, 0o17 (see [NumberBase]). [approximate] marks the digits of a floating point result, e.g.
  * 1.4626517459071848 for a numeric integral: reused as input (Ans, a variable, a tapped result)
  * it stays a decimal approximation instead of turning into the exact fraction of its digits.
  */
@@ -46,6 +55,9 @@ data class OperatorNode(val op: MathOp) : MathNode() {
 
 /** Factorial and percent follow their operand: 5!, 20%. */
 val MathOp.isPostfix: Boolean get() = this == MathOp.FACTORIAL || this == MathOp.PERCENT
+
+/** AND, OR, XOR and the shifts, which work on the bits of whole numbers. */
+val MathOp.isBitwise: Boolean get() = this == MathOp.AND || this == MathOp.OR || this == MathOp.XOR || this == MathOp.SHIFT_LEFT || this == MathOp.SHIFT_RIGHT
 
 /** <, >, ≤ and ≥: the signs of an inequality. */
 val MathOp.isInequality: Boolean get() = this == MathOp.LESS || this == MathOp.GREATER || this == MathOp.LESS_EQUAL || this == MathOp.GREATER_EQUAL
@@ -480,4 +492,23 @@ class MathString(initialNodes: List<MathNode> = emptyList()) {
     }
 
     override fun hashCode(): Int = _nodes.hashCode()
+}
+
+/** The bases a whole number can be written in, with the prefix that tells the base. */
+enum class NumberBase(val radix: Int, val prefix: String, val label: String) {
+    DECIMAL(10, "", "DEC"),
+    HEXADECIMAL(16, "0x", "HEX"),
+    OCTAL(8, "0o", "OCT"),
+    BINARY(2, "0b", "BIN");
+
+    /** Whether [digit] is a digit of this base (A to F, either case, only in hexadecimal). */
+    fun isDigit(digit: Char): Boolean = digit.code < 128 && Character.digit(digit, radix) >= 0
+
+    companion object {
+        /** The base that [text] (typed digits, joined) is written in, by its prefix; decimal without one. */
+        fun of(text: String): NumberBase {
+            if (text.length < 2 || text[0] != '0') return DECIMAL
+            return entries.firstOrNull { it.prefix.isNotEmpty() && it.prefix[1] == text[1].lowercaseChar() } ?: DECIMAL
+        }
+    }
 }
