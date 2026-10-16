@@ -25,8 +25,8 @@ import com.vortessence.calculator.i18n.AppLanguage
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import java.io.IOException
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -218,6 +218,10 @@ class CalculatorViewModel @JvmOverloads constructor(
      */
     private var sessionRestored = false
 
+    /** Counts the restores and imports: only the newest one may say that the history is complete (a cancelled one ends later). */
+    private var restoreGeneration = 0
+
+
     /**
      * Saved entries that could not be calculated again (e.g. a calculation that timed out on a
      * slow start). They are not shown, but kept in the saved session so the next start can try
@@ -302,11 +306,12 @@ class CalculatorViewModel @JvmOverloads constructor(
         _uiState.update {
             it.copy(expression = saved.expression, cursorPath = listOf(saved.expression.length), randomSeed = if (saved.randomSeed != 0L) saved.randomSeed else it.randomSeed)
         }
+        val generation = ++restoreGeneration
         restoreJob = viewModelScope.launch {
             try {
                 restoreEntries(saved.entries) { unrestoredEntries = unrestoredEntries + it }
             } finally {
-                sessionRestored = true
+                if (generation == restoreGeneration) sessionRestored = true
             }
         }
     }
@@ -399,9 +404,10 @@ class CalculatorViewModel @JvmOverloads constructor(
                     // "wt": an existing file is replaced, not overwritten from the start
                     getApplication<Application>().contentResolver.openOutputStream(uri, "wt")?.use { it.write(text.toByteArray(Charsets.UTF_8)) } != null
                 }
-            } catch (e: IOException) {
-                false
-            } catch (e: SecurityException) {
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // IOException, but also what providers of other apps throw (SecurityException, IllegalArgumentException, ...)
                 false
             }
             showSessionMessage(SessionMessage(if (saved) SessionMessage.Type.SAVED else SessionMessage.Type.SAVE_FAILED))
@@ -425,9 +431,9 @@ class CalculatorViewModel @JvmOverloads constructor(
                         if (buffer.size() > MAX_SESSION_FILE_BYTES) null else buffer.toString(Charsets.UTF_8.name())
                     }
                 }
-            } catch (e: IOException) {
-                null
-            } catch (e: SecurityException) {
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
                 null
             }
             if (text == null) showSessionMessage(SessionMessage(SessionMessage.Type.READ_FAILED)) else offerSession(text)
@@ -439,7 +445,8 @@ class CalculatorViewModel @JvmOverloads constructor(
      * it is replaced or added to (see [importSession]); without one it is simply opened.
      */
     fun offerSession(text: String) {
-        val session = SessionCodec.decode(text)
+        // A byte order mark is put in front of the text by some editors
+        val session = SessionCodec.decode(text.removePrefix("\uFEFF"))
         if (session == null) {
             showSessionMessage(SessionMessage(SessionMessage.Type.NOT_A_SESSION))
         } else if (_uiState.value.history.isEmpty() && unrestoredEntries.isEmpty() && restoreJob?.isActive != true) {
@@ -462,33 +469,34 @@ class CalculatorViewModel @JvmOverloads constructor(
 
     private fun startImport(session: SavedSession, replace: Boolean) {
         val previous = restoreJob
-        val entries: List<SavedEntry>
         if (replace) {
             previous?.cancel()
             unrestoredEntries = emptyList()
             nextHistoryId = (session.entries.maxOfOrNull { it.id } ?: -1L) + 1
-            entries = session.entries
             _uiState.update {
                 it.copy(
                     expression = session.expression, cursorPath = listOf(session.expression.length), selectionRange = null, history = emptyList(),
                     randomSeed = if (session.randomSeed != 0L) session.randomSeed else it.randomSeed
                 )
             }
-        } else {
-            // Below the entries there are, so that what is on the screen keeps its variables and Ans; in their order
-            val lowest = _uiState.value.history.minOfOrNull { it.id } ?: nextHistoryId
-            val ascending = session.entries.sortedBy { it.id }
-            entries = ascending.mapIndexed { i, e -> e.copy(id = lowest - ascending.size + i) }
         }
         sessionRestored = false
+        val generation = ++restoreGeneration
         restoreJob = viewModelScope.launch {
             try {
-                if (!replace) previous?.join()
+                val entries = if (replace) session.entries else {
+                    // Below the entries there are (once an earlier restore has shown all of them), so that what is on the screen keeps
+                    // its variables and Ans; in their order
+                    previous?.join()
+                    val lowest = (_uiState.value.history.map { it.id } + unrestoredEntries.map { it.id }).minOrNull() ?: nextHistoryId
+                    val ascending = session.entries.sortedBy { it.id }
+                    ascending.mapIndexed { i, e -> e.copy(id = lowest - ascending.size + i) }
+                }
                 var skipped = 0
                 restoreEntries(entries) { skipped++ }
                 showSessionMessage(SessionMessage(SessionMessage.Type.OPENED, entries.size - skipped, skipped))
             } finally {
-                sessionRestored = true
+                if (generation == restoreGeneration) sessionRestored = true
             }
         }
     }

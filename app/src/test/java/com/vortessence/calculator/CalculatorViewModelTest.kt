@@ -2243,6 +2243,55 @@ class CalculatorViewModelTest {
         other.awaitLiveResultText("6")
     }
 
+    @Test
+    fun aFileWithAByteOrderMarkOpens() = runBlocking {
+        val file = fileOf(listOf("5"))
+        val other = newViewModel()
+        other.offerSession("\uFEFF" + file)
+        other.awaitHistory(1)
+    }
+
+    @Test
+    fun anOpenedSessionIsSavedAgainForTheNextStart() = runBlocking {
+        val file = fileOf(listOf("5"), listOf("6"))
+        val store = MemorySessionStore()
+        val other = newViewModel(store)
+        other.offerSession(file)
+        other.awaitHistory(2)
+        other.restoreJobDone()
+        // Saving was switched off while the file was being opened, and is on again
+        awaitSaved(store) { it.contains("\t[N(\"6\",0)]\t") && it.contains("\t[N(\"5\",0)]\t") }
+        val reopened = newViewModel(store)
+        reopened.awaitHistory(2)
+        assertEquals(listOf("6", "5"), reopened.uiState.value.history.map { it.calculation.input.toString() })
+    }
+
+    @Test
+    fun addingSessionsTwiceKeepsTheOrderAndTheIdsApartAcrossAStart() = runBlocking {
+        val first = fileOf(listOf("1"), listOf("2"))
+        val second = fileOf(listOf("3"), listOf("4"))
+        val store = MemorySessionStore()
+        val other = newViewModel(store)
+        other.commit("9")
+        other.offerSession(first)
+        other.importSession(replace = false)
+        other.awaitHistory(3)
+        other.restoreJobDone()
+        other.dismissSessionMessage()
+        other.offerSession(second)
+        other.importSession(replace = false)
+        other.awaitHistory(5)
+        other.restoreJobDone()
+        val inputs = listOf("9", "2", "1", "4", "3")
+        assertEquals(inputs, other.uiState.value.history.map { it.calculation.input.toString() })
+        val ids = other.uiState.value.history.map { it.id }
+        assertEquals(ids.size, ids.toSet().size)
+        other.saveSession()
+        val reopened = newViewModel(store)
+        reopened.awaitHistory(5)
+        assertEquals(inputs, reopened.uiState.value.history.map { it.calculation.input.toString() })
+    }
+
     private suspend fun CalculatorViewModel.restoreJobDone() {
         // The entries show up one by one; the message comes when the last one has
         var attempts = 0
