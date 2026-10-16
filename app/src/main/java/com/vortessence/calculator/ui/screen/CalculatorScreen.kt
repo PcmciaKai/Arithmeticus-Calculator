@@ -77,6 +77,11 @@ import com.vortessence.calculator.ui.theme.CalculatorTheme
 import com.vortessence.calculator.viewmodel.CalculatorUiState
 import com.vortessence.calculator.viewmodel.CalculatorViewModel
 import com.vortessence.calculator.viewmodel.PercentHint
+import com.vortessence.calculator.viewmodel.SessionFileRequest
+import com.vortessence.calculator.viewmodel.SessionMessage
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import java.time.LocalDate
 import com.vortessence.calculator.viewmodel.TypingNotice
 import com.vortessence.calculator.viewmodel.VariableHint
 import com.vortessence.calculator.core.math.type.VariableNameProblem
@@ -141,6 +146,54 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
             )
             viewModel.dismissComplexNotice()
         }
+    }
+
+    // Saving and opening a session go through the system's file dialogs; no permission is needed for them
+    val saveFile = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
+        if (uri != null) viewModel.saveSessionTo(uri)
+    }
+    val openFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) viewModel.openSessionFrom(uri)
+    }
+    LaunchedEffect(uiState.sessionFileRequest) {
+        val request = uiState.sessionFileRequest ?: return@LaunchedEffect
+        viewModel.sessionFileRequestHandled()
+        when (request) {
+            SessionFileRequest.SAVE -> saveFile.launch(context.getString(R.string.session_file_name, LocalDate.now().toString()))
+            SessionFileRequest.OPEN -> openFile.launch(arrayOf("*/*"))
+        }
+    }
+    LaunchedEffect(uiState.sessionMessage) {
+        val message = uiState.sessionMessage ?: return@LaunchedEffect
+        val text = when (message.type) {
+            SessionMessage.Type.SAVED -> context.getString(R.string.session_saved)
+            SessionMessage.Type.SAVE_FAILED -> context.getString(R.string.session_save_failed)
+            SessionMessage.Type.NOT_A_SESSION -> context.getString(R.string.session_not_a_session)
+            SessionMessage.Type.READ_FAILED -> context.getString(R.string.session_read_failed)
+            SessionMessage.Type.OPENED ->
+                context.resources.getQuantityString(R.plurals.session_opened, message.count, message.count) +
+                    if (message.skipped > 0) context.getString(R.string.session_opened_skipped, message.skipped) else ""
+        }
+        snackbarHostState.showSnackbar(text, withDismissAction = true)
+        viewModel.dismissSessionMessage()
+    }
+
+    // A session file was opened while there is a history: replace it or add to it
+    if (uiState.pendingImport != null) {
+        AlertDialog(
+            onDismissRequest = { viewModel.cancelImport() },
+            title = { Text(stringResource(R.string.session_import_title)) },
+            text = { Text(stringResource(R.string.session_import_text)) },
+            confirmButton = {
+                TextButton(onClick = { viewModel.importSession(replace = true) }) { Text(stringResource(R.string.session_import_replace)) }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = { viewModel.cancelImport() }) { Text(stringResource(R.string.session_cancel)) }
+                    TextButton(onClick = { viewModel.importSession(replace = false) }) { Text(stringResource(R.string.session_import_add)) }
+                }
+            }
+        )
     }
 
     val clipboard = rememberMathClipboard()
@@ -394,6 +447,8 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
             onComplexNumbersChange = { viewModel.setComplexNumbers(it) },
             onThemeModeChange = { viewModel.setThemeMode(it) },
             onLanguageChange = { choice -> (context as? Activity)?.let { AppLanguage.set(it, choice) } },
+            onSaveSession = { viewModel.dismissSettingsDialog(); viewModel.requestSessionFile(SessionFileRequest.SAVE) },
+            onOpenSession = { viewModel.dismissSettingsDialog(); viewModel.requestSessionFile(SessionFileRequest.OPEN) },
             onDismiss = { viewModel.dismissSettingsDialog() }
         )
     }

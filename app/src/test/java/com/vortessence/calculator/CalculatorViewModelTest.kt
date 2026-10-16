@@ -34,6 +34,7 @@ import com.vortessence.calculator.viewmodel.SavedEntry
 import com.vortessence.calculator.viewmodel.SavedSession
 import com.vortessence.calculator.viewmodel.SessionCodec
 import com.vortessence.calculator.viewmodel.SessionStore
+import com.vortessence.calculator.viewmodel.SessionMessage
 import com.vortessence.calculator.core.math.context.AngleUnit
 import com.vortessence.calculator.core.math.context.UnitSystem
 import androidx.lifecycle.viewModelScope
@@ -2142,5 +2143,112 @@ class CalculatorViewModelTest {
         assertEquals(2, dot.argument.length)
         assertEquals(listOf(0, 0, 2), vm.uiState.value.cursorPath)
         assertNull(vm.uiState.value.selectionRange)
+    }
+
+    private suspend fun CalculatorViewModel.commit(vararg keys: String) {
+        type(*keys)
+        onKeyAction(KeyAction.Enter)
+        awaitCommit()
+    }
+
+    private suspend fun fileOf(vararg lines: List<String>): String {
+        val source = newViewModel()
+        for (keys in lines) source.commit(*keys.toTypedArray())
+        source.type("7", "+")
+        return source.sessionText()
+    }
+
+    @Test
+    fun aSavedSessionOpensInAnEmptyCalculatorWithoutAsking() = runBlocking {
+        val file = fileOf(listOf("5"), listOf("2", "+", "3"))
+        val other = newViewModel()
+        other.offerSession(file)
+        other.awaitHistory(2)
+        assertNull(other.uiState.value.pendingImport)
+        assertEquals(listOf("2 + 3", "5"), other.uiState.value.history.map { it.calculation.input.toString() })
+        assertEquals("5", other.uiState.value.history[0].calculation.result.toString())
+        assertEquals("7 + ", other.uiState.value.expression.toString())
+        assertEquals(SessionMessage.Type.OPENED, other.uiState.value.sessionMessage?.type)
+        assertEquals(2, other.uiState.value.sessionMessage?.count)
+    }
+
+    @Test
+    fun openingASessionWithAHistoryAsksAndCanReplaceIt() = runBlocking {
+        val file = fileOf(listOf("5"))
+        val other = newViewModel()
+        other.commit("9")
+        other.offerSession(file)
+        assertNotNull(other.uiState.value.pendingImport)
+        // Nothing has changed before the answer
+        assertEquals(listOf("9"), other.uiState.value.history.map { it.calculation.input.toString() })
+        other.importSession(replace = true)
+        other.restoreJobDone()
+        assertEquals(listOf("5"), other.uiState.value.history.map { it.calculation.input.toString() })
+        assertEquals("7 + ", other.uiState.value.expression.toString())
+        assertNull(other.uiState.value.pendingImport)
+    }
+
+    @Test
+    fun openingASessionCanAddItBelowTheHistory() = runBlocking {
+        val file = fileOf(listOf("5"), listOf("6"))
+        val other = newViewModel()
+        other.commit("9")
+        other.type("1")
+        other.offerSession(file)
+        other.importSession(replace = false)
+        other.awaitHistory(3)
+        other.restoreJobDone()
+        assertEquals(listOf("9", "6", "5"), other.uiState.value.history.map { it.calculation.input.toString() })
+        // The line being typed is kept
+        assertEquals("1", other.uiState.value.expression.toString())
+        // A new entry still comes first and the ids do not clash
+        other.commit("8")
+        val ids = other.uiState.value.history.map { it.id }
+        assertEquals("18", other.uiState.value.history[0].calculation.input.toString())
+        assertEquals(ids.size, ids.toSet().size)
+    }
+
+    @Test
+    fun cancellingTheQuestionLeavesEverythingAsItWas() = runBlocking {
+        val file = fileOf(listOf("5"))
+        val other = newViewModel()
+        other.commit("9")
+        other.offerSession(file)
+        other.cancelImport()
+        assertNull(other.uiState.value.pendingImport)
+        assertEquals(listOf("9"), other.uiState.value.history.map { it.calculation.input.toString() })
+    }
+
+    @Test
+    fun aFileThatIsNoSessionIsSaidSoAndChangesNothing() = runBlocking {
+        val other = newViewModel()
+        other.commit("9")
+        other.offerSession("hello")
+        assertEquals(SessionMessage.Type.NOT_A_SESSION, other.uiState.value.sessionMessage?.type)
+        assertNull(other.uiState.value.pendingImport)
+        assertEquals(1, other.uiState.value.history.size)
+    }
+
+    @Test
+    fun variablesComeBackWithAnOpenedSession() = runBlocking {
+        val source = newViewModel()
+        source.defineVariable("a", "2")
+        val file = source.sessionText()
+        val other = newViewModel()
+        other.offerSession(file)
+        other.awaitHistory(1)
+        other.type("3")
+        other.onKeyAction(KeyAction.Operator("×"))
+        other.onKeyAction(KeyAction.Variable("a"))
+        other.awaitLiveResultText("6")
+    }
+
+    private suspend fun CalculatorViewModel.restoreJobDone() {
+        // The entries show up one by one; the message comes when the last one has
+        var attempts = 0
+        while (uiState.value.sessionMessage == null && attempts < 100) {
+            delay(20)
+            attempts++
+        }
     }
 }

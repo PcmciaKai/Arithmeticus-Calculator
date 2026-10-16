@@ -516,6 +516,25 @@
     <string name="keypad_enter">Enter</string>
     <string name="keypad_new_line">new line</string>
     <string name="keypad_settings">Settings</string>
+    <string name="settings_session">Session</string>
+    <string name="settings_session_desc">Save the line and the history to a file, or open one</string>
+    <string name="settings_session_save">Save…</string>
+    <string name="settings_session_open">Open…</string>
+    <string name="session_file_name">calculator-%1$s.txt</string>
+    <string name="session_import_title">Open session</string>
+    <string name="session_import_text">There is a history already. Replace it with the one from the file, or add the file\'s entries below it?</string>
+    <string name="session_import_replace">Replace</string>
+    <string name="session_import_add">Add below</string>
+    <string name="session_cancel">Cancel</string>
+    <string name="session_saved">Session saved</string>
+    <string name="session_save_failed">The session could not be saved</string>
+    <string name="session_not_a_session">This file is not a saved session</string>
+    <string name="session_read_failed">The file could not be read</string>
+    <plurals name="session_opened">
+        <item quantity="one">%1$d entry opened</item>
+        <item quantity="other">%1$d entries opened</item>
+    </plurals>
+    <string name="session_opened_skipped">, %1$d could not be calculated and were left out</string>
     <string name="keypad_infinity">infinity</string>
     <string name="keypad_mixed_number">mixed number</string>
     <string name="graph_tool_trace">Trace</string>

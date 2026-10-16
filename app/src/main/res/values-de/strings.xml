@@ -251,6 +251,25 @@
     <string name="keypad_enter">Eingabe</string>
     <string name="keypad_new_line">neue Zeile</string>
     <string name="keypad_settings">Optionen</string>
+    <string name="settings_session">Sitzung</string>
+    <string name="settings_session_desc">Zeile und Verlauf in einer Datei speichern oder eine öffnen</string>
+    <string name="settings_session_save">Speichern…</string>
+    <string name="settings_session_open">Öffnen…</string>
+    <string name="session_file_name">rechner-%1$s.txt</string>
+    <string name="session_import_title">Sitzung öffnen</string>
+    <string name="session_import_text">Es gibt bereits einen Verlauf. Soll er durch den aus der Datei ersetzt werden, oder sollen die Einträge der Datei darunter eingefügt werden?</string>
+    <string name="session_import_replace">Ersetzen</string>
+    <string name="session_import_add">Darunter einfügen</string>
+    <string name="session_cancel">Abbrechen</string>
+    <string name="session_saved">Sitzung gespeichert</string>
+    <string name="session_save_failed">Die Sitzung konnte nicht gespeichert werden</string>
+    <string name="session_not_a_session">Diese Datei ist keine gespeicherte Sitzung</string>
+    <string name="session_read_failed">Die Datei konnte nicht gelesen werden</string>
+    <plurals name="session_opened">
+        <item quantity="one">%1$d Eintrag geöffnet</item>
+        <item quantity="other">%1$d Einträge geöffnet</item>
+    </plurals>
+    <string name="session_opened_skipped">, %1$d konnten nicht berechnet werden und fehlen</string>
     <string name="keypad_infinity">unendlich</string>
     <string name="keypad_mixed_number">gemischte Zahl</string>
     <string name="graph_tool_trace">Spur</string>

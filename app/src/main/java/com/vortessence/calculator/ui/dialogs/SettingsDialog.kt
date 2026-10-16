@@ -38,6 +38,8 @@ fun SettingsDialog(
     onComplexNumbersChange: (Boolean) -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit,
     onLanguageChange: (LanguageChoice) -> Unit,
+    onSaveSession: () -> Unit,
+    onOpenSession: () -> Unit,
     onDismiss: () -> Unit
 ) {
     var showSupport by remember { mutableStateOf(false) }
@@ -223,6 +225,26 @@ fun SettingsDialog(
                             ) {
                                 Text(label, fontSize = 13.sp, maxLines = 1)
                             }
+                        }
+                    }
+                }
+
+                HorizontalDivider()
+
+                // Session file
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.settings_session), fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                    Text(
+                        stringResource(R.string.settings_session_desc),
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = onSaveSession, modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.settings_session_save))
+                        }
+                        OutlinedButton(onClick = onOpenSession, modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.settings_session_open))
                         }
                     }
                 }

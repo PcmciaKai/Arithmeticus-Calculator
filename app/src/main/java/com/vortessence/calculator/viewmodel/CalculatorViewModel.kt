@@ -3,6 +3,7 @@ package com.vortessence.calculator.viewmodel
 import com.vortessence.calculator.ui.math.DecimalMark
 import android.app.Application
 import android.content.Context
+import android.net.Uri
 import androidx.core.content.edit
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -25,6 +26,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.Dispatchers
+import java.io.IOException
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -103,7 +105,13 @@ data class CalculatorUiState(
     /** Why a letter typed on the system keyboard was not taken (see [CalculatorViewModel.typeText]); null after the next typing that had no such letter. */
     val typingNotice: TypingNotice? = null,
     /** For an integral or derivative that has other variables than its own: the ones that may be meant. */
-    val variableHint: VariableHint? = null
+    val variableHint: VariableHint? = null,
+    /** A session file that was opened while there is a history: whether it replaces it or is added to it is still to be asked. */
+    val pendingImport: SavedSession? = null,
+    /** What saving or opening a session file came to, until the message about it was shown. */
+    val sessionMessage: SessionMessage? = null,
+    /** The system's file dialog the screen is to show (the settings asked for it), until it did. */
+    val sessionFileRequest: SessionFileRequest? = null
 ) {
     /**
      * Variables defined with ":=" by calculations in the history; the newest definition of a
@@ -121,6 +129,13 @@ data class CalculatorUiState(
  * variable in it, e.g. d/dx(y²) (which is 0): one of the [candidates] (y) is probably meant.
  */
 data class VariableHint(val stringPath: List<Int>, val nodeIndex: Int, val isDerivative: Boolean, val candidates: List<String>)
+
+enum class SessionFileRequest { SAVE, OPEN }
+
+/** What happened to a session file; [count] entries were opened, [skipped] of them could not be calculated and are left out. */
+data class SessionMessage(val type: Type, val count: Int = 0, val skipped: Int = 0) {
+    enum class Type { SAVED, SAVE_FAILED, OPENED, NOT_A_SESSION, READ_FAILED }
+}
 
 /** The [letter] typed on the system keyboard is no variable, for the reason [problem]. */
 data class TypingNotice(val letter: String, val problem: VariableNameProblem)
@@ -289,23 +304,27 @@ class CalculatorViewModel @JvmOverloads constructor(
         }
         restoreJob = viewModelScope.launch {
             try {
-                // Each entry shows up as soon as it is calculated, in its place (newest first)
-                coroutineScope {
-                    for (entry in saved.entries) {
-                        launch {
-                            val restored = restoreEntry(entry)
-                            // Cleared (AC) while this one was being calculated: it stays gone
-                            if (!isActive) return@launch
-                            if (restored == null) {
-                                unrestoredEntries = unrestoredEntries + entry
-                            } else {
-                                _uiState.update { it.copy(history = (it.history + restored).sortedByDescending { e -> e.id }) }
-                            }
-                        }
-                    }
-                }
+                restoreEntries(saved.entries) { unrestoredEntries = unrestoredEntries + it }
             } finally {
                 sessionRestored = true
+            }
+        }
+    }
+
+    /** Calculates [entries] again; each shows up as soon as it is calculated, in its place (newest first). [onFailed] gets the ones that cannot be. */
+    private suspend fun restoreEntries(entries: List<SavedEntry>, onFailed: (SavedEntry) -> Unit) {
+        coroutineScope {
+            for (entry in entries) {
+                launch {
+                    val restored = restoreEntry(entry)
+                    // Cleared (AC) while this one was being calculated: it stays gone
+                    if (!isActive) return@launch
+                    if (restored == null) {
+                        onFailed(entry)
+                    } else {
+                        _uiState.update { it.copy(history = (it.history + restored).sortedByDescending { e -> e.id }) }
+                    }
+                }
             }
         }
     }
@@ -347,8 +366,7 @@ class CalculatorViewModel @JvmOverloads constructor(
     private fun prepareSave(): (() -> Unit)? {
         if (!sessionRestored) return null
         val state = _uiState.value
-        val shown = state.history.map { SavedEntry(it.id, it.calculation.input, it.form, it.snapshot) }
-        val entries = (shown + unrestoredEntries).sortedByDescending { it.id }
+        val entries = savedEntries(state)
         val counter = ++saveCounter
         return {
             // Saves may overlap on different threads: only ever write a newer state over an older one
@@ -359,6 +377,137 @@ class CalculatorViewModel @JvmOverloads constructor(
                 }
             }
         }
+    }
+
+    /** The history as it is saved: what is shown and what could not be calculated again, newest first. */
+    private fun savedEntries(state: CalculatorUiState): List<SavedEntry> =
+        (state.history.map { SavedEntry(it.id, it.calculation.input, it.form, it.snapshot) } + unrestoredEntries).sortedByDescending { it.id }
+
+    /** The text of a session file with the line and the history as they are now (after a restore that is still going on). */
+    suspend fun sessionText(): String {
+        restoreJob?.join()
+        val state = _uiState.value
+        return SessionCodec.encode(SavedSession(state.expression, savedEntries(state), state.randomSeed))
+    }
+
+    /** Writes the session to the file the user chose in the system's file dialog. */
+    fun saveSessionTo(uri: Uri) {
+        viewModelScope.launch {
+            val saved = try {
+                val text = sessionText()
+                withContext(Dispatchers.IO) {
+                    // "wt": an existing file is replaced, not overwritten from the start
+                    getApplication<Application>().contentResolver.openOutputStream(uri, "wt")?.use { it.write(text.toByteArray(Charsets.UTF_8)) } != null
+                }
+            } catch (e: IOException) {
+                false
+            } catch (e: SecurityException) {
+                false
+            }
+            showSessionMessage(SessionMessage(if (saved) SessionMessage.Type.SAVED else SessionMessage.Type.SAVE_FAILED))
+        }
+    }
+
+    /** Reads the session file the user chose; see [offerSession]. */
+    fun openSessionFrom(uri: Uri) {
+        viewModelScope.launch {
+            val text = try {
+                withContext(Dispatchers.IO) {
+                    getApplication<Application>().contentResolver.openInputStream(uri)?.use { input ->
+                        // A session is a few kilobytes; a much larger file is not one
+                        val buffer = java.io.ByteArrayOutputStream()
+                        val chunk = ByteArray(8192)
+                        while (buffer.size() <= MAX_SESSION_FILE_BYTES) {
+                            val n = input.read(chunk)
+                            if (n < 0) break
+                            buffer.write(chunk, 0, n)
+                        }
+                        if (buffer.size() > MAX_SESSION_FILE_BYTES) null else buffer.toString(Charsets.UTF_8.name())
+                    }
+                }
+            } catch (e: IOException) {
+                null
+            } catch (e: SecurityException) {
+                null
+            }
+            if (text == null) showSessionMessage(SessionMessage(SessionMessage.Type.READ_FAILED)) else offerSession(text)
+        }
+    }
+
+    /**
+     * Opens the session in [text]. With a history already there the user is asked first whether
+     * it is replaced or added to (see [importSession]); without one it is simply opened.
+     */
+    fun offerSession(text: String) {
+        val session = SessionCodec.decode(text)
+        if (session == null) {
+            showSessionMessage(SessionMessage(SessionMessage.Type.NOT_A_SESSION))
+        } else if (_uiState.value.history.isEmpty() && unrestoredEntries.isEmpty() && restoreJob?.isActive != true) {
+            startImport(session, replace = true)
+        } else {
+            _uiState.update { it.copy(pendingImport = session) }
+        }
+    }
+
+    /** The answer to the question of [offerSession]: replace the history with the opened one, or add it below. */
+    fun importSession(replace: Boolean) {
+        val session = _uiState.value.pendingImport ?: return
+        _uiState.update { it.copy(pendingImport = null) }
+        startImport(session, replace)
+    }
+
+    fun cancelImport() {
+        _uiState.update { it.copy(pendingImport = null) }
+    }
+
+    private fun startImport(session: SavedSession, replace: Boolean) {
+        val previous = restoreJob
+        val entries: List<SavedEntry>
+        if (replace) {
+            previous?.cancel()
+            unrestoredEntries = emptyList()
+            nextHistoryId = (session.entries.maxOfOrNull { it.id } ?: -1L) + 1
+            entries = session.entries
+            _uiState.update {
+                it.copy(
+                    expression = session.expression, cursorPath = listOf(session.expression.length), selectionRange = null, history = emptyList(),
+                    randomSeed = if (session.randomSeed != 0L) session.randomSeed else it.randomSeed
+                )
+            }
+        } else {
+            // Below the entries there are, so that what is on the screen keeps its variables and Ans; in their order
+            val lowest = _uiState.value.history.minOfOrNull { it.id } ?: nextHistoryId
+            val ascending = session.entries.sortedBy { it.id }
+            entries = ascending.mapIndexed { i, e -> e.copy(id = lowest - ascending.size + i) }
+        }
+        sessionRestored = false
+        restoreJob = viewModelScope.launch {
+            try {
+                if (!replace) previous?.join()
+                var skipped = 0
+                restoreEntries(entries) { skipped++ }
+                showSessionMessage(SessionMessage(SessionMessage.Type.OPENED, entries.size - skipped, skipped))
+            } finally {
+                sessionRestored = true
+            }
+        }
+    }
+
+    private fun showSessionMessage(message: SessionMessage) {
+        _uiState.update { it.copy(sessionMessage = message) }
+    }
+
+    /** Asks the screen for the system's dialog to choose the file to save the session to, or to open one from. */
+    fun requestSessionFile(request: SessionFileRequest) {
+        _uiState.update { it.copy(sessionFileRequest = request) }
+    }
+
+    fun sessionFileRequestHandled() {
+        _uiState.update { it.copy(sessionFileRequest = null) }
+    }
+
+    fun dismissSessionMessage() {
+        _uiState.update { it.copy(sessionMessage = null) }
     }
 
     /** The expression and all calculation settings; a change of any of them updates the live result. */
@@ -1735,6 +1884,7 @@ class CalculatorViewModel @JvmOverloads constructor(
 
         /** Longer than a normal calculation may take: the app has just started and calculates the whole history at once. */
         const val RESTORE_TIMEOUT_MILLIS = 15_000L
+        const val MAX_SESSION_FILE_BYTES = 16 * 1024 * 1024
 
         val SOURCE_DELIMITERS = setOf(MathOp.EQUALS, MathOp.DEFINE, MathOp.CONVERT, MathOp.LESS, MathOp.GREATER, MathOp.LESS_EQUAL, MathOp.GREATER_EQUAL)
     }
