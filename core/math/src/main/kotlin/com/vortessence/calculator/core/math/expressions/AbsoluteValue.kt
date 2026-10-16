@@ -17,7 +17,8 @@ class AbsoluteValue(val operand: Expression) : Expression() {
         return when (cOperand) {
             is Value -> cOperand.abs()
             is AbsoluteValue -> cOperand
-            is MatrixExpression -> {
+            // |v| of a vector is its length; a matrix has no absolute value
+            is MatrixExpression -> if (cOperand.isVector) VectorFunction.norm(cOperand).canonicalize(context) else {
                 context.stopWithError(MathIssue.MATRIX_UNSUPPORTED)
                 this
             }

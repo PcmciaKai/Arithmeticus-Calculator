@@ -58,6 +58,18 @@ enum class StepRule {
     ERROR_FUNCTION,
     /** erfc(u)' = −2/√π·e^(−u²)·u' */
     COMPLEMENTARY_ERROR_FUNCTION,
+    /** a·b = a₁b₁ + a₂b₂ + … */
+    DOT_PRODUCT,
+    /** a × b = (a₂b₃ − a₃b₂, a₃b₁ − a₁b₃, a₁b₂ − a₂b₁) */
+    CROSS_PRODUCT,
+    /** |a| = √(a₁² + a₂² + …) */
+    VECTOR_NORM,
+    /** θ = acos(a·b/(|a||b|)) */
+    VECTOR_ANGLE,
+    /** proj_b(a) = (a·b)/(b·b)·b */
+    VECTOR_PROJECTION,
+    /** a/|a| */
+    UNIT_VECTOR,
     /** φ(x) = e^(−(x − μ)²/(2σ²)) / (σ√(2π)) */
     NORMAL_DENSITY,
     /** Φ(x) = erfc(−(x − μ)/(σ√2))/2 */

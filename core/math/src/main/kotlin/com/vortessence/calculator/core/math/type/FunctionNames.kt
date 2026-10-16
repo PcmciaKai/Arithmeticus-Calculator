@@ -2,6 +2,7 @@ package com.vortessence.calculator.core.math.type
 
 import com.vortessence.calculator.core.math.expressions.NamedFunctionKind
 import com.vortessence.calculator.core.math.expressions.RandomKind
+import com.vortessence.calculator.core.math.expressions.VectorKind
 
 /**
  * The names of the functions that can be typed (the name, then "("), e.g. sin(, mean( or nCr(.
@@ -19,7 +20,7 @@ object FunctionNames {
             "asinh", "acosh", "atanh", "asech", "acsch", "acoth",
             "arcsin", "arccos", "arctan",
             "ln", "log", "abs", "sqrt", "cbrt", "exp", "deg", "rad", "gamma", "lngamma", "digamma", "erf", "erfc", "det", "rref", "eig"
-        ) + NamedFunctionKind.entries.map { it.functionName } + RandomKind.entries.map { it.functionName }
+        ) + NamedFunctionKind.entries.map { it.functionName } + RandomKind.entries.map { it.functionName } + VectorKind.entries.map { it.functionName }
         ).filterNot { it.startsWith('i') }.sortedByDescending { it.length }
 
     /** The longest function name that [word] ends with (so "asin" and not "sin", "xsin" has "sin"), or null. */

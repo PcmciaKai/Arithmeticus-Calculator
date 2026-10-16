@@ -21,6 +21,9 @@ class MatrixExpression(
 
     val isSquare: Boolean get() = rows == cols
 
+    /** Whether this is a vector: one row or one column. */
+    val isVector: Boolean get() = rows == 1 || cols == 1
+
     operator fun get(row: Int, col: Int): Expression = elements[row * cols + col]
 
     override val children: List<Expression> get() = elements

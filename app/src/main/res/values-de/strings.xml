@@ -151,6 +151,18 @@
     <string name="formula_randint_desc">randint(a, b): eine zufällige ganze Zahl von a bis b, beide eingeschlossen. Wird wie rand() einmal pro Zeile gezogen</string>
     <string name="formula_randnorm_name">Zufallszahl (normalverteilt)</string>
     <string name="formula_randnorm_desc">randnorm(μ, σ): eine normalverteilte Zufallszahl; ohne μ und σ die Standardnormalverteilung (μ = 0, σ = 1). Wird einmal pro Zeile gezogen</string>
+    <string name="formula_dot_name">Skalarprodukt</string>
+    <string name="formula_dot_desc">dot(a, b) = a₁b₁ + a₂b₂ + …, eine Zahl. Die Vektoren mit der Matrix-Taste eingeben, als eine Spalte (oder Zeile)</string>
+    <string name="formula_cross_name">Kreuzprodukt</string>
+    <string name="formula_cross_desc">cross(a, b): der Vektor senkrecht zu a und b (je 3 Komponenten); seine Länge ist |a|·|b|·sin θ</string>
+    <string name="formula_norm_name">Länge eines Vektors (Betrag)</string>
+    <string name="formula_norm_desc">norm(a) = √(a₁² + a₂² + …). Die Betragsstriche |a| geben dasselbe</string>
+    <string name="formula_angle_name">Winkel zwischen zwei Vektoren</string>
+    <string name="formula_angle_desc">angle(a, b) = acos(a·b / (|a|·|b|)), in der Einheit der Winkel-Einstellung</string>
+    <string name="formula_proj_name">Projektion eines Vektors</string>
+    <string name="formula_proj_desc">proj(a, b): der Anteil von a in Richtung von b, (a·b)/(b·b)·b</string>
+    <string name="formula_unitvec_name">Einheitsvektor</string>
+    <string name="formula_unitvec_desc">unitvec(a): der durch seine Länge geteilte Vektor, also mit Länge 1 und gleicher Richtung</string>
     <string name="category_statistics">Statistik</string>
     <string name="category_combinatorics">Kombinatorik</string>
     <string name="category_numbers">Zahlen</string>
@@ -158,6 +170,8 @@
     <string name="category_special">Spezielle Funktionen</string>
     <string name="category_distributions">Verteilungen</string>
     <string name="category_random">Zufallszahlen</string>
+    <string name="category_vectors">Vektoren</string>
+    <string name="keypad_matrix">Matrix oder Vektor</string>
     <string name="formulas_title">Formeln</string>
     <string name="formulas_search">Suchen (Abweichung, runden, nCr)...</string>
     <string name="constant_category_math">Mathematisch</string>
@@ -200,8 +214,13 @@
     <string name="units_search">Suchen, z. B. km, Druck, Gallone</string>
     <string name="units_clear_search">Suche löschen</string>
     <string name="units_none">Keine Einheiten gefunden</string>
-    <string name="matrix_title">Matrix</string>
-    <string name="matrix_drag_hint">Ziehen, um die Größe zu wählen, loslassen zum Einfügen</string>
+    <string name="matrix_vector_2d">2D-Vektor</string>
+    <string name="matrix_vector_3d">3D-Vektor</string>
+    <string name="matrix_kind_matrix">Matrix</string>
+    <string name="matrix_kind_column_vector">Spaltenvektor</string>
+    <string name="matrix_kind_row_vector">Zeilenvektor</string>
+    <string name="matrix_title">Matrix oder Vektor</string>
+    <string name="matrix_drag_hint">Ziehen, um die Größe zu wählen, loslassen zum Einfügen. Ein Vektor ist eine Matrix mit einer Spalte (oder Zeile)</string>
     <string name="matrix_insert">Einfügen</string>
     <string name="common_cancel">Abbrechen</string>
     <string name="variable_title">Variable</string>
@@ -309,6 +328,12 @@
     <string name="step_binomial_coefficient">Berechne den Binomialkoeffizienten</string>
     <string name="step_factorial">Berechne die Fakultät</string>
     <string name="step_write_out_sum">Schreibe die Summe mit berechneten Summanden aus</string>
+    <string name="step_dot_product">Multipliziere die passenden Komponenten und addiere sie</string>
+    <string name="step_cross_product">Berechne das Kreuzprodukt Komponente für Komponente</string>
+    <string name="step_vector_norm">Die Länge eines Vektors ist die Wurzel aus der Summe seiner quadrierten Komponenten</string>
+    <string name="step_vector_angle">Der Winkel ergibt sich aus dem Skalarprodukt und den Längen der beiden Vektoren</string>
+    <string name="step_vector_projection">Projiziere den Vektor auf den anderen</string>
+    <string name="step_unit_vector">Teile den Vektor durch seine Länge</string>
     <string name="step_absolute_value">Leite den Betrag ab</string>
     <string name="step_fundamental_theorem">Wende den Hauptsatz der Differential- und Integralrechnung an</string>
     <string name="step_imaginary_root">Ziehe die Wurzel aus einer negativen Zahl</string>
@@ -443,7 +468,7 @@
     <string name="step_limit_exponential_form">Die Basis geht gegen 1 und der Exponent gegen ∞: schreibe die Potenz mit e und bilde den Grenzwert des Exponenten</string>
     <string name="step_limit_exponential_result">Der Grenzwert ist e hoch diesem Grenzwert</string>
     <string name="step_factor_polynomial">Bestimme die Nullstellen des Polynoms (Satz über rationale Nullstellen): jede Nullstelle r ergibt einen Faktor (x − r)</string>
-    <string name="matrix_store_hint">Um eine Matrix erneut zu verwenden, speichere sie mit := (lange auf = drücken), zum Beispiel m := [Matrix]</string>
+    <string name="matrix_store_hint">Um eine Matrix oder einen Vektor erneut zu verwenden, speichere ihn mit := (lang auf = drücken), zum Beispiel v := [Vektor]</string>
     <string name="steps_option_solution">Lösung</string>
     <string name="transform_expand">Ausmultiplizieren</string>
     <string name="transform_factor">Faktorisieren</string>

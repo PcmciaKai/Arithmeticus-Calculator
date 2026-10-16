@@ -7,6 +7,8 @@ import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.context.MathIssue
 import com.vortessence.calculator.core.math.expressions.Additions
 import com.vortessence.calculator.core.math.expressions.Antiderivative
+import com.vortessence.calculator.core.math.expressions.VectorFunction
+import com.vortessence.calculator.core.math.expressions.VectorKind
 import com.vortessence.calculator.core.math.expressions.Integral
 import com.vortessence.calculator.core.math.expressions.Derivative
 import com.vortessence.calculator.core.math.expressions.Constant
@@ -48,6 +50,7 @@ import com.vortessence.calculator.core.math.steps.ArithmeticSteps
 import com.vortessence.calculator.core.math.steps.BothSides
 import com.vortessence.calculator.core.math.steps.DerivativeSteps
 import com.vortessence.calculator.core.math.steps.DistributionSteps
+import com.vortessence.calculator.core.math.steps.VectorSteps
 import com.vortessence.calculator.core.math.steps.EquationSteps
 import com.vortessence.calculator.core.math.steps.InequalitySteps
 import com.vortessence.calculator.core.math.steps.MatrixSteps
@@ -174,7 +177,7 @@ object MathEngine {
         if (result.isSuccess) result else result.copy(issueNote = matrixNote(input, result, execContext))
     }
 
-    private val MATRIX_ISSUES = setOf(MathIssue.MATRIX_UNSUPPORTED, MathIssue.MATRIX_AND_SCALAR, MathIssue.DIMENSION_MISMATCH, MathIssue.MATRIX_NOT_SQUARE, MathIssue.SINGULAR_MATRIX, MathIssue.MATRIX_EXPECTED, MathIssue.MATRIX_NEEDS_NUMBERS, MathIssue.EIGEN_ALONE)
+    private val MATRIX_ISSUES = setOf(MathIssue.MATRIX_UNSUPPORTED, MathIssue.MATRIX_AND_SCALAR, MathIssue.DIMENSION_MISMATCH, MathIssue.MATRIX_NOT_SQUARE, MathIssue.SINGULAR_MATRIX, MathIssue.MATRIX_EXPECTED, MathIssue.MATRIX_NEEDS_NUMBERS, MathIssue.EIGEN_ALONE, MathIssue.VECTOR_EXPECTED, MathIssue.CROSS_NEEDS_THREE)
 
     /** "m is a matrix. Not defined for matrices": says which of the variables used is a matrix, if the problem is with matrices. */
     private fun matrixNote(input: MathString, result: CalculationResult, ctx: MathContext): String? {
@@ -202,9 +205,14 @@ object MathEngine {
             // A variable stands for a value, not for an equation
             return failure(input, ctx, MathIssue.SYNTAX_ERROR, parsed)
         }
-        if (parsed is Equals) return evaluateEquation(input, parsed, ctx)
-        if (parsed is Inequality) return evaluateInequality(input, parsed, ctx)
-        if (parsed is EquationSystem) return evaluateSystem(input, parsed, ctx)
+        // dot(v, w) = 0 is an equation of numbers: the vector functions that give a number are worked out first
+        if (parsed is Equals || parsed is Inequality || parsed is EquationSystem) {
+            val reduced = withVectorValues(parsed, ctx)
+            if (ctx.shouldStop) return failure(input, ctx)
+            if (reduced is Equals) return evaluateEquation(input, reduced, ctx)
+            if (reduced is Inequality) return evaluateInequality(input, reduced, ctx)
+            if (reduced is EquationSystem) return evaluateSystem(input, reduced, ctx)
+        }
 
         val canonical = parsed.canonicalize(ctx)
         if (ctx.shouldStop) return failure(input, ctx, expression = parsed)
@@ -288,7 +296,7 @@ object MathEngine {
                     is EquationSystem -> SystemSteps.steps(parsed, execContext)
                     is Inequality -> InequalitySteps.steps(parsed, execContext)
                     is Equals -> parsed.variables().takeIf { it.isNotEmpty() }?.let { vars -> pickVariable(vars).let { v -> EquationSteps.steps(parsed, v, execContext) ?: AbsoluteSplitSteps.steps(parsed, v, execContext) } }
-                    else -> MatrixSteps.steps(parsed, execContext) ?: DistributionSteps.steps(parsed, execContext) ?: ExpressionSteps.steps(parsed, execContext) ?: ArithmeticSteps.steps(asTyped, execContext)
+                    else -> VectorSteps.steps(parsed, execContext) ?: MatrixSteps.steps(parsed, execContext) ?: DistributionSteps.steps(parsed, execContext) ?: ExpressionSteps.steps(parsed, execContext) ?: ArithmeticSteps.steps(asTyped, execContext)
                 }
                 if (solution == null || execContext.shouldStop || execContext.issues.isNotEmpty()) return@steps null
                 val display = displayWriter(execContext)
@@ -601,6 +609,16 @@ object MathEngine {
         val name = (nodes[0] as? VariableNode)?.name ?: return null
         return Definition(name, MathString(nodes.subList(2, nodes.size)))
     }
+
+    /** [e] with the vector functions that give a number (dot, norm, angle) worked out where they stand. */
+    private fun withVectorValues(e: Expression, ctx: MathContext): Expression {
+        if (!e.containsExpressionMatching { it is VectorFunction }) return e
+        return e.transform { part ->
+            if (part is VectorFunction && part.kind in NUMBER_VECTOR_FUNCTIONS) part.canonicalize(ctx).takeUnless { ctx.shouldStop || it is MatrixExpression } ?: part else part
+        }
+    }
+
+    private val NUMBER_VECTOR_FUNCTIONS = setOf(VectorKind.DOT, VectorKind.NORM, VectorKind.ANGLE)
 
     /** Parses [input] and replaces the variables defined in [ctx] by their values. */
     private fun parse(input: MathString, ctx: MathContext): Expression {

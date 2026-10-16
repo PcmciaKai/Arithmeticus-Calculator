@@ -6,6 +6,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.ui.res.stringResource
@@ -47,12 +49,31 @@ fun MatrixDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.matrix_title), fontWeight = FontWeight.Bold) },
         text = {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+            // Scrolls where the window is too small for the grid and the hints (a small screen, a large font)
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+                // The vectors people most often need are one tap away: this window is where they are entered
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AssistChip(onClick = { onSizeSelected(2, 1) }, label = { Text(stringResource(R.string.matrix_vector_2d)) })
+                    AssistChip(onClick = { onSizeSelected(3, 1) }, label = { Text(stringResource(R.string.matrix_vector_3d)) })
+                }
+                Spacer(Modifier.height(12.dp))
                 Text(
                     text = "$rows × $cols",
                     fontSize = 22.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.primary
+                )
+                // What the selected size is: one column or one row is a vector
+                Text(
+                    text = stringResource(
+                        when {
+                            cols == 1 && rows > 1 -> R.string.matrix_kind_column_vector
+                            rows == 1 && cols > 1 -> R.string.matrix_kind_row_vector
+                            else -> R.string.matrix_kind_matrix
+                        }
+                    ),
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(Modifier.height(12.dp))
                 val spacing = 6.dp

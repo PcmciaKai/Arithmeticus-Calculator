@@ -38,7 +38,9 @@ enum class MathIssue(private val text: Text) {
     DIVERGES(Text.DIVERGES),
     INVALID_BOUNDS(Text.INVALID_BOUNDS),
     ARGUMENT_COUNT(Text.ARGUMENT_COUNT),
-    WHOLE_NUMBERS_ONLY(Text.WHOLE_NUMBERS_ONLY);
+    WHOLE_NUMBERS_ONLY(Text.WHOLE_NUMBERS_ONLY),
+    VECTOR_EXPECTED(Text.VECTOR_EXPECTED),
+    CROSS_NEEDS_THREE(Text.CROSS_NEEDS_THREE);
 
     /** What went wrong, in the language of the calculation that is running (English where none is). */
     val userMessage: String get() = Texts.get(text)

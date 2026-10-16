@@ -70,11 +70,15 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 import androidx.compose.ui.res.stringResource
 import com.vortessence.calculator.R
+import com.vortessence.calculator.core.math.type.MathString
+import com.vortessence.calculator.model.formulas.FormulasDb
 
 sealed class KeyAction {
     data class Number(val digit: String) : KeyAction()
     data class Operator(val opSymbol: String) : KeyAction()
     data class Function(val name: String) : KeyAction()
+    /** A ready-made expression (see the formula picker) put in at the cursor, which goes to its first empty slot: dot(▢, ▢). */
+    data class Insert(val template: MathString) : KeyAction()
     data class Variable(val name: String) : KeyAction()
     data class Constant(val symbol: String) : KeyAction()
     /** Logarithm to an arbitrary base (logₙ). */
@@ -355,20 +359,29 @@ fun CalculatorKeypad(
                 // Row 2
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing)) {
                     // Page 0 (cols 0..3)
+                    // Matrices and vectors (a matrix of one column or one row): the key shows a bracketed grid. Its popup has
+                    // the matrix functions in the lower row and the vector functions above them
                     KeyButton(
-                        text = "[M]",
+                        content = { Icon(MatrixIcon, contentDescription = stringResource(R.string.keypad_matrix), tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(28.dp)) },
                         buttonWidth = buttonWidth,
                         isAccent = true,
                         alternates = listOf(
-                            alt(scriptLabel("[M]", sup = "T"), KeyAction.Transpose),
+                            alt(scriptLabel("A", sup = "T"), KeyAction.Transpose),
                             alt("det", KeyAction.Function("det")),
                             alt("rref", KeyAction.Function("rref")),
                             alt("eig", KeyAction.Function("eig"))
                         ),
-                        // The most common ones; the dots tell that the popup has more (rref, eig)
+                        upperAlternates = listOf(
+                            alt("dot", KeyAction.Insert(FormulasDb.ofTwo("dot"))),
+                            alt("cross", KeyAction.Insert(FormulasDb.ofTwo("cross"))),
+                            alt("norm", KeyAction.Function("norm")),
+                            alt("angle", KeyAction.Insert(FormulasDb.ofTwo("angle"))),
+                            alt("unitvec", KeyAction.Function("unitvec"))
+                        ),
+                        popupIcon = MatrixIcon,
+                        // The most common one; the dots tell that the popup has more (det, rref, eig, the vector functions), as for sin
                         hints = listOf(
-                            alt(scriptLabel("[M]", sup = "T"), KeyAction.Transpose),
-                            alt("det", KeyAction.Function("det")),
+                            alt(scriptLabel("A", sup = "T"), KeyAction.Transpose),
                             KeyAlternate(AnnotatedString("…")) { }
                         )
                     ) { onKeyAction(KeyAction.Matrix) }
@@ -861,6 +874,31 @@ private val ConvertArrowIcon: ImageVector = ImageVector.Builder(
         moveTo(15.5f, 1.5f)
         lineTo(21.5f, 7f)
         lineTo(15.5f, 12.5f)
+    }
+}.build()
+
+/**
+ * A grid of four entries between square brackets: a matrix, and a vector is the same with one column. Drawn as a path,
+ * like the other symbols of the keys, so that it looks the same on every device.
+ */
+private val MatrixIcon: ImageVector = ImageVector.Builder(
+    name = "Matrix",
+    defaultWidth = 24.dp,
+    defaultHeight = 24.dp,
+    viewportWidth = 24f,
+    viewportHeight = 24f
+).apply {
+    path(stroke = SolidColor(Color.Black), strokeLineWidth = 1.9f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round) {
+        // The brackets
+        moveTo(7.5f, 3.5f); lineTo(3.8f, 3.5f); lineTo(3.8f, 20.5f); lineTo(7.5f, 20.5f)
+        moveTo(16.5f, 3.5f); lineTo(20.2f, 3.5f); lineTo(20.2f, 20.5f); lineTo(16.5f, 20.5f)
+    }
+    path(fill = SolidColor(Color.Black)) {
+        // The entries
+        moveTo(8.2f, 7.4f); lineTo(11.2f, 7.4f); lineTo(11.2f, 10.4f); lineTo(8.2f, 10.4f); close()
+        moveTo(12.8f, 7.4f); lineTo(15.8f, 7.4f); lineTo(15.8f, 10.4f); lineTo(12.8f, 10.4f); close()
+        moveTo(8.2f, 13.6f); lineTo(11.2f, 13.6f); lineTo(11.2f, 16.6f); lineTo(8.2f, 16.6f); close()
+        moveTo(12.8f, 13.6f); lineTo(15.8f, 13.6f); lineTo(15.8f, 16.6f); lineTo(12.8f, 16.6f); close()
     }
 }.build()
 

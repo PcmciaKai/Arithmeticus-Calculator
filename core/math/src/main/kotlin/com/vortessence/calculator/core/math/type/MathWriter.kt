@@ -116,6 +116,14 @@ class MathWriter(
             }
             is HyperbolicFunction -> result.append(FunctionNode(expr.type.symbol, writeExpr(expr.operand)))
             is SpecialFunction -> result.append(FunctionNode(expr.type.symbol, writeExpr(expr.operand)))
+            is VectorFunction -> {
+                val arguments = MathString()
+                expr.arguments.forEachIndexed { i, argument ->
+                    if (i > 0) arguments.append(SeparatorNode)
+                    arguments.appendAll(writeExpr(argument))
+                }
+                result.append(FunctionNode(expr.kind.functionName, arguments))
+            }
             is RandomNumber -> {
                 val arguments = MathString()
                 expr.arguments.forEachIndexed { i, argument ->

@@ -2109,4 +2109,38 @@ class CalculatorViewModelTest {
         assertEquals(first, vm.uiState.value.history[1].calculation.numericValue, 1e-12)
         assertNotEquals(first, vm.uiState.value.history[0].calculation.numericValue, 0.0)
     }
+
+    @Test
+    fun theVectorFunctionsOfTheMatrixKeyPutTheCursorInTheFirstValue() = runBlocking {
+        val vm = newViewModel()
+        // dot(▢, ▢): the cursor before the comma
+        vm.onKeyAction(KeyAction.Insert(com.vortessence.calculator.model.formulas.FormulasDb.ofTwo("dot")))
+        assertEquals(listOf("dot()"), vm.nodeNames())
+        assertEquals(listOf(0, 0, 0), vm.uiState.value.cursorPath)
+        // A vector in it: the 3×1 matrix of the dialog
+        vm.insertMatrix(3, 1)
+        val dot = vm.uiState.value.expression.nodes[0] as FunctionNode
+        val matrix = dot.argument.nodes[0] as MatrixNode
+        assertEquals(3, matrix.rows)
+        assertEquals(1, matrix.cols)
+        // The one-value functions work like the other function keys
+        vm.onKeyAction(KeyAction.Clear)
+        vm.onKeyAction(KeyAction.Function("norm"))
+        assertEquals(listOf("norm()"), vm.nodeNames())
+    }
+
+    @Test
+    fun aSelectedVectorBecomesTheFirstValueOfADotProduct() = runBlocking {
+        val vm = newViewModel()
+        vm.insertMatrix(3, 1)
+        vm.setSelection(emptyList(), 0..0)
+        vm.onKeyAction(KeyAction.Insert(com.vortessence.calculator.model.formulas.FormulasDb.ofTwo("dot")))
+        val dot = vm.uiState.value.expression.nodes.single() as FunctionNode
+        // dot(vector, ▢): the vector is still there, then the comma, and the cursor is where the second value goes
+        assertTrue(dot.argument.nodes[0] is MatrixNode)
+        assertTrue(dot.argument.nodes[1] is SeparatorNode)
+        assertEquals(2, dot.argument.length)
+        assertEquals(listOf(0, 0, 2), vm.uiState.value.cursorPath)
+        assertNull(vm.uiState.value.selectionRange)
+    }
 }

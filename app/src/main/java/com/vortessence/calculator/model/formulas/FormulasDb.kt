@@ -19,10 +19,10 @@ object FormulasDb {
     private fun ms(vararg nodes: MathNode) = MathString(nodes.toList())
 
     /** name(), for a list of values separated by commas. */
-    private fun ofValues(name: String) = ms(FunctionNode(name))
+    fun ofValues(name: String) = ms(FunctionNode(name))
 
     /** name(, ): exactly two values; the cursor starts before the comma. */
-    private fun ofTwo(name: String) = ms(FunctionNode(name, ms(SeparatorNode)))
+    fun ofTwo(name: String) = ms(FunctionNode(name, ms(SeparatorNode)))
 
     val items = listOf(
         Formula(R.string.formula_mean_name, R.string.formula_mean_desc, R.string.category_statistics, ofValues("mean")),
@@ -81,6 +81,12 @@ object FormulasDb {
         Formula(R.string.formula_chisqinv_name, R.string.formula_chisqinv_desc, R.string.category_distributions, ofValues("chisqinv")),
         Formula(R.string.formula_rand_name, R.string.formula_rand_desc, R.string.category_random, ofValues("rand")),
         Formula(R.string.formula_randint_name, R.string.formula_randint_desc, R.string.category_random, ofTwo("randint")),
-        Formula(R.string.formula_randnorm_name, R.string.formula_randnorm_desc, R.string.category_random, ofValues("randnorm"))
+        Formula(R.string.formula_randnorm_name, R.string.formula_randnorm_desc, R.string.category_random, ofValues("randnorm")),
+        Formula(R.string.formula_dot_name, R.string.formula_dot_desc, R.string.category_vectors, ofTwo("dot")),
+        Formula(R.string.formula_cross_name, R.string.formula_cross_desc, R.string.category_vectors, ofTwo("cross")),
+        Formula(R.string.formula_norm_name, R.string.formula_norm_desc, R.string.category_vectors, ofValues("norm")),
+        Formula(R.string.formula_angle_name, R.string.formula_angle_desc, R.string.category_vectors, ofTwo("angle")),
+        Formula(R.string.formula_proj_name, R.string.formula_proj_desc, R.string.category_vectors, ofTwo("proj")),
+        Formula(R.string.formula_unitvec_name, R.string.formula_unitvec_desc, R.string.category_vectors, ofValues("unitvec"))
     )
 }

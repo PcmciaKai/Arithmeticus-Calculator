@@ -177,6 +177,10 @@ class MathParser {
                     val atLower = f.substituteVariables(mapOf(v to parseSlot(node.lower)))
                     tokens.add(Token.ValueToken(Additions(listOf(atUpper, Multiplications(listOf(Value.MINUS_ONE, atLower))))))
                 }
+                is FunctionNode if VectorKind.byName(node.name.lowercase()) != null -> {
+                    val arguments = splitArguments(node.argument).map { parseSlot(it) }
+                    tokens.add(Token.ValueToken(VectorFunction(VectorKind.byName(node.name.lowercase())!!, arguments)))
+                }
                 is FunctionNode if RandomKind.byName(node.name.lowercase()) != null -> {
                     val kind = RandomKind.byName(node.name.lowercase())!!
                     // rand() has no arguments, which is an empty slot, not one empty argument

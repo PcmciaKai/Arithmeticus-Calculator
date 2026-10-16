@@ -441,6 +441,7 @@ class CalculatorViewModel @JvmOverloads constructor(
             is KeyAction.FreeVariable -> Unit
             is KeyAction.Constant -> insertNode(ConstantNode(action.symbol))
             is KeyAction.Function -> insertNode(FunctionNode(action.name, MathString()))
+            is KeyAction.Insert -> insertFormula(action.template)
             is KeyAction.LogBase -> insertNode(LogBaseNode())
             is KeyAction.EE -> insertEE()
             is KeyAction.SuperscriptSign -> insertPower(MathString(listOf(OperatorNode(if (action.plus) MathOp.PLUS else MathOp.MINUS))))
@@ -1006,8 +1007,20 @@ class CalculatorViewModel @JvmOverloads constructor(
         // A function of a list wraps the selection like the function keys: selecting the
         // typed values "2, 4, 9" and picking the mean gives mean(2, 4, 9)
         val function = template.nodes.singleOrNull() as? FunctionNode
-        if (function != null && function.argument.isEmpty && state.selectionRange?.isEmpty() == false) {
+        val selected = state.selectionRange?.takeIf { !it.isEmpty() }
+        if (function != null && selected != null && function.argument.isEmpty) {
             insertNode(function)
+            return
+        }
+        // A function of two values (dot, cross, nCr, ...) takes the selection as its first value: dot(selection, ▢)
+        if (function != null && selected != null && function.argument.nodes.firstOrNull() is SeparatorNode) {
+            val stringPath = state.cursorPath.dropLast(1)
+            val start = selected.first
+            insertNode(FunctionNode(function.name, MathString()))
+            val root = _uiState.value.expression.copy()
+            val wrapped = getTargetString(root, stringPath).nodes.getOrNull(start) as? FunctionNode ?: return
+            wrapped.argument.insert(wrapped.argument.length, SeparatorNode)
+            _uiState.update { it.copy(expression = root, cursorPath = stringPath + listOf(start, 0, wrapped.argument.length), selectionRange = null) }
             return
         }
         val stringPath = state.cursorPath.dropLast(1)

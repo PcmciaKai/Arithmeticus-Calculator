@@ -492,6 +492,12 @@ private val StepRule.descriptionRes: Int
         StepRule.LOG_GAMMA_FUNCTION -> R.string.step_lngamma
         StepRule.ERROR_FUNCTION -> R.string.step_erf
         StepRule.COMPLEMENTARY_ERROR_FUNCTION -> R.string.step_erfc
+        StepRule.DOT_PRODUCT -> R.string.step_dot_product
+        StepRule.CROSS_PRODUCT -> R.string.step_cross_product
+        StepRule.VECTOR_NORM -> R.string.step_vector_norm
+        StepRule.VECTOR_ANGLE -> R.string.step_vector_angle
+        StepRule.VECTOR_PROJECTION -> R.string.step_vector_projection
+        StepRule.UNIT_VECTOR -> R.string.step_unit_vector
         StepRule.NORMAL_DENSITY -> R.string.step_normal_density
         StepRule.NORMAL_PROBABILITY -> R.string.step_normal_probability
         StepRule.NORMAL_QUANTILE -> R.string.step_normal_quantile
@@ -740,6 +746,12 @@ internal fun StepRule.formula(language: Language): String? {
         StepRule.LOG_GAMMA_FUNCTION -> "(lnΓ(x))′ = ψ(x)"
         StepRule.ERROR_FUNCTION -> "(erf(x))′ = \\frac{2}{\\sqrt{π}}·e^{−x^2}"
         StepRule.COMPLEMENTARY_ERROR_FUNCTION -> "(erfc(x))′ = −\\frac{2}{\\sqrt{π}}·e^{−x^2}"
+        StepRule.DOT_PRODUCT -> "a·b = a₁b₁ + a₂b₂ + … + aₙbₙ"
+        StepRule.CROSS_PRODUCT -> "a × b = (a₂b₃ − a₃b₂, a₃b₁ − a₁b₃, a₁b₂ − a₂b₁)"
+        StepRule.VECTOR_NORM -> "|a| = \\sqrt{a₁² + a₂² + … + aₙ²}"
+        StepRule.VECTOR_ANGLE -> "θ = acos(\\frac{a·b}{|a|·|b|})"
+        StepRule.VECTOR_PROJECTION -> "proj(a, b) = \\frac{a·b}{b·b}·b"
+        StepRule.UNIT_VECTOR -> "\\frac{a}{|a|}"
         StepRule.NORMAL_DENSITY -> "φ(x) = \\frac{1}{σ·\\sqrt{2π}}·e^{−\\frac{(x − μ)^2}{2σ^2}}"
         StepRule.NORMAL_PROBABILITY -> "Φ(x) = \\frac{1}{2}·erfc(−\\frac{x − μ}{σ·\\sqrt{2}})"
         StepRule.NORMAL_QUANTILE -> "x = μ + σ·z\\text{,  }Φ(z) = p"

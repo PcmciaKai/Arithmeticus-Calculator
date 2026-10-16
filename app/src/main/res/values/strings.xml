@@ -54,6 +54,12 @@
     <string name="step_binomial_coefficient">Calculate the binomial coefficient</string>
     <string name="step_factorial">Calculate the factorial</string>
     <string name="step_write_out_sum">Write out the sum with its terms calculated</string>
+    <string name="step_dot_product">Multiply the matching components and add them</string>
+    <string name="step_cross_product">Work out the cross product component by component</string>
+    <string name="step_vector_norm">The length of a vector is the root of the sum of its squared components</string>
+    <string name="step_vector_angle">The angle follows from the dot product and the lengths of the two vectors</string>
+    <string name="step_vector_projection">Project the vector onto the other one</string>
+    <string name="step_unit_vector">Divide the vector by its length</string>
     <string name="step_absolute_value">Differentiate the absolute value</string>
     <string name="step_fundamental_theorem">Apply the fundamental theorem of calculus</string>
     <string name="step_imaginary_root">Take the root of a negative number</string>
@@ -188,7 +194,7 @@
     <string name="step_limit_exponential_form">The base goes to 1 and the exponent to ∞: write the power with e and take the limit of the exponent</string>
     <string name="step_limit_exponential_result">The limit is e to the power of that limit</string>
     <string name="step_factor_polynomial">Find the zeros of the polynomial (rational root theorem): each zero r gives a factor (x − r)</string>
-    <string name="matrix_store_hint">To use a matrix again, store it with := (long press on =), for example m := [matrix]</string>
+    <string name="matrix_store_hint">To use a matrix or vector again, store it with := (long press on =), for example v := [vector]</string>
     <string name="steps_option_solution">Solution</string>
     <string name="transform_expand">Expand</string>
     <string name="transform_factor">Factor</string>
@@ -410,6 +416,18 @@
     <string name="formula_randint_desc">randint(a, b): a random whole number from a to b, both included. Drawn once per line, like rand()</string>
     <string name="formula_randnorm_name">Random number (normal distribution)</string>
     <string name="formula_randnorm_desc">randnorm(μ, σ): a random number of the normal distribution; without μ and σ the standard one (μ = 0, σ = 1). Drawn once per line</string>
+    <string name="formula_dot_name">Dot product</string>
+    <string name="formula_dot_desc">dot(a, b) = a₁b₁ + a₂b₂ + …, a number. Enter the vectors with the matrix key, as one column (or one row)</string>
+    <string name="formula_cross_name">Cross product</string>
+    <string name="formula_cross_desc">cross(a, b): the vector perpendicular to a and b (3 components each); its length is |a|·|b|·sin θ</string>
+    <string name="formula_norm_name">Length of a vector (norm)</string>
+    <string name="formula_norm_desc">norm(a) = √(a₁² + a₂² + …). The bars |a| give the same</string>
+    <string name="formula_angle_name">Angle between two vectors</string>
+    <string name="formula_angle_desc">angle(a, b) = acos(a·b / (|a|·|b|)), in the unit of the angle setting</string>
+    <string name="formula_proj_name">Projection of a vector</string>
+    <string name="formula_proj_desc">proj(a, b): the part of a in the direction of b, (a·b)/(b·b)·b</string>
+    <string name="formula_unitvec_name">Unit vector</string>
+    <string name="formula_unitvec_desc">unitvec(a): the vector divided by its length, so it has length 1 and the same direction</string>
     <string name="category_statistics">Statistics</string>
     <string name="category_combinatorics">Combinatorics</string>
     <string name="category_numbers">Numbers</string>
@@ -417,6 +435,8 @@
     <string name="category_special">Special functions</string>
     <string name="category_distributions">Distributions</string>
     <string name="category_random">Random numbers</string>
+    <string name="category_vectors">Vectors</string>
+    <string name="keypad_matrix">Matrix or vector</string>
     <string name="formulas_title">Formulas</string>
     <string name="formulas_search">Search (deviation, round, nCr)...</string>
     <string name="constant_category_math">Mathematical</string>
@@ -459,8 +479,13 @@
     <string name="units_search">Search, e.g. km, pressure, gallon</string>
     <string name="units_clear_search">Clear search</string>
     <string name="units_none">No units found</string>
-    <string name="matrix_title">Matrix</string>
-    <string name="matrix_drag_hint">Drag to choose the size, lift to insert</string>
+    <string name="matrix_vector_2d">2D vector</string>
+    <string name="matrix_vector_3d">3D vector</string>
+    <string name="matrix_kind_matrix">Matrix</string>
+    <string name="matrix_kind_column_vector">Column vector</string>
+    <string name="matrix_kind_row_vector">Row vector</string>
+    <string name="matrix_title">Matrix or vector</string>
+    <string name="matrix_drag_hint">Drag to choose the size, lift to insert. A vector is a matrix of one column (or one row)</string>
     <string name="matrix_insert">Insert</string>
     <string name="common_cancel">Cancel</string>
     <string name="variable_title">Variable</string>
