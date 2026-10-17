@@ -384,6 +384,18 @@
     <string name="formula_apart_desc">apart(e): a fraction of polynomials as a polynomial plus partial fractions, e.g. 1/(x² − 1) = ½/(x − 1) − ½/(x + 1). The denominator must split into factors x − r with rational r, and at most one quadratic without rational roots (x² + 1). One variable</string>
     <string name="formula_taylor_name">Taylor polynomial</string>
     <string name="formula_taylor_desc">taylor(f, n), taylor(f, x, n) or taylor(f, x, a, n): the Taylor polynomial of f in x around a (0 if left out) up to the power n, e.g. taylor(sin(x), x, 0, 5) = x − x³/6 + x⁵/120. n up to 12. Written in powers of (x − a). Fails where f or a derivative is not defined at a (ln(x) at 0)</string>
+    <string name="step_ode_standard_form">Write the equation in standard form</string>
+    <string name="step_ode_integrating_factor">Find the integrating factor μ</string>
+    <string name="step_ode_linear_solution">Multiply by μ: the left side is (μ·y)′. Integrate both sides</string>
+    <string name="step_ode_separate">Separate the variables: everything with y on the left, everything with x on the right</string>
+    <string name="step_ode_integrate_both">Integrate both sides</string>
+    <string name="step_ode_solve_for_unknown">Solve for y</string>
+    <string name="step_ode_characteristic">Try y = eʳˣ: this gives the characteristic equation</string>
+    <string name="step_ode_homogeneous">General solution of the equation without the right side: for two real roots C₁·eʳ¹ˣ + C₂·eʳ²ˣ, for a double root (C₁ + C₂·x)·eʳˣ, for complex roots α ± βi: eᵃˣ·(C₁·cos(βx) + C₂·sin(βx))</string>
+    <string name="step_ode_variation_of_parameters">Find a particular solution by variation of parameters (W is the Wronskian)</string>
+    <string name="step_ode_constants">Choose the constants so that the initial conditions hold</string>
+    <string name="formula_dsolve_name">Differential equation</string>
+    <string name="formula_dsolve_desc">dsolve(equation) or dsolve(equation, x₀, y₀): solves an ordinary differential equation typed with the derivative key, e.g. dsolve(d/dx(y) = 2x·y) gives y = C·e^(x²). First order: linear or separable. Second order (also dsolve(equation, x₀, y₀, y′₀)): a·y″ + b·y′ + c·y = r(x) with numbers a, b, c. The solution is checked in the equation; the constants are C (C₁, C₂). Not solved: other types, third order</string>
     <string name="formula_modpow_name">Modular power</string>
     <string name="formula_modpow_desc">modpow(b, e, m): bᵉ mod m without working out the huge power. A negative e needs b to have an inverse modulo m</string>
     <string name="formula_hypot_name">Hypotenuse</string>

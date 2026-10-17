@@ -581,6 +581,16 @@ private val StepRule.descriptionRes: Int
         StepRule.BY_PARTS -> R.string.step_by_parts
         StepRule.PARTIAL_FRACTIONS -> R.string.step_partial_fractions
         StepRule.TAYLOR_SERIES -> R.string.step_taylor_series
+        StepRule.ODE_STANDARD_FORM -> R.string.step_ode_standard_form
+        StepRule.ODE_INTEGRATING_FACTOR -> R.string.step_ode_integrating_factor
+        StepRule.ODE_LINEAR_SOLUTION -> R.string.step_ode_linear_solution
+        StepRule.ODE_SEPARATE -> R.string.step_ode_separate
+        StepRule.ODE_INTEGRATE_BOTH -> R.string.step_ode_integrate_both
+        StepRule.ODE_SOLVE_FOR_UNKNOWN -> R.string.step_ode_solve_for_unknown
+        StepRule.ODE_CHARACTERISTIC -> R.string.step_ode_characteristic
+        StepRule.ODE_HOMOGENEOUS -> R.string.step_ode_homogeneous
+        StepRule.ODE_VARIATION_OF_PARAMETERS -> R.string.step_ode_variation_of_parameters
+        StepRule.ODE_CONSTANTS -> R.string.step_ode_constants
         StepRule.SPLIT_NUMERATOR -> R.string.step_split_numerator
         StepRule.COMPLETE_SQUARE -> R.string.step_complete_square
         StepRule.ANTIDERIVATIVE -> R.string.step_antiderivative
@@ -860,7 +870,14 @@ internal fun StepRule.formula(language: Language): String? {
         StepRule.SPLIT_NUMERATOR -> "\\frac{px + q}{D} = \\frac{p}{2a}·\\frac{D′}{D} + \\frac{q − \\frac{pb}{2a}}{D}"
         StepRule.COMPLETE_SQUARE -> "ax^2 + bx + c = a((x + \\frac{b}{2a})^2 + k)"
         StepRule.PARTIAL_FRACTIONS -> "\\frac{P}{(x − a)(x − b)} = \\frac{A}{x − a} + \\frac{B}{x − b}"
-        StepRule.TAYLOR_SERIES -> "f(x) ≈ f(a) + f′(a)·(x − a) + \\frac{f″(a)}{2!}·(x − a)^2 + \\frac{f‴(a)}{3!}·(x − a)^3 + …"
+        StepRule.ODE_STANDARD_FORM -> "y′ + p(x)·y = q(x)"
+        StepRule.ODE_INTEGRATING_FACTOR -> "μ(x) = e^{\\int{p(x)}{x}}"
+        StepRule.ODE_LINEAR_SOLUTION -> "(μ·y)′ = μ·q\\text{  ⇒  }μ·y = \\int{μ·q}{x} + C"
+        StepRule.ODE_SEPARATE -> "y′ = f(x)·g(y)\\text{  ⇒  }\\frac{1}{g(y)}·dy = f(x)·dx"
+        StepRule.ODE_INTEGRATE_BOTH -> "\\int{\\frac{1}{g(y)}}{y} = \\int{f(x)}{x} + C"
+        StepRule.ODE_CHARACTERISTIC -> "a·y″ + b·y′ + c·y = 0\\text{  ⇒  }a·r^2 + b·r + c = 0"
+        StepRule.ODE_VARIATION_OF_PARAMETERS -> "yₚ = −y₁·\\int{\\frac{y₂·r}{a·W}}{x} + y₂·\\int{\\frac{y₁·r}{a·W}}{x}"
+        StepRule.TAYLOR_SERIES -> "f(x) ≈ f(a) + f′(a)·(x − a) + \\frac{f″(a)}{2!}·(x − a)^2 + …"
         StepRule.ANTIDERIVATIVE -> "\\intab{a}{b}{f}{x} = \\eval{F}{a}{b}"
         StepRule.BOUNDS -> "\\eval{F}{a}{b} = F(b) − F(a)"
         StepRule.ADD_TO_BOTH_SIDES -> "a = b\\text{  ⇔  }a + c = b + c"
@@ -897,6 +914,7 @@ internal fun StepRule.formula(language: Language): String? {
         StepRule.FACTOR_OUT -> "ax^2 + bx = x·(ax + b)"
         StepRule.ZERO_PRODUCT -> "a·b = 0\\text{  ⇔  }a = 0\\text{${w(Text.FORMULA_OR)}}b = 0"
         StepRule.QUADRATIC_FORMULA -> "x = \\frac{−b ± \\sqrt{D}}{2a}\\text{${w(Text.FORMULA_WITH)}}D = b^2 − 4ac"
+        StepRule.ODE_SOLVE_FOR_UNKNOWN, StepRule.ODE_HOMOGENEOUS, StepRule.ODE_CONSTANTS,
         StepRule.ROOT_OF_NUMBER, StepRule.IDENTITY, StepRule.SOLVE_FOR, StepRule.SUBSTITUTE_SOLUTION,
         StepRule.MULTIPLY_EQUATIONS, StepRule.ADD_EQUATIONS, StepRule.SUBTRACT_EQUATIONS, StepRule.INSERT_VALUE, StepRule.COLLECT_SOLUTION, StepRule.FACTOR_BY_ROOT, StepRule.NO_REAL_SOLUTION, StepRule.CONTRADICTION, StepRule.DETERMINANT_COFACTOR, StepRule.INVERSE_AUGMENT, StepRule.ROW_SWAP, StepRule.ROW_SCALE, StepRule.ROW_ADD, StepRule.INVERSE_RESULT, StepRule.SUBSTITUTE_RATIO, StepRule.ABSOLUTE_VALUE_SPLIT, StepRule.ABSOLUTE_VALUE_CASE, StepRule.INEQUALITY_SYSTEM_EACH, StepRule.INEQUALITY_SYSTEM_INTERSECT, StepRule.LOG_QUOTIENT, StepRule.TRIG_INEQUALITY_ISOLATE, StepRule.TRIG_INEQUALITY_PERIOD, StepRule.TRIG_INEQUALITY_SOLVE_X, StepRule.TRIG_INEQUALITY_BOUNDED, StepRule.LIMIT_CONJUGATE, StepRule.LIMIT_EXPONENT_INFINITE, StepRule.LIMIT_ABSOLUTE_VALUE, StepRule.ROW_REDUCE_BEGIN, StepRule.EIGEN_VECTOR, StepRule.EIGEN_VECTOR_RESULT, StepRule.EIGEN_RESULT, StepRule.MATRIX_SCALAR, StepRule.MATRIX_ADD, StepRule.MATRIX_SUBTRACT, StepRule.MATRIX_TRANSPOSE, StepRule.MATRIX_POWER, StepRule.INEQUALITY_ZEROS, StepRule.INEQUALITY_BREAKS, StepRule.INEQUALITY_CRITICAL, StepRule.INEQUALITY_RESULT, StepRule.ONE_SIDE, StepRule.TRIG_GENERAL_SOLUTION, StepRule.SUBSTITUTE_POWER, StepRule.BACK_SUBSTITUTE_POWER, StepRule.CHECK_SOLUTIONS, StepRule.LIMIT_SUBSTITUTE, StepRule.DIVIDE_BY_HIGHEST_POWER, StepRule.LIMIT_CONSTANT, StepRule.LIMIT_POLE, StepRule.LIMIT_LOGARITHM_ZERO, StepRule.LIMIT_EXPONENTIAL_RESULT, StepRule.LIMIT_GROWS, StepRule.LIMIT_RECIPROCAL,
         StepRule.INTEGRAL_TABLE, StepRule.EXPAND_INTEGRAND, StepRule.BACK_SUBSTITUTION,

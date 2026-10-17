@@ -1,6 +1,7 @@
 package com.vortessence.calculator.core.math.steps
 
 import com.vortessence.calculator.core.math.context.MathContext
+import com.vortessence.calculator.core.math.expressions.DifferentialEquations
 import com.vortessence.calculator.core.math.expressions.Expression
 import com.vortessence.calculator.core.math.expressions.Factorial
 import com.vortessence.calculator.core.math.expressions.Additions
@@ -27,11 +28,38 @@ internal object RewriteSteps {
             NamedFunctionKind.EXPAND -> Transforms.steps(body, Transform.EXPAND, context)
             NamedFunctionKind.APART -> apart(call, body, context)
             NamedFunctionKind.TAYLOR -> taylor(call, context)
+            NamedFunctionKind.DSOLVE -> dsolve(call, context)
             else -> null
         }
     }
 
     private const val MAX_STEPS = 80
+
+    /** The stages of the derivation of the solution of an ordinary differential equation, each with what it works out. */
+    private fun dsolve(call: NamedFunction, context: MathContext): ExpressionSolution? {
+        val scratch = context.copy()
+        val derivation = DifferentialEquations.solve(call.arguments, scratch) ?: return null
+        if (scratch.shouldStop || scratch.issues.isNotEmpty()) return null
+        val solution = Solver(context)
+        solution.start(call)
+        for (stage in derivation.stages) {
+            val rule = when (stage.kind) {
+                DifferentialEquations.Kind.STANDARD_FORM -> StepRule.ODE_STANDARD_FORM
+                DifferentialEquations.Kind.INTEGRATING_FACTOR -> StepRule.ODE_INTEGRATING_FACTOR
+                DifferentialEquations.Kind.LINEAR_SOLUTION -> StepRule.ODE_LINEAR_SOLUTION
+                DifferentialEquations.Kind.SEPARATE -> StepRule.ODE_SEPARATE
+                DifferentialEquations.Kind.INTEGRATE_BOTH -> StepRule.ODE_INTEGRATE_BOTH
+                DifferentialEquations.Kind.SOLVE_FOR_UNKNOWN -> StepRule.ODE_SOLVE_FOR_UNKNOWN
+                DifferentialEquations.Kind.CHARACTERISTIC -> StepRule.ODE_CHARACTERISTIC
+                DifferentialEquations.Kind.HOMOGENEOUS -> StepRule.ODE_HOMOGENEOUS
+                DifferentialEquations.Kind.VARIATION_OF_PARAMETERS -> StepRule.ODE_VARIATION_OF_PARAMETERS
+                DifferentialEquations.Kind.CONSTANTS -> StepRule.ODE_CONSTANTS
+            }
+            val notes = stage.notes.map { (left, right) -> Note(left, right) }
+            solution.apply(Match(rule, mapOf(emptyList<Int>() to stage.line), unmarked(solution.current), stage.line, notes = notes, showChange = false))
+        }
+        return solution.finish(derivation.solution)
+    }
 
     /** f′, f″, f‴, then f⁽⁴⁾ */
     private fun derivativeMarks(k: Int): String = when (k) {

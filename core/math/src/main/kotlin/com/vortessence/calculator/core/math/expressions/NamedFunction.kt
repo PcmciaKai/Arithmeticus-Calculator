@@ -123,6 +123,11 @@ enum class NamedFunctionKind(val functionName: String, val minArguments: Int, va
     APART("apart", 1, 2),
     /** taylor(f, n), taylor(f, x, n) or taylor(f, x, a, n): the Taylor polynomial of f in x around a (0 if left out) up to the power n. */
     TAYLOR("taylor", 2, 4),
+    /**
+     * dsolve(equation), dsolve(equation, x₀, y₀) or, for a second order equation, dsolve(equation, x₀, y₀, y′₀): the general
+     * solution of an ordinary differential equation typed with the derivative key, d/dx(y) = 2x·y, or the one through the point.
+     */
+    DSOLVE("dsolve", 1, 4),
     /** modpow(b, e, m): bᵉ mod m for m > 0, worked out without the huge power; a negative e needs b to have an inverse mod m. */
     MODPOW("modpow", 3, 3),
     /** √(a² + b² + ...), the length of the vector (a, b, ...). */
@@ -188,6 +193,8 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
     override fun copyWithChildren(children: List<Expression>): Expression = NamedFunction(kind, children)
 
     override fun canonicalize(context: MathContext): Expression {
+        // The equation is read as typed: canonicalized, d/dx(y) would be 0
+        if (kind == NamedFunctionKind.DSOLVE) return DifferentialEquations.solve(arguments, context)?.solution ?: this
         val args = arguments.map { it.canonicalize(context) }
         if (context.shouldStop) return this
         if (args.size !in kind.minArguments..kind.maxArguments) return fail(context, MathIssue.ARGUMENT_COUNT)

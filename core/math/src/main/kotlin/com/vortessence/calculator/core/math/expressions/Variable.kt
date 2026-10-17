@@ -47,7 +47,16 @@ fun Expression.substituteVariables(values: Map<Variable, Expression>): Expressio
         is NamedFunction -> {
             // taylor(f, x, …) and apart(f, x) name their variable: a definition of it is not used inside f, nor in place of the name
             val named = if ((kind == NamedFunctionKind.TAYLOR && arguments.size >= 3) || (kind == NamedFunctionKind.APART && arguments.size == 2)) arguments[1] as? Variable else null
-            if (named == null) substituteChildren(values)
+            if (kind == NamedFunctionKind.DSOLVE) {
+                // The unknown function and the variable it depends on are letters of the equation, whatever they are defined as
+                val own = mutableSetOf<Variable>()
+                fun scan(e: Expression) {
+                    if (e is Derivative) { own.add(e.variable); var body = e.body; while (body is Derivative) body = body.body; (body as? Variable)?.let { own.add(it) } }
+                    e.children.forEach { scan(it) }
+                }
+                scan(arguments[0])
+                NamedFunction(kind, arguments.mapIndexed { i, a -> a.substituteVariables(if (i == 0) values - own else values) })
+            } else if (named == null) substituteChildren(values)
             else NamedFunction(kind, arguments.mapIndexed { i, a -> if (i == 1) a else a.substituteVariables(if (i == 0) values - named else values) })
         }
         else -> substituteChildren(values)

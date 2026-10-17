@@ -224,6 +224,26 @@ enum class StepRule {
     PARTIAL_FRACTIONS,
     /** f(x) = f(a) + f′(a)(x − a) + f″(a)/2!·(x − a)² + … */
     TAYLOR_SERIES,
+    /** y′ + p(x)·y = q(x) */
+    ODE_STANDARD_FORM,
+    /** μ(x) = e^(∫p dx) */
+    ODE_INTEGRATING_FACTOR,
+    /** (μ·y)′ = μ·q, integrated */
+    ODE_LINEAR_SOLUTION,
+    /** y′ = f(x)·g(y) becomes dy/g(y) = f(x) dx */
+    ODE_SEPARATE,
+    /** ∫ dy/g(y) = ∫ f(x) dx + C */
+    ODE_INTEGRATE_BOTH,
+    /** y alone on one side */
+    ODE_SOLVE_FOR_UNKNOWN,
+    /** a·r² + b·r + c = 0 for y = eʳˣ */
+    ODE_CHARACTERISTIC,
+    /** C₁·y₁ + C₂·y₂ for the roots of the characteristic equation */
+    ODE_HOMOGENEOUS,
+    /** yₚ = −y₁∫y₂r/(aW) + y₂∫y₁r/(aW) */
+    ODE_VARIATION_OF_PARAMETERS,
+    /** the constants that fit the initial conditions */
+    ODE_CONSTANTS,
     /** (px + q)/D = (p/2a)·D′/D + (q − pb/2a)/D */
     SPLIT_NUMERATOR,
     /** ax² + bx + c = a((x + h)² + k) */
