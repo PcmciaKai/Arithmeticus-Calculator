@@ -52,6 +52,9 @@ import kotlin.math.roundToInt
  */
 val LocalVariableDefinitions = staticCompositionLocalOf<Map<String, MathString>> { emptyMap() }
 
+/** Derivatives here are ordinary, d/dx, whatever letters they contain: the argument of dsolve, whose y is a function of x. */
+val LocalOrdinaryDerivatives = compositionLocalOf { false }
+
 /** Whether numbers are shown with digit groups (300 000). Display only, the text is unchanged. */
 val LocalDigitGrouping = staticCompositionLocalOf { false }
 
@@ -616,16 +619,18 @@ private fun MathNodeView(
                 // ln|x| rather than ln(|x|): the bars already enclose the argument
                 val isAbsoluteValue = (node.argument.nodes.singleOrNull() as? FunctionNode)?.name == "abs"
                 val argumentFontSize = (fontSize.value * 0.9f).sp
-                slots.Slot(
-                    child = 0,
-                    string = node.argument,
-                    fontSize = argumentFontSize,
-                    modifier = if (isAbsoluteValue) onAxis else onAxis.stretchyParentheses(textColor, argumentFontSize, isFlat(node.argument)),
-                    // Room above and below for the parentheses, in proportion to the text
-                    verticalPadding = (argumentFontSize.value * 0.04f).dp,
-                    // rand() has no argument: an empty slot is how it is written, not a gap to fill
-                    hidePlaceholder = node.name.lowercase() == "rand" && node.argument.isEmpty
-                )
+                CompositionLocalProvider(LocalOrdinaryDerivatives provides (LocalOrdinaryDerivatives.current || node.name == "dsolve")) {
+                    slots.Slot(
+                        child = 0,
+                        string = node.argument,
+                        fontSize = argumentFontSize,
+                        modifier = if (isAbsoluteValue) onAxis else onAxis.stretchyParentheses(textColor, argumentFontSize, isFlat(node.argument)),
+                        // Room above and below for the parentheses, in proportion to the text
+                        verticalPadding = (argumentFontSize.value * 0.04f).dp,
+                        // rand() has no argument: an empty slot is how it is written, not a gap to fill
+                        hidePlaceholder = node.name.lowercase() == "rand" && node.argument.isEmpty
+                    )
+                }
             }
         }
         is IntegralNode -> IntegralView(node, fontSize, slots)
@@ -1179,7 +1184,8 @@ private fun DerivativeView(node: DerivativeNode, fontSize: TextUnit, slots: Slot
     val labelFontSize = (fontSize.value * 0.7f).sp
     val subscriptFontSize = (fontSize.value * 0.55f).sp
     val definitions = LocalVariableDefinitions.current
-    val isPartial = remember(node, definitions) { MathEngine.isPartialDerivative(node, definitions) }
+    val ordinary = LocalOrdinaryDerivatives.current
+    val isPartial = !ordinary && remember(node, definitions) { MathEngine.isPartialDerivative(node, definitions) }
     val d = if (isPartial) "∂" else "d"
     Row(
         verticalAlignment = Alignment.CenterVertically,

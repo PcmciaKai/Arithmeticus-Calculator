@@ -9,6 +9,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
 import com.vortessence.calculator.R
 import com.vortessence.calculator.core.math.steps.NumberLine
+import com.vortessence.calculator.ui.math.LocalOrdinaryDerivatives
 import com.vortessence.calculator.core.math.steps.SolutionStep
 import com.vortessence.calculator.core.math.steps.StepChange
 import com.vortessence.calculator.core.math.steps.StepRule
@@ -51,9 +53,16 @@ import com.vortessence.calculator.core.math.i18n.Texts
  * expression it leads to; the last one, the result, is framed. In each expression, the part the last step
  * produced is boxed and the part the next step changes is colored.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StepsSheet(state: StepsState, onDismiss: () -> Unit, onSelect: (Transform?) -> Unit = {}) {
+    // The derivatives of a differential equation are d/dx, not partial, in every line of its solution
+    val isDifferentialEquation = state.solution?.steps?.any { it.rule?.name?.startsWith("ODE_") == true } == true
+    CompositionLocalProvider(LocalOrdinaryDerivatives provides isDifferentialEquation) { StepsSheetContent(state, onDismiss, onSelect) }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun StepsSheetContent(state: StepsState, onDismiss: () -> Unit, onSelect: (Transform?) -> Unit) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(

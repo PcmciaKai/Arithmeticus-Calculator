@@ -9,6 +9,7 @@ import com.vortessence.calculator.core.math.expressions.Multiplications
 import com.vortessence.calculator.core.math.expressions.NamedFunction
 import com.vortessence.calculator.core.math.expressions.NamedFunctionKind
 import com.vortessence.calculator.core.math.expressions.PartialFractions
+import com.vortessence.calculator.core.math.expressions.tidyForDisplay
 import com.vortessence.calculator.core.math.expressions.Power
 import com.vortessence.calculator.core.math.expressions.Value
 import com.vortessence.calculator.core.math.expressions.Variable
@@ -56,9 +57,11 @@ internal object RewriteSteps {
                 DifferentialEquations.Kind.CONSTANTS -> StepRule.ODE_CONSTANTS
             }
             val notes = stage.notes.map { (left, right) -> Note(left, right) }
-            solution.apply(Match(rule, mapOf(emptyList<Int>() to stage.line), unmarked(solution.current), stage.line, notes = notes, showChange = false))
+            // Shown as the result is: 1/(1/b − 2kt) as b/(1 − 2kbt)
+            val line = tidyForDisplay(stage.line, context)
+            solution.apply(Match(rule, mapOf(emptyList<Int>() to line), unmarked(solution.current), line, notes = notes, showChange = false))
         }
-        return solution.finish(derivation.solution)
+        return solution.finish(tidyForDisplay(derivation.solution, context))
     }
 
     /** f′, f″, f‴, then f⁽⁴⁾ */

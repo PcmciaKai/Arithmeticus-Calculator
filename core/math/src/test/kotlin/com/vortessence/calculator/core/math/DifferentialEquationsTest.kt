@@ -7,6 +7,10 @@ import com.vortessence.calculator.core.math.expressions.Expression
 import com.vortessence.calculator.core.math.expressions.Variable
 import com.vortessence.calculator.core.math.steps.Alternatives
 import com.vortessence.calculator.core.math.steps.StepRule
+import com.vortessence.calculator.core.math.type.DerivativeNode
+import com.vortessence.calculator.core.math.type.FunctionNode
+import com.vortessence.calculator.core.math.type.MathNode
+import com.vortessence.calculator.core.math.type.MathString
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Test
@@ -100,8 +104,8 @@ class DifferentialEquationsTest {
     fun secondOrderHomogeneous() {
         assertEquals("y = C₁(e)^(2x) + C₂(e)^(x)", shown("dsolve(D{D{y}}-3D{y}+2y=0)"))
         assertEquals("y = C₁cos(x) + C₂sin(x)", shown("dsolve(D{D{y}}+y=0)"))
-        assertEquals("y = C₁(e)^( − x) + C₂x(e)^( − x)", shown("dsolve(D{D{y}}+2D{y}+y=0)"))
-        assertEquals("y = C₁(e)^( − x)cos(2x) + C₂(e)^( − x)sin(2x)", shown("dsolve(D{D{y}}+2D{y}+5y=0)"))
+        assertEquals("y = (e)^( − x)(C₁ + C₂x)", shown("dsolve(D{D{y}}+2D{y}+y=0)"))
+        assertEquals("y = (e)^( − x)(C₁cos(2x) + C₂sin(2x))", shown("dsolve(D{D{y}}+2D{y}+5y=0)"))
         assertEquals("y = C₁ + C₂x", shown("dsolve(D{D{y}}=0)"))
         check("dsolve(D{D{y}}-3D{y}+2y=0)", { _, y, y1, y2 -> y2 - 3 * y1 + 2 * y })
         check("dsolve(D{D{y}}-2y=0)", { _, y, _, y2 -> y2 - 2 * y })
@@ -136,7 +140,7 @@ class DifferentialEquationsTest {
         // Second order: y(x₀) and y′(x₀)
         assertEquals("y =  − (e)^(2x) + 2(e)^(x)", shown("dsolve(D{D{y}}-3D{y}+2y=0,0,1,0)"))
         assertEquals("y = sin(x)", shown("dsolve(D{D{y}}+y=0,0,0,1)"))
-        assertEquals("y = (e)^( − x)cos(2x) + ((e)^( − x)sin(2x))/(2)", shown("dsolve(D{D{y}}+2D{y}+5y=0,0,1,0)"))
+        assertEquals("y = (e)^( − x)(cos(2x) + (sin(2x))/(2))", shown("dsolve(D{D{y}}+2D{y}+5y=0,0,1,0)"))
         assertEquals("y = 3 − 2(e)^( − x) + ((x)^(2))/(2) − x", shown("dsolve(D{D{y}}+D{y}=x,0,1,1)"))
         assertEquals("y = (sin(3x))/(18) − (xcos(3x))/(6)", shown("dsolve(D{D{y}}+9y=sin(3x),0,0,0)"))
         // The conditions are met: y(1) = 2, and y(2) = −1 with y′(2) = 3
@@ -197,5 +201,41 @@ class DifferentialEquationsTest {
         val defined = MathContext(variables = mapOf("x" to TestInput.parse("3"), "y" to TestInput.parse("5"), "k" to TestInput.parse("2")))
         assertEquals("y = C(e)^((x)^(2))", runBlocking { MathEngine.calculate(TestInput.parse("dsolve(D{y}=2xy)"), defined) }.result.toString())
         assertEquals("y = C(e)^(2x)", runBlocking { MathEngine.calculate(TestInput.parse("dsolve(D{y}=k y)"), defined) }.result.toString())
+    }
+
+    /** [text] with its derivatives taken by t, as in a rate equation d[A]/dt = 2k[A]². */
+    private fun byTime(text: String): MathString {
+        fun fix(n: MathNode): MathNode = if (n is DerivativeNode) n.copy(variable = "t") else n
+        return MathString(TestInput.parse(text).nodes.map { n ->
+            if (n is FunctionNode) FunctionNode(n.name, MathString(n.argument.nodes.map { fix(it) })) else fix(n)
+        })
+    }
+
+    private fun byTimeShown(text: String): String {
+        val result = runBlocking { MathEngine.calculate(byTime(text), MathContext()) }
+        assertTrue("$text: ${result.issues}", result.isSuccess)
+        return result.result.toString()
+    }
+
+    @Test
+    fun rateEquationsWithAConstantAndALetterAsInitialValue() {
+        // d[A]/dt = 2k[A]²: separable with a parameter k (the numeric check of the split needs values for it)
+        assertEquals("a = (1)/( − 2kt − C)", byTimeShown("dsolve(D{a}=2ka^2)"))
+        assertEquals("a = (3)/( − 6kt + 1)", byTimeShown("dsolve(D{a}=2ka^2,0,3)"))
+        // [A](0) = [A]₀ as a letter: a = 1/(1/b − 2kt) = b/(1 − 2kbt)
+        assertEquals("a = (b)/( − 2bkt + 1)", byTimeShown("dsolve(D{a}=2ka^2,0,b)"))
+        assertEquals("a = b(e)^(kt)", byTimeShown("dsolve(D{a}=ka,0,b)"))
+        assertEquals("a = b(e)^( − kt)", byTimeShown("dsolve(D{a}=-ka,0,b)"))
+        // The solution has the initial value at 0 and satisfies the equation (k = 0.3, b = 2): a(t) = b/(1 − 2kbt)
+        val solution = (runBlocking { MathEngine.calculate(byTime("dsolve(D{a}=2ka^2,0,b)"), MathContext()) }.expression as Equals).right
+        fun a(t: Double) = solution.evaluateNumerically(mapOf(Variable("t") to t, Variable("k") to 0.3, Variable("b") to 2.0))
+        assertEquals(2.0, a(0.0), 1e-12)
+        assertEquals(2.0 / (1 - 2 * 0.3 * 2.0 * 0.5), a(0.5), 1e-12)
+        val h = 1e-6
+        assertEquals(2 * 0.3 * a(0.5) * a(0.5), (a(0.5 + h) - a(0.5 - h)) / (2 * h), 1e-5)
+        // The initial value must not depend on the unknown or its variable
+        assertEquals(listOf(MathIssue.CANT_SOLVE_ODE), runBlocking { MathEngine.calculate(byTime("dsolve(D{a}=2ka^2,0,a)"), MathContext()) }.issues)
+        // Parameters in other separable equations
+        check("dsolve(D{y}=k y^2)", { _, y, y1, _ -> y1 - 0.8 * y * y }, constants = 0.8)
     }
 }

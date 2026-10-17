@@ -46,7 +46,8 @@ internal object DifferentialEquations {
         val conditions = arguments.drop(1).map { it.canonicalize(context) }
         if (context.shouldStop) return null
         if (conditions.isNotEmpty() && conditions.size != problem.order + 1) return refuse(MathIssue.ARGUMENT_COUNT)
-        if (conditions.any { it.variables().isNotEmpty() }) return refuse()
+        // An initial value may be a letter (y(0) = b), but not depend on the unknown or its variable
+        if (conditions.any { problem.unknown in it.variables() || problem.variable in it.variables() }) return refuse()
 
         val general = (if (problem.order == 1) firstOrder(problem, context) else secondOrder(problem, context)) ?: return refuse()
         if (conditions.isEmpty()) return general
@@ -299,9 +300,11 @@ internal object DifferentialEquations {
     }
 
     private fun agrees(h: Expression, f: Expression, g: Expression, p: Problem): Boolean {
+        // Letters other than x and y (a rate constant k) are numbers too
+        val others = (h.variables() + f.variables() + g.variables() - p.variable - p.y0).toList()
         var checked = 0
-        for (x in SAMPLES) for (y in SAMPLES) {
-            val point = mapOf(p.variable to x, p.y0 to y)
+        for (shift in listOf(0, 2)) for (x in SAMPLES) for (y in SAMPLES) {
+            val point = mapOf(p.variable to x, p.y0 to y) + others.withIndex().associate { (j, v) -> v to CONSTANT_SAMPLES[(shift + j) % CONSTANT_SAMPLES.size].let { c -> if (c == 0.0) 1.0 else c } }
             val expected = h.evaluateNumerically(point)
             val actual = f.evaluateNumerically(point) * g.evaluateNumerically(point)
             if (!expected.isFinite() || !actual.isFinite()) continue
@@ -434,14 +437,20 @@ internal object DifferentialEquations {
      */
     private fun firstCondition(branch: Expression, x: Variable, x0: Expression, y0: Expression, context: MathContext, notes: MutableList<Pair<Expression, Expression>>): List<Expression> {
         val atPoint = canonical(branch.substituteVariables(mapOf(x to x0)), context) ?: return emptyList()
-        val wanted = y0.evaluateNumerically()
         val values = (invert(atPoint, CONSTANT, y0)?.mapNotNull { canonical(it, context) } ?: run {
             val scratch = context.copy()
             val solved = Equals(atPoint, y0).solveForVariable(CONSTANT, scratch)
             if (scratch.shouldStop || solved == setOf(CONSTANT)) emptyList() else solved.toList()
         }).filter { value ->
-            // Only what really gives y₀ at x₀
-            value.variables().isEmpty() && abs(atPoint.substituteVariables(mapOf(CONSTANT to value)).evaluateNumerically() - wanted) <= 1e-9 * maxOf(1.0, abs(wanted))
+            // Only what really gives y₀ at x₀ (for letters in it: at some values of them)
+            val given = atPoint.substituteVariables(mapOf(CONSTANT to value))
+            CONSTANT !in value.variables() && listOf(0, 2).all { shift ->
+                val letters = (given.variables() + y0.variables()).toList()
+                val point = letters.withIndex().associate { (j, v) -> v to CONSTANT_SAMPLES[(shift + j) % CONSTANT_SAMPLES.size] }
+                val wanted = y0.evaluateNumerically(point)
+                val actual = given.evaluateNumerically(point)
+                !wanted.isFinite() || !actual.isFinite() || abs(actual - wanted) <= 1e-9 * maxOf(1.0, abs(wanted))
+            }
         }
         if (values.isEmpty()) return emptyList()
         notes.add(CONSTANT to values.first())
@@ -453,7 +462,7 @@ internal object DifferentialEquations {
         val left = implicit.left.substituteVariables(mapOf(p.y0 to y0))
         val right = implicit.right.substituteVariables(mapOf(p.variable to x0))
         val scratch = context.copy()
-        val constants = Equals(left, right).solveForVariable(CONSTANT, scratch).filter { it.variables().isEmpty() }
+        val constants = Equals(left, right).solveForVariable(CONSTANT, scratch).filter { CONSTANT !in it.variables() }
         if (scratch.shouldStop || constants.size != 1) return null
         notes.add(CONSTANT to constants.single())
         return canonical(Equals(implicit.left, implicit.right.substituteVariables(mapOf(CONSTANT to constants.single()))), context)
