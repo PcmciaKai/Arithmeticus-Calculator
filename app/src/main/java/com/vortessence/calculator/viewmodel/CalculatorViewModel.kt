@@ -15,7 +15,7 @@ import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.context.MathIssue
 import com.vortessence.calculator.core.math.context.UnitSystem
 import com.vortessence.calculator.core.math.expressions.UnitRegistry
-import com.vortessence.calculator.core.math.solvers.PlotCurve
+import com.vortessence.calculator.core.math.solvers.PlotScene
 import com.vortessence.calculator.core.math.steps.Solution
 import com.vortessence.calculator.core.math.type.*
 import com.vortessence.calculator.ui.keypad.KeyAction
@@ -76,8 +76,8 @@ data class CalculatorUiState(
     val decimalComma: Boolean = false,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val isGraphOpen: Boolean = false,
-    /** Function or implicit curve shown in the graph, or null if the expression cannot be plotted. */
-    val plotCurve: PlotCurve? = null,
+    /** The curves of the lines shown in the graph (one entry per line), or null while there are none. */
+    val plotScene: PlotScene? = null,
     val isPlotLoading: Boolean = false,
     val showUnitsDialog: Boolean = false,
     /** Category shown in the unit picker; it reopens on the category used last. */
@@ -878,6 +878,18 @@ class CalculatorViewModel @JvmOverloads constructor(
     fun closeGraph() {
         plotJob?.cancel()
         _uiState.update { it.copy(isGraphOpen = false, isPlotLoading = false) }
+    }
+
+    /**
+     * Leaves the graph for the line to add another curve: the editor gets a new line after the lines there are (unless it ends in
+     * one already), with the cursor in it.
+     */
+    fun addGraphLine() {
+        closeGraph()
+        val state = _uiState.value
+        val line = state.expression.copy()
+        if (line.isNotEmpty && line.nodes.last() !is LineBreakNode) line.insert(line.length, LineBreakNode)
+        _uiState.update { it.copy(expression = line, cursorPath = listOf(line.length), selectionRange = null) }
     }
 
     /** Opens the dialog for the variable of the integral or derivative at [nodeIndex] in the string at [stringPath]. */
@@ -1972,14 +1984,14 @@ class CalculatorViewModel @JvmOverloads constructor(
         val expr = state.expression
         plotJob?.cancel()
         if (expr.isEmpty) {
-            _uiState.update { it.copy(plotCurve = null, isPlotLoading = false) }
+            _uiState.update { it.copy(plotScene = null, isPlotLoading = false) }
             return
         }
-        _uiState.update { it.copy(plotCurve = null, isPlotLoading = true) }
+        _uiState.update { it.copy(plotScene = null, isPlotLoading = true) }
         plotJob = viewModelScope.launch {
             val context = state.snapshot().toMathContext()
-            val curve = MathEngine.createPlotCurve(expr, context)
-            _uiState.update { it.copy(plotCurve = curve, isPlotLoading = false) }
+            val scene = MathEngine.createPlotScene(expr, context)
+            _uiState.update { it.copy(plotScene = scene, isPlotLoading = false) }
         }
     }
 

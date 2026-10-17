@@ -118,10 +118,11 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
     val context = LocalContext.current
     if (uiState.isGraphOpen) {
         GraphPlotterView(
-            curve = uiState.plotCurve,
+            scene = uiState.plotScene,
             expression = uiState.expression,
             isLoading = uiState.isPlotLoading,
             modifier = Modifier.fillMaxSize(),
+            onAddLine = { viewModel.addGraphLine() },
             onClose = { viewModel.closeGraph() }
         )
         return

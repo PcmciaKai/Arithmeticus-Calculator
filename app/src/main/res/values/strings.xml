@@ -566,6 +566,13 @@
     <string name="graph_tap_hint">Tap the curve to place the cursor</string>
     <string name="graph_recenter">Recenter</string>
     <string name="graph_close">Close graph</string>
+    <string name="graph_toggle_curve">Show or hide the curve</string>
+    <string name="graph_curve_shown">shown</string>
+    <string name="graph_curve_hidden">hidden</string>
+    <string name="graph_add_line">Add another equation</string>
+    <string name="graph_intersection">Intersection</string>
+    <string name="graph_line_cannot_plot">cannot be graphed</string>
+    <string name="graph_surface_alone">Only the surface is drawn: a 3D graph cannot be combined with other lines</string>
     <string name="graph_axes">Axes</string>
     <string name="graph_log_x">Logarithmic x-axis</string>
     <string name="graph_log_y">Logarithmic y-axis</string>

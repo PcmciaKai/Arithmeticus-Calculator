@@ -51,6 +51,18 @@ class InequalityPlotTest {
     }
 
     @Test
+    fun anInequalityInYAloneIsAHalfPlane() {
+        val below = plot("y<4")
+        assertTrue(below.twoVariables)
+        assertTrue(below.primary is ImplicitCurve)
+        assertTrue(below.holds(100.0, 3.0))
+        assertTrue(below.holds(-100.0, 3.0))
+        assertFalse(below.holds(0.0, 5.0))
+        // Another letter is still the variable of the horizontal axis
+        assertFalse(plot("t<4").twoVariables)
+    }
+
+    @Test
     fun severalInequalitiesHoldTogether() {
         val band = plot("x>1|x<5")
         assertEquals(2, band.constraints.size)

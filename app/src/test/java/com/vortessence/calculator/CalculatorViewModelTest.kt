@@ -2444,4 +2444,74 @@ class CalculatorViewModelTest {
         assertEquals("", vm.line())
     }
 
+
+    private suspend fun CalculatorViewModel.awaitPlotScene() {
+        var attempts = 0
+        while (uiState.value.plotScene == null && attempts < 100) {
+            delay(20)
+            attempts++
+        }
+        assertNotNull(uiState.value.plotScene)
+    }
+
+    /** y = x on one line and y = 2 − x on the next. */
+    private fun CalculatorViewModel.typeTwoLines() {
+        onKeyAction(KeyAction.Variable("y"))
+        onKeyAction(KeyAction.Operator("="))
+        onKeyAction(KeyAction.Variable("x"))
+        onKeyAction(KeyAction.NewLine)
+        onKeyAction(KeyAction.Variable("y"))
+        onKeyAction(KeyAction.Operator("="))
+        type("2")
+        onKeyAction(KeyAction.Operator("−"))
+        onKeyAction(KeyAction.Variable("x"))
+    }
+
+    @Test
+    fun everyLineBecomesACurveOfTheGraph() = runBlocking {
+        val vm = newViewModel()
+        vm.typeTwoLines()
+        vm.toggleGraph()
+        vm.awaitPlotScene()
+        val scene = vm.uiState.value.plotScene!!
+        assertEquals(2, scene.entries.size)
+        assertTrue(scene.entries.all { it.curve != null })
+        assertTrue(vm.uiState.value.isGraphOpen)
+    }
+
+    @Test
+    fun theGraphSeesTheDefinitionsOfTheHistory() = runBlocking {
+        val vm = newViewModel()
+        vm.defineVariable("k", "3")
+        vm.onKeyAction(KeyAction.Variable("y"))
+        vm.onKeyAction(KeyAction.Operator("="))
+        vm.onKeyAction(KeyAction.Variable("k"))
+        vm.toggleGraph()
+        vm.awaitPlotScene()
+        assertNotNull(vm.uiState.value.plotScene!!.entries.single().curve)
+    }
+
+    @Test
+    fun theAddButtonLeavesTheGraphForANewLine() = runBlocking {
+        val vm = newViewModel()
+        vm.typeTwoLines()
+        vm.toggleGraph()
+        vm.awaitPlotScene()
+        vm.addGraphLine()
+        assertFalse(vm.uiState.value.isGraphOpen)
+        assertEquals(3, vm.uiState.value.expression.nodes.count { it is LineBreakNode } + 1)
+        assertTrue(vm.uiState.value.expression.nodes.last() is LineBreakNode)
+        assertEquals(listOf(vm.uiState.value.expression.length), vm.uiState.value.cursorPath)
+        // Once more does not stack empty lines: the editor already ends in a new line
+        vm.toggleGraph()
+        vm.addGraphLine()
+        assertEquals(1, vm.uiState.value.expression.nodes.takeLastWhile { it is LineBreakNode }.size)
+    }
+
+    @Test
+    fun theAddButtonOnAnEmptyEditorAddsNothing() = runBlocking {
+        val vm = newViewModel()
+        vm.addGraphLine()
+        assertTrue(vm.uiState.value.expression.isEmpty)
+    }
 }

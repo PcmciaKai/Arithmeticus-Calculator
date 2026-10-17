@@ -432,6 +432,15 @@ class MathString(initialNodes: List<MathNode> = emptyList()) {
 
     fun nodeAt(index: Int): MathNode = _nodes[index]
 
+    /** The lines of this string (it is cut at its line breaks; an empty line stays an empty string). */
+    fun lines(): List<MathString> {
+        val lines = mutableListOf(MathString())
+        for (node in _nodes) {
+            if (node is LineBreakNode) lines.add(MathString()) else lines.last().insert(lines.last().length, node)
+        }
+        return lines
+    }
+
     fun insert(index: Int, node: MathNode) {
         val safeIndex = index.coerceIn(0, _nodes.size)
         _nodes.add(safeIndex, node)

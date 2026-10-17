@@ -301,6 +301,13 @@
     <string name="graph_tap_hint">Auf die Kurve tippen, um den Cursor zu setzen</string>
     <string name="graph_recenter">Zentrieren</string>
     <string name="graph_close">Graph schließen</string>
+    <string name="graph_toggle_curve">Kurve ein- oder ausblenden</string>
+    <string name="graph_curve_shown">sichtbar</string>
+    <string name="graph_curve_hidden">ausgeblendet</string>
+    <string name="graph_add_line">Weitere Gleichung hinzufügen</string>
+    <string name="graph_intersection">Schnittpunkt</string>
+    <string name="graph_line_cannot_plot">nicht darstellbar</string>
+    <string name="graph_surface_alone">Nur die Fläche wird gezeichnet: ein 3D-Graph lässt sich nicht mit anderen Zeilen kombinieren</string>
     <string name="graph_axes">Achsen</string>
     <string name="graph_log_x">Logarithmische x-Achse</string>
     <string name="graph_log_y">Logarithmische y-Achse</string>

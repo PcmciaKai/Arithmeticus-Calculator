@@ -36,11 +36,7 @@ class MathParser {
 
     private fun parseInput(string: MathString): Expression {
         if (string.nodes.none { it is LineBreakNode }) return parseLine(string)
-        val lines = mutableListOf(MathString())
-        for (node in string.nodes) {
-            if (node is LineBreakNode) lines.add(MathString()) else lines.last().insert(lines.last().length, node)
-        }
-        val parsed = lines.filter { it.isNotEmpty }.map { parseLine(it) }
+        val parsed = string.lines().filter { it.isNotEmpty }.map { parseLine(it) }
         return when (parsed.size) {
             0 -> Value.ZERO
             1 -> parsed.single()

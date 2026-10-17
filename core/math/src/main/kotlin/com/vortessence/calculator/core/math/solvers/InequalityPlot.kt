@@ -64,6 +64,8 @@ class InequalityPlot(
             }
             val variables = inequalities.flatMap { it.variables() }.toSet()
             val two = when {
+                // y < 4 is a half-plane, not bands of the horizontal axis named y
+                variables == setOf(Y) -> true
                 variables.size == 1 -> false
                 variables == setOf(X, Y) -> true
                 else -> return null

@@ -13,10 +13,13 @@ import androidx.compose.foundation.gestures.calculateCentroidSize
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.drag
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AreaChart
 import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material.icons.filled.Close
@@ -44,6 +47,9 @@ import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
@@ -57,6 +63,9 @@ import com.vortessence.calculator.core.math.PlotSegment
 import com.vortessence.calculator.core.math.solvers.Function1D
 import com.vortessence.calculator.core.math.solvers.ImplicitCurve
 import com.vortessence.calculator.core.math.solvers.InequalityPlot
+import com.vortessence.calculator.core.math.solvers.PlotEntry
+import com.vortessence.calculator.core.math.solvers.PlotIntersection
+import com.vortessence.calculator.core.math.solvers.PlotScene
 import com.vortessence.calculator.core.math.type.isInequality
 import com.vortessence.calculator.core.math.solvers.PlotCurve
 import com.vortessence.calculator.core.math.solvers.Surface3D
@@ -95,6 +104,24 @@ private const val MAX_LOG_SCALE = 20000f
 
 // A polar curve r = f(θ) is sampled once over a full turn, finely enough to stay smooth when zoomed in
 private const val POLAR_SAMPLES = 2880
+
+/**
+ * The colours of the curves, by the position of their line (so a curve keeps its colour when another is hidden): a categorical
+ * palette checked for colour-blind readers, with the steps made for dark surfaces. The legend names every curve, so colour is
+ * never the only way to tell them apart.
+ */
+private val CURVE_COLORS_LIGHT = listOf(0xFFEB6834, 0xFF2A78D6, 0xFF1BAF7A, 0xFF6250D6, 0xFFE87BA4, 0xFFEDA100, 0xFF008300, 0xFFE34948).map { Color(it) }
+private val CURVE_COLORS_DARK = listOf(0xFFD95926, 0xFF3987E5, 0xFF199E70, 0xFF9085E9, 0xFFD55181, 0xFFC98500, 0xFF008300, 0xFFE66767).map { Color(it) }
+
+/** Whether this is the same crossing as [other], which was found for another part of the graph (so it may differ in the last digits). */
+private fun PlotIntersection.sameAs(other: PlotIntersection): Boolean =
+    first == other.first && second == other.second && abs(x - other.x) <= 1e-6 * max(1.0, abs(other.x)) && abs(y - other.y) <= 1e-6 * max(1.0, abs(other.y))
+
+/** The key of the region where all inequalities hold, among the passive data of the curves (which are keyed by line). */
+private const val COMMON_REGION = -1
+
+/** The curves are drawn from the moment they are known; the cells and segments of the ones that are not the active curve. */
+private class PassiveCurve(val segments: List<PlotSegment>, val shade: ShadeGrid?)
 
 private enum class GraphTool(@StringRes val label: Int, val icon: ImageVector) {
     TRACE(R.string.graph_tool_trace, Icons.Default.Timeline),
@@ -175,18 +202,39 @@ private class Viewport(
 
 @Composable
 fun GraphPlotterView(
-    curve: PlotCurve?,
+    scene: PlotScene?,
+    /** What was typed: shown in the header until the curves are known. */
     expression: MathString,
     modifier: Modifier = Modifier,
     isLoading: Boolean = false,
+    onAddLine: (() -> Unit)? = null,
     onClose: (() -> Unit)? = null
 ) {
     if (onClose != null) BackHandler(onBack = onClose)
 
-    // A surface z = f(x, y) has its own 3D view without the 2D tools
-    if (curve is Surface3D) {
-        SurfaceGraph(curve, expression, modifier, onClose)
+    val entries = scene?.entries.orEmpty()
+
+    // A surface z = f(x, y) has its own 3D view without the 2D tools, and cannot be drawn with other curves
+    val surfaceEntry = scene?.surfaceEntry
+    if (surfaceEntry != null) {
+        SurfaceGraph(surfaceEntry.curve as Surface3D, surfaceEntry.line, alone = scene.entries.count { !it.isDefinition } == 1, modifier, onClose)
         return
+    }
+
+    // The curves in the order of the lines (with their index among all the lines); some may be hidden by the legend
+    val curveEntries = remember(scene) { entries.withIndex().filter { it.value.curve != null } }
+    var hidden by remember(scene) { mutableStateOf(emptySet<Int>()) }
+    // The curve the tools work on: the first one until another is chosen
+    var activeIndex by remember(scene) { mutableIntStateOf(curveEntries.firstOrNull()?.index ?: -1) }
+    val visibleEntries = curveEntries.filter { it.index !in hidden }
+    val curve: PlotCurve? = if (activeIndex in entries.indices && activeIndex !in hidden) entries[activeIndex].curve else null
+
+    fun toggleHidden(index: Int) {
+        val nowHidden = index !in hidden
+        hidden = if (nowHidden) hidden + index else hidden - index
+        // The tools need a curve that is shown: the next one takes over from a curve that was hidden
+        if (nowHidden && index == activeIndex) activeIndex = curveEntries.firstOrNull { it.index !in hidden }?.index ?: -1
+        else if (!nowHidden && (activeIndex == -1 || activeIndex in hidden)) activeIndex = index
     }
 
     // A function y = f(x) supports all tools; an implicit curve like x² + y² = 1 has no
@@ -207,7 +255,7 @@ fun GraphPlotterView(
     var logY by remember { mutableStateOf(false) }
     // Draws a function as r = f(θ) on a polar grid; implicit curves stay Cartesian
     var polarSelected by remember { mutableStateOf(false) }
-    val polar = polarSelected && function != null
+    val polar = polarSelected && function != null && visibleEntries.size == 1
 
     var tool by remember { mutableStateOf<GraphTool?>(null) }
     // Back leaves the active tool before it closes the graph
@@ -228,6 +276,11 @@ fun GraphPlotterView(
     var shade by remember(curve) { mutableStateOf<ShadeGrid?>(null) }
     // Polar curves: Cartesian points of one full turn, independent of the viewport; NaN marks gaps
     var polarPoints by remember(function) { mutableStateOf(emptyList<PlotPoint>()) }
+    // The curves that are not the active one: their segments and shading, by the index of their line
+    var passive by remember(scene) { mutableStateOf(emptyMap<Int, PassiveCurve>()) }
+    // Where the shown curves cross, and the crossing that was tapped
+    var crossings by remember(scene) { mutableStateOf(emptyList<PlotIntersection>()) }
+    var selectedCrossing by remember(scene) { mutableStateOf<PlotIntersection?>(null) }
 
     fun viewport() = Viewport(canvasSize.width / 2f + offsetX, canvasSize.height / 2f + offsetY, scaleX, scaleY, logX, logY)
 
@@ -316,6 +369,75 @@ fun GraphPlotterView(
         polarPoints = withContext(Dispatchers.Default) { samplePolarCurve(function) }
     }
 
+    // The curves besides the active one: lines of the implicit curves and cells of the inequalities, for the area on screen plus a margin
+    LaunchedEffect(scene, hidden, activeIndex, visibleMinX, visibleMaxX, visibleMinY, visibleMaxY, logX, logY) {
+        val others = visibleEntries.filter { it.index != activeIndex }
+        val common = scene?.commonRegion(hidden)
+        if (canvasSize.width == 0 || (others.isEmpty() && common == null)) {
+            passive = emptyMap()
+            return@LaunchedEffect
+        }
+        if (passive.isNotEmpty()) delay(100)
+        val (minX, maxX, minY, maxY) = rangeWithMargin()
+        val result = mutableMapOf<Int, PassiveCurve>()
+        // Where all the inequalities hold together
+        if (common != null && !logX && !logY) {
+            val cellPx = with(density) { (if (common.twoVariables) 2.5.dp else 1.2.dp).toPx() }
+            val cols = (canvasSize.width * 1.5f / cellPx).toInt().coerceIn(10, 700)
+            val rows = if (common.twoVariables) (canvasSize.height * 1.5f / cellPx).toInt().coerceIn(10, 700) else 1
+            val grid = withContext(Dispatchers.Default) { ShadeGrid(minX, maxX, minY, maxY, cols, rows, common.shade(minX, maxX, minY, maxY, cols, rows)) }
+            result[COMMON_REGION] = PassiveCurve(emptyList(), grid)
+        }
+        for (entry in others) {
+            val shown = entry.value.curve
+            val inequality = shown as? InequalityPlot
+            val implicitCurve = (inequality?.primary ?: shown) as? ImplicitCurve
+            val lines = if (implicitCurve == null) emptyList() else MathEngine.contourImplicit(
+                implicitCurve, minX, maxX, minY, maxY,
+                cols = (canvasSize.width * 1.5f / contourCellPx).toInt().coerceAtLeast(10),
+                rows = (canvasSize.height * 1.5f / contourCellPx).toInt().coerceAtLeast(10),
+                logX = logX,
+                logY = logY
+            )
+            val cells = if (inequality == null || logX || logY) null else {
+                val cellPx = with(density) { (if (inequality.twoVariables) 2.5.dp else 1.2.dp).toPx() }
+                val cols = (canvasSize.width * 1.5f / cellPx).toInt().coerceIn(10, 700)
+                val rows = if (inequality.twoVariables) (canvasSize.height * 1.5f / cellPx).toInt().coerceIn(10, 700) else 1
+                withContext(Dispatchers.Default) { ShadeGrid(minX, maxX, minY, maxY, cols, rows, inequality.shade(minX, maxX, minY, maxY, cols, rows)) }
+            }
+            result[entry.index] = PassiveCurve(lines, cells)
+        }
+        passive = result
+    }
+
+    // Where the shown curves cross, for the area on screen plus a margin
+    LaunchedEffect(scene, hidden, visibleMinX, visibleMaxX, visibleMinY, visibleMaxY, logX) {
+        if (canvasSize.width == 0 || visibleEntries.size < 2) {
+            crossings = emptyList()
+            selectedCrossing = null
+            return@LaunchedEffect
+        }
+        delay(150)
+        val shown = entries.mapIndexed { index, entry -> if (index in hidden) null else entry.curve }
+        val (minX, maxX, minY, maxY) = rangeWithMargin()
+        crossings = if (logX && minX > 0.0) {
+            // Even sampling would skip the small values of a log axis, so look decade by decade
+            val low = log10(minX)
+            val high = log10(maxX)
+            val pieces = ceil(high - low).toInt().coerceIn(1, 40)
+            (0 until pieces).flatMap { i ->
+                MathEngine.findIntersections(shown, 10.0.pow(low + (high - low) * i / pieces), 10.0.pow(low + (high - low) * (i + 1) / pieces), minY, maxY)
+            }.sortedBy { it.x }.fold(emptyList<PlotIntersection>()) { kept, next ->
+                // The decades overlap at their ends: the same crossing, seen twice (the tolerance is relative: x is small on a log axis)
+                if (kept.any { it.first == next.first && it.second == next.second && abs(it.x - next.x) <= 1e-9 * abs(next.x) }) kept else kept + next
+            }
+        } else {
+            MathEngine.findIntersections(shown, minX, maxX, minY, maxY)
+        }
+        // The selected crossing is found again (a little different in the last digits), or let go if it is gone
+        selectedCrossing = selectedCrossing?.let { chosen -> crossings.firstOrNull { it.sameAs(chosen) } }
+    }
+
     LaunchedEffect(function, tool == GraphTool.INTEGRAL, lowerBound, upperBound) {
         if (function == null || tool != GraphTool.INTEGRAL) return@LaunchedEffect
         delay(30)
@@ -397,6 +519,16 @@ fun GraphPlotterView(
         }
         return candidates
             .map { (handle, x) -> handle to abs(vp.toScreenX(x) - position.x) }
+            .filter { it.second <= touchRadiusPx }
+            .minByOrNull { it.second }
+            ?.first
+    }
+
+    /** The crossing under [position], if one is within reach of a finger. */
+    fun crossingNear(position: Offset): PlotIntersection? {
+        val vp = viewport()
+        return crossings
+            .map { it to (vp.toScreen(PlotPoint(it.x, it.y)) - position).getDistance() }
             .filter { it.second <= touchRadiusPx }
             .minByOrNull { it.second }
             ?.first
@@ -494,12 +626,25 @@ fun GraphPlotterView(
         resetY()
     }
 
+    // Another curve took over (a tap on the legend, or the active one was hidden): the tool and its handles have to fit it
+    LaunchedEffect(activeIndex) {
+        val current = tool ?: return@LaunchedEffect
+        if (curve == null || (current == GraphTool.INTEGRAL && function == null)) tool = null else placeHandlesInView(current)
+    }
+    // Polar needs a single curve: with more shown it is left (and the scales made equal) rather than coming back unannounced
+    LaunchedEffect(visibleEntries.size) {
+        if (polarSelected && visibleEntries.size != 1) setPolar(false)
+    }
+
     val textMeasurer = rememberTextMeasurer()
     val isDark = MaterialTheme.colorScheme.background.red < 0.5f
 
     val gridColor = if (isDark) Color(0xFF2A2D35) else Color(0xFFE0E3EA)
     val axisColor = if (isDark) Color(0xFF6B7280) else Color(0xFF9CA3AF)
-    val curveColor = OrangePrimary
+    val palette = if (isDark) CURVE_COLORS_DARK else CURVE_COLORS_LIGHT
+    // The colour of a curve follows its line: the position among the lines that are curves
+    fun colorOf(entryIndex: Int): Color = palette[curveEntries.indexOfFirst { it.index == entryIndex }.coerceAtLeast(0) % palette.size]
+    val curveColor = colorOf(activeIndex)
     val labelColor = if (isDark) Color(0xFFA0A6B2) else Color(0xFF606675)
     val handleColor = MaterialTheme.colorScheme.onBackground
     val backgroundColor = MaterialTheme.colorScheme.background
@@ -517,17 +662,19 @@ fun GraphPlotterView(
             .background(backgroundColor)
             .windowInsetsPadding(WindowInsets.safeDrawing)
     ) {
+        // The line of the active curve; with several curves the legend below lists all of them
+        val headerLine = entries.getOrNull(activeIndex)?.line ?: entries.firstOrNull { !it.isDefinition }?.line ?: expression
         GraphHeader(
             // Shown as r = f(θ), the way the curve is read in polar mode
-            expression = if (polar) remember(expression, function) {
-                expression.renameVariables(mapOf(function!!.variable.identifier to "\u03B8", "y" to "r"))
-            } else expression,
+            expression = if (polar) remember(headerLine, function) {
+                headerLine.renameVariables(mapOf(function!!.variable.identifier to "\u03B8", "y" to "r"))
+            } else headerLine,
             variable = if (polar) "r" else "y",
             axisOptions = AxisOptions(
                 logX = logX,
                 logY = logY,
                 polar = polar,
-                polarAvailable = function != null,
+                polarAvailable = function != null && visibleEntries.size == 1,
                 onLogChange = { xAxis, enabled -> setLogScale(xAxis, enabled) },
                 onPolarChange = { setPolar(it) }
             ),
@@ -535,8 +682,24 @@ fun GraphPlotterView(
                 resetX()
                 resetY()
             },
+            onAddLine = onAddLine,
             onClose = onClose
         )
+
+        // With several lines: what each is, and which curve the tools work on
+        if (entries.count { !it.isDefinition } >= 2) {
+            CurveLegend(
+                entries = entries,
+                colorOf = ::colorOf,
+                hidden = hidden,
+                activeIndex = activeIndex,
+                onActivate = { index ->
+                    if (index in hidden) toggleHidden(index)
+                    activeIndex = index
+                },
+                onToggle = { toggleHidden(it) }
+            )
+        }
 
         Box(
             modifier = Modifier
@@ -582,7 +745,12 @@ fun GraphPlotterView(
                                     event.changes.forEach { it.consume() }
                                 }
                             }
-                            if (!isTransforming && base != null) onTap(down.position)
+                            if (!isTransforming) {
+                                // A tap on a crossing shows it; a tap anywhere else lets it go and goes to the tool
+                                val crossing = crossingNear(down.position)
+                                selectedCrossing = crossing
+                                if (crossing == null && base != null) onTap(down.position)
+                            }
                         }
                     }
             ) {
@@ -597,7 +765,28 @@ fun GraphPlotterView(
                     drawGrid(vp, gridColor, axisColor, labelColor, textMeasurer)
                 }
 
+                // The curves besides the active one, under it
+                if (!polar) {
+                    for (entry in visibleEntries) {
+                        if (entry.index == activeIndex) continue
+                        val color = colorOf(entry.index)
+                        val shown = entry.value.curve
+                        val inequality = shown as? InequalityPlot
+                        val data = passive[entry.index]
+                        if (inequality != null) data?.shade?.let { drawShade(it, vp, inequality.twoVariables, color.copy(alpha = 0.18f)) }
+                        when (val boundary = inequality?.primary ?: shown) {
+                            is Function1D -> drawCurve(boundary::evaluateAt, vp, color, dashed = inequality?.strict == true)
+                            is ImplicitCurve -> data?.let { drawSegments(it.segments, vp, color) }
+                            else -> {}
+                        }
+                    }
+                }
+
                 shade?.let { drawShade(it, vp, region?.twoVariables == true, curveColor.copy(alpha = 0.18f)) }
+                // Where all inequalities hold: darker than any of them alone, in the colour of the text
+                scene?.commonRegion(hidden)?.let { common ->
+                    passive[COMMON_REGION]?.shade?.let { drawShade(it, vp, common.twoVariables, handleColor.copy(alpha = 0.16f)) }
+                }
 
                 if (function != null && !polar) {
                     if (tool == GraphTool.INTEGRAL) {
@@ -638,11 +827,21 @@ fun GraphPlotterView(
                         else -> {}
                     }
                 }
+
+                // The points where the curves cross: dots in the colour of the text, with a ring of the background
+                for (crossing in crossings) {
+                    val center = vp.toScreen(PlotPoint(crossing.x, crossing.y))
+                    if (center.x !in 0f..width || center.y !in 0f..height) continue
+                    val selected = selectedCrossing?.let { crossing.sameAs(it) } == true
+                    drawCircle(color = backgroundColor, radius = (if (selected) 9.dp else 7.dp).toPx(), center = center)
+                    drawCircle(color = handleColor, radius = (if (selected) 6.5.dp else 4.5.dp).toPx(), center = center)
+                    if (selected) drawCircle(color = backgroundColor, radius = 2.dp.toPx(), center = center)
+                }
             }
 
             when {
                 isLoading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                curve == null -> Text(
+                curveEntries.isEmpty() -> Text(
                     text = stringResource(R.string.graph_cannot_plot),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -650,7 +849,18 @@ fun GraphPlotterView(
                 )
             }
 
-            if (base != null && tool != null && canvasSize.width > 0) {
+            val chosenCrossing = selectedCrossing
+            if (chosenCrossing != null) {
+                GraphInfoCard(modifier = Modifier.align(Alignment.TopCenter).padding(8.dp)) {
+                    CrossingInfo(
+                        crossing = chosenCrossing,
+                        first = entries[chosenCrossing.first].line,
+                        second = entries[chosenCrossing.second].line,
+                        firstColor = colorOf(chosenCrossing.first),
+                        secondColor = colorOf(chosenCrossing.second)
+                    )
+                }
+            } else if (base != null && tool != null && canvasSize.width > 0) {
                 // The implicit cursor needs a curve to sit on; before that only a hint is shown
                 val point = if (implicit != null) cursorPoint else PlotPoint(cursorX, function!!.evaluateAt(cursorX))
                 val slope = when {
@@ -691,7 +901,7 @@ fun GraphPlotterView(
 
 /** The 3D view of a surface, with the same header as the 2D graph. */
 @Composable
-private fun SurfaceGraph(surface: Surface3D, expression: MathString, modifier: Modifier, onClose: (() -> Unit)?) {
+private fun SurfaceGraph(surface: Surface3D, expression: MathString, alone: Boolean, modifier: Modifier, onClose: (() -> Unit)?) {
     val state = remember(surface) { SurfaceViewState() }
     Column(
         modifier = modifier
@@ -703,8 +913,18 @@ private fun SurfaceGraph(surface: Surface3D, expression: MathString, modifier: M
             variable = "z",
             axisOptions = null,
             onRecenter = { state.reset() },
+            onAddLine = null,
             onClose = onClose
         )
+        // Other lines cannot be drawn in the 3D view
+        if (!alone) {
+            Text(
+                text = stringResource(R.string.graph_surface_alone),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+        }
         SurfacePlot(surface, state, Modifier.weight(1f).fillMaxWidth())
     }
 }
@@ -737,6 +957,7 @@ private fun GraphHeader(
     variable: String = "y",
     axisOptions: AxisOptions?,
     onRecenter: () -> Unit,
+    onAddLine: (() -> Unit)?,
     onClose: (() -> Unit)?
 ) {
     Surface(
@@ -755,16 +976,17 @@ private fun GraphHeader(
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             // A plain f(x) is shown as y = f(x), rendered like a typed-in y = so both look the same
-            val displayed = remember(expression, variable) {
-                val isEquation = expression.nodes.any { (it is OperatorNode && (it.op == MathOp.EQUALS || it.op.isInequality)) || it is com.vortessence.calculator.core.math.type.LineBreakNode }
-                if (isEquation) expression
-                else MathString(listOf(VariableNode(variable), OperatorNode(MathOp.EQUALS)) + expression.nodes)
-            }
+            val displayed = remember(expression, variable) { asEquation(expression, variable) }
             // Scrolls sideways when too long, instead of being squeezed next to the buttons
             Box(modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
                 MathExpressionView(mathString = displayed, fontSize = 18.sp)
             }
             if (axisOptions != null) AxisMenu(axisOptions)
+            if (onAddLine != null) {
+                IconButton(onClick = onAddLine) {
+                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.graph_add_line))
+                }
+            }
             IconButton(onClick = onRecenter) {
                 Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.graph_recenter))
             }
@@ -781,6 +1003,98 @@ private fun GraphHeader(
                 }
             }
         }
+    }
+}
+
+/** [expression] as "[variable] = …", unless it is an equation or an inequality already. */
+private fun asEquation(expression: MathString, variable: String): MathString {
+    val isEquation = expression.nodes.any { (it is OperatorNode && (it.op == MathOp.EQUALS || it.op.isInequality)) || it is com.vortessence.calculator.core.math.type.LineBreakNode }
+    return if (isEquation) expression else MathString(listOf(VariableNode(variable), OperatorNode(MathOp.EQUALS)) + expression.nodes)
+}
+
+/**
+ * The lines of a graph with several curves, one chip each: the dot in the colour of the curve shows or hides it, the line makes it
+ * the curve the tools work on (outlined in its colour). A line that cannot be graphed is listed, dimmed, and says so.
+ */
+@Composable
+private fun CurveLegend(
+    entries: List<PlotEntry>,
+    colorOf: (Int) -> Color,
+    hidden: Set<Int>,
+    activeIndex: Int,
+    onActivate: (Int) -> Unit,
+    onToggle: (Int) -> Unit
+) {
+    val shownLabel = stringResource(R.string.graph_curve_shown)
+    val hiddenLabel = stringResource(R.string.graph_curve_hidden)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        for ((index, entry) in entries.withIndex()) {
+            if (entry.isDefinition) continue
+            val line = remember(entry.line) { asEquation(entry.line, "y") }
+            if (entry.curve == null) {
+                Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)) {
+                    Row(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        MathExpressionView(mathString = line, fontSize = 14.sp, textColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+                        Text(stringResource(R.string.graph_line_cannot_plot), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                continue
+            }
+            val color = colorOf(index)
+            val isHidden = index in hidden
+            val active = index == activeIndex
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                border = if (active) BorderStroke(1.5.dp, color) else null
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // The dot: filled while the curve is shown, a ring while it is hidden
+                    val toggleLabel = stringResource(R.string.graph_toggle_curve)
+                    Box(
+                        modifier = Modifier
+                            .clickable(role = Role.Checkbox, onClickLabel = toggleLabel) { onToggle(index) }
+                            .semantics { stateDescription = if (isHidden) hiddenLabel else shownLabel }
+                            .padding(start = 12.dp, end = 8.dp, top = 12.dp, bottom = 12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(14.dp)
+                                .background(if (isHidden) Color.Transparent else color, CircleShape)
+                                .border(2.dp, color, CircleShape)
+                        )
+                    }
+                    Box(modifier = Modifier.clickable { onActivate(index) }.padding(end = 12.dp, top = 6.dp, bottom = 6.dp)) {
+                        MathExpressionView(
+                            mathString = line,
+                            fontSize = 14.sp,
+                            textColor = MaterialTheme.colorScheme.onSurface.copy(alpha = if (isHidden) 0.45f else 1f)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Where two curves cross: the point, and which curves they are (in their colours). */
+@Composable
+private fun CrossingInfo(crossing: PlotIntersection, first: MathString, second: MathString, firstColor: Color, secondColor: Color) {
+    InfoTitle(stringResource(R.string.graph_intersection), MaterialTheme.colorScheme.onSurface)
+    InfoValues("x" to formatGraphNumber(crossing.x), "y" to formatGraphNumber(crossing.y))
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Box(modifier = Modifier.size(8.dp).background(firstColor, CircleShape))
+        MathExpressionView(mathString = remember(first) { asEquation(first, "y") }, fontSize = 13.sp)
+        Text("·", style = MaterialTheme.typography.bodySmall)
+        Box(modifier = Modifier.size(8.dp).background(secondColor, CircleShape))
+        MathExpressionView(mathString = remember(second) { asEquation(second, "y") }, fontSize = 13.sp)
     }
 }
 

@@ -46,6 +46,10 @@ import com.vortessence.calculator.core.math.solvers.NonlinearSystemSolver
 import com.vortessence.calculator.core.math.solvers.NumericIntegrator
 import com.vortessence.calculator.core.math.solvers.NumericRootFinder
 import com.vortessence.calculator.core.math.solvers.PlotCurve
+import com.vortessence.calculator.core.math.solvers.CurveIntersections
+import com.vortessence.calculator.core.math.solvers.PlotIntersection
+import com.vortessence.calculator.core.math.solvers.PlotEntry
+import com.vortessence.calculator.core.math.solvers.PlotScene
 import com.vortessence.calculator.core.math.steps.ArithmeticSteps
 import com.vortessence.calculator.core.math.steps.BothSides
 import com.vortessence.calculator.core.math.steps.DerivativeSteps
@@ -898,6 +902,93 @@ object MathEngine {
         } catch (e: IllegalArgumentException) {
             null
         }
+    }
+
+    /**
+     * The curves of the lines of [input], one entry per non-empty line (a single line gives a single entry). A definition on a line
+     * ("a := 2") is worked out and applies to the lines after it, on top of the definitions of [context]; the entry of a line that
+     * cannot be graphed has no curve.
+     */
+    suspend fun createPlotScene(
+        input: MathString,
+        context: MathContext = MathContext()
+    ): PlotScene = withContext(Dispatchers.Default) {
+        val definitions = LinkedHashMap(context.variables)
+        val entries = mutableListOf<PlotEntry>()
+        val job = coroutineContext[Job]
+        // One time limit for the whole graph, not one for every line
+        val deadline = System.currentTimeMillis() + DEFAULT_TIMEOUT_MILLIS
+        for (line in input.lines().filter { it.isNotEmpty }) {
+            ensureActive()
+            val lineContext = context.copy().also {
+                it.variables = LinkedHashMap(definitions)
+                it.deadlineMillis = deadline
+                it.externalCancellation = { job?.isActive == false }
+            }
+            val definition = splitDefinition(line)
+            if (definition != null) {
+                // The value is worked out like any calculation, so that later definitions and lines can use it
+                val result = calculate(line, lineContext)
+                val value = result.answer
+                if (result.isSuccess && result.definedVariable != null && value != null) {
+                    definitions[definition.name] = value
+                    entries.add(PlotEntry(line, null, definition.name))
+                } else {
+                    entries.add(PlotEntry(line, null))
+                }
+                continue
+            }
+            val curve = try {
+                MathContext.withContext(lineContext) {
+                    val parsed = parse(line, lineContext)
+                    if (lineContext.shouldStop) null else PlotCurve.fromExpression(parsed, lineContext)
+                }
+            } catch (e: ArithmeticException) {
+                null
+            } catch (e: IllegalArgumentException) {
+                null
+            } catch (e: StackOverflowError) {
+                null
+            } catch (e: OutOfMemoryError) {
+                null
+            }
+            entries.add(PlotEntry(line, curve))
+        }
+        PlotScene(entries)
+    }
+
+    /**
+     * The crossings of every two of [curves] (functions, implicit curves and the boundaries of inequalities) inside the range,
+     * as points with the indices of the two curves in [curves].
+     */
+    suspend fun findIntersections(
+        curves: List<PlotCurve?>,
+        minX: Double,
+        maxX: Double,
+        minY: Double,
+        maxY: Double
+    ): List<PlotIntersection> = withContext(Dispatchers.Default) {
+        val context = MathContext()
+        context.deadlineMillis = System.currentTimeMillis() + DEFAULT_TIMEOUT_MILLIS
+        val job = coroutineContext[Job]
+        context.externalCancellation = { job?.isActive == false }
+        val result = mutableListOf<PlotIntersection>()
+        val contours = mutableMapOf<ImplicitCurve, List<PlotSegment>>()
+        for (i in curves.indices) {
+            for (j in i + 1 until curves.size) {
+                val a = curves[i] ?: continue
+                val b = curves[j] ?: continue
+                ensureActive()
+                try {
+                    CurveIntersections.find(a, b, minX, maxX, minY, maxY, context, contours = contours).forEach { result.add(PlotIntersection(it.x, it.y, i, j)) }
+                } catch (e: ArithmeticException) {
+                    // A pair that cannot be worked out has no crossings; the others are still looked at
+                } catch (e: IllegalArgumentException) {
+                }
+            }
+        }
+        ensureActive()
+        result
     }
 
     /**
