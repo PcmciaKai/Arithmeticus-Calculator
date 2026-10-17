@@ -458,4 +458,167 @@ internal object SpecialMath {
         for (k in 300 downTo 1) fraction = x + (k / 2.0) / fraction
         return exp(-x * x) / (sqrt(PI) * fraction)
     }
+
+    private const val EULER_GAMMA = 0.5772156649015329
+    private const val INTEGRAL_EPSILON = 5e-16
+    private const val INTEGRAL_TINY = 1e-300
+
+    /** The sine integral Si(x) = ∫₀ˣ sin t / t dt and the cosine integral Ci(x) = γ + ln x + ∫₀ˣ (cos t − 1)/t dt, for x ≠ 0 (Ci(−x) is taken as Ci(x), the real part). */
+    fun sineIntegral(x: Double): Double = trigonometricIntegrals(x).first
+
+    fun cosineIntegral(x: Double): Double = if (x == 0.0) Double.NaN else trigonometricIntegrals(x).second
+
+    private fun trigonometricIntegrals(x: Double): Pair<Double, Double> {
+        if (x.isNaN() || x.isInfinite()) return Double.NaN to Double.NaN
+        val t = abs(x)
+        if (t == 0.0) return 0.0 to Double.NaN
+        val si: Double
+        val ci: Double
+        if (t > 2.0) {
+            // The continued fraction of E₁(it) = −Ci(t) + i(Si(t) − π/2) (modified Lentz), with complex numbers as (re, im)
+            var bRe = 1.0
+            var bIm = t
+            var cRe = 1.0 / INTEGRAL_TINY
+            var cIm = 0.0
+            var denominator = bRe * bRe + bIm * bIm
+            var dRe = bRe / denominator
+            var dIm = -bIm / denominator
+            var hRe = dRe
+            var hIm = dIm
+            for (i in 2..10_000) {
+                val a = -((i - 1.0) * (i - 1.0))
+                bRe += 2.0
+                // d = 1/(a·d + b)
+                val adRe = a * dRe + bRe
+                val adIm = a * dIm + bIm
+                denominator = adRe * adRe + adIm * adIm
+                dRe = adRe / denominator
+                dIm = -adIm / denominator
+                // c = b + a/c
+                val cSquare = cRe * cRe + cIm * cIm
+                cRe = bRe + a * cRe / cSquare
+                cIm = bIm - a * cIm / cSquare
+                val deltaRe = cRe * dRe - cIm * dIm
+                val deltaIm = cRe * dIm + cIm * dRe
+                val newRe = hRe * deltaRe - hIm * deltaIm
+                hIm = hRe * deltaIm + hIm * deltaRe
+                hRe = newRe
+                if (abs(deltaRe - 1.0) + abs(deltaIm) < INTEGRAL_EPSILON) break
+            }
+            // h · (cos t − i sin t)
+            val re = hRe * kotlin.math.cos(t) + hIm * sin(t)
+            val im = hIm * kotlin.math.cos(t) - hRe * sin(t)
+            ci = -re
+            si = PI / 2.0 + im
+        } else {
+            // Si(t) = Σ (−1)ᵏ t^(2k+1)/((2k+1)(2k+1)!) and Ci(t) = γ + ln t + Σ (−1)ᵏ t^(2k)/(2k (2k)!)
+            var sineSum = 0.0
+            var cosineSum = 0.0
+            var power = 1.0
+            for (k in 1..60) {
+                power *= t / k
+                val term = power / k
+                when (k % 4) {
+                    1 -> sineSum += term
+                    2 -> cosineSum -= term
+                    3 -> sineSum -= term
+                    else -> cosineSum += term
+                }
+                if (term < 1e-18) break
+            }
+            si = sineSum
+            ci = EULER_GAMMA + ln(t) + cosineSum
+        }
+        return (if (x < 0.0) -si else si) to ci
+    }
+
+    /** The exponential integral Ei(x) = −∫₋ₓ^∞ e^(−t)/t dt (principal value), for x ≠ 0; infinity above about 716. */
+    fun exponentialIntegral(x: Double): Double = when {
+        x.isNaN() || x == 0.0 -> Double.NaN
+        x < 0.0 -> -exponentialIntegralE1(-x)
+        // eˣ/x · Σ is still finite when eˣ is not (up to about 716)
+        x - ln(x) > 709.78 -> Double.POSITIVE_INFINITY
+        x < 40.0 -> {
+            var sum = 0.0
+            var term = 1.0
+            for (k in 1..500) {
+                term *= x / k
+                sum += term / k
+                if (term / k < 1e-17 * abs(sum)) break
+            }
+            EULER_GAMMA + ln(x) + sum
+        }
+        else -> {
+            // The asymptotic series e^x/x · Σ k!/xᵏ, up to its smallest term
+            var term = 1.0
+            var sum = 1.0
+            for (k in 1..200) {
+                val next = term * k / x
+                if (next > term) break
+                term = next
+                sum += term
+                if (term < 1e-17 * sum) break
+            }
+            exp(x - ln(x)) * sum
+        }
+    }
+
+    /** E₁(t) = ∫ₜ^∞ e^(−s)/s ds for t > 0. */
+    private fun exponentialIntegralE1(t: Double): Double {
+        if (t <= 1.0) {
+            var sum = 0.0
+            var term = 1.0
+            for (k in 1..100) {
+                term *= -t / k
+                sum -= term / k
+                if (abs(term / k) < 1e-18) break
+            }
+            return -EULER_GAMMA - ln(t) + sum
+        }
+        var b = t + 1.0
+        var c = 1.0 / INTEGRAL_TINY
+        var d = 1.0 / b
+        var h = d
+        for (i in 1..10_000) {
+            val a = -(i.toDouble() * i)
+            b += 2.0
+            d = 1.0 / (a * d + b)
+            c = b + a / c
+            val delta = c * d
+            h *= delta
+            if (abs(delta - 1.0) < INTEGRAL_EPSILON) break
+        }
+        return h * exp(-t)
+    }
+
+    /** The principal branch W₀ of the Lambert W function, the w ≥ −1 with w·e^w = x, for x ≥ −1/e. */
+    fun lambertW(x: Double): Double {
+        if (x.isNaN()) return Double.NaN
+        val branchPoint = -1.0 / Math.E
+        if (x < branchPoint) {
+            // A rounding error in e·x + 1 must not turn the branch point itself into "undefined"
+            return if (x > branchPoint * (1.0 + 1e-15)) -1.0 else Double.NaN
+        }
+        if (x == 0.0) return 0.0
+        if (x.isInfinite()) return Double.POSITIVE_INFINITY
+        var w = when {
+            // Near the branch point: the series in p = √(2(e·x + 1))
+            x < -0.25 -> {
+                val p = sqrt(2.0 * (Math.E * x + 1.0))
+                -1.0 + p - p * p / 3.0 + 11.0 / 72.0 * p * p * p
+            }
+            x < 3.0 -> ln1p(x) * (1.0 - ln(1.0 + ln1p(x)) / (2.0 + ln1p(x)))
+            else -> ln(x) - ln(ln(x))
+        }
+        // Halley's method
+        for (i in 0 until 50) {
+            val e = exp(w)
+            val f = w * e - x
+            val step = f / (e * (w + 1.0) - (w + 2.0) * f / (2.0 * w + 2.0))
+            if (!step.isFinite()) break
+            w -= step
+            if (abs(step) <= 1e-16 * (1.0 + abs(w))) break
+        }
+        return w
+    }
 }

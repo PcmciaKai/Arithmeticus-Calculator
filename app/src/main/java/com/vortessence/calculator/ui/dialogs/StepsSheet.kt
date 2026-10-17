@@ -492,6 +492,10 @@ private val StepRule.descriptionRes: Int
         StepRule.LOG_GAMMA_FUNCTION -> R.string.step_lngamma
         StepRule.ERROR_FUNCTION -> R.string.step_erf
         StepRule.COMPLEMENTARY_ERROR_FUNCTION -> R.string.step_erfc
+        StepRule.LAMBERT_W_FUNCTION -> R.string.step_lambertw
+        StepRule.SINE_INTEGRAL_FUNCTION -> R.string.step_sinint
+        StepRule.COSINE_INTEGRAL_FUNCTION -> R.string.step_cosint
+        StepRule.EXPONENTIAL_INTEGRAL_FUNCTION -> R.string.step_expint
         StepRule.DOT_PRODUCT -> R.string.step_dot_product
         StepRule.CROSS_PRODUCT -> R.string.step_cross_product
         StepRule.VECTOR_NORM -> R.string.step_vector_norm
@@ -746,6 +750,10 @@ internal fun StepRule.formula(language: Language): String? {
         StepRule.LOG_GAMMA_FUNCTION -> "(lnΓ(x))′ = ψ(x)"
         StepRule.ERROR_FUNCTION -> "(erf(x))′ = \\frac{2}{\\sqrt{π}}·e^{−x^2}"
         StepRule.COMPLEMENTARY_ERROR_FUNCTION -> "(erfc(x))′ = −\\frac{2}{\\sqrt{π}}·e^{−x^2}"
+        StepRule.LAMBERT_W_FUNCTION -> "(W(x))′ = \\frac{1}{e^{W(x)}·(1 + W(x))}"
+        StepRule.SINE_INTEGRAL_FUNCTION -> "(Si(x))′ = \\frac{sin(x)}{x}"
+        StepRule.COSINE_INTEGRAL_FUNCTION -> "(Ci(x))′ = \\frac{cos(x)}{x}"
+        StepRule.EXPONENTIAL_INTEGRAL_FUNCTION -> "(Ei(x))′ = \\frac{e^x}{x}"
         StepRule.DOT_PRODUCT -> "a·b = a₁b₁ + a₂b₂ + … + aₙbₙ"
         StepRule.CROSS_PRODUCT -> "a × b = (a₂b₃ − a₃b₂, a₃b₁ − a₁b₃, a₁b₂ − a₂b₁)"
         StepRule.VECTOR_NORM -> "|a| = \\sqrt{a₁² + a₂² + … + aₙ²}"

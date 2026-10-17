@@ -99,7 +99,8 @@ class IndefiniteIntegralTest {
     @Test
     fun noClosedForm() {
         assertNotFound(calc(i(e, pow(x, pow(n("2"))))))
-        assertNotFound(calc(i(frac(ms(f("sin", x)), ms(x)))))
+        // sin x / x has one, the sine integral (see BatchFunctionsTest); sin x / (x + 1) has not
+        assertNotFound(calc(i(frac(ms(f("sin", x)), ms(x, op(MathOp.PLUS), n("1"))))))
         // A cubic denominator without rational roots
         assertNotFound(calc(i(frac(ms(n("1")), ms(x, pow(n("3")), op(MathOp.PLUS), x, op(MathOp.PLUS), n("1"))))))
         assertEquals(listOf(MathIssue.SYNTAX_ERROR), calc(i()).issues)

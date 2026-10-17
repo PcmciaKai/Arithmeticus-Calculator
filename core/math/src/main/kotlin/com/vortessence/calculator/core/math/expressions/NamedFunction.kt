@@ -102,8 +102,20 @@ enum class NamedFunctionKind(val functionName: String, val minArguments: Int, va
     CHISQCDF("chisqcdf", 2, 2),
     /** chisqinv(p, df): the x with a probability p of a value up to it. */
     CHISQINV("chisqinv", 2, 2),
+    /** gammainc(a, x): the regularized lower incomplete gamma function P(a, x) = γ(a, x)/Γ(a), the probability that a gamma variable is up to x. */
+    GAMMAINC("gammainc", 2, 2),
+    /** betainc(x, a, b): the regularized incomplete beta function I_x(a, b), for 0 ≤ x ≤ 1. */
+    BETAINC("betainc", 3, 3),
     /** The beta function Γ(a)·Γ(b)/Γ(a + b). */
     BETA("beta", 2, 2),
+    /** tmargin(c, values...): the margin of error of the confidence interval of level c (0.95 for 95%) for the mean, t·s/√n with t = tinv((1 + c)/2, n − 1). */
+    TMARGIN("tmargin", 3),
+    /** tstat(μ₀, values...): the t statistic (mean − μ₀)/(s/√n) of a one-sample t test against μ₀. */
+    TSTAT("tstat", 3),
+    /** Euler's totient: how many of 1..n have no common factor with n. */
+    TOTIENT("totient", 1, 1),
+    /** modpow(b, e, m): bᵉ mod m for m > 0, worked out without the huge power; a negative e needs b to have an inverse mod m. */
+    MODPOW("modpow", 3, 3),
     /** √(a² + b² + ...), the length of the vector (a, b, ...). */
     HYPOT("hypot", 2),
     /** The real part of a complex number. */
@@ -147,7 +159,7 @@ enum class NamedFunctionKind(val functionName: String, val minArguments: Int, va
         fun byName(name: String): NamedFunctionKind? = entries.firstOrNull { it.functionName == name }
 
         private val STEPWISE = setOf(
-            ROUND, FLOOR, CEIL, TRUNC, FRAC, SIGN, MODE, GCD, LCM, NCR, NPR, MULTINOMIAL, FIB, NEXTPRIME, ISPRIME,
+            ROUND, FLOOR, CEIL, TRUNC, FRAC, SIGN, MODE, GCD, LCM, NCR, NPR, MULTINOMIAL, FIB, NEXTPRIME, ISPRIME, TOTIENT, MODPOW,
             BIT_AND, BIT_OR, BIT_XOR, BIT_NOT, SHIFT_LEFT, SHIFT_RIGHT,
             BINOMPDF, BINOMCDF, POISSONPDF, POISSONCDF
         )
@@ -213,7 +225,7 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
             NamedFunctionKind.ARG -> argument(args[0], context) ?: return this
             NamedFunctionKind.GCD, NamedFunctionKind.LCM, NamedFunctionKind.NCR, NamedFunctionKind.NPR,
             NamedFunctionKind.MULTINOMIAL, NamedFunctionKind.FIB, NamedFunctionKind.NEXTPRIME, NamedFunctionKind.ISPRIME,
-            NamedFunctionKind.BIT_AND, NamedFunctionKind.BIT_OR, NamedFunctionKind.BIT_XOR, NamedFunctionKind.BIT_NOT,
+            NamedFunctionKind.TOTIENT, NamedFunctionKind.MODPOW, NamedFunctionKind.BIT_AND, NamedFunctionKind.BIT_OR, NamedFunctionKind.BIT_XOR, NamedFunctionKind.BIT_NOT,
             NamedFunctionKind.SHIFT_LEFT, NamedFunctionKind.SHIFT_RIGHT -> {
                 val numbers = args.map { wholeNumber(it) ?: return fail(context, MathIssue.WHOLE_NUMBERS_ONLY) }
                 when (val outcome = wholeNumberFunction(numbers)) {
@@ -225,6 +237,17 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
                 discrete(args, context) ?: return this
             NamedFunctionKind.TCDF, NamedFunctionKind.TINV, NamedFunctionKind.CHISQPDF, NamedFunctionKind.CHISQCDF, NamedFunctionKind.CHISQINV ->
                 continuous(args, context) ?: return this
+            NamedFunctionKind.GAMMAINC, NamedFunctionKind.BETAINC -> incomplete(args, context) ?: return this
+            NamedFunctionKind.TSTAT -> {
+                if (args.any { it.containsUnit() }) return fail(context, MathIssue.INVALID_UNIT)
+                tStatistic(args, context) ?: return this
+            }
+            NamedFunctionKind.TMARGIN -> {
+                if (args.any { it.containsUnit() }) return fail(context, MathIssue.INVALID_UNIT)
+                val level = args[0].evaluateNumerically()
+                if (!(level > 0.0 && level < 1.0)) return fail(context, MathIssue.UNDEFINED)
+                decimal(numeric(args), context)
+            }
             NamedFunctionKind.ROUND, NamedFunctionKind.FLOOR, NamedFunctionKind.CEIL, NamedFunctionKind.TRUNC, NamedFunctionKind.FRAC -> {
                 val places = if (args.size == 2) {
                     wholeNumber(args[1])?.takeIf { it.compareTo(MAX_PLACES) <= 0 && it.compareTo(-MAX_PLACES) >= 0 }?.toLong()?.toInt()
@@ -400,6 +423,34 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
             else -> {}
         }
         return decimal(numeric(args), context)
+    }
+
+    /** gammainc and betainc: a decimal, exact only at the ends (0 and 1). Null (with an error) if the values do not fit. */
+    private fun incomplete(args: List<Expression>, context: MathContext): Expression? {
+        if (args.any { it.containsUnit() }) {
+            context.stopWithError(MathIssue.INVALID_UNIT)
+            return null
+        }
+        val values = args.map { it.evaluateNumerically() }
+        val gamma = kind == NamedFunctionKind.GAMMAINC
+        val shapes = if (gamma) listOf(values[0]) else listOf(values[1], values[2])
+        val x = if (gamma) values[1] else values[0]
+        if (values.any { it.isNaN() } || shapes.any { !(it > 0.0) } || x < 0.0 || (!gamma && x > 1.0)) {
+            context.stopWithError(MathIssue.UNDEFINED)
+            return null
+        }
+        if (x == 0.0) return Value.ZERO
+        if (!gamma && x == 1.0) return Value.ONE
+        return decimal(numeric(args), context)
+    }
+
+    /** The t statistic (mean − μ₀)/(s/√n) of the values after the first argument μ₀, exact like the other statistics. */
+    private fun tStatistic(args: List<Expression>, context: MathContext): Expression? {
+        val data = args.drop(1)
+        val sem = Power.squareRoot(Multiplications.of(variance(data, data.size - 1L), Value(1L, data.size.toLong())))
+        val statistic = Multiplications.of(Additions(listOf(mean(data), args[0].negate())), Power(sem, Value.MINUS_ONE)).canonicalize(context)
+        if (context.shouldStop) return null
+        return statistic
     }
 
     /**
@@ -620,6 +671,20 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
                     else -> result(BigInt(first.value.nextProbablePrime()))
                 }
             }
+            NamedFunctionKind.TOTIENT -> {
+                if (first.value.signum() <= 0) return undefined()
+                if (first.value.bitLength() > MAX_FACTOR_BITS) return tooLarge()
+                result(BigInt(totient(first.value) ?: return tooLarge()))
+            }
+            NamedFunctionKind.MODPOW -> {
+                val modulus = numbers[2].value
+                when {
+                    modulus.signum() <= 0 -> undefined()
+                    numbers.any { it.value.bitLength() > MAX_MODPOW_BITS } -> tooLarge()
+                    numbers[1].isNegative && numbers[0].value.gcd(modulus) != BigInteger.ONE -> undefined()
+                    else -> result(BigInt(numbers[0].value.modPow(numbers[1].value, modulus)))
+                }
+            }
             NamedFunctionKind.BIT_AND -> result(BigInt(first.value.and(numbers[1].value)))
             NamedFunctionKind.BIT_OR -> result(BigInt(first.value.or(numbers[1].value)))
             NamedFunctionKind.BIT_XOR -> result(BigInt(first.value.xor(numbers[1].value)))
@@ -640,6 +705,24 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
             }
             else -> undefined()
         }
+    }
+
+    /** φ(n) for 1 ≤ n < 2⁶² by trial division, or null if that takes too many steps (a large number with large prime factors). */
+    private fun totient(n: BigInteger): BigInteger? {
+        var rest = n.toLong()
+        var result = rest
+        var tries = 0L
+        var p = 2L
+        while (p <= rest / p) {
+            if (++tries > MAX_FACTOR_TRIES || (tries % 1_000_000L == 0L && MathContext.current().shouldStop)) return null
+            if (rest % p == 0L) {
+                while (rest % p == 0L) rest /= p
+                result -= result / p
+            }
+            p += if (p == 2L) 1 else 2
+        }
+        if (rest > 1) result -= result / rest
+        return BigInteger.valueOf(result)
     }
 
     private fun lcm(a: BigInt, b: BigInt): BigInt =
@@ -750,6 +833,17 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
                     else -> if (k > MAX_TERMS) Double.NaN else SpecialMath.poissonCdf(parameter, k)
                 }
             }
+            NamedFunctionKind.GAMMAINC -> if (values[1] < 0.0) Double.NaN else SpecialMath.regularizedGammaP(values[0], values[1])
+            NamedFunctionKind.BETAINC ->
+                if (values[0] !in 0.0..1.0) Double.NaN else SpecialMath.regularizedBeta(values[0], 1.0 - values[0], values[1], values[2])
+            NamedFunctionKind.TSTAT, NamedFunctionKind.TMARGIN -> {
+                val data = values.drop(1)
+                val dataMean = data.average()
+                val sem = sqrt(data.sumOf { (it - dataMean) * (it - dataMean) } / (data.size - 1) / data.size)
+                if (kind == NamedFunctionKind.TSTAT) (dataMean - values[0]) / sem
+                else if (values[0] > 0.0 && values[0] < 1.0) SpecialMath.studentInverse((1.0 + values[0]) / 2.0, data.size - 1.0) * sem
+                else Double.NaN
+            }
             NamedFunctionKind.TPDF -> SpecialMath.studentPdf(values[0], values[1])
             NamedFunctionKind.TCDF -> SpecialMath.studentCdf(values[0], values[1])
             NamedFunctionKind.TINV -> SpecialMath.studentInverse(values[0], values[1])
@@ -807,6 +901,9 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
         const val MAX_COMBINATORICS = 100_000L
         const val MAX_FIBONACCI = 10_000L
         const val MAX_PRIME_BITS = 256
+        const val MAX_FACTOR_BITS = 62
+        const val MAX_FACTOR_TRIES = 20_000_000L
+        const val MAX_MODPOW_BITS = 8192
         const val PRIME_CERTAINTY = 40
         /** Binomial and Poisson probabilities are exact up to here, decimals beyond (the exact fractions get huge). */
         const val MAX_EXACT_TRIALS = DistributionLimits.MAX_EXACT_TRIALS

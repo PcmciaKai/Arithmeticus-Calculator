@@ -191,8 +191,8 @@ class MathParser {
                 }
                 is FunctionNode -> {
                     val arg = parseSlot(node.argument)
-                    // Γ, lnΓ and ψ are how results write gamma, lngamma and digamma (lower-cased Γ would be γ, Euler's constant)
-                    val fnExpr = when (when (node.name) { "Γ" -> "gamma"; "lnΓ" -> "lngamma"; "ψ" -> "digamma"; else -> node.name.lowercase() }) {
+                    // Γ, lnΓ, ψ, W, Si, Ci and Ei are how results write gamma, lngamma, digamma, lambertw, sinint, cosint and expint (lower-cased Γ would be γ, Euler's constant)
+                    val fnExpr = when (when (node.name) { "Γ" -> "gamma"; "lnΓ" -> "lngamma"; "ψ" -> "digamma"; "W" -> "lambertw"; "Si" -> "sinint"; "Ci" -> "cosint"; "Ei" -> "expint"; else -> node.name.lowercase() }) {
                         "sin" -> TrigonometricFunction(TrigType.SIN, arg)
                         "cos" -> TrigonometricFunction(TrigType.COS, arg)
                         "tan" -> TrigonometricFunction(TrigType.TAN, arg)
@@ -225,6 +225,10 @@ class MathParser {
                         "digamma" -> SpecialFunction(SpecialType.DIGAMMA, arg)
                         "erf" -> SpecialFunction(SpecialType.ERF, arg)
                         "erfc" -> SpecialFunction(SpecialType.ERFC, arg)
+                        "lambertw" -> SpecialFunction(SpecialType.LAMBERTW, arg)
+                        "sinint" -> SpecialFunction(SpecialType.SININT, arg)
+                        "cosint" -> SpecialFunction(SpecialType.COSINT, arg)
+                        "expint" -> SpecialFunction(SpecialType.EXPINT, arg)
                         "cbrt" -> Power.nthRoot(Value(3L), arg)
                         "exp" -> Power(Constant.E, arg)
                         // Radians to degrees and back, whatever the angle setting says

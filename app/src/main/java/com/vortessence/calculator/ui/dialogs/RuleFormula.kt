@@ -151,7 +151,7 @@ private class FormulaParser(private val source: String) {
         private val FUNCTIONS = listOf(
             "asinh", "acosh", "atanh", "asech", "acsch", "acoth", "sinh", "cosh", "tanh", "sech", "csch", "coth",
             "asin", "acos", "atan", "asec", "acsc", "acot", "sin", "cos", "tan", "sec", "csc", "cot", "ln",
-            "digamma", "lngamma", "gamma", "erfc", "erf", "Γ", "lnΓ", "ψ", "nCr"
+            "digamma", "lngamma", "gamma", "erfc", "erf", "Γ", "lnΓ", "ψ", "W", "Si", "Ci", "Ei", "nCr"
         )
     }
 }

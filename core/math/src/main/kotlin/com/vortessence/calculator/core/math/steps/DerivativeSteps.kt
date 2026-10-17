@@ -338,6 +338,10 @@ internal object DerivativeSteps {
         SpecialType.LNGAMMA -> StepRule.LOG_GAMMA_FUNCTION
         SpecialType.ERF -> StepRule.ERROR_FUNCTION
         SpecialType.ERFC -> StepRule.COMPLEMENTARY_ERROR_FUNCTION
+        SpecialType.LAMBERTW -> StepRule.LAMBERT_W_FUNCTION
+        SpecialType.SININT -> StepRule.SINE_INTEGRAL_FUNCTION
+        SpecialType.COSINT -> StepRule.COSINE_INTEGRAL_FUNCTION
+        SpecialType.EXPINT -> StepRule.EXPONENTIAL_INTEGRAL_FUNCTION
         SpecialType.DIGAMMA, SpecialType.NORMALINV -> null
     }
 

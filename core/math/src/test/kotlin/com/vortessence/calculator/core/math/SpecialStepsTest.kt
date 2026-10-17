@@ -21,6 +21,10 @@ class SpecialStepsTest {
     fun derivativesOfTheErrorFunctionNameTheRule() {
         assertEquals(listOf(StepRule.ERROR_FUNCTION), rules("D{erf(x)}"))
         assertEquals(listOf(StepRule.COMPLEMENTARY_ERROR_FUNCTION), rules("D{erfc(x)}"))
+        assertEquals(StepRule.LAMBERT_W_FUNCTION, rules("D{lambertw(x)}").first())
+        assertEquals(listOf(StepRule.SINE_INTEGRAL_FUNCTION), rules("D{sinint(x)}"))
+        assertEquals(listOf(StepRule.COSINE_INTEGRAL_FUNCTION), rules("D{cosint(x)}"))
+        assertEquals(listOf(StepRule.EXPONENTIAL_INTEGRAL_FUNCTION), rules("D{expint(x)}"))
         val chain = rules("D{erf(x^2)}")
         assertTrue(chain.toString(), StepRule.CHAIN_RULE in chain && StepRule.ERROR_FUNCTION in chain)
     }

@@ -19,7 +19,7 @@ object FunctionNames {
             "sinh", "cosh", "tanh", "sech", "csch", "coth",
             "asinh", "acosh", "atanh", "asech", "acsch", "acoth",
             "arcsin", "arccos", "arctan",
-            "ln", "log", "abs", "sqrt", "cbrt", "exp", "deg", "rad", "gamma", "lngamma", "digamma", "erf", "erfc", "det", "rref", "eig"
+            "ln", "log", "abs", "sqrt", "cbrt", "exp", "deg", "rad", "gamma", "lngamma", "digamma", "erf", "erfc", "lambertw", "sinint", "cosint", "expint", "det", "rref", "eig"
         ) + NamedFunctionKind.entries.map { it.functionName } + RandomKind.entries.map { it.functionName } + VectorKind.entries.map { it.functionName }
         ).filterNot { it.startsWith('i') }.sortedByDescending { it.length }
 

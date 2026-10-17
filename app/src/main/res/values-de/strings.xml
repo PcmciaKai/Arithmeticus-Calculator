@@ -85,6 +85,10 @@
     <string name="formula_quartile_desc">quartile(q, Werte…): q von 0 bis 4, wobei 2 der Median ist</string>
     <string name="formula_skew_name">Schiefe</string>
     <string name="formula_skew_desc">Asymmetrie der Daten (Grundgesamtheit): 0 bei Symmetrie, positiv bei langem rechten Ende. Mindestens 3 Werte</string>
+    <string name="formula_tmargin_name">Fehlerspanne des Mittelwerts (t)</string>
+    <string name="formula_tmargin_desc">tmargin(c, Werte…): die Fehlerspanne t·s/√n des Konfidenzintervalls zum Niveau c (0,95 für 95 %) für den Mittelwert, mit t = tinv((1 + c)/2, n − 1). Das Intervall ist Mittelwert ± Fehlerspanne</string>
+    <string name="formula_tstat_name">t-Statistik einer Stichprobe</string>
+    <string name="formula_tstat_desc">tstat(μ₀, Werte…): (Mittelwert − μ₀)/(s/√n), die Prüfgröße eines t-Tests bei einer Stichprobe gegen μ₀. Vergleiche sie mit tinv oder berechne den p-Wert mit tcdf</string>
     <string name="formula_multinomial_name">Multinomialkoeffizient</string>
     <string name="formula_multinomial_desc">Anzahl der Aufteilungen von k₁ + k₂ + … Elementen in Gruppen dieser Größen</string>
     <string name="formula_fib_name">Fibonacci-Zahl</string>
@@ -93,6 +97,10 @@
     <string name="formula_nextprime_desc">Kleinste Primzahl über n</string>
     <string name="formula_isprime_name">Primzahltest</string>
     <string name="formula_isprime_desc">1, wenn n eine Primzahl ist, sonst 0</string>
+    <string name="formula_totient_name">Eulersche φ-Funktion</string>
+    <string name="formula_totient_desc">totient(n): wie viele der Zahlen 1…n zu n teilerfremd sind. Für ganze Zahlen bis etwa 10¹⁵ (und größere mit kleinen Primfaktoren)</string>
+    <string name="formula_modpow_name">Modulare Potenz</string>
+    <string name="formula_modpow_desc">modpow(b, e, m): bᵉ mod m, ohne die riesige Potenz zu berechnen. Ein negatives e braucht ein b, das modulo m ein Inverses hat</string>
     <string name="formula_trunc_name">Abschneiden</string>
     <string name="formula_trunc_desc">Schneidet die Nachkommastellen ab (Runden Richtung null); trunc(x, n) behält n Stellen</string>
     <string name="formula_frac_name">Nachkommaanteil</string>
@@ -119,6 +127,18 @@
     <string name="formula_erf_desc">2/√π · ∫₀ˣ e^(−t²) dt, Grundlage der Normalverteilung</string>
     <string name="formula_erfc_name">Komplementäre Fehlerfunktion erfc</string>
     <string name="formula_erfc_desc">1 − erf(x), auch für große x genau</string>
+    <string name="formula_gammainc_name">Unvollständige Gammafunktion</string>
+    <string name="formula_gammainc_desc">gammainc(a, x): die regularisierte untere unvollständige Gammafunktion P(a, x) = γ(a, x)/Γ(a), für a &gt; 0 und x ≥ 0. Die Chi-Quadrat-Verteilung ist chisqcdf(x, k) = gammainc(k/2, x/2)</string>
+    <string name="formula_betainc_name">Unvollständige Betafunktion</string>
+    <string name="formula_betainc_desc">betainc(x, a, b): die regularisierte unvollständige Betafunktion Iₓ(a, b), für 0 ≤ x ≤ 1 und a, b &gt; 0. Die kumulierte Binomial- und die t-Verteilung bestehen aus ihr</string>
+    <string name="formula_lambertw_name">Lambertsche W-Funktion</string>
+    <string name="formula_lambertw_desc">lambertw(x): das w ≥ −1 mit w·eʷ = x, für x ≥ −1/e. Die Lösung von x·eˣ = 5 ist lambertw(5)</string>
+    <string name="formula_sinint_name">Integralsinus Si</string>
+    <string name="formula_sinint_desc">sinint(x) = Si(x) = ∫₀ˣ sin t / t dt. Es ist das Ergebnis von ∫ sin x / x dx</string>
+    <string name="formula_cosint_name">Integralkosinus Ci</string>
+    <string name="formula_cosint_desc">cosint(x) = Ci(x) = γ + ln x + ∫₀ˣ (cos t − 1)/t dt, für x ≠ 0. Es ist das Ergebnis von ∫ cos x / x dx</string>
+    <string name="formula_expint_name">Integralexponentialfunktion Ei</string>
+    <string name="formula_expint_desc">expint(x) = Ei(x) = der Hauptwert von ∫ von −∞ bis x über eᵗ/t dt, für x ≠ 0. Es ist das Ergebnis von ∫ eˣ / x dx</string>
     <string name="formula_normalpdf_name">Normalverteilung, Dichte</string>
     <string name="formula_normalpdf_desc">normalpdf(x, μ, σ): die Glockenkurve bei x. Ohne μ und σ die Standardnormalverteilung (μ = 0, σ = 1)</string>
     <string name="formula_normalcdf_name">Normalverteilung, Wahrscheinlichkeit (bis x)</string>
@@ -358,6 +378,10 @@
     <string name="step_lngamma">Leite die Log-Gamma-Funktion ab</string>
     <string name="step_erf">Leite die Fehlerfunktion ab</string>
     <string name="step_erfc">Leite die komplementäre Fehlerfunktion ab</string>
+    <string name="step_lambertw">Leite die Lambertsche W-Funktion ab</string>
+    <string name="step_sinint">Leite den Integralsinus ab</string>
+    <string name="step_cosint">Leite den Integralkosinus ab</string>
+    <string name="step_expint">Leite die Integralexponentialfunktion ab</string>
     <string name="step_integral_gaussian">Integriere die Gauß-Funktion (sie ergibt die Fehlerfunktion)</string>
     <string name="step_normal_density">Setze die Werte in die Dichte der Normalverteilung ein</string>
     <string name="step_normal_probability">Schreibe die Normalverteilung mit der Fehlerfunktion</string>

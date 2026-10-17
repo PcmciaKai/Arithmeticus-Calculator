@@ -1,5 +1,6 @@
 package com.vortessence.calculator.core.math.expressions
 
+import com.vortessence.calculator.core.math.context.AngleUnit
 import com.vortessence.calculator.core.math.context.CalculationMode
 import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.context.MathIssue
@@ -24,7 +25,15 @@ enum class SpecialType(val functionName: String, val symbol: String = functionNa
     /** The error function, 2/√π · ∫₀ˣ e^(−t²) dt. */
     ERF("erf"),
     /** 1 − erf(x). */
-    ERFC("erfc");
+    ERFC("erfc"),
+    /** The principal branch of the Lambert W function: the w ≥ −1 with w·eʷ = x, for x ≥ −1/e. */
+    LAMBERTW("lambertw", "W"),
+    /** The sine integral Si(x) = ∫₀ˣ sin t / t dt. */
+    SININT("sinint", "Si"),
+    /** The cosine integral Ci(x) = γ + ln x + ∫₀ˣ (cos t − 1)/t dt; for x < 0 the real part Ci(|x|). */
+    COSINT("cosint", "Ci"),
+    /** The exponential integral Ei(x), the principal value of ∫₋∞ˣ eᵗ/t dt. */
+    EXPINT("expint", "Ei");
 
     fun evaluate(v: Double): Double = when (this) {
         GAMMA -> SpecialMath.gamma(v)
@@ -33,6 +42,10 @@ enum class SpecialType(val functionName: String, val symbol: String = functionNa
         NORMALINV -> SpecialMath.inverseNormal(v)
         ERF -> SpecialMath.erf(v)
         ERFC -> SpecialMath.erfc(v)
+        LAMBERTW -> SpecialMath.lambertW(v)
+        SININT -> SpecialMath.sineIntegral(v)
+        COSINT -> SpecialMath.cosineIntegral(v)
+        EXPINT -> SpecialMath.exponentialIntegral(v)
     }
 
     /** The derivative with respect to the operand [u], or null where it would need a function we do not have (trigamma). */
@@ -46,6 +59,15 @@ enum class SpecialType(val functionName: String, val symbol: String = functionNa
         GAMMA -> Multiplications.of(SpecialFunction(GAMMA, u), SpecialFunction(DIGAMMA, u))
         LNGAMMA -> SpecialFunction(DIGAMMA, u)
         DIGAMMA -> null
+        // W' = 1/(eᵂ·(1 + W)), which also holds at 0
+        LAMBERTW -> {
+            val w = SpecialFunction(LAMBERTW, u)
+            Power(Multiplications.of(Power(Constant.E, w), Additions(listOf(Value.ONE, w))), Value.MINUS_ONE)
+        }
+        // Si' = sin u / u, Ci' = cos u / u, Ei' = eᵘ / u
+        SININT -> Multiplications.of(TrigonometricFunction(TrigType.SIN, u, AngleUnit.RADIANS), Power(u, Value.MINUS_ONE))
+        COSINT -> Multiplications.of(TrigonometricFunction(TrigType.COS, u, AngleUnit.RADIANS), Power(u, Value.MINUS_ONE))
+        EXPINT -> Multiplications.of(Power(Constant.E, u), Power(u, Value.MINUS_ONE))
         // x = Φ⁻¹(p) has the slope 1/φ(x) = √(2π)·e^(x²/2)
         NORMALINV -> Multiplications.of(
             Power(Multiplications.of(Value.TWO, Constant.PI), Value.HALF),
@@ -84,23 +106,41 @@ class SpecialFunction(val type: SpecialType, val operand: Expression) : Expressi
             val limit = if (type == SpecialType.ERF) Math.signum(v).toLong() else 1L - Math.signum(v).toLong()
             return Value(limit)
         }
+        if (v.isInfinite() && type in LIMIT_TYPES) return limitAtInfinity(Math.signum(v) > 0, context)
         // Poles and the domain of ln Γ
         if ((type == SpecialType.GAMMA || type == SpecialType.DIGAMMA) && v <= 0.0 && v == Math.floor(v)) return fail(context, MathIssue.UNDEFINED)
         if (type == SpecialType.LNGAMMA && v <= 0.0) return fail(context, MathIssue.UNDEFINED)
         if (type == SpecialType.NORMALINV && (v <= 0.0 || v >= 1.0)) return fail(context, MathIssue.UNDEFINED)
+        if ((type == SpecialType.COSINT || type == SpecialType.EXPINT) && v == 0.0) return fail(context, MathIssue.UNDEFINED)
+        val value by lazy { type.evaluate(v) }
+        if (type == SpecialType.LAMBERTW && value.isNaN()) return fail(context, MathIssue.UNDEFINED)
 
         if (context.mode == CalculationMode.NUMERIC) {
-            val result = type.evaluate(v)
-            if (!result.isFinite()) return fail(context, if (result.isNaN()) MathIssue.UNDEFINED else MathIssue.VALUES_TOO_LARGE)
-            return Value(Real(result))
+            if (!value.isFinite()) return fail(context, if (value.isNaN()) MathIssue.UNDEFINED else MathIssue.VALUES_TOO_LARGE)
+            return Value(Real(value))
+        }
+        // W(e) = 1 and W(−1/e) = −1, since w·eʷ is e and −1/e there
+        if (type == SpecialType.LAMBERTW) {
+            if (op == Constant.E) return Value.ONE
+            if (op == Multiplications.of(Value.MINUS_ONE, Power(Constant.E, Value.MINUS_ONE)).canonicalize(context)) return Value.MINUS_ONE
         }
         exact(rational, context)?.let { return it }
         if (context.shouldStop) return this
-        // An erf of a negative number is the negative of the erf of a positive one
-        if (type == SpecialType.ERF && v < 0.0 && rational != null) {
+        // An erf or Si of a negative number is the negative of the one of a positive number
+        if ((type == SpecialType.ERF || type == SpecialType.SININT) && v < 0.0 && rational != null) {
             return Multiplications.of(Value.MINUS_ONE, SpecialFunction(type, op.negate())).canonicalize(context)
         }
+        // A function that stays as it is must still have a value that fits (Ei(1000), Γ(500.5))
+        if (value.isInfinite()) return fail(context, MathIssue.VALUES_TOO_LARGE)
         return SpecialFunction(type, op)
+    }
+
+    /** W, Si, Ci and Ei at +∞ or −∞: Si(±∞) = ±π/2 and Ci(±∞) = Ei(−∞) = 0; the others grow beyond all bounds or are not defined there. */
+    private fun limitAtInfinity(positive: Boolean, context: MathContext): Expression = when {
+        type == SpecialType.SININT -> Multiplications.of(Value(if (positive) 1L else -1L), Value.HALF, Constant.PI)
+        type == SpecialType.COSINT || (type == SpecialType.EXPINT && !positive) -> Value.ZERO
+        type == SpecialType.LAMBERTW && !positive -> fail(context, MathIssue.UNDEFINED)
+        else -> fail(context, MathIssue.VALUES_TOO_LARGE)
     }
 
     private fun fail(context: MathContext, issue: MathIssue): Expression {
@@ -118,6 +158,9 @@ class SpecialFunction(val type: SpecialType, val operand: Expression) : Expressi
             SpecialType.GAMMA -> gamma(x, context)
             SpecialType.DIGAMMA -> null
             SpecialType.NORMALINV -> if (x == Rational.HALF) Value.ZERO else null
+            SpecialType.LAMBERTW -> if (x.isZero) Value.ZERO else null
+            SpecialType.SININT -> if (x.isZero) Value.ZERO else null
+            SpecialType.COSINT, SpecialType.EXPINT -> null
         }
     }
 
@@ -150,6 +193,8 @@ class SpecialFunction(val type: SpecialType, val operand: Expression) : Expressi
     override fun toString(): String = "${type.functionName}($operand)"
 
     private companion object {
+        val LIMIT_TYPES = setOf(SpecialType.LAMBERTW, SpecialType.SININT, SpecialType.COSINT, SpecialType.EXPINT)
+
         /** Γ(171) = 170! is the last one a number of the calculator can hold (about 1.8×10³⁰⁸), also Γ(171.5). */
         const val MAX_ARGUMENT = 171L
     }

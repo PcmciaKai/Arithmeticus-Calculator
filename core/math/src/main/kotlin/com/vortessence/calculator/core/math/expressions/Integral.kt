@@ -4,6 +4,7 @@ import com.vortessence.calculator.core.math.context.CalculationMode
 import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.context.MathIssue
 import com.vortessence.calculator.core.math.numbers.Rational
+import com.vortessence.calculator.core.math.numbers.Real
 import com.vortessence.calculator.core.math.solvers.NumericIntegrator
 import kotlin.math.*
 
@@ -39,6 +40,9 @@ class Integral(
             val numVal = MathContext.withContext(context) { intExpr.evaluateNumerically() }
             if (context.shouldStop) return this // interrupted (timeout/cancel), not undefined
             if (numVal.isNaN() || numVal.isInfinite()) {
+                // sin(x)/x is not defined at its bound 0, but the integral is fine
+                removableAtBound(cLower, cUpper, cIntegrand, context)?.let { return it }
+                if (context.shouldStop) return this
                 context.stopWithError(MathIssue.UNDEFINED)
                 return this
             }
@@ -55,6 +59,24 @@ class Integral(
             return Value(numVal)
         }
         return intExpr
+    }
+
+    /**
+     * The integral where the integrand has no value at a bound (0/0 for sin(x)/x at 0) but a continuous antiderivative F does
+     * (Si): F(b) − F(a), if it agrees with the numeric integral a hair inside the bounds. Null where the integral really diverges
+     * (F is not defined at the bound or the numeric integral is not finite).
+     */
+    private fun removableAtBound(a: Expression, b: Expression, f: Expression, context: MathContext): Expression? {
+        if (a !is Value || b !is Value) return null
+        val from = a.evaluateNumerically()
+        val to = b.evaluateNumerically()
+        if (!from.isFinite() || !to.isFinite() || from == to) return null
+        val inset = (to - from) * 1e-9
+        val inner = Integral(Value(Real(from + inset)), Value(Real(to - inset)), f, variable)
+        val numeric = MathContext.withContext(context) { inner.evaluateNumerically() }
+        if (context.shouldStop || !numeric.isFinite()) return null
+        val exact = exactValue(a, b, f, numeric, context) ?: return null
+        return if (context.mode == CalculationMode.EXACT) exact else Value(Real(exact.evaluateNumerically()))
     }
 
     /**

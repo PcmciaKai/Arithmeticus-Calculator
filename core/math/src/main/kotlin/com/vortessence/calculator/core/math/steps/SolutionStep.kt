@@ -58,6 +58,14 @@ enum class StepRule {
     ERROR_FUNCTION,
     /** erfc(u)' = −2/√π·e^(−u²)·u' */
     COMPLEMENTARY_ERROR_FUNCTION,
+    /** lambertw(u)' = 1/(e^W(u)·(1 + W(u)))·u' */
+    LAMBERT_W_FUNCTION,
+    /** sinint(u)' = sin(u)/u·u' */
+    SINE_INTEGRAL_FUNCTION,
+    /** cosint(u)' = cos(u)/u·u' */
+    COSINE_INTEGRAL_FUNCTION,
+    /** expint(u)' = e^u/u·u' */
+    EXPONENTIAL_INTEGRAL_FUNCTION,
     /** a·b = a₁b₁ + a₂b₂ + … */
     DOT_PRODUCT,
     /** a × b = (a₂b₃ − a₃b₂, a₃b₁ − a₁b₃, a₁b₂ − a₂b₁) */

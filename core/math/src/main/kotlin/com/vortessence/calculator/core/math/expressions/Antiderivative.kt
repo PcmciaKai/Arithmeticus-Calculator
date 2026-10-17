@@ -91,7 +91,7 @@ internal class Integrator(private val context: MathContext) {
                     val rest = integrate(Multiplications.of(*factors.toTypedArray()), v, depth + 1) ?: return null
                     Multiplications(constants + rest)
                 } else {
-                    expanded(e, v, depth) ?: bySubstitution(e, v, depth) ?: partialFractions(e, v, depth) ?: irreducibleQuadratic(e, v, depth) ?: dividedPolynomial(e, v, depth) ?: byParts(e, v, depth) ?: cyclicByParts(e, v)
+                    integralOverVariable(e, v) ?: expanded(e, v, depth) ?: bySubstitution(e, v, depth) ?: partialFractions(e, v, depth) ?: irreducibleQuadratic(e, v, depth) ?: dividedPolynomial(e, v, depth) ?: byParts(e, v, depth) ?: cyclicByParts(e, v)
                 }
             }
             else -> basic(e, v) ?: oddTrigonometricPower(e, v, depth) ?: expanded(e, v, depth) ?: bySubstitution(e, v, depth) ?: partialFractions(e, v, depth) ?: irreducibleQuadratic(e, v, depth) ?: dividedPolynomial(e, v, depth) ?: byParts(e, v, depth)
@@ -187,6 +187,24 @@ internal class Integrator(private val context: MathContext) {
             }
             else -> null
         }
+    }
+
+    /** ∫ sin(a·v)/v dv = Si(a·v), ∫ cos(a·v)/v dv = Ci(a·v) and ∫ e^(a·v)/v dv = Ei(a·v). */
+    private fun integralOverVariable(e: Multiplications, v: Variable): Expression? {
+        if (e.operands.size != 2) return null
+        val reciprocal = e.operands.indexOfFirst { it is Power && it.base == v && it.exponent == Value.MINUS_ONE }
+        if (reciprocal < 0) return null
+        val other = e.operands[1 - reciprocal]
+        val (type, u) = when {
+            other is TrigonometricFunction && other.type == TrigType.SIN && other.angleUnit == AngleUnit.RADIANS -> SpecialType.SININT to other.operand
+            other is TrigonometricFunction && other.type == TrigType.COS && other.angleUnit == AngleUnit.RADIANS -> SpecialType.COSINT to other.operand
+            other is Power && other.base == Constant.E && other.exponent.containsVariable(v) -> SpecialType.EXPINT to other.exponent
+            else -> return null
+        }
+        // The argument must be a multiple of v (a + b·v would not leave a·v as the divisor)
+        val slope = linearSlope(u, v) ?: return null
+        val rest = canonical(Additions(listOf(u, Multiplications.of(Value.MINUS_ONE, slope, v)))) ?: return null
+        return if (rest.isZero) SpecialFunction(type, u) else null
     }
 
     /** ∫ e^(−k·v²) dv = √π/(2√k) · erf(√k·v) for k > 0 (e^(k·v²) with k > 0 has no such form). */

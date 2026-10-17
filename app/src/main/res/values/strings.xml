@@ -41,6 +41,10 @@
     <string name="step_lngamma">Differentiate the log-gamma function</string>
     <string name="step_erf">Differentiate the error function</string>
     <string name="step_erfc">Differentiate the complementary error function</string>
+    <string name="step_lambertw">Differentiate the Lambert W function</string>
+    <string name="step_sinint">Differentiate the sine integral</string>
+    <string name="step_cosint">Differentiate the cosine integral</string>
+    <string name="step_expint">Differentiate the exponential integral</string>
     <string name="step_integral_gaussian">Integrate the Gaussian function (it gives the error function)</string>
     <string name="step_normal_density">Put the values into the density of the normal distribution</string>
     <string name="step_normal_probability">Write the normal probability with the error function</string>
@@ -350,6 +354,10 @@
     <string name="formula_quartile_desc">quartile(q, values…): q from 0 to 4, where 2 is the median</string>
     <string name="formula_skew_name">Skewness</string>
     <string name="formula_skew_desc">Asymmetry of the data (population): 0 if symmetric, positive if the long tail is on the right. Needs at least 3 values</string>
+    <string name="formula_tmargin_name">Margin of error of the mean (t)</string>
+    <string name="formula_tmargin_desc">tmargin(c, values…): the margin of error t·s/√n of the confidence interval of level c (0.95 for 95%) for the mean, with t = tinv((1 + c)/2, n − 1). The interval is mean ± margin</string>
+    <string name="formula_tstat_name">t statistic of a sample</string>
+    <string name="formula_tstat_desc">tstat(μ₀, values…): (mean − μ₀)/(s/√n), the statistic of a one-sample t test against μ₀. Compare it with tinv or work out the p-value with tcdf</string>
     <string name="formula_multinomial_name">Multinomial coefficient</string>
     <string name="formula_multinomial_desc">Ways to split k₁ + k₂ + … items into groups of these sizes</string>
     <string name="formula_fib_name">Fibonacci number</string>
@@ -358,6 +366,10 @@
     <string name="formula_nextprime_desc">Smallest prime above n</string>
     <string name="formula_isprime_name">Prime test</string>
     <string name="formula_isprime_desc">1 if n is prime, otherwise 0</string>
+    <string name="formula_totient_name">Euler\'s totient φ(n)</string>
+    <string name="formula_totient_desc">totient(n): how many of 1…n have no common factor with n. For whole numbers up to about 10¹⁵ (and larger ones with small prime factors)</string>
+    <string name="formula_modpow_name">Modular power</string>
+    <string name="formula_modpow_desc">modpow(b, e, m): bᵉ mod m without working out the huge power. A negative e needs b to have an inverse modulo m</string>
     <string name="formula_trunc_name">Truncate</string>
     <string name="formula_trunc_desc">Cuts off the decimals (rounds towards zero); trunc(x, n) keeps n places</string>
     <string name="formula_frac_name">Fractional part</string>
@@ -384,6 +396,18 @@
     <string name="formula_erf_desc">2/√π · ∫₀ˣ e^(−t²) dt, the basis of the normal distribution</string>
     <string name="formula_erfc_name">Complementary error function erfc</string>
     <string name="formula_erfc_desc">1 − erf(x), also accurate for large x</string>
+    <string name="formula_gammainc_name">Incomplete gamma function</string>
+    <string name="formula_gammainc_desc">gammainc(a, x): the regularized lower incomplete gamma function P(a, x) = γ(a, x)/Γ(a), for a &gt; 0 and x ≥ 0. The chi-square distribution is chisqcdf(x, k) = gammainc(k/2, x/2)</string>
+    <string name="formula_betainc_name">Incomplete beta function</string>
+    <string name="formula_betainc_desc">betainc(x, a, b): the regularized incomplete beta function Iₓ(a, b), for 0 ≤ x ≤ 1 and a, b &gt; 0. The cumulative binomial and Student t distributions are made of it</string>
+    <string name="formula_lambertw_name">Lambert W function</string>
+    <string name="formula_lambertw_desc">lambertw(x): the w ≥ −1 with w·eʷ = x, for x ≥ −1/e. The solution of x·eˣ = 5 is lambertw(5)</string>
+    <string name="formula_sinint_name">Sine integral Si</string>
+    <string name="formula_sinint_desc">sinint(x) = Si(x) = ∫₀ˣ sin t / t dt. It is the result of ∫ sin x / x dx</string>
+    <string name="formula_cosint_name">Cosine integral Ci</string>
+    <string name="formula_cosint_desc">cosint(x) = Ci(x) = γ + ln x + ∫₀ˣ (cos t − 1)/t dt, for x ≠ 0. It is the result of ∫ cos x / x dx</string>
+    <string name="formula_expint_name">Exponential integral Ei</string>
+    <string name="formula_expint_desc">expint(x) = Ei(x) = the principal value of ∫ from −∞ to x of eᵗ/t dt, for x ≠ 0. It is the result of ∫ eˣ / x dx</string>
     <string name="formula_normalpdf_name">Normal density</string>
     <string name="formula_normalpdf_desc">normalpdf(x, μ, σ): the bell curve at x. Without μ and σ the standard normal distribution (μ = 0, σ = 1)</string>
     <string name="formula_normalcdf_name">Normal probability (up to x)</string>
