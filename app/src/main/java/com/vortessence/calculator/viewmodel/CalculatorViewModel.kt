@@ -113,7 +113,9 @@ data class CalculatorUiState(
     /** What saving or opening a session file came to, until the message about it was shown. */
     val sessionMessage: SessionMessage? = null,
     /** The system's file dialog the screen is to show (the settings asked for it), until it did. */
-    val sessionFileRequest: SessionFileRequest? = null
+    val sessionFileRequest: SessionFileRequest? = null,
+    /** What was just removed from the history and can be brought back, until the message about it was shown. */
+    val undoOffer: UndoOffer? = null
 ) {
     /**
      * Variables defined with ":=" by calculations in the history; the newest definition of a
@@ -133,6 +135,14 @@ data class CalculatorUiState(
 data class VariableHint(val stringPath: List<Int>, val nodeIndex: Int, val isDerivative: Boolean, val candidates: List<String>)
 
 enum class SessionFileRequest { SAVE, OPEN }
+
+/**
+ * History that was just removed ([entries], and [unrestored] ones that could not be calculated again), which the message offers to
+ * bring back. [serial] tells one offer from the next.
+ */
+data class UndoOffer(val kind: Kind, val entries: List<HistoryEntry>, val unrestored: List<SavedEntry>, val serial: Long) {
+    enum class Kind { HISTORY_CLEARED, ENTRY_DELETED }
+}
 
 /** What happened to a session file; [count] entries were opened, [skipped] of them could not be calculated and are left out. */
 data class SessionMessage(val type: Type, val count: Int = 0, val skipped: Int = 0) {
@@ -205,6 +215,8 @@ class CalculatorViewModel @JvmOverloads constructor(
     val uiState: StateFlow<CalculatorUiState> = _uiState.asStateFlow()
 
     private var nextHistoryId = 0L
+
+    private var undoSerial = 0L
 
     /** Fixed end(s) of the selection while it is being extended by dragging. */
     private var selectionAnchors: List<List<Int>> = emptyList()
@@ -1830,7 +1842,26 @@ class CalculatorViewModel @JvmOverloads constructor(
 
     /** Removes a single calculation from the history (e.g. swiped away). */
     fun deleteHistoryEntry(id: Long) {
-        _uiState.update { state -> state.copy(history = state.history.filterNot { it.id == id }) }
+        _uiState.update { state ->
+            val entry = state.history.firstOrNull { it.id == id } ?: return@update state
+            state.copy(
+                history = state.history.filterNot { it.id == id },
+                undoOffer = UndoOffer(UndoOffer.Kind.ENTRY_DELETED, listOf(entry), emptyList(), ++undoSerial)
+            )
+        }
+    }
+
+    /** Brings back what the current [CalculatorUiState.undoOffer] stands for. */
+    fun undo() {
+        val offer = _uiState.value.undoOffer ?: return
+        unrestoredEntries = offer.unrestored + unrestoredEntries
+        // Newer entries may have come since: the ids tell the order
+        _uiState.update { it.copy(history = (it.history + offer.entries).sortedByDescending { entry -> entry.id }, undoOffer = null) }
+    }
+
+    /** The message about [offer] was shown (and not answered with undo). */
+    fun dismissUndoOffer(offer: UndoOffer) {
+        _uiState.update { if (it.undoOffer == offer) it.copy(undoOffer = null) else it }
     }
 
     fun clearLine() {
@@ -1846,6 +1877,12 @@ class CalculatorViewModel @JvmOverloads constructor(
     }
 
     fun clearAll() {
+        // What a restore that is still going on has not shown yet cannot be brought back
+        val offer = if (restoreJob?.isActive == true) null else {
+            val shown = _uiState.value.history
+            if (shown.isEmpty() && unrestoredEntries.isEmpty()) null
+            else UndoOffer(UndoOffer.Kind.HISTORY_CLEARED, shown, unrestoredEntries, ++undoSerial)
+        }
         restoreJob?.cancel() // do not bring back what was just cleared
         unrestoredEntries = emptyList()
         // Nothing is left to wait for: the empty history is to be saved at once, not after the cancelled job has wound up
@@ -1857,7 +1894,8 @@ class CalculatorViewModel @JvmOverloads constructor(
                 cursorPath = listOf(0),
                 selectionRange = null,
                 history = emptyList(),
-                randomSeed = nextSeed
+                randomSeed = nextSeed,
+                undoOffer = offer
             )
         }
     }

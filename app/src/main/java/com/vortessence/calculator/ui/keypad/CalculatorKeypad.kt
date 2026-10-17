@@ -670,13 +670,15 @@ fun CalculatorKeypad(
                         spacing = spacing,
                         bgColor = MaterialTheme.colorScheme.primary,
                         popupIcon = Icons.AutoMirrored.Filled.KeyboardReturn,
-                        alternates = listOf(alt(stringResource(R.string.keypad_new_line), KeyAction.NewLine))
+                        // Long press: a new line, and the result of the last Enter
+                        alternates = listOf(alt(stringResource(R.string.keypad_new_line), KeyAction.NewLine), alt("Ans", KeyAction.Ans))
                     ) { onKeyAction(KeyAction.Enter) }
 
                     // Page 2 (cols 9..10)
-                    KeyButton(text = "Ans", buttonWidth = buttonWidth, textColor = MaterialTheme.colorScheme.onPrimaryContainer) { onKeyAction(KeyAction.Ans) }
                     KeyButton(
                         buttonWidth = buttonWidth,
+                        colSpan = 2,
+                        spacing = spacing,
                         content = { IconLabel(Icons.Default.Settings, stringResource(R.string.keypad_settings), stringResource(R.string.keypad_settings)) }
                     ) { onKeyAction(KeyAction.OpenSettings) }
                 }

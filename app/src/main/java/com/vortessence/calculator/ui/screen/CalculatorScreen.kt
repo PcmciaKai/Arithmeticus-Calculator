@@ -79,6 +79,7 @@ import com.vortessence.calculator.viewmodel.CalculatorViewModel
 import com.vortessence.calculator.viewmodel.PercentHint
 import com.vortessence.calculator.viewmodel.SessionFileRequest
 import com.vortessence.calculator.viewmodel.SessionMessage
+import com.vortessence.calculator.viewmodel.UndoOffer
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import java.time.LocalDate
@@ -184,6 +185,20 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
         }
         snackbarHostState.showSnackbar(text, withDismissAction = true)
         viewModel.dismissSessionMessage()
+    }
+
+    // The history was cleared or an entry deleted: the message offers to bring it back
+    LaunchedEffect(uiState.undoOffer) {
+        val offer = uiState.undoOffer ?: return@LaunchedEffect
+        val result = snackbarHostState.showSnackbar(
+            message = context.getString(
+                if (offer.kind == UndoOffer.Kind.HISTORY_CLEARED) R.string.undo_history_cleared else R.string.undo_entry_deleted
+            ),
+            actionLabel = context.getString(R.string.undo_action),
+            withDismissAction = true,
+            duration = SnackbarDuration.Long
+        )
+        if (result == SnackbarResult.ActionPerformed) viewModel.undo() else viewModel.dismissUndoOffer(offer)
     }
 
     // A session file was opened while there is a history: replace it or add to it

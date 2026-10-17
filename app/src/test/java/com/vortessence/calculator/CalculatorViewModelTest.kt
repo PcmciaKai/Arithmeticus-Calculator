@@ -38,6 +38,7 @@ import com.vortessence.calculator.viewmodel.InputMode
 import com.vortessence.calculator.core.math.type.ResultForm
 import com.vortessence.calculator.core.math.type.ResultFormatter
 import com.vortessence.calculator.viewmodel.SessionMessage
+import com.vortessence.calculator.viewmodel.UndoOffer
 import com.vortessence.calculator.core.math.context.AngleUnit
 import com.vortessence.calculator.core.math.context.UnitSystem
 import androidx.lifecycle.viewModelScope
@@ -230,6 +231,54 @@ class CalculatorViewModelTest {
         // Should have 5 * 10^3
         assertTrue(vm.uiState.value.expression.toString().contains("10"))
         assertTrue(vm.uiState.value.expression.toString().contains("3"))
+    }
+
+    @Test
+    fun testClearedHistoryCanBeBroughtBack() = runBlocking {
+        val vm = newViewModel()
+        for (digit in listOf("1", "2", "3")) {
+            vm.type(digit)
+            vm.onKeyAction(KeyAction.Enter)
+            vm.awaitCommit()
+        }
+        val before = vm.uiState.value.history.map { it.id }
+        assertEquals(3, before.size)
+
+        vm.onKeyAction(KeyAction.Clear)
+        assertTrue(vm.uiState.value.history.isEmpty())
+        assertEquals(UndoOffer.Kind.HISTORY_CLEARED, vm.uiState.value.undoOffer!!.kind)
+
+        // An entry made meanwhile keeps its place at the top
+        vm.type("4")
+        vm.onKeyAction(KeyAction.Enter)
+        vm.awaitCommit()
+        vm.undo()
+        assertEquals(listOf(before.max() + 1) + before, vm.uiState.value.history.map { it.id })
+        assertNull(vm.uiState.value.undoOffer)
+    }
+
+    @Test
+    fun testDeletedEntryCanBeBroughtBackWhereItWas() = runBlocking {
+        val vm = newViewModel()
+        for (digit in listOf("1", "2", "3")) {
+            vm.type(digit)
+            vm.onKeyAction(KeyAction.Enter)
+            vm.awaitCommit()
+        }
+        val before = vm.uiState.value.history.map { it.id }
+        vm.deleteHistoryEntry(before[1])
+        assertEquals(listOf(before[0], before[2]), vm.uiState.value.history.map { it.id })
+        assertEquals(UndoOffer.Kind.ENTRY_DELETED, vm.uiState.value.undoOffer!!.kind)
+
+        vm.undo()
+        assertEquals(before, vm.uiState.value.history.map { it.id })
+    }
+
+    @Test
+    fun testNothingToBringBackAfterClearingAnEmptyHistory() {
+        val vm = newViewModel()
+        vm.onKeyAction(KeyAction.Clear)
+        assertNull(vm.uiState.value.undoOffer)
     }
 
     @Test

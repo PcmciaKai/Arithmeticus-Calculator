@@ -213,6 +213,9 @@
     <string name="keypad_matrix">Matrix oder Vektor</string>
     <string name="formulas_title">Funktionen</string>
     <string name="formulas_hint">Mehrere Werte werden durch „%1$s“ getrennt: dafür die Dezimaltaste lange drücken</string>
+    <string name="undo_history_cleared">Verlauf gelöscht</string>
+    <string name="undo_entry_deleted">Eintrag gelöscht</string>
+    <string name="undo_action">Rückgängig</string>
     <string name="formulas_search">Suchen (Abweichung, runden, nCr)...</string>
     <string name="constant_category_math">Mathematisch</string>
     <string name="constant_category_physics">Physik</string>

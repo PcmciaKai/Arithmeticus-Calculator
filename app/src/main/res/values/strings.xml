@@ -487,6 +487,9 @@
     <string name="keypad_matrix">Matrix or vector</string>
     <string name="formulas_title">Functions</string>
     <string name="formulas_hint">Several values are separated by “%1$s”: long press the decimal key for it</string>
+    <string name="undo_history_cleared">History cleared</string>
+    <string name="undo_entry_deleted">Entry deleted</string>
+    <string name="undo_action">Undo</string>
     <string name="formulas_search">Search (deviation, round, nCr)...</string>
     <string name="constant_category_math">Mathematical</string>
     <string name="constant_category_physics">Physics</string>
