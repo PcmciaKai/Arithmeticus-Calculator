@@ -1,6 +1,7 @@
 package com.vortessence.calculator
 
 import android.content.Context
+import android.content.pm.ActivityInfo
 import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -27,6 +28,13 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Phones stay upright (the manifest); a tablet or an unfolded foldable turns freely. Android 16 and later
+        // do that by themselves, older ones need it here. The activity is made again when a foldable folds or unfolds
+        requestedOrientation = if (resources.configuration.smallestScreenWidthDp >= LARGE_SCREEN_MIN_WIDTH_DP) {
+            ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        } else {
+            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        }
         // The activity is made again when the language changes, the view model is not: its texts follow
         viewModel.refreshLanguage()
         enableEdgeToEdge()
@@ -55,3 +63,6 @@ class MainActivity : ComponentActivity() {
         viewModel.saveSession()
     }
 }
+
+/** The smallest width of a tablet or an unfolded foldable, in dp: such screens are not held upright only. */
+private const val LARGE_SCREEN_MIN_WIDTH_DP = 600

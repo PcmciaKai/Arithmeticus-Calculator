@@ -14,6 +14,9 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeRight
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.hasText
 import androidx.test.platform.app.InstrumentationRegistry
 import com.vortessence.calculator.MainActivity
 import com.vortessence.calculator.R
@@ -105,8 +108,11 @@ class CalculatorScreenTest {
         compose.onNodeWithContentDescription(compose.activity.getString(R.string.keypad_enter)).performClick()
         compose.waitUntil(5_000) { compose.onAllNodes(described("1 + 1")).fetchSemanticsNodes().isNotEmpty() && compose.onAllNodes(described("2")).fetchSemanticsNodes().isNotEmpty() }
 
-        // The line is empty after Enter: AC (on the last page of the keypad) clears the history
-        compose.onAllNodesWithText("AC")[0].performScrollTo().performClick()
+        // The line is empty after Enter: AC (on the last page of the keypad) clears the history. A wide
+        // keypad shows all its pages at once, it has nothing to scroll
+        val clear = compose.onAllNodesWithText("AC")[0]
+        if (compose.onAllNodes(hasText("AC") and hasAnyAncestor(hasScrollAction())).fetchSemanticsNodes().isNotEmpty()) clear.performScrollTo()
+        clear.performClick()
         compose.waitUntil(5_000) { compose.onAllNodesWithText("History cleared").fetchSemanticsNodes().isNotEmpty() }
         compose.onAllNodes(described("1 + 1")).assertCountEquals(0)
         compose.onNodeWithText("Undo").performClick()

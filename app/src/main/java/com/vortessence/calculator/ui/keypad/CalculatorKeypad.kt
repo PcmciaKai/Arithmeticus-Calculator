@@ -73,7 +73,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import kotlin.math.abs
-import kotlin.math.roundToInt
 import androidx.compose.ui.res.stringResource
 import com.vortessence.calculator.R
 import com.vortessence.calculator.core.math.context.AngleUnit
@@ -176,6 +175,20 @@ private fun scriptLabel(base: String, sup: String = "", sub: String = ""): Annot
 // narrower side pages also show the adjacent columns of the main page.
 private const val LEFT_COLUMNS = 4
 private const val VISIBLE_COLUMNS = 5
+private const val ALL_COLUMNS = 11
+
+/** From this window width on, the keypad shows all its pages at once (a tablet, an unfolded foldable). */
+private val WIDE_KEYPAD_MIN_WIDTH = 600.dp
+/** The extra room between two pages of the wide keypad, so it still reads as three blocks. */
+private val WIDE_PAGE_GAP = 8.dp
+private val WIDE_MAX_KEY_WIDTH = 104.dp
+private val WIDE_MAX_KEY_HEIGHT = 80.dp
+/** Below this the hints of the long-press functions run into the label of the key. */
+private val WIDE_MIN_KEY_HEIGHT = 64.dp
+/** Narrow wide keys (a tablet held upright) may be somewhat higher than wide. */
+private const val WIDE_KEY_HEIGHT_FACTOR = 1.25f
+/** The share of the window height the wide keypad takes at most; the rest is for the history and the line. */
+private const val WIDE_MAX_KEYPAD_FRACTION = 0.5f
 
 /** Where the long-press functions of a key are hinted, in order. */
 private val HINT_POSITIONS = listOf(Alignment.BottomStart, Alignment.BottomCenter, Alignment.BottomEnd)
@@ -197,10 +210,35 @@ fun CalculatorKeypad(
 
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
         val spacing = 8.dp
-        val buttonWidth = (this.maxWidth - 16.dp - spacing * (VISIBLE_COLUMNS - 1)) / VISIBLE_COLUMNS
         val density = LocalDensity.current
-        val colStepPx = with(density) { (buttonWidth + spacing).toPx() }
-        val mainPagePx = (LEFT_COLUMNS * colStepPx).roundToInt()
+        // A wide window (a tablet, an unfolded foldable) shows all three pages side by side, without swiping
+        val wide = maxWidth >= WIDE_KEYPAD_MIN_WIDTH
+        // In whole pixels, as the keys and the spacings are laid out: with a density such as 2.4375 the rounded
+        // sizes add up to more than the unrounded ones, and the last column of a page would be cut off
+        val spacingPx = with(density) { spacing.roundToPx() }
+        val pageGapPx = with(density) { WIDE_PAGE_GAP.roundToPx() }
+        val rowWidthPx = constraints.maxWidth - with(density) { 8.dp.roundToPx() } * 2
+        val buttonWidthPx = if (wide) {
+            // Eleven columns and two gaps between the pages (each a spacer between two spacings)
+            ((rowWidthPx - spacingPx * (ALL_COLUMNS + 1) - pageGapPx * 2) / ALL_COLUMNS)
+                .coerceAtMost(with(density) { WIDE_MAX_KEY_WIDTH.roundToPx() })
+        } else {
+            (rowWidthPx - spacingPx * (VISIBLE_COLUMNS - 1)) / VISIBLE_COLUMNS
+        }
+        val buttonWidth = with(density) { buttonWidthPx.toDp() }
+        // The keys of a phone are square; wide keys have their own height, so the keypad leaves the history about half the window
+        val keyHeight = if (wide) {
+            val windowHeight = with(density) { LocalWindowInfo.current.containerSize.height.toDp() }
+            val heightForKeys = (windowHeight * WIDE_MAX_KEYPAD_FRACTION - INDICATOR_ROW_HEIGHT - 8.dp - spacing * 3) / 4
+            minOf(buttonWidth * WIDE_KEY_HEIGHT_FACTOR, WIDE_MAX_KEY_HEIGHT, heightForKeys).coerceAtLeast(WIDE_MIN_KEY_HEIGHT)
+        } else {
+            buttonWidth
+        }
+        val keypadWidth = with(density) { (buttonWidthPx * ALL_COLUMNS + spacingPx * (ALL_COLUMNS + 1) + pageGapPx * 2).toDp() }
+        // Between two pages; only the wide keypad has it, the pages of a phone are next to each other
+        val pageGap: @Composable () -> Unit = { if (wide) Spacer(Modifier.width(WIDE_PAGE_GAP)) }
+        val colStepPx = (buttonWidthPx + spacingPx).toFloat()
+        val mainPagePx = LEFT_COLUMNS * (buttonWidthPx + spacingPx)
         val scrollState = rememberScrollState()
         val programmer = inputMode.programmer
 
@@ -299,11 +337,13 @@ fun CalculatorKeypad(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 8.dp, vertical = 2.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            // Page indicator dots
-            Box(modifier = Modifier.fillMaxWidth().height(INDICATOR_ROW_HEIGHT)) {
-                Row(
+            // Page indicator dots (as wide as the keys, so the chips line up with their edges)
+            Box(modifier = (if (wide) Modifier.width(keypadWidth) else Modifier.fillMaxWidth()).height(INDICATOR_ROW_HEIGHT)) {
+                // All pages are in sight on a wide keypad: no dots
+                if (!wide) Row(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxSize()
@@ -354,15 +394,15 @@ fun CalculatorKeypad(
                 InputModeChip(inputMode, onInputModeChange, Modifier.align(Alignment.CenterEnd))
             }
 
-            // Continuous horizontal scroll container containing all 11 columns across 4 rows
+            // Continuous horizontal scroll container containing all 11 columns across 4 rows; a wide keypad shows them all
             Column(
-                modifier = Modifier
+                modifier = if (wide) Modifier else Modifier
                     .fillMaxWidth()
                     .horizontalScroll(scrollState, flingBehavior = flingBehavior),
                 verticalArrangement = Arrangement.spacedBy(spacing)
             ) {
                 // Row 1
-                Row(horizontalArrangement = Arrangement.spacedBy(spacing)) {
+                Row(modifier = Modifier.height(keyHeight), horizontalArrangement = Arrangement.spacedBy(spacing)) {
                     // Page 0 (cols 0..3)
                     if (!programmer) {
                         // Long press: percent, remainder and Γ; the bitwise operators are in the row above them (the programmer
@@ -402,6 +442,7 @@ fun CalculatorKeypad(
                     } else {
                         digitKey("A"); digitKey("B"); digitKey("C"); digitKey("D")
                     }
+                    pageGap()
                     // Page 1 (cols 4..8)
                     digitKey("7")
                     digitKey("8")
@@ -417,6 +458,7 @@ fun CalculatorKeypad(
                         buttonWidth = buttonWidth
                     ) { onKeyAction(KeyAction.Backspace) }
 
+                    pageGap()
                     // Page 2 (cols 9..10)
                     KeyButton(
                         text = if (isLineEmpty) "AC" else "C",
@@ -428,7 +470,7 @@ fun CalculatorKeypad(
                 }
 
                 // Row 2
-                Row(horizontalArrangement = Arrangement.spacedBy(spacing)) {
+                Row(modifier = Modifier.height(keyHeight), horizontalArrangement = Arrangement.spacedBy(spacing)) {
                     // Page 0 (cols 0..3)
                     if (!programmer) {
                         // Matrices and vectors (a matrix of one column or one row): the key shows a bracketed grid. Its popup has
@@ -516,6 +558,7 @@ fun CalculatorKeypad(
                     } else {
                         digitKey("E"); digitKey("F"); bitKey("AND"); bitKey("OR")
                     }
+                    pageGap()
                     // Page 1 (cols 4..8)
                     digitKey("4")
                     digitKey("5")
@@ -530,6 +573,7 @@ fun CalculatorKeypad(
                         alternates = listOf(KeyAlternate(scriptLabel("a", sup = "−")) { onKeyAction(KeyAction.SuperscriptSign(plus = false)) })
                     ) { onKeyAction(KeyAction.Operator("−")) }
 
+                    pageGap()
                     // Page 2 (cols 9..10)
                     // Long press: convert to a unit ("5 km → mi"); the popup shows the arrow
                     KeyButton(
@@ -547,7 +591,7 @@ fun CalculatorKeypad(
                 }
 
                 // Row 3
-                Row(horizontalArrangement = Arrangement.spacedBy(spacing)) {
+                Row(modifier = Modifier.height(keyHeight), horizontalArrangement = Arrangement.spacedBy(spacing)) {
                     // Page 0 (cols 0..3)
                     if (!programmer) {
                         // Long press: definite integral, derivative, derivative at a point. In the
@@ -588,6 +632,7 @@ fun CalculatorKeypad(
                         KeyButton(text = "NOT", buttonWidth = buttonWidth, isAccent = true, textSize = PROGRAMMER_KEY_TEXT) { onKeyAction(KeyAction.Function("not")) }
                         bitKey("<<"); bitKey(">>")
                     }
+                    pageGap()
                     // Page 1 (cols 4..8)
                     digitKey("1")
                     digitKey("2")
@@ -607,6 +652,7 @@ fun CalculatorKeypad(
                         hints = emptyList()
                     ) { onKeyAction(KeyAction.Operator("÷")) }
 
+                    pageGap()
                     // Page 2 (cols 9..10)
                     KeyButton(
                         buttonWidth = buttonWidth,
@@ -619,7 +665,7 @@ fun CalculatorKeypad(
                 }
 
                 // Row 4
-                Row(horizontalArrangement = Arrangement.spacedBy(spacing)) {
+                Row(modifier = Modifier.height(keyHeight), horizontalArrangement = Arrangement.spacedBy(spacing)) {
                     // Page 0 (cols 0..3)
                     KeyButton(
                         text = "=",
@@ -650,6 +696,7 @@ fun CalculatorKeypad(
                     } else {
                         KeyButton(text = "mod", buttonWidth = buttonWidth, isAccent = true, textSize = PROGRAMMER_KEY_TEXT) { onKeyAction(KeyAction.Operator("mod")) }
                     }
+                    pageGap()
                     // Page 1 (cols 4..8)
                     digitKey("0")
                     if (programmer) {
@@ -695,6 +742,7 @@ fun CalculatorKeypad(
                         alternates = listOf(alt(stringResource(R.string.keypad_new_line), KeyAction.NewLine), alt("Ans", KeyAction.Ans))
                     ) { onKeyAction(KeyAction.Enter) }
 
+                    pageGap()
                     // Page 2 (cols 9..10)
                     KeyButton(
                         buttonWidth = buttonWidth,
@@ -927,7 +975,9 @@ private fun KeyButton(
 
     Box(
         modifier = Modifier
-            .size(width = finalWidth, height = buttonWidth)
+            // As high as its row: square on a phone, lower on a wide keypad
+            .width(finalWidth)
+            .fillMaxHeight()
             .onGloballyPositioned { keyLeftInWindow = it.positionInWindow().x }
             // Before the background, so that the whole key (not only its label) is dimmed; always in the chain, so that
             // a key that gets enabled again keeps its shading
