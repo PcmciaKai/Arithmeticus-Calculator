@@ -10,6 +10,10 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeRight
+import androidx.compose.ui.test.assertCountEquals
 import androidx.test.platform.app.InstrumentationRegistry
 import com.vortessence.calculator.MainActivity
 import com.vortessence.calculator.R
@@ -73,5 +77,39 @@ class CalculatorScreenTest {
         // In binary mode the digit keys 2 to 9 do nothing
         key("1"); key("0"); key("1"); key("+"); key("1")
         compose.waitUntil(5_000) { compose.onAllNodes(described("0b110")).fetchSemanticsNodes().isNotEmpty() }
+    }
+
+    @Test
+    fun aDeletedEntryComesBackWithUndo() {
+        key("1"); key("+"); key("1")
+        compose.waitUntil(5_000) { compose.onAllNodes(described("1 + 1")).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithContentDescription(compose.activity.getString(R.string.keypad_enter)).performClick()
+        compose.waitUntil(5_000) { compose.onAllNodes(described("1 + 1")).fetchSemanticsNodes().isNotEmpty() && compose.onAllNodes(described("2")).fetchSemanticsNodes().isNotEmpty() }
+
+        compose.onAllNodes(described("1 + 1"))[0].performTouchInput { swipeRight() }
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("Entry deleted").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Undo").performClick()
+        compose.waitUntil(5_000) { compose.onAllNodes(described("1 + 1")).fetchSemanticsNodes().isNotEmpty() }
+        // It stays: it is not swiped away again, and there is no new message about a deletion
+        compose.waitForIdle()
+        Thread.sleep(1_000)
+        compose.waitForIdle()
+        compose.onAllNodes(described("1 + 1")).assertCountEquals(1)
+        compose.onAllNodesWithText("Entry deleted").assertCountEquals(0)
+    }
+
+    @Test
+    fun aClearedHistoryComesBackWithUndo() {
+        key("1"); key("+"); key("1")
+        compose.waitUntil(5_000) { compose.onAllNodes(described("1 + 1")).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithContentDescription(compose.activity.getString(R.string.keypad_enter)).performClick()
+        compose.waitUntil(5_000) { compose.onAllNodes(described("1 + 1")).fetchSemanticsNodes().isNotEmpty() && compose.onAllNodes(described("2")).fetchSemanticsNodes().isNotEmpty() }
+
+        // The line is empty after Enter: AC (on the last page of the keypad) clears the history
+        compose.onAllNodesWithText("AC")[0].performScrollTo().performClick()
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("History cleared").fetchSemanticsNodes().isNotEmpty() }
+        compose.onAllNodes(described("1 + 1")).assertCountEquals(0)
+        compose.onNodeWithText("Undo").performClick()
+        compose.waitUntil(5_000) { compose.onAllNodes(described("1 + 1")).fetchSemanticsNodes().isNotEmpty() }
     }
 }

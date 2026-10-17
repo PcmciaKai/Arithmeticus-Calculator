@@ -701,9 +701,14 @@ private fun SwipeToDeleteBox(
 ) {
     // Require dragging across half the item's width (the default is only 56dp), so that
     // entries are not deleted by accident while scrolling or tapping
-    val state = rememberSwipeToDismissBoxState(
-        positionalThreshold = { totalDistance -> totalDistance * SWIPE_TO_DELETE_THRESHOLD }
-    )
+    // Not the saved kind (rememberSwipeToDismissBoxState): the list keeps the saved state of a removed entry, and an entry
+    // that comes back with undo would be restored as swiped away, and be deleted again at once
+    val state = remember {
+        SwipeToDismissBoxState(
+            initialValue = SwipeToDismissBoxValue.Settled,
+            positionalThreshold = { totalDistance -> totalDistance * SWIPE_TO_DELETE_THRESHOLD }
+        )
+    }
     SwipeToDismissBox(
         state = state,
         modifier = modifier,
