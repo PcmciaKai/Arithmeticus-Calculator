@@ -859,9 +859,12 @@ private fun KeyButton(
         modifier = Modifier
             .size(width = finalWidth, height = buttonWidth)
             .onGloballyPositioned { keyLeftInWindow = it.positionInWindow().x }
+            // Before the background, so that the whole key (not only its label) is dimmed; always in the chain, so that
+            // a key that gets enabled again keeps its shading
+            .alpha(if (enabled) 1f else DISABLED_KEY_ALPHA)
             .clip(RoundedCornerShape(16.dp))
             .background(defaultBg)
-            .then(if (enabled) touchFeedback.then(gestureModifier) else Modifier.alpha(DISABLED_KEY_ALPHA)),
+            .then(if (enabled) touchFeedback.then(gestureModifier) else Modifier),
         contentAlignment = Alignment.Center
     ) {
         if (content != null) {
