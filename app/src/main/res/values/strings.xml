@@ -377,6 +377,10 @@
     <string name="formula_totient_desc">totient(n): how many of 1…n have no common factor with n. For whole numbers; one with only very large prime factors can take too long</string>
     <string name="formula_factor_name">Prime factorization</string>
     <string name="formula_factor_desc">factor(n): n as a product of prime powers, e.g. 360 = 2³ × 3² × 5. Shown as a product when factor(n) is the whole line. Numbers with only large prime factors can take too long. Decimal, Hex etc. show the number itself</string>
+    <string name="formula_expand_name">Expand</string>
+    <string name="formula_expand_desc">expand(e): products and powers of sums multiplied out, e.g. (x + 1)² = x² + 2x + 1</string>
+    <string name="formula_apart_name">Partial fractions</string>
+    <string name="formula_apart_desc">apart(e): a fraction of polynomials as a polynomial plus partial fractions, e.g. 1/(x² − 1) = ½/(x − 1) − ½/(x + 1). The denominator must split into factors x − r with rational r, and at most one quadratic without rational roots (x² + 1). One variable</string>
     <string name="formula_modpow_name">Modular power</string>
     <string name="formula_modpow_desc">modpow(b, e, m): bᵉ mod m without working out the huge power. A negative e needs b to have an inverse modulo m</string>
     <string name="formula_hypot_name">Hypotenuse</string>
@@ -472,6 +476,7 @@
     <string name="category_random">Random numbers</string>
     <string name="category_vectors">Vectors</string>
     <string name="category_bitwise">Bitwise</string>
+    <string name="category_algebra">Algebra</string>
     <string name="formula_and_name">AND</string>
     <string name="formula_and_desc">Bits set in both whole numbers: and(12, 10) = 8</string>
     <string name="formula_or_name">OR</string>

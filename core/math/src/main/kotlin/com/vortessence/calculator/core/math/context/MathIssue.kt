@@ -40,7 +40,8 @@ enum class MathIssue(private val text: Text) {
     ARGUMENT_COUNT(Text.ARGUMENT_COUNT),
     WHOLE_NUMBERS_ONLY(Text.WHOLE_NUMBERS_ONLY),
     VECTOR_EXPECTED(Text.VECTOR_EXPECTED),
-    CROSS_NEEDS_THREE(Text.CROSS_NEEDS_THREE);
+    CROSS_NEEDS_THREE(Text.CROSS_NEEDS_THREE),
+    CANT_DECOMPOSE(Text.CANT_DECOMPOSE);
 
     /** What went wrong, in the language of the calculation that is running (English where none is). */
     val userMessage: String get() = Texts.get(text)

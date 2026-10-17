@@ -117,6 +117,10 @@ enum class NamedFunctionKind(val functionName: String, val minArguments: Int, va
     TOTIENT("totient", 1, 1),
     /** factor(n): n as a product of prime powers, e.g. 360 = 2³·3²·5 (the number itself in calculations). */
     FACTOR("factor", 1, 1),
+    /** expand(e): products and powers of sums multiplied out, (x + 1)² = x² + 2x + 1. */
+    EXPAND("expand", 1, 1),
+    /** apart(e) or apart(e, x): a fraction of polynomials as a polynomial plus partial fractions, 1/(x² − 1) = ½/(x − 1) − ½/(x + 1). */
+    APART("apart", 1, 2),
     /** modpow(b, e, m): bᵉ mod m for m > 0, worked out without the huge power; a negative e needs b to have an inverse mod m. */
     MODPOW("modpow", 3, 3),
     /** √(a² + b² + ...), the length of the vector (a, b, ...). */
@@ -190,6 +194,7 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
         }
         // Only some are meaningful for complex numbers
         if (kind !in COMPLEX_KINDS && args.any { it.containsImaginaryUnit() }) return fail(context, MathIssue.UNDEFINED)
+        if (kind == NamedFunctionKind.EXPAND || kind == NamedFunctionKind.APART) return rewrite(args, context)
         arithmetic(args, context)?.let { return it }
         if (args.any { it.variables().isNotEmpty() }) return NamedFunction(kind, args)
 
@@ -265,6 +270,33 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
             NamedFunctionKind.SUM, NamedFunctionKind.PROD, NamedFunctionKind.SUMSQ, NamedFunctionKind.HYPOT, NamedFunctionKind.BETA,
             NamedFunctionKind.NORMALPDF, NamedFunctionKind.NORMALCDF, NamedFunctionKind.NORMALINV, NamedFunctionKind.TPDF, NamedFunctionKind.RE, NamedFunctionKind.IM, NamedFunctionKind.CONJ -> return this
         }.canonicalize(context)
+    }
+
+    /**
+     * expand and apart: the same function in another form. expand gives the expression multiplied out; apart leaves it as it
+     * is (canonical form would put the fractions together again), see [partialFractions] for how it is written.
+     */
+    private fun rewrite(args: List<Expression>, context: MathContext): Expression {
+        if (args.any { it.containsUnit() }) return fail(context, MathIssue.INVALID_UNIT)
+        val body = args[0]
+        if (kind == NamedFunctionKind.EXPAND) {
+            val expanded = expandProducts(body).canonicalize(context)
+            return if (context.shouldStop) this else expanded
+        }
+        if (body.variables().isEmpty()) return body
+        if (partialFractions(body, context) == null) return fail(context, MathIssue.CANT_DECOMPOSE)
+        return body
+    }
+
+    /** The variable apart works on: the second argument, or the only variable of [body]. */
+    internal fun apartVariable(body: Expression): Variable? =
+        if (arguments.size == 2) arguments[1] as? Variable else body.variables().singleOrNull()
+
+    /** For apart, [body] (the canonical argument) as a polynomial plus partial fractions; null if it has none. */
+    internal fun partialFractions(body: Expression, context: MathContext): Expression? {
+        val variable = apartVariable(body) ?: return null
+        if (body.variables() != setOf(variable)) return null
+        return PartialFractions.apart(body, variable, context)
     }
 
     private fun fail(context: MathContext, issue: MathIssue): Expression {

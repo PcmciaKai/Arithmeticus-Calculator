@@ -70,6 +70,7 @@ import com.vortessence.calculator.core.math.steps.MatrixSteps
 import com.vortessence.calculator.core.math.steps.TextExpression
 import com.vortessence.calculator.core.math.steps.Alternatives
 import com.vortessence.calculator.core.math.steps.AbsoluteSplitSteps
+import com.vortessence.calculator.core.math.steps.RewriteSteps
 import com.vortessence.calculator.core.math.steps.Transform
 import com.vortessence.calculator.core.math.steps.Transforms
 import com.vortessence.calculator.core.math.steps.SystemSteps
@@ -266,8 +267,13 @@ object MathEngine {
         val display = displayWriter(ctx)
         val issues = ctx.issues
         // Symbolic results are shown in a compact form; numbers and quantities as they are
-        val compact = if (definition == null && parsed is NamedFunction && parsed.kind == NamedFunctionKind.FACTOR) {
-            primeProduct(simplified, ctx) ?: return failure(input, ctx, if (ctx.shouldStop) MathIssue.TIMEOUT else MathIssue.VALUES_TOO_LARGE, simplified)
+        val compact = if (definition == null && parsed is NamedFunction) when (parsed.kind) {
+            NamedFunctionKind.FACTOR ->
+                primeProduct(simplified, ctx) ?: return failure(input, ctx, if (ctx.shouldStop) MathIssue.TIMEOUT else MathIssue.VALUES_TOO_LARGE, simplified)
+            // Multiplied out as it is, not tidied back into factors
+            NamedFunctionKind.EXPAND -> simplified
+            NamedFunctionKind.APART -> parsed.partialFractions(simplified, ctx) ?: simplified
+            else -> displayForm(simplified, ctx)
         } else {
             displayForm(simplified, ctx)
         }
@@ -328,7 +334,7 @@ object MathEngine {
                     is EquationSystem -> SystemSteps.steps(parsed, execContext)
                     is Inequality -> InequalitySteps.steps(parsed, execContext)
                     is Equals -> VectorLineSteps.steps(parsed, execContext) ?: parsed.variables().takeIf { it.isNotEmpty() }?.let { vars -> pickVariable(vars).let { v -> EquationSteps.steps(parsed, v, execContext) ?: AbsoluteSplitSteps.steps(parsed, v, execContext) } }
-                    else -> VectorSteps.steps(parsed, execContext) ?: MatrixSteps.steps(parsed, execContext) ?: DistributionSteps.steps(parsed, execContext) ?: ExpressionSteps.steps(parsed, execContext) ?: ArithmeticSteps.steps(asTyped, execContext)
+                    else -> VectorSteps.steps(parsed, execContext) ?: MatrixSteps.steps(parsed, execContext) ?: DistributionSteps.steps(parsed, execContext) ?: RewriteSteps.steps(parsed, execContext) ?: ExpressionSteps.steps(parsed, execContext) ?: ArithmeticSteps.steps(asTyped, execContext)
                 }
                 if (solution == null || execContext.shouldStop || execContext.issues.isNotEmpty()) return@steps null
                 val display = displayWriter(execContext)

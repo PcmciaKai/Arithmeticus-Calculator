@@ -40,6 +40,7 @@ enum class Text(val en: String, val de: String) {
     INVALID_BOUNDS("Bounds must be whole numbers", "Die Grenzen müssen ganze Zahlen sein"),
     ARGUMENT_COUNT("Wrong number of values for this function", "Falsche Anzahl an Werten für diese Funktion"),
     WHOLE_NUMBERS_ONLY("Only defined for whole numbers", "Nur für ganze Zahlen definiert"),
+    CANT_DECOMPOSE("Cannot split this into partial fractions", "Dies kann nicht in Partialbrüche zerlegt werden"),
     VECTOR_EXPECTED("Needs a vector (a matrix of one row or one column)", "Ein Vektor wird benötigt (eine Matrix mit einer Zeile oder Spalte)"),
     CROSS_NEEDS_THREE("The cross product needs vectors with 3 components", "Das Kreuzprodukt benötigt Vektoren mit 3 Komponenten"),
     CALCULATION_ERROR("Calculation Error", "Berechnungsfehler"),

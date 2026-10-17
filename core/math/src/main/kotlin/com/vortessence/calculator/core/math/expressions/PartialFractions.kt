@@ -15,6 +15,9 @@ internal object PartialFractions {
     /** A·(x − [root])^−[power] */
     class Term(val coefficient: Rational, val root: Rational, val power: Int)
 
+    /** (B·x + C)/[polynomial], the polynomial being a monic quadratic without a rational root: x² + 1. */
+    class Quadratic(val polynomial: List<Rational>, val slope: Rational, val offset: Rational)
+
     class Decomposition(
         /** The denominator's roots with their multiplicities, in increasing order. */
         val roots: List<Pair<Rational, Int>>,
@@ -25,17 +28,38 @@ internal object PartialFractions {
         /** What is left of that division, of a lower degree than the denominator. */
         val remainder: List<Rational>,
         /** The fractions, by root and power. */
-        val terms: List<Term>
+        val terms: List<Term>,
+        /** The fraction over an irreducible quadratic factor, if the denominator has one (see [decomposeOverRationals]). */
+        val quadratic: Quadratic? = null
     ) {
         /** quotient + Σ A/(x − r)ᵏ as an expression in [v]. */
         fun toExpression(v: Variable): Expression {
             val polynomialTerms = quotient.mapIndexedNotNull { k, c ->
                 if (c.isZero) null else Multiplications.of(Value(c), if (k == 0) Value.ONE else if (k == 1) v else Power(v, Value(k.toLong())))
             }
-            val fractionTerms = terms.map { term(it, v) }
+            val fractionTerms = terms.map { term(it, v) } + listOfNotNull(quadratic?.let { term(it, v) })
             val all = polynomialTerms + fractionTerms
             return if (all.size == 1) all.single() else Additions(all)
         }
+
+        /**
+         * The polynomial part (highest power first) and then the fractions, as the sum is written for apart; not canonical
+         * (canonicalizing would multiply (Bx + C)/(x² + 1) out again), so only to be written.
+         */
+        fun toSum(v: Variable): Expression {
+            val polynomial = if (quotient.isEmpty()) emptyList() else {
+                val p = toExpression(quotient, v)
+                if (p is Additions) p.operands else listOf(p)
+            }
+            // In the order of the factors as they are written, (x − 1) before (x + 1)
+            val ordered = terms.sortedWith(compareByDescending<Term> { it.root }.thenBy { it.power })
+            val all = polynomial + ordered.map { term(it, v) } + listOfNotNull(quadratic?.let { term(it, v) })
+            return if (all.isEmpty()) Value.ZERO else if (all.size == 1) all.single() else Additions(all)
+        }
+
+        /** (B·x + C)/(x² + px + q) */
+        fun term(q: Quadratic, v: Variable): Expression =
+            Multiplications.of(toExpression(listOf(q.offset, q.slope), v), Power(toExpression(q.polynomial, v), Value.MINUS_ONE))
 
         /** A/(x − r)ᵏ */
         fun term(t: Term, v: Variable): Expression {
@@ -75,16 +99,24 @@ internal object PartialFractions {
     }
 
     /** [numerator]/[denominator] decomposed; null if the denominator does not split into linear factors. */
-    fun decompose(numerator: List<Rational>, denominator: List<Rational>): Decomposition? {
+    fun decompose(numerator: List<Rational>, denominator: List<Rational>): Decomposition? = decompose(numerator, denominator, false)
+
+    /**
+     * Like [decompose], also for a denominator of degree 1 and with one factor that is a quadratic without a rational root
+     * (x(x² + 1) or x² − 2): the fraction over it has a numerator B·x + C.
+     */
+    fun decomposeOverRationals(numerator: List<Rational>, denominator: List<Rational>): Decomposition? = decompose(numerator, denominator, true)
+
+    private fun decompose(numerator: List<Rational>, denominator: List<Rational>, quadraticAllowed: Boolean): Decomposition? {
         val d = denominator.size - 1
-        if (d < 2 || d > MAX_DEGREE) return null
+        if (d < (if (quadraticAllowed) 1 else 2) || d > MAX_DEGREE) return null
         val (quotient, remainder) = divide(numerator, denominator)
 
         // Q = a·Π(x − r)^m
         var rest = denominator
         val roots = mutableListOf<Pair<Rational, Int>>()
         while (rest.size - 1 > 0) {
-            val root = rationalRoot(rest) ?: return null
+            val root = rationalRoot(rest) ?: if (quadraticAllowed) break else return null
             var multiplicity = 0
             while (rest.size - 1 > 0 && value(rest, root).isZero) {
                 rest = divideByLinear(rest, root)
@@ -92,24 +124,98 @@ internal object PartialFractions {
             }
             roots.add(root to multiplicity)
         }
-        val leading = rest.single()
+        // What is left is a constant, or a quadratic that does not split
+        val leading = rest.last()
+        val quadraticFactor = if (rest.size == 3) rest.map { it / leading }.takeIf { isIrreducible(it) } ?: return null else if (rest.size == 1) null else return null
         roots.sortBy { it.first }
 
         // R/a = Σ A_ik · Π(x − r_j)^m_j / (x − r_i)^k, solved for the A_ik coefficient by coefficient
         val unknowns = roots.flatMap { (root, m) -> (1..m).map { root to it } }
         val columns = unknowns.map { (root, k) ->
-            var product = listOf(Rational.ONE)
+            var product = quadraticFactor ?: listOf(Rational.ONE)
             for ((other, m) in roots) {
                 val power = if (other == root) m - k else m
                 repeat(power) { product = multiply(product, listOf(-other, Rational.ONE)) }
             }
             product
+        } + if (quadraticFactor == null) emptyList() else {
+            // (Bx + C)/R times Q/a: B·x·Π(x − r)^m and C·Π(x − r)^m
+            var linears = listOf(Rational.ONE)
+            for ((other, m) in roots) repeat(m) { linears = multiply(linears, listOf(-other, Rational.ONE)) }
+            listOf(multiply(linears, listOf(Rational.ZERO, Rational.ONE)), linears)
         }
         val matrix = List(d) { row -> columns.map { it.getOrElse(row) { Rational.ZERO } } }
         val right = List(d) { row -> remainder.getOrElse(row) { Rational.ZERO } / leading }
         val solved = solve(matrix, right) ?: return null
         val terms = unknowns.mapIndexed { i, (root, k) -> Term(solved[i], root, k) }.filter { !it.coefficient.isZero }
-        return Decomposition(roots, leading, quotient, remainder, terms)
+        val quadratic = quadraticFactor?.let { Quadratic(it, solved[unknowns.size], solved[unknowns.size + 1]) }?.takeIf { !it.slope.isZero || !it.offset.isZero }
+        return Decomposition(roots, leading, quotient, remainder, terms, quadratic)
+    }
+
+    /** Whether the monic quadratic [p] has no rational root: its discriminant is not the square of a rational number. */
+    private fun isIrreducible(p: List<Rational>): Boolean {
+        val discriminant = p[1] * p[1] - p[0] * 4L
+        if (discriminant.isNegative) return true
+        fun isSquare(n: BigInt): Boolean {
+            if (n.value.bitLength() > 52) return false
+            val root = Math.round(Math.sqrt(n.value.toDouble()))
+            return root * root == n.value.toLong()
+        }
+        return !(isSquare(discriminant.numerator) && isSquare(discriminant.denominator))
+    }
+
+    /**
+     * [e] written as a polynomial plus partial fractions, for a rational function of [v] whose denominator splits into
+     * linear factors and at most one quadratic without a rational root; null for anything else. The sum is not canonical.
+     */
+    fun apart(e: Expression, v: Variable, context: MathContext): Expression? {
+        val (numerator, denominator) = fraction(e, v, context) ?: return null
+        if (denominator.size == 1) return toExpression(numerator.map { it / denominator.single() }, v)
+        return decomposeOverRationals(numerator, denominator)?.toSum(v)
+    }
+
+    /** [e] as numerator and denominator, polynomials in [v] reduced to lowest terms; null if [e] is not a rational function of [v]. */
+    fun fraction(e: Expression, v: Variable, context: MathContext): Pair<List<Rational>, List<Rational>>? {
+        val (numerator, denominator) = parts(e, v, context) ?: return null
+        return reduce(numerator, denominator)
+    }
+
+    private fun reduce(numerator: List<Rational>, denominator: List<Rational>): Pair<List<Rational>, List<Rational>>? {
+        val d = trim(denominator)
+        if (d.isEmpty()) return null
+        val g = gcd(numerator, d)
+        if (g.size < 2) return trim(numerator) to d
+        return divide(numerator, g).first to divide(d, g).first
+    }
+
+    private fun times(a: List<Rational>, b: List<Rational>): List<Rational> = if (a.isEmpty() || b.isEmpty()) emptyList() else multiply(a, b)
+
+    private fun plus(a: List<Rational>, b: List<Rational>): List<Rational> =
+        trim(List(maxOf(a.size, b.size)) { a.getOrElse(it) { Rational.ZERO } + b.getOrElse(it) { Rational.ZERO } })
+
+    private fun parts(e: Expression, v: Variable, context: MathContext): Pair<List<Rational>, List<Rational>>? {
+        polynomial(e, v, context)?.let { return it to listOf(Rational.ONE) }
+        return when (e) {
+            is Additions -> e.operands.fold(emptyList<Rational>() to listOf(Rational.ONE)) { (n, d), operand ->
+                val (on, od) = parts(operand, v, context) ?: return null
+                reduce(plus(times(n, od), times(on, d)), times(d, od)) ?: return null
+            }
+            is Multiplications -> e.operands.fold(listOf(Rational.ONE) to listOf(Rational.ONE)) { (n, d), operand ->
+                val (on, od) = parts(operand, v, context) ?: return null
+                reduce(times(n, on), times(d, od)) ?: return null
+            }
+            is Power -> {
+                val k = (e.exponent as? Value)?.rational?.takeIf { !it.isFractional && it.numerator.value.bitLength() < 5 }?.numerator?.value?.toInt() ?: return null
+                val (n, d) = parts(e.base, v, context) ?: return null
+                var powerN = listOf(Rational.ONE)
+                var powerD = listOf(Rational.ONE)
+                repeat(kotlin.math.abs(k)) { powerN = times(powerN, n); powerD = times(powerD, d) }
+                if (powerD.size > MAX_DEGREE * 2 + 1 || powerN.size > MAX_DEGREE * 2 + 1) return null
+                // A negative power turns the fraction over, which needs a numerator that is not zero
+                if (k >= 0) powerN to powerD else if (powerN.isEmpty()) null else powerD to powerN
+            }
+            else -> null
+        }
     }
 
     // ----- polynomials with rational coefficients -----
