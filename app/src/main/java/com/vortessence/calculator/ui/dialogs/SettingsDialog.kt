@@ -15,7 +15,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.vortessence.calculator.core.math.context.AngleUnit
 import com.vortessence.calculator.core.math.context.UnitSystem
 import com.vortessence.calculator.R
 import com.vortessence.calculator.i18n.LanguageChoice
@@ -24,7 +23,6 @@ import java.util.Locale
 
 @Composable
 fun SettingsDialog(
-    angleUnit: AngleUnit,
     unitSystem: UnitSystem,
     decimalPlaces: Int?,
     digitGrouping: Boolean,
@@ -32,7 +30,6 @@ fun SettingsDialog(
     complexNumbers: Boolean,
     themeMode: ThemeMode,
     languageChoice: LanguageChoice,
-    onToggleAngleUnit: () -> Unit,
     onUnitSystemChange: (UnitSystem) -> Unit,
     onDecimalPlacesChange: (Int?) -> Unit,
     onDigitGroupingChange: (Boolean) -> Unit,
@@ -62,29 +59,6 @@ fun SettingsDialog(
                     .padding(vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Angle Unit
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(stringResource(R.string.settings_angle_unit), fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                        Text(
-                            stringResource(if (angleUnit == AngleUnit.RADIANS) R.string.settings_radians else R.string.settings_degrees),
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    FilterChip(
-                        selected = angleUnit == AngleUnit.RADIANS,
-                        onClick = onToggleAngleUnit,
-                        label = { Text(stringResource(if (angleUnit == AngleUnit.RADIANS) R.string.settings_radians_short else R.string.settings_degrees_short)) }
-                    )
-                }
-
-                HorizontalDivider()
-
                 // Complex numbers
                 Row(
                     modifier = Modifier.fillMaxWidth(),

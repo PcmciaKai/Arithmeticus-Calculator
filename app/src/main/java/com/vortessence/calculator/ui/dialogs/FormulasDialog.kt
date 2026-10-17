@@ -15,12 +15,13 @@ import androidx.compose.ui.unit.sp
 import com.vortessence.calculator.core.math.type.MathString
 import com.vortessence.calculator.model.formulas.Formula
 import com.vortessence.calculator.model.formulas.FormulasDb
+import com.vortessence.calculator.ui.math.DecimalMark
 import com.vortessence.calculator.ui.math.MathExpressionView
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.vortessence.calculator.R
 
-/** Picker for ready-made formulas (statistics, combinatorics, ...), grouped by category. */
+/** Picker for ready-made functions (statistics, combinatorics, ...), grouped by category. */
 @Composable
 fun FormulasDialog(
     onDismiss: () -> Unit,
@@ -55,6 +56,15 @@ fun FormulasDialog(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
+                    // The one thing every function of several values needs
+                    item(key = "hint") {
+                        Text(
+                            text = stringResource(R.string.formulas_hint, DecimalMark.argumentSeparator.trim()),
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                        )
+                    }
                     grouped.forEach { (category, formulas) ->
                         item(key = category) {
                             Text(

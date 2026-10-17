@@ -74,6 +74,7 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 import androidx.compose.ui.res.stringResource
 import com.vortessence.calculator.R
+import com.vortessence.calculator.core.math.context.AngleUnit
 import com.vortessence.calculator.core.math.type.MathString
 import com.vortessence.calculator.model.formulas.FormulasDb
 import com.vortessence.calculator.viewmodel.InputMode
@@ -82,7 +83,7 @@ sealed class KeyAction {
     data class Number(val digit: String) : KeyAction()
     data class Operator(val opSymbol: String) : KeyAction()
     data class Function(val name: String) : KeyAction()
-    /** A ready-made expression (see the formula picker) put in at the cursor, which goes to its first empty slot: dot(▢, ▢). */
+    /** A ready-made expression (see the function picker) put in at the cursor, which goes to its first empty slot: dot(▢, ▢). */
     data class Insert(val template: MathString) : KeyAction()
     data class Variable(val name: String) : KeyAction()
     data class Constant(val symbol: String) : KeyAction()
@@ -92,7 +93,6 @@ sealed class KeyAction {
     /** A plus or minus as the superscript of the number before it: 0⁺ and 0⁻, the side of a limit. */
     data class SuperscriptSign(val plus: Boolean) : KeyAction()
     data object Parentheses : KeyAction()
-    data object Fraction : KeyAction()
     /** A mixed number such as 3½ (whole part and fraction). */
     data object MixedFraction : KeyAction()
     /** Division as an inline "÷" operator instead of a fraction. */
@@ -106,8 +106,6 @@ sealed class KeyAction {
     data object LeftParen : KeyAction()
     data object RightParen : KeyAction()
     data object Backspace : KeyAction()
-    data object ClearLine : KeyAction()
-    data object ClearAll : KeyAction()
     /** Clears the line, or everything (line and history) if the line is already empty. */
     data object Clear : KeyAction()
     /** Inserts the unit conversion operator "→". */
@@ -117,12 +115,14 @@ sealed class KeyAction {
     /** Starts a new line, e.g. for the next equation of a system. */
     data object NewLine : KeyAction()
     data object Ans : KeyAction()
+    /** Switches between radians and degrees. */
     data object ToggleAngleUnit : KeyAction()
+    /** Cursor keys: the arrow keys of a physical keyboard. */
     data object MoveLeft : KeyAction()
     data object MoveRight : KeyAction()
     data object OpenUnits : KeyAction()
     data object OpenConstants : KeyAction()
-    /** Opens the formula picker (statistics, combinatorics, rounding, ...). */
+    /** Opens the function picker (statistics, combinatorics, rounding, ...). */
     data object OpenFormulas : KeyAction()
     /** The comma between the values of a function with several arguments, e.g. mean(2, 4, 9). */
     data object Separator : KeyAction()
@@ -184,6 +184,7 @@ fun CalculatorKeypad(
     isLineEmpty: Boolean = true,
     inputMode: InputMode = InputMode.DECIMAL,
     onInputModeChange: (InputMode) -> Unit = {},
+    angleUnit: AngleUnit = AngleUnit.RADIANS,
     onKeyAction: (KeyAction) -> Unit
 ) {
     val coroutineScope = rememberCoroutineScope()
@@ -280,25 +281,19 @@ fun CalculatorKeypad(
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             // Page indicator dots
-            Box(modifier = Modifier.fillMaxWidth()) {
+            Box(modifier = Modifier.fillMaxWidth().height(INDICATOR_ROW_HEIGHT)) {
                 Row(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 2.dp)
+                    modifier = Modifier.fillMaxSize()
                 ) {
                     for (page in 0 until 3) {
                         val isSelected = currentPage == page
+                        // The dot is small, the area that takes the tap around it is not
                         Box(
                             modifier = Modifier
-                                .padding(horizontal = 4.dp)
-                                .size(if (isSelected) 7.dp else 5.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
-                                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f)
-                                )
+                                .fillMaxHeight()
+                                .width(PAGE_DOT_TOUCH_WIDTH)
                                 .clickable {
                                     val target = when (page) {
                                         0 -> 0
@@ -309,9 +304,30 @@ fun CalculatorKeypad(
                                     coroutineScope.launch {
                                         scrollState.animateScrollTo(target)
                                     }
-                                }
-                        )
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(if (isSelected) 7.dp else 5.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
+                                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f)
+                                    )
+                            )
+                        }
                     }
+                }
+                // The unit of the angles of sin, cos and tan; the programmer pages have no use for it
+                if (!programmer) {
+                    val angleName = stringResource(if (angleUnit == AngleUnit.RADIANS) R.string.settings_radians else R.string.settings_degrees)
+                    KeyChip(
+                        text = stringResource(if (angleUnit == AngleUnit.RADIANS) R.string.settings_radians_short else R.string.settings_degrees_short),
+                        description = "${stringResource(R.string.settings_angle_unit)}: $angleName",
+                        modifier = Modifier.align(Alignment.CenterStart),
+                        onClick = { onKeyAction(KeyAction.ToggleAngleUnit) }
+                    )
                 }
                 // The mode of the keypad: the decimal keys, or the programmer keys for numbers in a base
                 InputModeChip(inputMode, onInputModeChange, Modifier.align(Alignment.CenterEnd))
@@ -411,6 +427,7 @@ fun CalculatorKeypad(
                                 alt("cross", KeyAction.Insert(FormulasDb.ofTwo("cross"))),
                                 alt("norm", KeyAction.Function("norm")),
                                 alt("angle", KeyAction.Insert(FormulasDb.ofTwo("angle"))),
+                                alt("proj", KeyAction.Insert(FormulasDb.ofTwo("proj"))),
                                 alt("unitvec", KeyAction.Function("unitvec"))
                             ),
                             popupIcon = MatrixIcon,
@@ -504,7 +521,7 @@ fun CalculatorKeypad(
                     ) { onKeyAction(KeyAction.OpenUnits) }
                     KeyButton(
                         buttonWidth = buttonWidth,
-                        content = { IconLabel(Icons.AutoMirrored.Filled.MenuBook, stringResource(R.string.keypad_formulas), stringResource(R.string.keypad_formulas)) }
+                        content = { IconLabel(Icons.AutoMirrored.Filled.MenuBook, stringResource(R.string.keypad_formulas_short), stringResource(R.string.keypad_formulas)) }
                     ) { onKeyAction(KeyAction.OpenFormulas) }
                 }
 
@@ -668,29 +685,59 @@ fun CalculatorKeypad(
     }
 }
 
+/** The height of the row of the page dots and the chips; the taps on them are wider and as high as this. */
+private val INDICATOR_ROW_HEIGHT = 24.dp
+
+/** The width of the area that takes the tap on a page dot. */
+private val PAGE_DOT_TOUCH_WIDTH = 24.dp
+
 /**
- * The mode of the keypad (DEC, HEX, OCT, BIN) as a small chip that opens a menu with the modes. Thin on purpose: it shares
- * the row of the page dots, which should stay about as high as it was.
+ * A small label in the row of the page dots (the angle unit, the mode of the keypad). It looks small, but the area that
+ * takes the tap is as high as the row and at least 48dp wide.
  */
+@Composable
+private fun KeyChip(
+    text: String,
+    description: String,
+    modifier: Modifier = Modifier,
+    highlighted: Boolean = false,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .height(INDICATOR_ROW_HEIGHT)
+            .widthIn(min = 48.dp)
+            .clickable(onClick = onClick)
+            .semantics { contentDescription = description },
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            shape = RoundedCornerShape(6.dp),
+            color = if (highlighted) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        ) {
+            Text(
+                text = text,
+                fontSize = 10.sp,
+                lineHeight = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+            )
+        }
+    }
+}
+
+/** The mode of the keypad (DEC, HEX, OCT, BIN) as a chip that opens a menu with the modes. */
 @Composable
 private fun InputModeChip(mode: InputMode, onChange: (InputMode) -> Unit, modifier: Modifier = Modifier) {
     var expanded by remember { mutableStateOf(false) }
-    val description = "${stringResource(R.string.keypad_number_base)}: ${mode.label}"
     Box(modifier = modifier) {
-        Surface(
-            modifier = Modifier.clickable { expanded = true }.semantics { contentDescription = description },
-            shape = RoundedCornerShape(6.dp),
-            color = if (mode.programmer) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        ) {
-            Text(
-                text = "${mode.label} ▾",
-                fontSize = 9.sp,
-                lineHeight = 9.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
-            )
-        }
+        KeyChip(
+            text = "${mode.label} ▾",
+            description = "${stringResource(R.string.keypad_number_base)}: ${mode.label}",
+            highlighted = mode.programmer,
+            onClick = { expanded = true }
+        )
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             InputMode.entries.forEach { option ->
                 DropdownMenuItem(

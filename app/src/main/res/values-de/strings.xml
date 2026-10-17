@@ -38,7 +38,7 @@
     <string name="settings_units_imperial">Imperial: ft, lb, gal, psi, …</string>
     <string name="settings_units_us">US: ft, lb, US-Gallone, psi, …</string>
     <string name="formula_mean_name">Mittelwert x̄</string>
-    <string name="formula_mean_desc">Durchschnitt der Werte. Werte durch Kommas getrennt (. lange drücken für ein Komma)</string>
+    <string name="formula_mean_desc">Durchschnitt der Werte</string>
     <string name="formula_median_name">Median</string>
     <string name="formula_median_desc">Mittlerer Wert der sortierten Werte; bei gerader Anzahl der Mittelwert der beiden mittleren</string>
     <string name="formula_stdev_name">Standardabweichung s (Stichprobe)</string>
@@ -76,9 +76,11 @@
     <string name="formula_range_name">Spannweite</string>
     <string name="formula_range_desc">Größter Wert minus kleinster Wert</string>
     <string name="formula_sum_name">Summe</string>
-    <string name="formula_sum_desc">Summe der Werte</string>
+    <string name="formula_sum_desc">Addiert die angegebenen Werte: sum(2, 4, 9) = 15. Für eine Reihe mit einem Index zwischen einer unteren und einer oberen Grenze die Σ-Taste verwenden</string>
     <string name="formula_prod_name">Produkt</string>
-    <string name="formula_prod_desc">Produkt der Werte</string>
+    <string name="formula_prod_desc">Multipliziert die angegebenen Werte: prod(2, 4, 9) = 72. Für eine Reihe mit einem Index zwischen einer unteren und einer oberen Grenze die ∏-Taste verwenden (Σ lange drücken)</string>
+    <string name="formula_sumsq_name">Quadratsumme</string>
+    <string name="formula_sumsq_desc">Die Quadrate der Werte addiert: sumsq(1, 2, 3) = 14</string>
     <string name="formula_percentile_name">Perzentil</string>
     <string name="formula_percentile_desc">percentile(p, Werte…): Wert, unter dem p Prozent (0 bis 100) der Daten liegen, zwischen Nachbarn interpoliert</string>
     <string name="formula_quartile_name">Quartil</string>
@@ -103,6 +105,8 @@
     <string name="formula_factor_desc">factor(n): n als Produkt von Primzahlpotenzen, z. B. 360 = 2³ × 3² × 5. Als Produkt gezeigt, wenn factor(n) die ganze Zeile ist. Zahlen mit nur großen Primfaktoren können zu lange dauern. Dezimal, Hex usw. zeigen die Zahl selbst</string>
     <string name="formula_modpow_name">Modulare Potenz</string>
     <string name="formula_modpow_desc">modpow(b, e, m): bᵉ mod m, ohne die riesige Potenz zu berechnen. Ein negatives e braucht ein b, das modulo m ein Inverses hat</string>
+    <string name="formula_hypot_name">Hypotenuse</string>
+    <string name="formula_hypot_desc">√(a² + b² + …): hypot(3, 4) = 5. Länge der Hypotenuse eines rechtwinkligen Dreiecks; für die Länge eines Vektors norm verwenden</string>
     <string name="formula_trunc_name">Abschneiden</string>
     <string name="formula_trunc_desc">Schneidet die Nachkommastellen ab (Runden Richtung null); trunc(x, n) behält n Stellen</string>
     <string name="formula_frac_name">Nachkommaanteil</string>
@@ -207,7 +211,8 @@
     <string name="formula_shr_name">Rechtsschieben</string>
     <string name="formula_shr_desc">⌊n/2ᵏ⌋: shr(16, 2) = 4 (auch n &gt;&gt; k)</string>
     <string name="keypad_matrix">Matrix oder Vektor</string>
-    <string name="formulas_title">Formeln</string>
+    <string name="formulas_title">Funktionen</string>
+    <string name="formulas_hint">Mehrere Werte werden durch „%1$s“ getrennt: dafür die Dezimaltaste lange drücken</string>
     <string name="formulas_search">Suchen (Abweichung, runden, nCr)...</string>
     <string name="constant_category_math">Mathematisch</string>
     <string name="constant_category_physics">Physik</string>
@@ -278,7 +283,8 @@
     <string name="history_delete">Löschen</string>
     <string name="keypad_backspace">Rückschritt</string>
     <string name="keypad_units">Einheiten</string>
-    <string name="keypad_formulas">Formeln</string>
+    <string name="keypad_formulas">Funktionen</string>
+    <string name="keypad_formulas_short">Fkt.</string>
     <string name="keypad_constants">Konstanten</string>
     <string name="keypad_constants_short">Konst.</string>
     <string name="keypad_graph">Graph</string>

@@ -3,6 +3,7 @@ package com.vortessence.calculator
 import com.vortessence.calculator.core.math.MathEngine
 import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.context.MathIssue
+import com.vortessence.calculator.core.math.expressions.NamedFunctionKind
 import com.vortessence.calculator.core.math.type.FunctionNames
 import com.vortessence.calculator.core.math.type.FunctionNode
 import com.vortessence.calculator.core.math.type.MathNode
@@ -47,7 +48,8 @@ class FormulasDbTest {
     @Test
     fun everyEntryCanBeTypedExceptWhereTheNameStartsWithI() {
         for (formula in FormulasDb.items) {
-            val name = name(formula)
+            // Some are inserted as symbols (Γ for gamma); what can be typed is the name
+            val name = FunctionNames.symbols.entries.firstOrNull { it.value == name(formula) }?.key ?: name(formula)
             val typed = FunctionNames.endingWord(name)
             if (name.startsWith("i")) {
                 // The typed i is refused as the imaginary unit: these are only in the picker
@@ -62,5 +64,16 @@ class FormulasDbTest {
     fun noEntryIsListedTwice() {
         val keys = FormulasDb.items.map { name(it) to it.template.nodes.single().toString() }
         assertEquals(keys.size, keys.toSet().size)
+    }
+
+    @Test
+    fun functionsOfAFixedNumberOfValuesShowTheirCommas() {
+        for (formula in FormulasDb.items) {
+            val function = formula.template.nodes.single() as FunctionNode
+            val kind = NamedFunctionKind.byName(function.name) ?: continue
+            if (kind.minArguments != kind.maxArguments || kind.minArguments < 2) continue
+            val commas = function.argument.nodes.count { it == SeparatorNode }
+            assertEquals("${function.name} takes ${kind.minArguments} values", kind.minArguments - 1, commas)
+        }
     }
 }

@@ -87,7 +87,14 @@ import com.vortessence.calculator.viewmodel.VariableHint
 import com.vortessence.calculator.core.math.type.VariableNameProblem
 import com.vortessence.calculator.ui.keypad.KeyAction
 import com.vortessence.calculator.ui.math.TypingInput
+import androidx.compose.foundation.focusable
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import kotlinx.coroutines.launch
@@ -251,8 +258,15 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
     // e.g. after the app was restored). Once it is down the field lets go of the focus: a field that
     // keeps it brings the keyboard back by itself when the app returns from the background.
     val focusManager = LocalFocusManager.current
+    // The screen itself holds the focus otherwise, so that the arrow keys of a physical keyboard reach the cursor
+    val screenFocus = remember { FocusRequester() }
     LaunchedEffect(isTyping) {
-        if (isTyping) runCatching { typingFocus.requestFocus() } else focusManager.clearFocus()
+        if (isTyping) {
+            runCatching { typingFocus.requestFocus() }
+        } else {
+            focusManager.clearFocus()
+            runCatching { screenFocus.requestFocus() }
+        }
     }
     // A keyboard that is lower than the keypad leaves a rest of it showing; once it has arrived that goes
     val keyboardArrived by remember { derivedStateOf { isTyping && imeHeight(ime) >= imeHeight(imeTarget) } }
@@ -272,6 +286,17 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
                 .padding(paddingValues)
                 .consumeWindowInsets(paddingValues)
                 .imePadding()
+                .onPreviewKeyEvent { event ->
+                    val action = when (event.key) {
+                        Key.DirectionLeft -> KeyAction.MoveLeft
+                        Key.DirectionRight -> KeyAction.MoveRight
+                        else -> return@onPreviewKeyEvent false
+                    }
+                    if (event.type == KeyEventType.KeyDown) viewModel.onKeyAction(action)
+                    true
+                }
+                .focusRequester(screenFocus)
+                .focusable()
         ) {
             // History of committed calculations (scrollable, newest at the bottom)
             LazyColumn(
@@ -369,6 +394,7 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
                     isLineEmpty = uiState.expression.isEmpty,
                     inputMode = uiState.inputMode,
                     onInputModeChange = { viewModel.setInputMode(it) },
+                    angleUnit = uiState.angleUnit,
                     onKeyAction = { action ->
                         if (action is KeyAction.FreeVariable) {
                             typingFocus.requestFocus()
@@ -434,7 +460,6 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
     // Settings Dialog
     if (uiState.showSettingsDialog) {
         SettingsDialog(
-            angleUnit = uiState.angleUnit,
             unitSystem = uiState.unitSystem,
             decimalPlaces = uiState.decimalPlaces,
             digitGrouping = uiState.digitGrouping,
@@ -442,7 +467,6 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
             complexNumbers = uiState.complexNumbers,
             themeMode = uiState.themeMode,
             languageChoice = remember(uiState.language, uiState.showSettingsDialog) { AppLanguage.choice(context) },
-            onToggleAngleUnit = { viewModel.toggleAngleUnit() },
             onUnitSystemChange = { viewModel.setUnitSystem(it) },
             onDecimalPlacesChange = { viewModel.setDecimalPlaces(it) },
             onDigitGroupingChange = { viewModel.setDigitGrouping(it) },

@@ -613,7 +613,6 @@ class CalculatorViewModel @JvmOverloads constructor(
             is KeyAction.EE -> insertEE()
             is KeyAction.SuperscriptSign -> insertPower(MathString(listOf(OperatorNode(if (action.plus) MathOp.PLUS else MathOp.MINUS))))
             is KeyAction.Parentheses -> onParenthesesAction()
-            is KeyAction.Fraction -> insertDivision()
             is KeyAction.Power -> insertPower()
             is KeyAction.Square -> insertPower(MathString(listOf(NumberNode("2"))))
             is KeyAction.Reciprocal -> insertPower(MathString(listOf(OperatorNode(MathOp.MINUS), NumberNode("1"))))
@@ -622,8 +621,6 @@ class CalculatorViewModel @JvmOverloads constructor(
             is KeyAction.LeftParen -> insertNode(ParenthesesNode(MathString()))
             is KeyAction.RightParen -> moveCursorRight()
             is KeyAction.Backspace -> deleteAtCursor()
-            is KeyAction.ClearLine -> clearLine()
-            is KeyAction.ClearAll -> clearAll()
             // One key: clears the line, or everything once the line is already empty
             is KeyAction.Clear -> if (_uiState.value.expression.isEmpty) clearAll() else clearLine()
             is KeyAction.Convert -> insertConversion()
@@ -1049,7 +1046,7 @@ class CalculatorViewModel @JvmOverloads constructor(
         typedWord.clear()
         // The nodes of the name's letters are right before the cursor: they give way to the function
         repeat(named.count { it.inserted }) { onKeyAction(KeyAction.Backspace) }
-        onKeyAction(if (name == "sqrt") KeyAction.Sqrt else KeyAction.Function(name))
+        onKeyAction(if (name == "sqrt") KeyAction.Sqrt else KeyAction.Function(FunctionNames.written(name)))
     }
 
     private fun variableOf(node: MathNode): String? = when (node) {

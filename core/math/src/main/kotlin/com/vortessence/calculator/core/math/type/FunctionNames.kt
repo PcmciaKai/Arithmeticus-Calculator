@@ -23,6 +23,17 @@ object FunctionNames {
         ) + NamedFunctionKind.entries.map { it.functionName } + RandomKind.entries.map { it.functionName } + VectorKind.entries.map { it.functionName }
         ).filterNot { it.startsWith('i') }.sortedByDescending { it.length }
 
+    /**
+     * The symbols that stand for some special functions, as results write them and as the keys and the function picker insert
+     * them: Γ for gamma, and so on. The parser takes either one; the names are what can be typed and pasted.
+     */
+    val symbols: Map<String, String> = mapOf(
+        "gamma" to "Γ", "lngamma" to "lnΓ", "digamma" to "ψ", "lambertw" to "W", "sinint" to "Si", "cosint" to "Ci", "expint" to "Ei"
+    )
+
+    /** How a function called [name] is written in the expression: its symbol if it has one (Γ for gamma), else [name]. */
+    fun written(name: String): String = symbols[name] ?: name
+
     /** The longest function name that [word] ends with (so "asin" and not "sin", "xsin" has "sin"), or null. */
     fun endingWord(word: String): String? = names.firstOrNull { word.endsWith(it, ignoreCase = true) }
 

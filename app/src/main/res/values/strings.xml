@@ -312,7 +312,7 @@
     <string name="settings_units_imperial">Imperial: ft, lb, gal, psi, …</string>
     <string name="settings_units_us">US: ft, lb, US gal, psi, …</string>
     <string name="formula_mean_name">Mean x̄</string>
-    <string name="formula_mean_desc">Average of the values. Values separated by commas (long press . for a comma)</string>
+    <string name="formula_mean_desc">Average of the values</string>
     <string name="formula_median_name">Median</string>
     <string name="formula_median_desc">Middle value when sorted; for an even count the mean of the two middle ones</string>
     <string name="formula_stdev_name">Standard deviation s (sample)</string>
@@ -350,9 +350,11 @@
     <string name="formula_range_name">Range</string>
     <string name="formula_range_desc">Largest value minus smallest value</string>
     <string name="formula_sum_name">Sum</string>
-    <string name="formula_sum_desc">Sum of the values</string>
+    <string name="formula_sum_desc">Adds up the values you list: sum(2, 4, 9) = 15. For a series with an index running from a lower to an upper bound use the Σ key</string>
     <string name="formula_prod_name">Product</string>
-    <string name="formula_prod_desc">Product of the values</string>
+    <string name="formula_prod_desc">Multiplies the values you list: prod(2, 4, 9) = 72. For a series with an index running from a lower to an upper bound use the ∏ key (long press Σ)</string>
+    <string name="formula_sumsq_name">Sum of squares</string>
+    <string name="formula_sumsq_desc">The squares of the values added up: sumsq(1, 2, 3) = 14</string>
     <string name="formula_percentile_name">Percentile</string>
     <string name="formula_percentile_desc">percentile(p, values…): the value below which p percent (0 to 100) of the data lie, interpolated between neighbours</string>
     <string name="formula_quartile_name">Quartile</string>
@@ -377,6 +379,8 @@
     <string name="formula_factor_desc">factor(n): n as a product of prime powers, e.g. 360 = 2³ × 3² × 5. Shown as a product when factor(n) is the whole line. Numbers with only large prime factors can take too long. Decimal, Hex etc. show the number itself</string>
     <string name="formula_modpow_name">Modular power</string>
     <string name="formula_modpow_desc">modpow(b, e, m): bᵉ mod m without working out the huge power. A negative e needs b to have an inverse modulo m</string>
+    <string name="formula_hypot_name">Hypotenuse</string>
+    <string name="formula_hypot_desc">√(a² + b² + …): hypot(3, 4) = 5. The length of the hypotenuse of a right triangle; for the length of a vector use norm</string>
     <string name="formula_trunc_name">Truncate</string>
     <string name="formula_trunc_desc">Cuts off the decimals (rounds towards zero); trunc(x, n) keeps n places</string>
     <string name="formula_frac_name">Fractional part</string>
@@ -481,7 +485,8 @@
     <string name="formula_shr_name">Shift right</string>
     <string name="formula_shr_desc">⌊n/2ᵏ⌋: shr(16, 2) = 4 (also n &gt;&gt; k)</string>
     <string name="keypad_matrix">Matrix or vector</string>
-    <string name="formulas_title">Formulas</string>
+    <string name="formulas_title">Functions</string>
+    <string name="formulas_hint">Several values are separated by “%1$s”: long press the decimal key for it</string>
     <string name="formulas_search">Search (deviation, round, nCr)...</string>
     <string name="constant_category_math">Mathematical</string>
     <string name="constant_category_physics">Physics</string>
@@ -552,7 +557,8 @@
     <string name="history_delete">Delete</string>
     <string name="keypad_backspace">Backspace</string>
     <string name="keypad_units">Units</string>
-    <string name="keypad_formulas">Formulas</string>
+    <string name="keypad_formulas">Functions</string>
+    <string name="keypad_formulas_short">Func</string>
     <string name="keypad_constants">Constants</string>
     <string name="keypad_constants_short">Const</string>
     <string name="keypad_graph">Graph</string>

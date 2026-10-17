@@ -233,22 +233,22 @@ class CalculatorViewModelTest {
     }
 
     @Test
-    fun testClearLineAndClearAll() {
+    fun testClearEmptiesTheLineAndThenTheHistory() = runBlocking {
         val vm = newViewModel()
+        vm.type("7")
+        vm.onKeyAction(KeyAction.Enter)
+        vm.awaitCommit()
         vm.onKeyAction(KeyAction.Number("8"))
         vm.onKeyAction(KeyAction.Number("9"))
         assertEquals("89", vm.uiState.value.expression.toString())
 
-        // Clear Line only clears current formula
-        vm.onKeyAction(KeyAction.ClearLine)
+        // With something on the line, Clear only clears the line
+        vm.onKeyAction(KeyAction.Clear)
         assertEquals("", vm.uiState.value.expression.toString())
+        assertEquals(1, vm.uiState.value.history.size)
 
-        // Type another number
-        vm.onKeyAction(KeyAction.Number("4"))
-        assertEquals("4", vm.uiState.value.expression.toString())
-
-        // Clear All clears formula and history
-        vm.onKeyAction(KeyAction.ClearAll)
+        // With the line empty it clears the history as well
+        vm.onKeyAction(KeyAction.Clear)
         assertEquals("", vm.uiState.value.expression.toString())
         assertTrue(vm.uiState.value.history.isEmpty())
     }
@@ -544,6 +544,15 @@ class CalculatorViewModelTest {
         // Greek letters are letters, too
         vm.typeText("θ")
         assertEquals(VariableNode("θ"), vm.uiState.value.expression.nodeAt(2))
+    }
+
+    @Test
+    fun typedNamesOfSpecialFunctionsAreWrittenAsTheirSymbols() = runBlocking {
+        val vm = newViewModel()
+        vm.typeText("gamma(5)")
+        vm.awaitLiveResult()
+        assertEquals("Γ", (vm.uiState.value.expression.nodes.single() as FunctionNode).name)
+        assertEquals("24", vm.uiState.value.result!!.result.toString())
     }
 
     @Test
@@ -1315,7 +1324,7 @@ class CalculatorViewModelTest {
         val vm = newViewModel()
         vm.onKeyAction(KeyAction.Number("2"))
         vm.onKeyAction(KeyAction.Operator("+"))
-        vm.onKeyAction(KeyAction.Fraction)
+        vm.onKeyAction(KeyAction.Operator("÷"))
         vm.onKeyAction(KeyAction.Number("1"))
         // "2 + (1)/()" with the fraction at index 2
         vm.selectTokenAt(emptyList(), 0)
