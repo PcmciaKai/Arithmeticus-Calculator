@@ -373,7 +373,7 @@ fun CalculatorKeypad(
                         text = "( )",
                         buttonWidth = buttonWidth,
                         isAccent = true,
-                        alternates = listOf(alt("|□|", KeyAction.Function("abs")))
+                        alternates = listOf(alt("| |", KeyAction.Function("abs")))
                     ) { onKeyAction(KeyAction.Parentheses) }
                     KeyButton(
                         icon = { Icon(Icons.AutoMirrored.Filled.Backspace, contentDescription = stringResource(R.string.keypad_backspace), tint = AccentRed, modifier = Modifier.size(24.dp)) },

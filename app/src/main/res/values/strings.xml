@@ -272,20 +272,20 @@
     <string name="settings_radians_short">RAD</string>
     <string name="settings_degrees_short">DEG</string>
     <string name="settings_complex">Complex numbers</string>
-    <string name="settings_complex_on">Allow i and complex results, e.g. √−4 = 2i</string>
-    <string name="settings_complex_off">Real numbers only, √−4 is an error</string>
+    <string name="settings_complex_on">Allows √−4 = 2i</string>
+    <string name="settings_complex_off">√−4 is an error</string>
     <string name="settings_units_for_results">Units for results</string>
     <string name="settings_metric">Metric</string>
     <string name="settings_imperial">Imperial</string>
     <string name="settings_us">US</string>
     <string name="settings_number_display">Number display</string>
     <string name="settings_decimal_places">Decimal places</string>
-    <string name="settings_decimal_auto">Automatic, up to 10 significant digits</string>
+    <string name="settings_decimal_auto">Auto, up to 10 digits</string>
     <string name="settings_decimal_fixed">Always %1$d, e.g. %2$s</string>
     <string name="settings_digit_grouping">Digit grouping</string>
-    <string name="settings_digit_grouping_desc">Show large numbers as 300 000</string>
+    <string name="settings_digit_grouping_desc">Show as 300 000</string>
     <string name="settings_decimal_comma">Decimal comma</string>
-    <string name="settings_decimal_comma_desc">Show 1,5 instead of 1.5, independent of the language</string>
+    <string name="settings_decimal_comma_desc">1,5 instead of 1.5</string>
     <string name="settings_appearance">Appearance</string>
     <string name="settings_theme_system">System</string>
     <string name="settings_theme_light">Light</string>
@@ -299,9 +299,9 @@
     <string name="settings_auto">Auto</string>
     <string name="common_close">Close</string>
     <string name="support_text">I\'m very glad that you like this app. This app is open-source and will always be free, but I\'d be happy if you were to buy me a coffee.\n\nUnfortunately, due to Google\'s policies, I can\'t just add a button that would link to a page where you can easily donate. I\'m sure that if you can find this project on my GitHub (PcmciaKai), you can also find a way to leave a tip.</string>
-    <string name="settings_units_si">SI units: m, kg, m³, N, Pa, J, K, …</string>
-    <string name="settings_units_imperial">British imperial: ft, lb, imperial gallon, psi, …</string>
-    <string name="settings_units_us">US customary: ft, lb, US gallon, psi, …</string>
+    <string name="settings_units_si">SI: m, kg, m³, N, Pa, J, K, …</string>
+    <string name="settings_units_imperial">Imperial: ft, lb, gal, psi, …</string>
+    <string name="settings_units_us">US: ft, lb, US gal, psi, …</string>
     <string name="formula_mean_name">Mean x̄</string>
     <string name="formula_mean_desc">Average of the values. Values separated by commas (long press . for a comma)</string>
     <string name="formula_median_name">Median</string>
@@ -534,7 +534,7 @@
     <string name="result_form_oct">OCT</string>
     <string name="result_form_bin">BIN</string>
     <string name="settings_session">Session</string>
-    <string name="settings_session_desc">Save the line and the history to a file, or open one</string>
+    <string name="settings_session_desc">Save or open line and history</string>
     <string name="settings_session_save">Save…</string>
     <string name="settings_session_open">Open…</string>
     <string name="session_file_name">calculator-%1$s.txt</string>

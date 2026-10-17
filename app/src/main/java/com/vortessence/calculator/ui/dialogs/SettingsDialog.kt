@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -209,24 +211,13 @@ fun SettingsDialog(
                 HorizontalDivider()
 
                 // Language
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(R.string.settings_language), fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                    val options = listOf(
-                        LanguageChoice.SYSTEM to stringResource(R.string.settings_language_system),
-                        LanguageChoice.ENGLISH to stringResource(R.string.settings_language_english),
-                        LanguageChoice.GERMAN to stringResource(R.string.settings_language_german)
-                    )
-                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                        options.forEachIndexed { index, (choice, label) ->
-                            SegmentedButton(
-                                selected = languageChoice == choice,
-                                onClick = { onLanguageChange(choice) },
-                                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size)
-                            ) {
-                                Text(label, fontSize = 13.sp, maxLines = 1)
-                            }
-                        }
-                    }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(stringResource(R.string.settings_language), fontWeight = FontWeight.SemiBold, fontSize = 16.sp, modifier = Modifier.weight(1f))
+                    LanguagePicker(languageChoice, onLanguageChange)
                 }
 
                 HorizontalDivider()
@@ -314,6 +305,36 @@ private fun DecimalPlacesPicker(value: Int?, onChange: (Int?) -> Unit) {
             }
         }
     }
+}
+
+/** The languages of the app in a drop-down: a new [LanguageChoice] shows up here once [languageName] knows its name. */
+@Composable
+private fun LanguagePicker(value: LanguageChoice, onChange: (LanguageChoice) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        OutlinedButton(onClick = { expanded = true }) {
+            Text(stringResource(languageName(value)), maxLines = 1)
+            Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            LanguageChoice.entries.forEach { choice ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(languageName(choice)), fontWeight = if (choice == value) FontWeight.Bold else null) },
+                    onClick = {
+                        onChange(choice)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+@StringRes
+private fun languageName(choice: LanguageChoice): Int = when (choice) {
+    LanguageChoice.SYSTEM -> R.string.settings_language_system
+    LanguageChoice.ENGLISH -> R.string.settings_language_english
+    LanguageChoice.GERMAN -> R.string.settings_language_german
 }
 
 private const val MAX_DECIMAL_PLACES = 12

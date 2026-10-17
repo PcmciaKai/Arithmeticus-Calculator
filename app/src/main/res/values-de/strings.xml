@@ -7,20 +7,20 @@
     <string name="settings_radians_short">RAD</string>
     <string name="settings_degrees_short">DEG</string>
     <string name="settings_complex">Komplexe Zahlen</string>
-    <string name="settings_complex_on">i und komplexe Ergebnisse erlauben, z. B. √−4 = 2i</string>
-    <string name="settings_complex_off">Nur reelle Zahlen, √−4 ist ein Fehler</string>
+    <string name="settings_complex_on">Erlaubt √−4 = 2i</string>
+    <string name="settings_complex_off">√−4 ist ein Fehler</string>
     <string name="settings_units_for_results">Einheiten für Ergebnisse</string>
     <string name="settings_metric">Metrisch</string>
     <string name="settings_imperial">Imperial</string>
     <string name="settings_us">US</string>
     <string name="settings_number_display">Zahlendarstellung</string>
     <string name="settings_decimal_places">Nachkommastellen</string>
-    <string name="settings_decimal_auto">Automatisch, bis zu 10 signifikante Stellen</string>
+    <string name="settings_decimal_auto">Auto, max. 10 Stellen</string>
     <string name="settings_decimal_fixed">Immer %1$d, z. B. %2$s</string>
     <string name="settings_digit_grouping">Ziffern gruppieren</string>
-    <string name="settings_digit_grouping_desc">Große Zahlen als 300 000 anzeigen</string>
+    <string name="settings_digit_grouping_desc">Anzeige als 300 000</string>
     <string name="settings_decimal_comma">Dezimalkomma</string>
-    <string name="settings_decimal_comma_desc">1,5 statt 1.5 anzeigen, unabhängig von der Sprache</string>
+    <string name="settings_decimal_comma_desc">1,5 statt 1.5</string>
     <string name="settings_appearance">Darstellung</string>
     <string name="settings_theme_system">System</string>
     <string name="settings_theme_light">Hell</string>
@@ -34,9 +34,9 @@
     <string name="settings_auto">Auto</string>
     <string name="common_close">Schließen</string>
     <string name="support_text">Ich freue mich sehr, dass dir diese App gefällt. Sie ist Open Source und bleibt immer kostenlos, aber ich würde mich freuen, wenn du mir einen Kaffee spendieren würdest.\n\nLeider kann ich wegen der Richtlinien von Google keinen Button einbauen, der direkt auf eine Seite zum Spenden verweist. Wenn du dieses Projekt auf meinem GitHub (PcmciaKai) findest, findest du bestimmt auch einen Weg, ein Trinkgeld zu hinterlassen.</string>
-    <string name="settings_units_si">SI-Einheiten: m, kg, m³, N, Pa, J, K, …</string>
-    <string name="settings_units_imperial">Britisch (Imperial): ft, lb, Imperial Gallon, psi, …</string>
-    <string name="settings_units_us">US-amerikanisch: ft, lb, US-Gallone, psi, …</string>
+    <string name="settings_units_si">SI: m, kg, m³, N, Pa, J, K, …</string>
+    <string name="settings_units_imperial">Imperial: ft, lb, gal, psi, …</string>
+    <string name="settings_units_us">US: ft, lb, US-Gallone, psi, …</string>
     <string name="formula_mean_name">Mittelwert x̄</string>
     <string name="formula_mean_desc">Durchschnitt der Werte. Werte durch Kommas getrennt (. lange drücken für ein Komma)</string>
     <string name="formula_median_name">Median</string>
@@ -269,7 +269,7 @@
     <string name="result_form_oct">OCT</string>
     <string name="result_form_bin">BIN</string>
     <string name="settings_session">Sitzung</string>
-    <string name="settings_session_desc">Zeile und Verlauf in einer Datei speichern oder eine öffnen</string>
+    <string name="settings_session_desc">Zeile und Verlauf speichern/öffnen</string>
     <string name="settings_session_save">Speichern…</string>
     <string name="settings_session_open">Öffnen…</string>
     <string name="session_file_name">rechner-%1$s.txt</string>
