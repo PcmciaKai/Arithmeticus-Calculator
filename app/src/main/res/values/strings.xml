@@ -571,6 +571,14 @@
     <string name="session_save_failed">The session could not be saved</string>
     <string name="session_not_a_session">This file is not a saved session</string>
     <string name="session_read_failed">The file could not be read</string>
+    <plurals name="graph_summary_curves">
+        <item quantity="one">%d curve</item>
+        <item quantity="other">%d curves</item>
+    </plurals>
+    <plurals name="graph_summary_crossings">
+        <item quantity="one">%d intersection</item>
+        <item quantity="other">%d intersections</item>
+    </plurals>
     <plurals name="session_opened">
         <item quantity="one">%1$d entry opened</item>
         <item quantity="other">%1$d entries opened</item>

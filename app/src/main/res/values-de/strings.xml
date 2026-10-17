@@ -302,6 +302,14 @@
     <string name="session_save_failed">Die Sitzung konnte nicht gespeichert werden</string>
     <string name="session_not_a_session">Diese Datei ist keine gespeicherte Sitzung</string>
     <string name="session_read_failed">Die Datei konnte nicht gelesen werden</string>
+    <plurals name="graph_summary_curves">
+        <item quantity="one">%d Kurve</item>
+        <item quantity="other">%d Kurven</item>
+    </plurals>
+    <plurals name="graph_summary_crossings">
+        <item quantity="one">%d Schnittpunkt</item>
+        <item quantity="other">%d Schnittpunkte</item>
+    </plurals>
     <plurals name="session_opened">
         <item quantity="one">%1$d Eintrag geöffnet</item>
         <item quantity="other">%1$d Einträge geöffnet</item>

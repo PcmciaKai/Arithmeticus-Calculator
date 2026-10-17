@@ -48,6 +48,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.*
@@ -87,6 +89,7 @@ import java.math.BigDecimal
 import java.util.Locale
 import kotlin.math.*
 import androidx.annotation.StringRes
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import com.vortessence.calculator.R
 import com.vortessence.calculator.core.math.i18n.Language
@@ -717,6 +720,9 @@ fun GraphPlotterView(
             )
         }
 
+        // What the picture shows, for screen readers
+        val summary = pluralStringResource(R.plurals.graph_summary_curves, visibleEntries.size, visibleEntries.size) + ", " +
+            pluralStringResource(R.plurals.graph_summary_crossings, crossings.size, crossings.size)
         Box(
             modifier = Modifier
                 .weight(1f)
@@ -726,6 +732,7 @@ fun GraphPlotterView(
             Canvas(
                 modifier = Modifier
                     .fillMaxSize()
+                    .semantics { contentDescription = summary }
                     .onSizeChanged { canvasSize = it }
                     .pointerInput(curve) {
                         awaitEachGesture {
@@ -818,8 +825,8 @@ fun GraphPlotterView(
                         }
                         GraphTool.TANGENT -> {
                             val y = function.evaluateAt(cursorX)
-                            drawTangentLine(vp, PlotPoint(cursorX, y), function.derivativeAt(cursorX), AccentBlue)
-                            drawCursor(function, vp, cursorX, AccentBlue, axisColor)
+                            drawTangentLine(vp, PlotPoint(cursorX, y), function.derivativeAt(cursorX), handleColor)
+                            drawCursor(function, vp, cursorX, handleColor, axisColor)
                         }
                         GraphTool.INTEGRAL -> {
                             drawBoundHandle(vp, lowerBound, "a", handleColor, backgroundColor, textMeasurer)
@@ -838,8 +845,8 @@ fun GraphPlotterView(
                             if (point != null) drawCursorDot(vp.toScreen(point), snappedPoint?.kind?.color ?: if (snappedCrossing != null) handleColor else curveColor)
                         }
                         GraphTool.TANGENT -> if (point != null) {
-                            drawTangentLine(vp, point, implicit.slopeAt(point.x, point.y), AccentBlue)
-                            drawCursorDot(vp.toScreen(point), AccentBlue)
+                            drawTangentLine(vp, point, implicit.slopeAt(point.x, point.y), handleColor)
+                            drawCursorDot(vp.toScreen(point), handleColor)
                         }
                         else -> {}
                     }
@@ -1095,7 +1102,7 @@ private fun CurveLegend(
                                 .border(2.dp, color, CircleShape)
                         )
                     }
-                    Box(modifier = Modifier.clickable { onActivate(index) }.padding(end = 12.dp, top = 6.dp, bottom = 6.dp)) {
+                    Box(modifier = Modifier.clickable { onActivate(index) }.semantics { selected = active }.padding(end = 12.dp, top = 6.dp, bottom = 6.dp)) {
                         MathExpressionView(
                             mathString = line,
                             fontSize = 14.sp,
@@ -1242,7 +1249,7 @@ private fun TraceInfo(point: PlotPoint, snapped: KeyPoint?, isImplicit: Boolean)
 
 @Composable
 private fun TangentInfo(point: PlotPoint, slope: Double) {
-    InfoTitle(stringResource(R.string.graph_tool_tangent), AccentBlue)
+    InfoTitle(stringResource(R.string.graph_tool_tangent), MaterialTheme.colorScheme.onBackground)
     InfoValues("x" to formatGraphNumber(point.x), "y" to formatGraphNumber(point.y))
     Text(
         text = if (slope.isInfinite()) stringResource(R.string.graph_vertical_tangent) else stringResource(R.string.graph_slope, formatGraphNumber(slope)),
@@ -1321,6 +1328,8 @@ private fun DrawScope.drawKeyPoints(
         val center = Offset(vp.toScreenX(point.x), vp.toScreenY(point.y))
         if (center.x !in 0f..size.width || center.y !in 0f..size.height) continue
         drawCircle(color = point.kind.color.copy(alpha = 0.25f), radius = 8.dp.toPx(), center = center)
+        // A ring of the background keeps the dot visible on a curve of its own colour
+        drawCircle(color = backgroundColor, radius = 5.5.dp.toPx(), center = center)
         drawCircle(color = point.kind.color, radius = 3.5.dp.toPx(), center = center)
 
         val layout = textMeasurer.measure(

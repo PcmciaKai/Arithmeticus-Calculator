@@ -31,6 +31,8 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Constraints
@@ -84,8 +86,10 @@ fun MathExpressionView(
     // Below 24sp the line is as tall as the font size, as for 24sp text.
     val style = LocalTextStyle.current
     val lineHeight = if (fontSize.value < MAX_SCALED_LINE_HEIGHT_SP) fontSize else style.lineHeight
+    // A screen reader gets the whole expression as one text, not every digit and sign of it
+    val described = if (path.isEmpty()) modifier.clearAndSetSemantics { contentDescription = MathText.toPlainText(mathString) } else modifier
     CompositionLocalProvider(LocalTextStyle provides style.copy(lineHeight = lineHeight)) {
-        MathExpressionLayout(mathString, modifier, cursorPath, selectionRange, fontSize, textColor, accentColor, caretGeometry, path, verticalPadding, hidePlaceholder)
+        MathExpressionLayout(mathString, described, cursorPath, selectionRange, fontSize, textColor, accentColor, caretGeometry, path, verticalPadding, hidePlaceholder)
     }
 }
 
