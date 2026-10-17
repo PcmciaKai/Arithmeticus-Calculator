@@ -444,6 +444,9 @@ fun GraphPlotterView(
         area = MathEngine.integratePlot(function, lowerBound, upperBound)
     }
 
+    /** The crossings that lie on the active curve: where its cursor and bounds can snap to. Read when called, not when composed. */
+    fun crossingsOnActive(): List<PlotIntersection> = crossings.filter { it.first == activeIndex || it.second == activeIndex }
+
     /** Puts the implicit-curve cursor on the curve point nearest to [position]. */
     fun moveImplicitCursor(position: Offset) {
         val curveNow = implicit ?: return
@@ -471,11 +474,14 @@ fun GraphPlotterView(
         var point = curveNow.projectOntoCurve(approximate.x, approximate.y)
             ?.takeIf { (vp.toScreen(it) - onScreen).getDistance() <= snapRadiusPx }
             ?: approximate
-        if (tool == GraphTool.TRACE) {
+        // Trace snaps to the special points of the curve, trace and tangent to the crossings with the other curves
+        if (tool == GraphTool.TRACE || tool == GraphTool.TANGENT) {
             val screenPoint = vp.toScreen(point)
-            keyPoints.minByOrNull { (vp.toScreen(PlotPoint(it.x, it.y)) - screenPoint).getDistance() }
-                ?.takeIf { (vp.toScreen(PlotPoint(it.x, it.y)) - screenPoint).getDistance() <= snapRadiusPx }
-                ?.let { point = PlotPoint(it.x, it.y) }
+            val targets = (if (tool == GraphTool.TRACE) keyPoints.map { PlotPoint(it.x, it.y) } else emptyList()) +
+                crossingsOnActive().map { PlotPoint(it.x, it.y) }
+            targets.minByOrNull { (vp.toScreen(it) - screenPoint).getDistance() }
+                ?.takeIf { (vp.toScreen(it) - screenPoint).getDistance() <= snapRadiusPx }
+                ?.let { point = it }
         }
         cursorPoint = point
     }
@@ -493,9 +499,11 @@ fun GraphPlotterView(
             handle != GraphHandle.CURSOR -> keyPoints.filter { it.kind == KeyPointKind.ZERO }
             else -> emptyList()
         }
-        snapTargets.minByOrNull { abs(vp.toScreenX(it.x) - px) }
-            ?.takeIf { abs(vp.toScreenX(it.x) - px) <= snapRadiusPx }
-            ?.let { x = it.x }
+        // The cursor and the bounds snap to the crossings of the active curve with the others as well
+        (snapTargets.map { it.x } + crossingsOnActive().map { it.x })
+            .minByOrNull { abs(vp.toScreenX(it) - px) }
+            ?.takeIf { abs(vp.toScreenX(it) - px) <= snapRadiusPx }
+            ?.let { x = it }
         when (handle) {
             GraphHandle.CURSOR -> cursorX = x
             GraphHandle.LOWER_BOUND -> lowerBound = x
@@ -651,6 +659,14 @@ fun GraphPlotterView(
 
     // Trace snaps exactly onto key points, but they are recomputed after panning, so compare loosely
     fun isSame(a: Double, b: Double) = abs(a - b) <= 1e-9 * max(1.0, abs(b))
+    // The cursor of trace or tangent sits on a crossing of the active curve
+    val snappedCrossing = if (tool != GraphTool.TRACE && tool != GraphTool.TANGENT) null else crossings.firstOrNull { c ->
+        (c.first == activeIndex || c.second == activeIndex) && if (implicit != null) {
+            cursorPoint?.let { p -> abs(c.x - p.x) <= 1e-6 * max(1.0, abs(c.x)) && abs(c.y - p.y) <= 1e-6 * max(1.0, abs(c.y)) } == true
+        } else {
+            abs(c.x - cursorX) <= 1e-6 * max(1.0, abs(c.x))
+        }
+    }
     val snappedPoint = when {
         tool != GraphTool.TRACE -> null
         implicit != null -> cursorPoint?.let { p -> keyPoints.firstOrNull { isSame(it.x, p.x) && isSame(it.y, p.y) } }
@@ -748,8 +764,9 @@ fun GraphPlotterView(
                             if (!isTransforming) {
                                 // A tap on a crossing shows it; a tap anywhere else lets it go and goes to the tool
                                 val crossing = crossingNear(down.position)
-                                selectedCrossing = crossing
-                                if (crossing == null && base != null) onTap(down.position)
+                                val forTool = tool != null && base != null && crossing != null && (crossing.first == activeIndex || crossing.second == activeIndex)
+                                selectedCrossing = if (forTool) null else crossing
+                                if ((crossing == null || forTool) && base != null) onTap(down.position)
                             }
                         }
                     }
@@ -797,7 +814,7 @@ fun GraphPlotterView(
                     when (tool) {
                         GraphTool.TRACE -> {
                             drawKeyPoints(keyPoints, vp, backgroundColor, textMeasurer)
-                            drawCursor(function, vp, cursorX, snappedPoint?.kind?.color ?: curveColor, axisColor)
+                            drawCursor(function, vp, cursorX, snappedPoint?.kind?.color ?: if (snappedCrossing != null) handleColor else curveColor, axisColor)
                         }
                         GraphTool.TANGENT -> {
                             val y = function.evaluateAt(cursorX)
@@ -818,7 +835,7 @@ fun GraphPlotterView(
                     when (tool) {
                         GraphTool.TRACE -> {
                             drawKeyPoints(keyPoints, vp, backgroundColor, textMeasurer)
-                            if (point != null) drawCursorDot(vp.toScreen(point), snappedPoint?.kind?.color ?: curveColor)
+                            if (point != null) drawCursorDot(vp.toScreen(point), snappedPoint?.kind?.color ?: if (snappedCrossing != null) handleColor else curveColor)
                         }
                         GraphTool.TANGENT -> if (point != null) {
                             drawTangentLine(vp, point, implicit.slopeAt(point.x, point.y), AccentBlue)
@@ -872,6 +889,13 @@ fun GraphPlotterView(
                     when {
                         tool == GraphTool.INTEGRAL -> IntegralInfo(lowerBound, upperBound, area)
                         point == null -> InfoHint(stringResource(R.string.graph_tap_hint))
+                        tool == GraphTool.TRACE && snappedCrossing != null -> CrossingInfo(
+                            crossing = snappedCrossing,
+                            first = entries[snappedCrossing.first].line,
+                            second = entries[snappedCrossing.second].line,
+                            firstColor = colorOf(snappedCrossing.first),
+                            secondColor = colorOf(snappedCrossing.second)
+                        )
                         tool == GraphTool.TRACE -> TraceInfo(point, snappedPoint, isImplicit = implicit != null)
                         tool == GraphTool.TANGENT -> TangentInfo(point, slope)
                     }

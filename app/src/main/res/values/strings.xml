@@ -581,6 +581,6 @@
     <string name="graph_drag_graph">Drag along the graph; snaps to highlighted points</string>
     <string name="graph_vertical_tangent">vertical tangent</string>
     <string name="graph_slope">slope = %1$s</string>
-    <string name="graph_integral_hint">Drag a or b; they snap to zeros</string>
+    <string name="graph_integral_hint">Drag a or b; they snap to zeros and intersections</string>
     <string name="graph_surface_hint">One finger rotates · two fingers move and zoom</string>
 </resources>
