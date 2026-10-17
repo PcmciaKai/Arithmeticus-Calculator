@@ -502,6 +502,8 @@ private val StepRule.descriptionRes: Int
         StepRule.VECTOR_ANGLE -> R.string.step_vector_angle
         StepRule.VECTOR_PROJECTION -> R.string.step_vector_projection
         StepRule.UNIT_VECTOR -> R.string.step_unit_vector
+        StepRule.COMPARE_COMPONENTS -> R.string.step_compare_components
+        StepRule.INSERT_PARAMETER -> R.string.step_insert_parameter
         StepRule.NORMAL_DENSITY -> R.string.step_normal_density
         StepRule.NORMAL_PROBABILITY -> R.string.step_normal_probability
         StepRule.NORMAL_QUANTILE -> R.string.step_normal_quantile
@@ -760,6 +762,8 @@ internal fun StepRule.formula(language: Language): String? {
         StepRule.VECTOR_ANGLE -> "θ = acos(\\frac{a·b}{|a|·|b|})"
         StepRule.VECTOR_PROJECTION -> "proj(a, b) = \\frac{a·b}{b·b}·b"
         StepRule.UNIT_VECTOR -> "\\frac{a}{|a|}"
+        StepRule.COMPARE_COMPONENTS -> "a = b ⇔ a₁ = b₁, a₂ = b₂, …"
+        StepRule.INSERT_PARAMETER -> "S = p + r·u"
         StepRule.NORMAL_DENSITY -> "φ(x) = \\frac{1}{σ·\\sqrt{2π}}·e^{−\\frac{(x − μ)^2}{2σ^2}}"
         StepRule.NORMAL_PROBABILITY -> "Φ(x) = \\frac{1}{2}·erfc(−\\frac{x − μ}{σ·\\sqrt{2}})"
         StepRule.NORMAL_QUANTILE -> "x = μ + σ·z\\text{,  }Φ(z) = p"

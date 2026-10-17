@@ -78,6 +78,10 @@ enum class StepRule {
     VECTOR_PROJECTION,
     /** a/|a| */
     UNIT_VECTOR,
+    /** a = b ⇔ a₁ = b₁ and a₂ = b₂ and …: two vectors are equal when their components are */
+    COMPARE_COMPONENTS,
+    /** The parameter found written into its line: S = p + r·u */
+    INSERT_PARAMETER,
     /** φ(x) = e^(−(x − μ)²/(2σ²)) / (σ√(2π)) */
     NORMAL_DENSITY,
     /** Φ(x) = erfc(−(x − μ)/(σ√2))/2 */

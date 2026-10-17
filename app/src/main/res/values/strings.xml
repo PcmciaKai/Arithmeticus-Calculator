@@ -64,6 +64,8 @@
     <string name="step_vector_angle">The angle follows from the dot product and the lengths of the two vectors</string>
     <string name="step_vector_projection">Project the vector onto the other one</string>
     <string name="step_unit_vector">Divide the vector by its length</string>
+    <string name="step_compare_components">Two vectors are equal when their components are: one equation for each component</string>
+    <string name="step_insert_parameter">Put the parameter into its line to get the point where the lines meet</string>
     <string name="step_absolute_value">Differentiate the absolute value</string>
     <string name="step_fundamental_theorem">Apply the fundamental theorem of calculus</string>
     <string name="step_imaginary_root">Take the root of a negative number</string>

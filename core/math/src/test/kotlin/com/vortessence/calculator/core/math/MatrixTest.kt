@@ -162,7 +162,8 @@ class MatrixTest {
     fun functionsOfMatricesAreRejected() {
         assertIssue(calc(FunctionNode("sin", ms(mat("1 2")))), MathIssue.MATRIX_UNSUPPORTED)
         assertIssue(calc(FunctionNode("ln", ms(mat("1 2")))), MathIssue.MATRIX_UNSUPPORTED)
-        assertIssue(calc(mat("1 2"), op(MathOp.EQUALS), mat("1 2")), MathIssue.MATRIX_UNSUPPORTED)
+        // (two vectors can be equal, see VectorLineTest; a matrix of rows and columns has no equations)
+        assertIssue(calc(mat("1 2", "3 4"), op(MathOp.EQUALS), mat("1 2", "3 4")), MathIssue.MATRIX_UNSUPPORTED)
         assertFalse(calc(mat("1 2"), op(MathOp.FACTORIAL)).isSuccess)
     }
 

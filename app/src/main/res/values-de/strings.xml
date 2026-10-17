@@ -409,6 +409,8 @@
     <string name="step_vector_angle">Der Winkel ergibt sich aus dem Skalarprodukt und den Längen der beiden Vektoren</string>
     <string name="step_vector_projection">Projiziere den Vektor auf den anderen</string>
     <string name="step_unit_vector">Teile den Vektor durch seine Länge</string>
+    <string name="step_compare_components">Zwei Vektoren sind gleich, wenn ihre Komponenten gleich sind: eine Gleichung je Komponente</string>
+    <string name="step_insert_parameter">Setze den Parameter in seine Gerade ein, um den Schnittpunkt der Geraden zu erhalten</string>
     <string name="step_absolute_value">Leite den Betrag ab</string>
     <string name="step_fundamental_theorem">Wende den Hauptsatz der Differential- und Integralrechnung an</string>
     <string name="step_imaginary_root">Ziehe die Wurzel aus einer negativen Zahl</string>

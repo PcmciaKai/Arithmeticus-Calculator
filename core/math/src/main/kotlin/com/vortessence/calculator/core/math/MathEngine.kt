@@ -50,10 +50,13 @@ import com.vortessence.calculator.core.math.solvers.CurveIntersections
 import com.vortessence.calculator.core.math.solvers.PlotIntersection
 import com.vortessence.calculator.core.math.solvers.PlotEntry
 import com.vortessence.calculator.core.math.solvers.PlotScene
+import com.vortessence.calculator.core.math.solvers.VectorEquation
+import com.vortessence.calculator.core.math.solvers.VectorLine
 import com.vortessence.calculator.core.math.steps.ArithmeticSteps
 import com.vortessence.calculator.core.math.steps.BothSides
 import com.vortessence.calculator.core.math.steps.DerivativeSteps
 import com.vortessence.calculator.core.math.steps.DistributionSteps
+import com.vortessence.calculator.core.math.steps.VectorLineSteps
 import com.vortessence.calculator.core.math.steps.VectorSteps
 import com.vortessence.calculator.core.math.steps.EquationSteps
 import com.vortessence.calculator.core.math.steps.InequalitySteps
@@ -209,6 +212,9 @@ object MathEngine {
             // A variable stands for a value, not for an equation
             return failure(input, ctx, MathIssue.SYNTAX_ERROR, parsed)
         }
+        // g = h for lines in vector form: the parameters, and the point where the lines meet
+        VectorEquation.of(parsed, ctx)?.let { return evaluateVectorEquation(input, it, ctx) }
+        if (ctx.shouldStop) return failure(input, ctx, expression = parsed)
         // dot(v, w) = 0 is an equation of numbers: the vector functions that give a number are worked out first
         if (parsed is Equals || parsed is Inequality || parsed is EquationSystem) {
             val reduced = withVectorValues(parsed, ctx)
@@ -299,7 +305,7 @@ object MathEngine {
                     is Limit -> LimitSteps.steps(parsed, execContext)
                     is EquationSystem -> SystemSteps.steps(parsed, execContext)
                     is Inequality -> InequalitySteps.steps(parsed, execContext)
-                    is Equals -> parsed.variables().takeIf { it.isNotEmpty() }?.let { vars -> pickVariable(vars).let { v -> EquationSteps.steps(parsed, v, execContext) ?: AbsoluteSplitSteps.steps(parsed, v, execContext) } }
+                    is Equals -> VectorLineSteps.steps(parsed, execContext) ?: parsed.variables().takeIf { it.isNotEmpty() }?.let { vars -> pickVariable(vars).let { v -> EquationSteps.steps(parsed, v, execContext) ?: AbsoluteSplitSteps.steps(parsed, v, execContext) } }
                     else -> VectorSteps.steps(parsed, execContext) ?: MatrixSteps.steps(parsed, execContext) ?: DistributionSteps.steps(parsed, execContext) ?: ExpressionSteps.steps(parsed, execContext) ?: ArithmeticSteps.steps(asTyped, execContext)
                 }
                 if (solution == null || execContext.shouldStop || execContext.issues.isNotEmpty()) return@steps null
@@ -788,9 +794,7 @@ object MathEngine {
             return truthResult(input, system, truths.all { it }, ctx)
         }
 
-        // x, y, z first, then alphabetically, which is also the order of the solutions
-        val orderedVars = PREFERRED_VARIABLES.filter { it in vars } +
-            (vars - PREFERRED_VARIABLES.toSet()).sortedBy { it.identifier }
+        val orderedVars = orderedVariables(vars)
         // Not linear (x² + y² = 25): by substitution, with several solutions
         val probe = ctx.copy()
         if (LinearSystemSolver.solve(equations, orderedVars, probe) == null && probe.issues.contains(MathIssue.CANT_SOLVE_GENERIC)) {
@@ -821,6 +825,25 @@ object MathEngine {
             answer = answerWriter(ctx).write(first),
             decimalPlaces = ctx.decimalPlaces
         )
+    }
+
+    /** x, y, z first, then alphabetically, which is also the order of the solutions. */
+    private fun orderedVariables(vars: Set<Variable>): List<Variable> =
+        PREFERRED_VARIABLES.filter { it in vars } + (vars - PREFERRED_VARIABLES.toSet()).sortedBy { it.identifier }
+
+    /**
+     * Two vectors that are equal, e.g. the lines (1, 2) + r·(2, 1) = (−1, 5) + s·(1, −1) meeting: the equations of their components
+     * give r and s, and the vector (the point) is written after them, S = (5/3, 7/3). It is also the answer to reuse.
+     */
+    private fun evaluateVectorEquation(input: MathString, equation: VectorEquation, ctx: MathContext): CalculationResult {
+        val solved = evaluateSystem(input, equation.system, ctx)
+        if (!solved.isSuccess) return solved
+        val point = VectorLineSteps.meetingPoint(equation, ctx) ?: return solved
+        val display = displayWriter(ctx)
+        val result = solved.result
+        result.insert(result.length, TextNode(", "))
+        result.insertAll(result.length, display.write(Equals(Variable(VectorLineSteps.POINT_NAME), point)).nodes)
+        return solved.copy(result = result, answer = answerWriter(ctx).write(point))
     }
 
     private fun truthResult(input: MathString, equation: Expression, truth: Boolean, ctx: MathContext) =
@@ -938,6 +961,22 @@ object MathEngine {
                 }
                 continue
             }
+            // (1, 2) + r·(2, 1) = (−1, 5) + s·(1, −1): the two lines it says meet are both drawn
+            val sides = try {
+                MathContext.withContext(lineContext) { vectorLineSides(line, lineContext) }
+            } catch (e: ArithmeticException) {
+                null
+            } catch (e: IllegalArgumentException) {
+                null
+            } catch (e: StackOverflowError) {
+                null
+            } catch (e: OutOfMemoryError) {
+                null
+            }
+            if (sides != null) {
+                entries.addAll(sides)
+                continue
+            }
             val curve = try {
                 MathContext.withContext(lineContext) {
                     val parsed = parse(line, lineContext)
@@ -955,6 +994,19 @@ object MathEngine {
             entries.add(PlotEntry(line, curve))
         }
         PlotScene(entries)
+    }
+
+    /** The entries of the two sides of [line] if it is "g = h" for two lines in vector form (each with its own curve); otherwise null. */
+    private fun vectorLineSides(line: MathString, ctx: MathContext): List<PlotEntry>? {
+        val nodes = line.nodes
+        val equals = nodes.indices.filter { (nodes[it] as? OperatorNode)?.op == MathOp.EQUALS }.singleOrNull() ?: return null
+        if (equals == 0 || equals == nodes.lastIndex) return null
+        val sides = listOf(MathString(nodes.subList(0, equals)), MathString(nodes.subList(equals + 1, nodes.size)))
+        return sides.map { side ->
+            val parsed = parse(side, ctx)
+            val curve = if (ctx.shouldStop) null else VectorLine.fromExpression(parsed, ctx)
+            PlotEntry(side, curve ?: return null)
+        }
     }
 
     /**
