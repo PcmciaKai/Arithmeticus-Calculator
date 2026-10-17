@@ -122,4 +122,54 @@ class TaylorTest {
         assertNull(steps("taylor(5,3)"))
         assertNull(steps("taylor(1/x,x,0,2)"))
     }
+
+    @Test
+    fun aDefinitionOfTheVariableIsNotUsed() {
+        // x := 3 is a value for x elsewhere, but taylor(f, x, …) is about x as a variable
+        val defined = MathContext(variables = mapOf("x" to TestInput.parse("3")))
+        val result = runBlocking { MathEngine.calculate(TestInput.parse("taylor(sin(x),x,0,5)"), defined) }
+        assertTrue(result.issues.toString(), result.isSuccess)
+        assertEquals(shown("taylor(sin(x),x,0,5)"), result.result.toString())
+        assertNotNull(runBlocking { MathEngine.steps(TestInput.parse("taylor(sin(x),x,0,5)"), defined) })
+        // Another letter that is defined is used
+        val other = MathContext(variables = mapOf("y" to TestInput.parse("2")))
+        assertEquals("2x − ((x)^(3))/(3)", runBlocking { MathEngine.calculate(TestInput.parse("taylor(sin(x)y,x,0,3)"), other) }.result.toString())
+        // And so is a defined point
+        val point = MathContext(variables = mapOf("a" to TestInput.parse("1")))
+        assertEquals(shown("taylor(ln(x),x,1,3)"), runBlocking { MathEngine.calculate(TestInput.parse("taylor(ln(x),x,a,3)"), point) }.result.toString())
+        // The same for apart
+        assertEquals(shown("apart(1/(x^2-1))"), runBlocking { MathEngine.calculate(TestInput.parse("apart(1/(x^2-1),x)"), defined) }.result.toString())
+    }
+
+    @Test
+    fun modesAndDisplay() {
+        // Numeric mode gives decimals; the answer that is reused is not rounded to the places shown
+        val numeric = runBlocking { MathEngine.calculate(TestInput.parse("taylor(e^x,x,1,3)"), MathContext(mode = com.vortessence.calculator.core.math.context.CalculationMode.NUMERIC, decimalPlaces = 2)) }
+        assertTrue(numeric.result.toString(), numeric.result.toString().startsWith("2.72 + 2.72(x − 1.00)"))
+        assertTrue(numeric.answer.toString(), numeric.answer.toString().startsWith("2.718281828459045"))
+        // In degrees the variable is in degrees: sin(x°) ≈ x·π/180
+        val degrees = runBlocking { MathEngine.calculate(TestInput.parse("taylor(sin(x),x,0,1)"), MathContext(angleUnit = com.vortessence.calculator.core.math.context.AngleUnit.DEGREES)) }
+        assertEquals("x × (π)/(180)", degrees.result.toString())
+        // Symbolic coefficients, and a function whose second derivative is not known
+        assertEquals("1 + ax + (x)^(2) × ((a)^(2))/(2)", shown("taylor(e^{a*x},x,0,2)"))
+        assertEquals(listOf(MathIssue.CANT_DIFFERENTIATE), issues("taylor(gamma(x),x,1,2)"))
+        // The result is reused as typed: the answer is the same polynomial
+        val first = calc("taylor(sin(x),x,0,5)")
+        assertEquals(first.result.toString(), first.answer.toString())
+        // Equations and inequalities with the polynomial
+        assertEquals("x =  − 1 + sqrt(5), x =  − 1 − sqrt(5)", shown("taylor(e^x,x,0,2)=3"))
+    }
+
+    @Test
+    fun aSlowExpansionStopsAtTheTimeLimit() {
+        // sin(x)^x at order 12 takes seconds; with a short limit it is an error, not a partial series
+        val start = System.currentTimeMillis()
+        val result = runBlocking { MathEngine.calculate(TestInput.parse("taylor(sin(x)^x,x,1,12)"), MathContext(), timeoutMillis = 300) }
+        assertEquals(listOf(MathIssue.TIMEOUT), result.issues)
+        assertTrue("took ${System.currentTimeMillis() - start} ms", System.currentTimeMillis() - start < 3000)
+        // The steps give up the same way
+        assertNull(runBlocking { MathEngine.steps(TestInput.parse("taylor(sin(x)^x,x,1,12)"), MathContext(), timeoutMillis = 300) })
+        // The large but quick ones are fine
+        assertTrue(calc("taylor(e^{e^{e^x}},x,0,12)").isSuccess)
+    }
 }

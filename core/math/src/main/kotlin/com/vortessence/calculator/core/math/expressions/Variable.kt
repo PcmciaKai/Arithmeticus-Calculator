@@ -44,10 +44,18 @@ fun Expression.substituteVariables(values: Map<Variable, Expression>): Expressio
         is Series -> Series(isProduct, index, lower.substituteVariables(values), upper.substituteVariables(values), body.substituteVariables(values - index))
         is Limit -> Limit(body.substituteVariables(values - variable), variable, point.substituteVariables(values))
         is Derivative -> Derivative(body.substituteVariables(values - variable), variable, point?.substituteVariables(values))
-        else -> {
-            val oldChildren = children
-            val newChildren = oldChildren.map { it.substituteVariables(values) }
-            if (newChildren.indices.all { newChildren[it] === oldChildren[it] }) this else copyWithChildren(newChildren)
+        is NamedFunction -> {
+            // taylor(f, x, …) and apart(f, x) name their variable: a definition of it is not used inside f, nor in place of the name
+            val named = if ((kind == NamedFunctionKind.TAYLOR && arguments.size >= 3) || (kind == NamedFunctionKind.APART && arguments.size == 2)) arguments[1] as? Variable else null
+            if (named == null) substituteChildren(values)
+            else NamedFunction(kind, arguments.mapIndexed { i, a -> if (i == 1) a else a.substituteVariables(if (i == 0) values - named else values) })
         }
+        else -> substituteChildren(values)
     }
+}
+
+private fun Expression.substituteChildren(values: Map<Variable, Expression>): Expression {
+    val oldChildren = children
+    val newChildren = oldChildren.map { it.substituteVariables(values) }
+    return if (newChildren.indices.all { newChildren[it] === oldChildren[it] }) this else copyWithChildren(newChildren)
 }
