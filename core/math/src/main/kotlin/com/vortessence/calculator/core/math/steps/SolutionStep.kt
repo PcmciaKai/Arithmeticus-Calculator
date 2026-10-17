@@ -242,6 +242,8 @@ enum class StepRule {
     ODE_HOMOGENEOUS,
     /** yₚ = −y₁∫y₂r/(aW) + y₂∫y₁r/(aW) */
     ODE_VARIATION_OF_PARAMETERS,
+    /** a guess of the kind of the right side, with the coefficients worked out */
+    ODE_UNDETERMINED_COEFFICIENTS,
     /** the constants that fit the initial conditions */
     ODE_CONSTANTS,
     /** (px + q)/D = (p/2a)·D′/D + (q − pb/2a)/D */

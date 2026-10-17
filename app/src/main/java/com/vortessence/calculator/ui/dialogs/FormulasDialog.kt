@@ -28,6 +28,7 @@ fun FormulasDialog(
     onFormulaSelected: (MathString) -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
+    val hideKeyboard = rememberHideKeyboard()
     val context = LocalContext.current
     val grouped = remember(searchQuery, context) {
         FormulasDb.items.filter {
@@ -76,7 +77,7 @@ fun FormulasDialog(
                             )
                         }
                         items(formulas, key = { it.name }) { formula ->
-                            FormulaItemRow(formula = formula, onClick = { onFormulaSelected(formula.template) })
+                            FormulaItemRow(formula = formula, onClick = { hideKeyboard(); onFormulaSelected(formula.template) })
                         }
                     }
                 }

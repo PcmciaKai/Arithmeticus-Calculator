@@ -24,6 +24,7 @@ fun ConstantsDialog(
     onConstantSelected: (String) -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
+    val hideKeyboard = rememberHideKeyboard()
     val context = LocalContext.current
     val filtered = remember(searchQuery) {
         if (searchQuery.isBlank()) {
@@ -58,7 +59,7 @@ fun ConstantsDialog(
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     items(filtered) { constant ->
-                        ConstantItemRow(constant = constant, onClick = { onConstantSelected(constant.symbol) })
+                        ConstantItemRow(constant = constant, onClick = { hideKeyboard(); onConstantSelected(constant.symbol) })
                     }
                 }
             }

@@ -194,7 +194,11 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
 
     override fun canonicalize(context: MathContext): Expression {
         // The equation is read as typed: canonicalized, d/dx(y) would be 0
-        if (kind == NamedFunctionKind.DSOLVE) return DifferentialEquations.solve(arguments, context)?.solution ?: this
+        if (kind == NamedFunctionKind.DSOLVE) {
+            val solution = DifferentialEquations.solve(arguments, context)?.solution ?: return this
+            // Worked out exactly; in NUMERIC mode the result is written in decimals
+            return if (context.mode == CalculationMode.EXACT) solution else solution.canonicalize(context)
+        }
         val args = arguments.map { it.canonicalize(context) }
         if (context.shouldStop) return this
         if (args.size !in kind.minArguments..kind.maxArguments) return fail(context, MathIssue.ARGUMENT_COUNT)

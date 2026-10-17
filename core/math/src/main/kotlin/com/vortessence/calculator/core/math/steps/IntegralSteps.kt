@@ -68,7 +68,53 @@ internal object IntegralSteps {
         return solution.finish(target)
     }
 
+    /**
+     * A double (or triple…) integral, ∫ₐᵇ ∫_{g(x)}^{h(x)} f dy dx: the inner integral first, as a definite integral of its own in
+     * which the outer variables are constants and the bounds may depend on them, then the outer one with that result as integrand.
+     * All in the one expression, so that every step shows the whole iterated integral.
+     */
+    private fun iterated(problem: Integral, context: MathContext): ExpressionSolution? {
+        // Outermost first; each level's integrand is the next integral
+        val levels = generateSequence(problem) { it.integrand as? Integral }.toList()
+        if (problem.variables().isNotEmpty() || levels.map { it.variable }.distinct().size != levels.size) return null
+        if (!isSupported(levels.last().integrand)) return null
+        val isInfinite = { bound: Expression -> (bound.canonicalize(context.copy()) as? Value)?.real?.isInfinite == true }
+        if (levels.any { isInfinite(it.lowerBound) || isInfinite(it.upperBound) }) return null
+        val value = calculated(problem, context) ?: return null
+
+        val solution = Solver(context)
+        solution.start(problem)
+        var result: Expression = value
+        for (depth in levels.indices.reversed()) {
+            val level = levels[depth]
+            val v = level.variable
+            val path = List(depth) { 2 }
+            // The integrand as it is by now: the integral inside it solved
+            val integrand = if (depth == levels.lastIndex) normalize(level.integrand) else normalize(unmarked(at(solution.current, path + 2)))
+            val (lower, upper) = level.lowerBound to level.upperBound
+            val antiderivative = calculated(Antiderivative(integrand, v), context) ?: return null
+
+            val bracket = EvaluateBetween(Antiderivative(integrand, v), v, lower, upper)
+            solution.apply(Match(StepRule.ANTIDERIVATIVE, mapOf(path to bracket), Integral(lower, upper, integrand, v), bracket))
+            if (!integrate(solution, context)) return null
+
+            val own = (unmarked(at(solution.current, path)) as? EvaluateBetween)?.antiderivative ?: return null
+            val f = finalForm(own, antiderivative, v, context) ?: return null
+            if (!solution.simplifyPartToward(path, EvaluateBetween(f, v, lower, upper), MAX_STEPS)) return null
+            val simplified = unmarked(at(solution.current, path)) as? EvaluateBetween ?: return null
+            val difference = simplified.difference()
+            solution.apply(Match(StepRule.BOUNDS, mapOf(path to difference), simplified, difference))
+            result = calculated(difference, context) ?: return null
+            if (!solution.simplifyPartToward(path, result, MAX_STEPS)) return null
+        }
+        // F(b) − F(a) is wrong if the integrand has a pole between the bounds
+        val expected = value.evaluateNumerically()
+        if (abs(result.evaluateNumerically() - expected) > 1e-7 * max(1.0, abs(expected))) return null
+        return solution.finish(result)
+    }
+
     private fun definite(problem: Integral, context: MathContext): ExpressionSolution? {
+        if (problem.integrand.containsExpressionMatching { it is Integral }) return iterated(problem, context)
         val v = problem.variable
         val integrand = normalize(problem.integrand)
         val (lower, upper) = problem.lowerBound to problem.upperBound

@@ -69,6 +69,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import com.vortessence.calculator.ui.theme.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -220,6 +222,25 @@ fun CalculatorKeypad(
                 scrollState.scrollTo(mainPagePx)
                 initialScrollDone = true
             }
+        }
+
+        // Whatever stopped the keypad between two pages (a fling cut short by a new touch, a mode whose pages
+        // have another width), it settles on the page it rests on once the scrolling is over
+        LaunchedEffect(scrollState) {
+            snapshotFlow { if (scrollState.isScrollInProgress) null else scrollState.maxValue }
+                .filterNotNull()
+                .collect {
+                    // The end of a drag and the start of its fling are a frame apart
+                    delay(SETTLE_DELAY_MS)
+                    val target = when (restingPage) {
+                        0 -> 0
+                        2 -> scrollState.maxValue
+                        else -> mainPagePx
+                    }
+                    if (initialScrollDone && !scrollState.isScrollInProgress && abs(scrollState.value - target) > 1) {
+                        scrollState.animateScrollTo(target)
+                    }
+                }
         }
 
         val flingBehavior = remember(colStepPx) {
@@ -968,6 +989,9 @@ private fun KeyButton(
         }
     }
 }
+
+/** How long the keypad rests after scrolling before it settles on its page (the fling of a swipe starts within this). */
+private const val SETTLE_DELAY_MS = 100L
 
 /** The size of the names of the operators on the programmer keys (AND, OR, XOR, NOT, <<, >>, mod). */
 private val PROGRAMMER_KEY_TEXT = 18.sp

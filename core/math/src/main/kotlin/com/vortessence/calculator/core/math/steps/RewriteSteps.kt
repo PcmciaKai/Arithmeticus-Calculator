@@ -54,6 +54,7 @@ internal object RewriteSteps {
                 DifferentialEquations.Kind.CHARACTERISTIC -> StepRule.ODE_CHARACTERISTIC
                 DifferentialEquations.Kind.HOMOGENEOUS -> StepRule.ODE_HOMOGENEOUS
                 DifferentialEquations.Kind.VARIATION_OF_PARAMETERS -> StepRule.ODE_VARIATION_OF_PARAMETERS
+                DifferentialEquations.Kind.UNDETERMINED_COEFFICIENTS -> StepRule.ODE_UNDETERMINED_COEFFICIENTS
                 DifferentialEquations.Kind.CONSTANTS -> StepRule.ODE_CONSTANTS
             }
             val notes = stage.notes.map { (left, right) -> Note(left, right) }

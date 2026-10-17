@@ -81,6 +81,24 @@ internal class Match(
     val highlight: Set<Path>? = null
 )
 
+/** This match for a part of an expression: all its paths start at [prefix], the path of that part. */
+internal fun Match.within(prefix: Path): Match {
+    if (prefix.isEmpty()) return this
+    return Match(
+        rule,
+        replacements.mapKeys { prefix + it.key },
+        before,
+        after,
+        removals.mapKeys { prefix + it.key },
+        chainRule,
+        notes,
+        operation,
+        showChange,
+        boxReplacements,
+        highlight?.map { prefix + it }?.toSet()
+    )
+}
+
 /** Builds the steps: each applied [Match] gives the next expression and highlights its parts. */
 internal class Solver(val context: MathContext) {
     private class Line(
@@ -126,15 +144,20 @@ internal class Solver(val context: MathContext) {
      * it is shown, and if the rules do not get there, takes the rest as one last step. False if
      * it took too many steps.
      */
-    fun simplifyToward(target: Expression, maxSteps: Int, arithmetic: Boolean = false): Boolean {
+    fun simplifyToward(target: Expression, maxSteps: Int, arithmetic: Boolean = false): Boolean =
+        simplifyPartToward(emptyList(), target, maxSteps, arithmetic)
+
+    /** Like [simplifyToward], for the part of the expression at [path] only (an inner integral of a double integral). */
+    fun simplifyPartToward(path: Path, target: Expression, maxSteps: Int, arithmetic: Boolean = false): Boolean {
         while (true) {
             if (context.shouldStop || size > maxSteps) return false
-            val match = SimplificationSteps.match(current, target, context, arithmetic) ?: break
-            apply(match)
+            val match = SimplificationSteps.match(at(current, path), target, context, arithmetic) ?: break
+            apply(match.within(path))
         }
         // What the rules did not do, e.g. factoring
-        if (writtenForm(current) != writtenForm(target)) {
-            apply(Match(StepRule.SIMPLIFY, mapOf(emptyList<Int>() to target), normalize(unmarked(current)), target))
+        val part = at(current, path)
+        if (writtenForm(part) != writtenForm(target)) {
+            apply(Match(StepRule.SIMPLIFY, mapOf(path to target), normalize(unmarked(part)), target))
         }
         return true
     }

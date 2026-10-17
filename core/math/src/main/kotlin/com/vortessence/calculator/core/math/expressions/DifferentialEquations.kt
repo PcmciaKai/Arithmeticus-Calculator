@@ -1,5 +1,7 @@
 package com.vortessence.calculator.core.math.expressions
 
+import com.vortessence.calculator.core.math.context.AngleUnit
+import com.vortessence.calculator.core.math.context.CalculationMode
 import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.context.MathIssue
 import com.vortessence.calculator.core.math.numbers.Rational
@@ -18,7 +20,7 @@ import kotlin.math.abs
  */
 internal object DifferentialEquations {
 
-    enum class Kind { STANDARD_FORM, INTEGRATING_FACTOR, LINEAR_SOLUTION, SEPARATE, INTEGRATE_BOTH, SOLVE_FOR_UNKNOWN, CHARACTERISTIC, HOMOGENEOUS, VARIATION_OF_PARAMETERS, CONSTANTS }
+    enum class Kind { STANDARD_FORM, INTEGRATING_FACTOR, LINEAR_SOLUTION, SEPARATE, INTEGRATE_BOTH, SOLVE_FOR_UNKNOWN, CHARACTERISTIC, HOMOGENEOUS, VARIATION_OF_PARAMETERS, UNDETERMINED_COEFFICIENTS, CONSTANTS }
 
     /** A step of the derivation: what it works out ([notes], each "left = right") and the equation it ends with ([line]). */
     class Stage(val kind: Kind, val notes: List<Pair<Expression, Expression>>, val line: Expression)
@@ -36,9 +38,22 @@ internal object DifferentialEquations {
     private val CONSTANT_1 = Variable("C₁")
     private val CONSTANT_2 = Variable("C₂")
 
-    /** The solution of dsolve([arguments]) (the equation as typed, then the initial conditions), or null with the error reported. */
+    /**
+     * The solution of dsolve([arguments]) (the equation as typed, then the initial conditions), or null with the error reported.
+     * It is worked out exactly, whatever the calculation mode: the coefficients of a second order equation must be rational numbers
+     * to find the roots; NUMERIC mode shows the result in decimals (see [NamedFunction]).
+     */
     fun solve(arguments: List<Expression>, context: MathContext): Derivation? {
-        fun refuse(issue: MathIssue = MathIssue.CANT_SOLVE_ODE): Derivation? { context.stopWithError(issue); return null }
+        if (context.mode == CalculationMode.EXACT) return solveExactly(arguments, context)
+        val exact = context.copy().also { it.mode = CalculationMode.EXACT }
+        val result = solveExactly(arguments, exact)
+        exact.issues.forEach { context.stopWithError(it) }
+        return result
+    }
+
+    private fun solveExactly(arguments: List<Expression>, context: MathContext): Derivation? {
+        // Out of time or cancelled: that is the error, not "cannot be solved"
+        fun refuse(issue: MathIssue = MathIssue.CANT_SOLVE_ODE): Derivation? { if (!context.shouldStop) context.stopWithError(issue); return null }
         val equation = arguments[0] as? Equals ?: return refuse()
         val problem = problemOf(equation, context) ?: return refuse()
         if (context.shouldStop) return null
@@ -178,12 +193,16 @@ internal object DifferentialEquations {
         val x = p.variable
 
         val inverse = canonical(Power(g, Value.MINUS_ONE), context) ?: return null
-        val left = integral(inverse, y, context)?.let { withoutSigns(it) } ?: return null
+        val withBars = integral(inverse, y, context) ?: return null
+        // ln|y| stays in the equation (it is for y < 0 as well); for solving for y the sign goes into the constant
+        val left = withoutSigns(withBars)
         val right = integral(f, x, context) ?: return null
-        val implicit = eq(left, Additions(right, CONSTANT))
+        // The integrals are antiderivatives of what they were made from
+        if (!isAntiderivative(withBars, inverse, y, p, context) || !isAntiderivative(right, f, x, p, context)) return null
+        val implicit = eq(withBars, Additions(right, CONSTANT))
         val stages = mutableListOf(
             Stage(Kind.SEPARATE, emptyList(), eq(Multiplications.of(inverse, differential(y)), Multiplications.of(f, differential(x)))),
-            Stage(Kind.INTEGRATE_BOTH, listOf(Antiderivative(inverse, y) to left, Antiderivative(f, x) to right), implicit)
+            Stage(Kind.INTEGRATE_BOTH, listOf(Antiderivative(inverse, y) to withBars, Antiderivative(f, x) to right), implicit)
         )
         val typed = eq(p.derivative, h)
 
@@ -194,7 +213,7 @@ internal object DifferentialEquations {
             val solved = (implicit as Equals).solveForVariable(y, scratch)
             if (scratch.shouldStop || solved.isEmpty() || solved == setOf(y)) emptyList() else solved.toList()
         }
-        val explicit = candidates.filter { !it.containsVariable(y) }.mapNotNull { canonical(absorbConstant(it), context) }
+        val explicit = candidates.filter { !it.containsVariable(y) }.mapNotNull { c -> canonical(c, context)?.let { canonical(absorbConstant(it), context) } }
         if (explicit.isNotEmpty() && explicit.size == candidates.size && explicit.all { satisfies(p, it, context) }) {
             val result = if (explicit.size == 1) eq(y, explicit.single()) else Alternatives(explicit.map { eq(y, it) }, inline = true)
             stages.add(Stage(Kind.SOLVE_FOR_UNKNOWN, emptyList(), result))
@@ -260,15 +279,34 @@ internal object DifferentialEquations {
         }
     }
 
+    /** Whether the derivative of [antiderivative] by [v] is [integrand], at some points. */
+    private fun isAntiderivative(antiderivative: Expression, integrand: Expression, v: Variable, p: Problem, context: MathContext): Boolean {
+        val derivative = partial(antiderivative, v, context) ?: return false
+        val letters = (derivative.variables() + integrand.variables()).toList()
+        var checked = 0
+        for (t in SAMPLES) for (shift in CONSTANT_SAMPLES.indices) {
+            val point = letters.withIndex().associate { (j, letter) -> letter to if (letter == v) t else CONSTANT_SAMPLES[(shift + j) % CONSTANT_SAMPLES.size] }
+            val l = derivative.evaluateNumerically(point)
+            val r = integrand.evaluateNumerically(point)
+            if (!l.isFinite() || !r.isFinite()) continue
+            if (abs(l - r) > 1e-7 * maxOf(1.0, abs(r))) return false
+            checked++
+        }
+        return checked >= 3
+    }
+
     /** dy and dx as they are written next to the integrands. */
     private fun differential(v: Variable): Expression = Variable("d${v.identifier}")
 
-    /** e^(u + C) is C·e^u: the constant is only determined up to a factor there. */
+    /** e^(u + C) is C·e^u, and e^C or e^(2C) is C: the constant is only determined up to a factor there. */
     private fun absorbConstant(e: Expression): Expression = e.transform { part ->
-        val exponent = (part as? Power)?.takeIf { it.base == Constant.E }?.exponent as? Additions
-        if (exponent != null && exponent.operands.contains(CONSTANT)) {
-            Multiplications.of(CONSTANT, Power(Constant.E, Additions(exponent.operands.filter { it != CONSTANT })))
-        } else part
+        val exponent = (part as? Power)?.takeIf { it.base == Constant.E }?.exponent
+        if (exponent == null || !exponent.containsVariable(CONSTANT)) return@transform part
+        fun isMultipleOfConstant(t: Expression) = t == CONSTANT || (t is Multiplications && t.operands.size == 2 && t.operands.contains(CONSTANT) && t.operands.any { it is Value })
+        val terms = if (exponent is Additions) exponent.operands else listOf(exponent)
+        val (withConstant, rest) = terms.partition { it.containsVariable(CONSTANT) }
+        if (!withConstant.all { isMultipleOfConstant(it) }) return@transform part
+        if (rest.isEmpty()) CONSTANT else Multiplications.of(CONSTANT, Power(Constant.E, if (rest.size == 1) rest.single() else Additions(rest)))
     }
 
     /**
@@ -349,8 +387,12 @@ internal object DifferentialEquations {
                 val beta = canonical(Multiplications.of(Power.squareRoot(Value(-discriminant)), Value(Rational.ONE / twoA.abs())), context) ?: return null
                 val growth = canonical(Power(Constant.E, Multiplications.of(Value(alpha), x)), context) ?: return null
                 val angle = canonical(Multiplications.of(beta, x), context) ?: return null
-                first = canonical(Multiplications.of(growth, TrigonometricFunction(TrigType.COS, angle, com.vortessence.calculator.core.math.context.AngleUnit.RADIANS)), context) ?: return null
-                second = canonical(Multiplications.of(growth, TrigonometricFunction(TrigType.SIN, angle, com.vortessence.calculator.core.math.context.AngleUnit.RADIANS)), context) ?: return null
+                // In degrees, cos(βx) is cos of (180/π·βx)°, so that the answer means the same as it does in radians
+                val degrees = context.angleUnit == AngleUnit.DEGREES
+                val inUnit = if (degrees) canonical(Multiplications.of(angle, Value(180L), Power(Constant.PI, Value.MINUS_ONE)), context) ?: return null else angle
+                val unit = if (degrees) null else AngleUnit.RADIANS
+                first = canonical(Multiplications.of(growth, TrigonometricFunction(TrigType.COS, inUnit, unit)), context) ?: return null
+                second = canonical(Multiplications.of(growth, TrigonometricFunction(TrigType.SIN, inUnit, unit)), context) ?: return null
                 notes.add(Variable("α") to Value(alpha))
                 notes.add(Variable("β") to beta)
             }
@@ -384,21 +426,161 @@ internal object DifferentialEquations {
 
         var solution = homogeneous
         if (!right.isZero) {
-            // y_p = −y₁·∫ y₂·r/(a·W) dx + y₂·∫ y₁·r/(a·W) dx, with the Wronskian W = y₁·y₂′ − y₁′·y₂
-            val d1 = partial(first, x, context) ?: return null
-            val d2 = partial(second, x, context) ?: return null
-            val wronskian = canonical(Additions(Multiplications.of(first, d2), Multiplications.of(Value.MINUS_ONE, d1, second)), context) ?: return null
-            val scale = Multiplications.of(Power(Multiplications.of(Value(a), wronskian), Value.MINUS_ONE), right)
-            val integrand1 = canonical(Multiplications.of(second, scale), context) ?: return null
-            val integrand2 = canonical(Multiplications.of(first, scale), context) ?: return null
-            val integral1 = integral(integrand1, x, context) ?: return null
-            val integral2 = integral(integrand2, x, context) ?: return null
-            val particular = canonical(Additions(Multiplications.of(Value.MINUS_ONE, first, integral1), Multiplications.of(second, integral2)), context) ?: return null
-            solution = canonical(Additions(homogeneous, particular), context) ?: return null
-            stages.add(Stage(Kind.VARIATION_OF_PARAMETERS, listOf(Variable("W") to wronskian, Antiderivative(integrand1, x) to integral1, Antiderivative(integrand2, x) to integral2, Variable("${y.identifier}ₚ") to particular), eq(y, solution)))
+            // For a right side of the kind c·xᵐ·eᵏˣ·cos/sin(wx): the coefficients of a guess of the same kind, which needs no integrals.
+            // Otherwise y_p = −y₁·∫ y₂·r/(a·W) dx + y₂·∫ y₁·r/(a·W) dx, with the Wronskian W = y₁·y₂′ − y₁′·y₂
+            val guessed = byCoefficients(a, b, c, right, x, context)
+            if (guessed != null) {
+                solution = canonical(Additions(homogeneous, guessed), context) ?: return null
+                stages.add(Stage(Kind.UNDETERMINED_COEFFICIENTS, listOf(Variable("${y.identifier}ₚ") to guessed), eq(y, solution)))
+            } else {
+                val d1 = partial(first, x, context) ?: return null
+                val d2 = partial(second, x, context) ?: return null
+                val wronskian = canonical(Additions(Multiplications.of(first, d2), Multiplications.of(Value.MINUS_ONE, d1, second)), context) ?: return null
+                val scale = Multiplications.of(Power(Multiplications.of(Value(a), wronskian), Value.MINUS_ONE), right)
+                val integrand1 = canonical(Multiplications.of(second, scale), context) ?: return null
+                val integrand2 = canonical(Multiplications.of(first, scale), context) ?: return null
+                val integral1 = integral(integrand1, x, context) ?: return null
+                val integral2 = integral(integrand2, x, context) ?: return null
+                val particular = canonical(Additions(Multiplications.of(Value.MINUS_ONE, first, integral1), Multiplications.of(second, integral2)), context) ?: return null
+                solution = canonical(Additions(homogeneous, particular), context) ?: return null
+                stages.add(Stage(Kind.VARIATION_OF_PARAMETERS, listOf(Variable("W") to wronskian, Antiderivative(integrand1, x) to integral1, Antiderivative(integrand2, x) to integral2, Variable("${y.identifier}ₚ") to particular), eq(y, solution)))
+            }
         }
         if (!satisfies(p, solution, context)) return null
         return Derivation(y, x, 2, typed, eq(y, solution), stages)
+    }
+
+    // ----- undetermined coefficients -----
+
+    /** A complex number with rational parts. */
+    private class Cx(val re: Rational, val im: Rational = Rational.ZERO) {
+        val isZero: Boolean get() = re.isZero && im.isZero
+        operator fun plus(o: Cx) = Cx(re + o.re, im + o.im)
+        operator fun minus(o: Cx) = Cx(re - o.re, im - o.im)
+        operator fun times(o: Cx) = Cx(re * o.re - im * o.im, re * o.im + im * o.re)
+        operator fun div(o: Cx): Cx {
+            val d = o.re * o.re + o.im * o.im
+            return Cx((re * o.re + im * o.im) / d, (im * o.re - re * o.im) / d)
+        }
+        operator fun times(r: Rational) = Cx(re * r, im * r)
+    }
+
+    /** One term c·xᵐ·eᵏˣ·cos(wx) or sin(wx) (or without the trigonometric function: w = 0) of a right side. */
+    private class Term(val coefficient: Rational, val power: Int, val k: Rational, val w: Rational, val isSine: Boolean)
+
+    private fun termOf(term: Expression, x: Variable, context: MathContext): Term? {
+        var coefficient = Rational.ONE
+        var power = 0
+        var k = Rational.ZERO
+        var w = Rational.ZERO
+        var isSine = false
+        var trig = false
+        /** u = r·x as r, or null. */
+        fun slope(u: Expression): Rational? = when {
+            u == x -> Rational.ONE
+            u is Multiplications && u.operands.size == 2 && u.operands.contains(x) -> (u.operands.firstOrNull { it is Value } as? Value)?.rational
+            else -> null
+        }
+        for (factor in if (term is Multiplications) term.operands else listOf(term)) {
+            when {
+                factor is Value -> coefficient *= factor.rational ?: return null
+                factor == x -> power += 1
+                factor is Power && factor.base == x -> {
+                    val n = (factor.exponent as? Value)?.rational?.takeIf { !it.isFractional && !it.isNegative && it.numerator.value.bitLength() < 6 } ?: return null
+                    power += n.numerator.value.toInt()
+                }
+                factor is Power && factor.base == Constant.E -> k += slope(factor.exponent) ?: return null
+                factor is TrigonometricFunction && (factor.type == TrigType.SIN || factor.type == TrigType.COS) && !trig -> {
+                    // Angles in degrees are another kind of right side: not here
+                    if (factor.angleUnit == AngleUnit.DEGREES || (factor.angleUnit == null && context.angleUnit == AngleUnit.DEGREES)) return null
+                    val slope = slope(factor.operand) ?: return null
+                    if (slope.isZero) return null
+                    trig = true
+                    isSine = factor.type == TrigType.SIN
+                    // sin(−wx) = −sin(wx), cos(−wx) = cos(wx)
+                    if (slope.isNegative) { w = -slope; if (isSine) coefficient = -coefficient } else w = slope
+                }
+                else -> return null
+            }
+        }
+        return Term(coefficient, power, k, w, isSine)
+    }
+
+    /**
+     * A particular solution of a·y″ + b·y′ + c·y = r(x) for r a sum of terms c·xᵐ·eᵏˣ·cos(wx) or sin(wx), by writing each in
+     * the complex exponentials: for p(x)·e^(λx) with λ = k + iw the left side gives e^(λx)·(P(λ)·q + P′(λ)·q′ + a·q″) for
+     * y = q(x)·e^(λx), P being the characteristic polynomial. q has the degree of p, times x for each time λ is a root of P
+     * (resonance). Null if r is not of that kind.
+     */
+    private fun byCoefficients(a: Rational, b: Rational, c: Rational, right: Expression, x: Variable, context: MathContext): Expression? {
+        val terms = (if (right is Additions) right.operands else listOf(right)).map { termOf(it, x, context) ?: return null }
+        // λ = k + iw (w ≥ 0): the polynomial in x of the e^(λx) part of the right side (the conjugate part is its mirror image)
+        val groups = linkedMapOf<Pair<Rational, Rational>, MutableList<Cx>>()
+        for (t in terms) {
+            val polynomial = groups.getOrPut(t.k to t.w) { mutableListOf() }
+            while (polynomial.size <= t.power) polynomial.add(Cx(Rational.ZERO))
+            // cos(wx) = (e^(iwx) + e^(−iwx))/2, sin(wx) = (e^(iwx) − e^(−iwx))/(2i) = −i/2·e^(iwx) + …
+            val weight = when {
+                t.w.isZero -> Cx(t.coefficient)
+                t.isSine -> Cx(Rational.ZERO, -t.coefficient / 2L)
+                else -> Cx(t.coefficient / 2L)
+            }
+            polynomial[t.power] = polynomial[t.power] + weight
+        }
+        val parts = mutableListOf<Expression>()
+        for ((key, p) in groups) {
+            val (k, w) = key
+            val lambda = Cx(k, w)
+            val characteristic = Cx(a) * lambda * lambda + Cx(b) * lambda + Cx(c)
+            val slope = Cx(a * 2L) * lambda + Cx(b)
+            // How often λ is a root of P: the guess is multiplied by x that many times
+            val multiplicity = if (!characteristic.isZero) 0 else if (!slope.isZero) 1 else 2
+            val size = p.indexOfLast { !it.isZero } + 1
+            if (size == 0) continue
+            // T(x^n) = P·xⁿ + P′·n·xⁿ⁻¹ + a·n(n−1)·xⁿ⁻²; the unknowns are the coefficients of x^(multiplicity + j)
+            val matrix = List(size) { MutableList(size + 1) { Cx(Rational.ZERO) } }
+            for (j in 0 until size) {
+                val n = multiplicity + j
+                if (n < size) matrix[n][j] = matrix[n][j] + characteristic
+                if (n - 1 in 0 until size) matrix[n - 1][j] = matrix[n - 1][j] + slope * Rational.of(n.toLong())
+                if (n - 2 in 0 until size) matrix[n - 2][j] = matrix[n - 2][j] + Cx(a * (n.toLong() * (n - 1).toLong())) 
+            }
+            for (i in 0 until size) matrix[i][size] = p[i]
+            val q = solveComplex(matrix, size) ?: return null
+            // y = e^(kx)·x^s·Σ qⱼxʲ (real w = 0), or 2·Re(q·e^(iwx)) = 2Re(q)·cos(wx) − 2Im(q)·sin(wx)
+            val growth: Expression = if (k.isZero) Value.ONE else Power(Constant.E, Multiplications.of(Value(k), x))
+            for (j in 0 until size) {
+                val monomial: Expression = when (val n = multiplicity + j) { 0 -> Value.ONE; 1 -> x; else -> Power(x, Value(n.toLong())) }
+                val coefficient = q[j]
+                if (w.isZero) {
+                    if (!coefficient.re.isZero) parts.add(Multiplications.of(Value(coefficient.re), monomial, growth))
+                } else {
+                    val angle = Multiplications.of(Value(w), x)
+                    val unit = if (context.angleUnit == AngleUnit.DEGREES) null else AngleUnit.RADIANS
+                    val inUnit = if (unit == null) Multiplications.of(angle, Value(180L), Power(Constant.PI, Value.MINUS_ONE)) else angle
+                    if (!coefficient.re.isZero) parts.add(Multiplications.of(Value(coefficient.re * 2L), monomial, growth, TrigonometricFunction(TrigType.COS, inUnit, unit)))
+                    if (!coefficient.im.isZero) parts.add(Multiplications.of(Value(-coefficient.im * 2L), monomial, growth, TrigonometricFunction(TrigType.SIN, inUnit, unit)))
+                }
+            }
+        }
+        if (parts.isEmpty()) return null
+        return canonical(if (parts.size == 1) parts.single() else Additions(parts), context)
+    }
+
+    /** Gaussian elimination over complex rationals of the n × (n + 1) augmented matrix; null if it is singular. */
+    private fun solveComplex(m: List<MutableList<Cx>>, n: Int): List<Cx>? {
+        for (col in 0 until n) {
+            val pivot = (col until n).firstOrNull { !m[it][col].isZero } ?: return null
+            val swap = m[col].toList(); for (j in 0..n) m[col][j] = m[pivot][j]; for (j in 0..n) m[pivot][j] = swap[j]
+            val scale = m[col][col]
+            for (j in col..n) m[col][j] = m[col][j] / scale
+            for (row in 0 until n) {
+                if (row == col || m[row][col].isZero) continue
+                val factor = m[row][col]
+                for (j in col..n) m[row][j] = m[row][j] - factor * m[col][j]
+            }
+        }
+        return List(n) { m[it][n] }
     }
 
     // ----- conditions -----
@@ -408,6 +590,7 @@ internal object DifferentialEquations {
         val y = p.unknown
         val x = p.variable
         val x0 = conditions[0]
+        val around = x0.evaluateNumerically().takeIf { x0.variables().isEmpty() }
         val solution = (general.solution as? Equals)?.takeIf { it.left == y }?.right
         // Φ(y) = F(x) + C: the constant from the point, the solution stays an equation
         if (solution == null && general.solution is Equals && p.order == 1) {
@@ -421,10 +604,10 @@ internal object DifferentialEquations {
         val notes = mutableListOf<Pair<Expression, Expression>>()
         for (branch in branches) {
             val specific = if (p.order == 1) firstCondition(branch, x, x0, conditions[1], context, notes) else listOfNotNull(secondCondition(branch, x, x0, conditions[1], conditions[2], context, notes))
-            for (candidate in specific) if (satisfies(p, candidate, context) && found.none { it == candidate }) found.add(candidate)
+            for (candidate in specific) if (satisfies(p, candidate, context, around) && found.none { it == candidate }) found.add(candidate)
         }
         // A constant solution y = y₀ is not in the family (y′ = y², y(0) = 0)
-        if (found.isEmpty() && p.order == 1 && satisfies(p, conditions[1], context)) found.add(conditions[1])
+        if (found.isEmpty() && p.order == 1 && satisfies(p, conditions[1], context, around)) found.add(conditions[1])
         if (found.isEmpty()) return null
         val result = if (found.size == 1) eq(y, found.single()) else Alternatives(found.map { eq(y, it) }, inline = true)
         val stages = general.stages + Stage(Kind.CONSTANTS, notes, result)
@@ -493,16 +676,19 @@ internal object DifferentialEquations {
 
     private val SAMPLES = listOf(0.31, 0.77, 1.3, 1.9, 2.4)
     private val CONSTANT_SAMPLES = listOf(0.8, 1.7, -0.6, -1.5, -3.0, 0.3)
+    private val AROUND = listOf(-0.2, -0.05, 0.02, 0.06, 0.12, 0.25)
 
     /** Whether [solution] (y as a function of x, with the constants) satisfies the equation at several points. */
-    private fun satisfies(p: Problem, solution: Expression, context: MathContext): Boolean {
+    private fun satisfies(p: Problem, solution: Expression, context: MathContext, around: Double? = null): Boolean {
         val d1 = partial(solution, p.variable, context) ?: return false
         val d2 = if (p.order == 2) partial(d1, p.variable, context) ?: return false else Value.ZERO
         val residual = p.g.substituteVariables(mapOf(p.y0 to solution, p.y1 to d1, p.y2 to d2))
         val letters = (residual.variables() + solution.variables() + d1.variables()).toList()
         var checked = 0
         // Every x with several values for the constants: a root or a logarithm is not defined for all of them
-        for (x in SAMPLES) for (shift in CONSTANT_SAMPLES.indices) {
+        // A solution through (x₀, y₀) may only exist near x₀ (1/√(9/4 − 2eˣ) for x < 0.118): points there as well
+        val xs = SAMPLES + (if (around != null && around.isFinite()) AROUND.map { around + it } else emptyList())
+        for (x in xs) for (shift in CONSTANT_SAMPLES.indices) {
             val point = letters.withIndex().associate { (j, v) -> v to if (v == p.variable) x else CONSTANT_SAMPLES[(shift + j) % CONSTANT_SAMPLES.size] }
             val value = residual.evaluateNumerically(point)
             if (!value.isFinite()) continue

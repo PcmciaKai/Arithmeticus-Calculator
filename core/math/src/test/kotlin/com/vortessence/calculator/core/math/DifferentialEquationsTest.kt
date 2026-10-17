@@ -97,7 +97,7 @@ class DifferentialEquationsTest {
         // Both signs
         assertEquals(2, solutions("dsolve(D{y}=x/y)").size)
         // Otherwise the equation between y and x
-        assertEquals("ln(y) − ln(y − 1) = x + C", shown("dsolve(D{y}=y(1-y))"))
+        assertEquals("ln(abs(y)) − ln(abs(y − 1)) = x + C", shown("dsolve(D{y}=y(1-y))"))
     }
 
     @Test
@@ -141,7 +141,7 @@ class DifferentialEquationsTest {
         assertEquals("y =  − (e)^(2x) + 2(e)^(x)", shown("dsolve(D{D{y}}-3D{y}+2y=0,0,1,0)"))
         assertEquals("y = sin(x)", shown("dsolve(D{D{y}}+y=0,0,0,1)"))
         assertEquals("y = (e)^( − x)(cos(2x) + (sin(2x))/(2))", shown("dsolve(D{D{y}}+2D{y}+5y=0,0,1,0)"))
-        assertEquals("y = 3 − 2(e)^( − x) + ((x)^(2))/(2) − x", shown("dsolve(D{D{y}}+D{y}=x,0,1,1)"))
+        assertEquals("y = 3 − 2(e)^( − x) − x + ((x)^(2))/(2)", shown("dsolve(D{D{y}}+D{y}=x,0,1,1)"))
         assertEquals("y = (sin(3x))/(18) − (xcos(3x))/(6)", shown("dsolve(D{D{y}}+9y=sin(3x),0,0,0)"))
         // The conditions are met: y(1) = 2, and y(2) = −1 with y′(2) = 3
         val first = solutions("dsolve(x*D{y}+y=x^2,1,2)").single()
@@ -183,7 +183,7 @@ class DifferentialEquationsTest {
         assertEquals(listOf(StepRule.ODE_SEPARATE, StepRule.ODE_INTEGRATE_BOTH), rules("dsolve(D{y}=y(1-y))"))
         assertEquals(listOf(StepRule.ODE_CHARACTERISTIC, StepRule.ODE_HOMOGENEOUS), rules("dsolve(D{D{y}}+2D{y}+5y=0)"))
         assertEquals(
-            listOf(StepRule.ODE_CHARACTERISTIC, StepRule.ODE_HOMOGENEOUS, StepRule.ODE_VARIATION_OF_PARAMETERS, StepRule.ODE_CONSTANTS),
+            listOf(StepRule.ODE_CHARACTERISTIC, StepRule.ODE_HOMOGENEOUS, StepRule.ODE_UNDETERMINED_COEFFICIENTS, StepRule.ODE_CONSTANTS),
             rules("dsolve(D{D{y}}+y=sin(x),0,0,1)")
         )
         // What is worked out is shown with the stage: the roots, the integral
@@ -237,5 +237,70 @@ class DifferentialEquationsTest {
         assertEquals(listOf(MathIssue.CANT_SOLVE_ODE), runBlocking { MathEngine.calculate(byTime("dsolve(D{a}=2ka^2,0,a)"), MathContext()) }.issues)
         // Parameters in other separable equations
         check("dsolve(D{y}=k y^2)", { _, y, y1, _ -> y1 - 0.8 * y * y }, constants = 0.8)
+    }
+
+    @Test
+    fun secondOrderWithComplexRootsAndARightSide() {
+        // Undetermined coefficients, so no integral is needed (complex roots with x or sin on the right were refused before)
+        check("dsolve(D{D{y}}+2D{y}+5y=sin(x))", { x, y, y1, y2 -> y2 + 2 * y1 + 5 * y - sin(x) })
+        check("dsolve(D{D{y}}+D{y}+3y=sin(x))", { x, y, y1, y2 -> y2 + y1 + 3 * y - sin(x) })
+        check("dsolve(5D{D{y}}-3D{y}+y=x)", { x, y, y1, y2 -> 5 * y2 - 3 * y1 + y - x })
+        check("dsolve(5D{D{y}}+4D{y}+4y=x)", { x, y, y1, y2 -> 5 * y2 + 4 * y1 + 4 * y - x })
+        check("dsolve(-5D{D{y}}-3D{y}-2y=cos(2x))", { x, y, y1, y2 -> -5 * y2 - 3 * y1 - 2 * y - cos(2 * x) })
+        check("dsolve(3D{D{y}}-3D{y}+3y=sin(x))", { x, y, y1, y2 -> 3 * y2 - 3 * y1 + 3 * y - sin(x) })
+        // Resonance: the right side solves the homogeneous equation, and a double root
+        check("dsolve(D{D{y}}+4y=cos(2x))", { x, y, _, y2 -> y2 + 4 * y - cos(2 * x) })
+        check("dsolve(D{D{y}}-2D{y}+y=x e^x)", { x, y, y1, y2 -> y2 - 2 * y1 + y - x * exp(x) })
+        check("dsolve(D{D{y}}-y=e^x+x^2)", { x, y, _, y2 -> y2 - y - exp(x) - x * x })
+        check("dsolve(D{D{y}}+y=x e^{-x} cos(x))", { x, y, _, y2 -> y2 + y - x * exp(-x) * cos(x) })
+        assertEquals("y = C₁cos(x) + C₂sin(x) + ((e)^(x))/(2)", shown("dsolve(D{D{y}}+y=e^x)"))
+        // A right side it does not know is left to variation of parameters
+        check("dsolve(D{D{y}}-y=1/x)", { x, y, _, y2 -> y2 - y - 1 / x })
+    }
+
+    @Test
+    fun separableWithConditionsWhereTheSolutionExistsOnlyNearThePoint() {
+        // y = 1/√(9/4 − 2eˣ) exists for x < 0.118 only; and y(1) = 1 for y′ = x·y(2 − y) needs ln|y − 2|
+        assertEquals("y = (1)/(sqrt( − 2(e)^(x) + (9)/(4)))", shown("dsolve(D{y}=e^x*y^3,0,2)"))
+        assertEquals(listOf<MathIssue>(), issues("dsolve(D{y}=x*y(2-y),1,1)"))
+        assertEquals(listOf<MathIssue>(), issues("dsolve(D{y}=2*y(2-y),1,1)"))
+        // The bars stay in the answer
+        assertTrue(shown("dsolve(D{y}=y(2-y),0,1)").contains("abs"))
+    }
+
+    @Test
+    fun otherModes() {
+        fun result(text: String, context: MathContext) = runBlocking { MathEngine.calculate(TestInput.parse(text), context) }
+        // NUMERIC: worked out exactly, written in decimals; second order used to be refused there
+        val numeric = MathContext(mode = com.vortessence.calculator.core.math.context.CalculationMode.NUMERIC)
+        assertTrue(result("dsolve(D{D{y}}+y=0,0,1,0)", numeric).isSuccess)
+        assertTrue(result("dsolve(D{D{y}}+0.5y=0)", numeric).isSuccess)
+        assertTrue(result("dsolve(D{D{y}}+2D{y}+5y=sin(x))", numeric).isSuccess)
+        // DEGREES: cos(βx) means the same as in radians, so it is written for degrees
+        val degrees = MathContext(angleUnit = com.vortessence.calculator.core.math.context.AngleUnit.DEGREES)
+        val solution = (result("dsolve(D{D{y}}+y=0,0,1,0)", degrees).expression as Equals).right
+        fun y(t: Double) = solution.evaluateNumerically(mapOf(x to t))
+        assertEquals(cos(1.0), y(1.0), 1e-9)
+        assertEquals(cos(2.5), y(2.5), 1e-9)
+    }
+
+    @Test
+    fun dsolveIsTheWholeLine() {
+        assertEquals(listOf(MathIssue.DSOLVE_ALONE), issues("dsolve(D{y}=y)+1"))
+        assertEquals(listOf(MathIssue.DSOLVE_ALONE), issues("2*dsolve(D{y}=y)"))
+        assertEquals(listOf(MathIssue.DSOLVE_ALONE), issues("dsolve(D{D{y}}+y=0,0,1,0)+1"))
+        // Not stored in a variable either
+        val define = MathString(listOf(com.vortessence.calculator.core.math.type.VariableNode("a"), com.vortessence.calculator.core.math.type.OperatorNode(com.vortessence.calculator.core.math.type.MathOp.DEFINE)) + TestInput.parse("dsolve(D{y}=y)").nodes)
+        assertEquals(listOf(MathIssue.DSOLVE_ALONE), runBlocking { MathEngine.calculate(define, MathContext()) }.issues)
+    }
+
+    @Test
+    fun timeAndTimeout() {
+        // Out of time is a timeout, not "cannot be solved"
+        val start = System.currentTimeMillis()
+        val result = runBlocking { MathEngine.calculate(TestInput.parse("dsolve(D{D{y}}+y=sin(x)*e^x*x^3*cos(3x)/(1+x^2))"), MathContext(), timeoutMillis = 100) }
+        assertTrue("took ${System.currentTimeMillis() - start} ms", System.currentTimeMillis() - start < 3000)
+        assertFalse(result.isSuccess)
+        assertTrue(result.issues.toString(), result.issues == listOf(MathIssue.TIMEOUT) || result.issues == listOf(MathIssue.CANT_SOLVE_ODE))
     }
 }

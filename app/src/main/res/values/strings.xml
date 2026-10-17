@@ -393,6 +393,7 @@
     <string name="step_ode_characteristic">Try y = eʳˣ: this gives the characteristic equation</string>
     <string name="step_ode_homogeneous">General solution of the equation without the right side: for two real roots C₁·eʳ¹ˣ + C₂·eʳ²ˣ, for a double root (C₁ + C₂·x)·eʳˣ, for complex roots α ± βi: eᵃˣ·(C₁·cos(βx) + C₂·sin(βx))</string>
     <string name="step_ode_variation_of_parameters">Find a particular solution by variation of parameters (W is the Wronskian)</string>
+    <string name="step_ode_undetermined_coefficients">Find a particular solution: a guess of the same kind as the right side (times x if it solves the equation without the right side), with the coefficients worked out</string>
     <string name="step_ode_constants">Choose the constants so that the initial conditions hold</string>
     <string name="formula_dsolve_name">Differential equation</string>
     <string name="formula_dsolve_desc">dsolve(equation) or dsolve(equation, x₀, y₀): solves an ordinary differential equation typed with the derivative key, e.g. dsolve(d/dx(y) = 2x·y) gives y = C·e^(x²). First order: linear or separable. Second order (also dsolve(equation, x₀, y₀, y′₀)): a·y″ + b·y′ + c·y = r(x) with numbers a, b, c. The solution is checked in the equation; the constants are C (C₁, C₂). Not solved: other types, third order</string>

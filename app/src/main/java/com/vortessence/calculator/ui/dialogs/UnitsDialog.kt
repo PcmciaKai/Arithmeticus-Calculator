@@ -46,6 +46,7 @@ fun UnitsDialog(
     language: Language = Language.ENGLISH
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val hideKeyboard = rememberHideKeyboard()
     var query by rememberSaveable { mutableStateOf("") }
     val categories = UnitRegistry.categories
     val categoryIndex = selectedCategory.coerceIn(categories.indices)
@@ -135,7 +136,7 @@ fun UnitsDialog(
                         }
                     }
                     items(families, key = { "$title-${it.name}" }) { family ->
-                        UnitFamilyRow(family = family, language = language, onUnitSelected = onUnitSelected)
+                        UnitFamilyRow(family = family, language = language, onUnitSelected = { hideKeyboard(); onUnitSelected(it) })
                     }
                 }
             }

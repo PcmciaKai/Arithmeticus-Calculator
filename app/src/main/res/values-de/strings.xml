@@ -118,6 +118,7 @@
     <string name="step_ode_characteristic">Ansatz y = eʳˣ: das ergibt die charakteristische Gleichung</string>
     <string name="step_ode_homogeneous">Allgemeine Lösung der Gleichung ohne rechte Seite: bei zwei reellen Nullstellen C₁·eʳ¹ˣ + C₂·eʳ²ˣ, bei einer doppelten (C₁ + C₂·x)·eʳˣ, bei komplexen α ± βi: eᵃˣ·(C₁·cos(βx) + C₂·sin(βx))</string>
     <string name="step_ode_variation_of_parameters">Bestimme eine partikuläre Lösung durch Variation der Konstanten (W ist die Wronski-Determinante)</string>
+    <string name="step_ode_undetermined_coefficients">Bestimme eine partikuläre Lösung: ein Ansatz von der Art der rechten Seite (mal x, wenn sie die Gleichung ohne rechte Seite löst), mit berechneten Koeffizienten</string>
     <string name="step_ode_constants">Wähle die Konstanten so, dass die Anfangsbedingungen gelten</string>
     <string name="formula_dsolve_name">Differentialgleichung</string>
     <string name="formula_dsolve_desc">dsolve(Gleichung) oder dsolve(Gleichung, x₀, y₀): löst eine gewöhnliche Differentialgleichung, die mit der Ableitungstaste eingegeben ist, z. B. ergibt dsolve(d/dx(y) = 2x·y) y = C·e^(x²). Erster Ordnung: linear oder separierbar. Zweiter Ordnung (auch dsolve(Gleichung, x₀, y₀, y′₀)): a·y″ + b·y′ + c·y = r(x) mit Zahlen a, b, c. Die Lösung wird in der Gleichung geprüft; die Konstanten sind C (C₁, C₂). Nicht gelöst: andere Typen, dritte Ordnung</string>

@@ -216,4 +216,46 @@ class IntegralStepsTest {
         assertEquals("I = ((e)^(x)(sin(x) − cos(x)))/(2)", cyclic.steps[1].notes.last().toString())
         assertEquals("((e)^(x)(sin(x) − cos(x)))/(2) + C", cyclic.result.toString())
     }
+
+    /** ∫ outer from a to b of (∫ inner from c to d of body d[y]) dx */
+    private fun double(a: String, b: String, c: String, d: String, body: String, inner: String = "y", outer: String = "x") =
+        ms(IntegralNode(TestInput.parse(a), TestInput.parse(b), ms(IntegralNode(TestInput.parse(c), TestInput.parse(d), TestInput.parse(body), inner)), outer))
+
+    @Test
+    fun doubleIntegralInnerFirst() {
+        // ∫₀³ ∫₀ˣ (2xy − x² − y²) dy dx: the inner integral in y (x is a constant) with the bounds 0 and x, then the outer one
+        val steps = solution(double("0", "3", "0", "x", "(2xy - x^2 - y^2)"))!!
+        val rules = steps.steps.drop(1).map { it.rule }
+        assertEquals(StepRule.ANTIDERIVATIVE, rules.first())
+        assertEquals(2, rules.count { it == StepRule.BOUNDS })
+        assertEquals(2, rules.count { it == StepRule.ANTIDERIVATIVE })
+        // The first BOUNDS leaves ∫₀³ … dx; the inner integral is gone by then
+        val firstBounds = steps.steps.first { it.rule == StepRule.BOUNDS }
+        assertTrue(firstBounds.expression.toString().startsWith("int_{0}^{3}"))
+        assertFalse(firstBounds.expression.toString().contains("dy"))
+        assertEquals("− (27)/(4)", steps.result.toString().replace("  ", " ").trim())
+        assertEquals(steps.result.toString(), steps.steps.last().expression.toString().replace(Regex("[\\[\\]{}]"), ""))
+    }
+
+    @Test
+    fun doubleIntegralWithAnExactResult() {
+        // ∫₀^π ∫₀ˣ sin(y) dy dx = π
+        assertEquals("π", solution(double("0", "pi", "0", "x", "sin(y)"))!!.result.toString())
+        // The outer variable is a constant for the inner integral: ∫₀² ∫₀ˣ x·y² dy dx = 32/15
+        assertEquals("(32)/(15)", solution(double("0", "2", "0", "x", "x*y^2"))!!.result.toString())
+    }
+
+    @Test
+    fun tripleIntegral() {
+        val triple = ms(IntegralNode(TestInput.parse("0"), TestInput.parse("1"), ms(IntegralNode(TestInput.parse("0"), TestInput.parse("x"), ms(IntegralNode(TestInput.parse("0"), TestInput.parse("y"), TestInput.parse("z"), "z")), "y")), "x"))
+        val steps = solution(triple)!!
+        assertEquals(3, steps.steps.count { it.rule == StepRule.BOUNDS })
+        assertEquals("(1)/(24)", steps.result.toString())
+    }
+
+    @Test
+    fun noStepsWhereTheInnerIntegralHasNoElementaryAntiderivative() {
+        // ∫₀¹ ∫ₓ¹ e^(y²) dy dx
+        assertNull(solution(double("0", "1", "x", "1", "e^{y^2}")))
+    }
 }

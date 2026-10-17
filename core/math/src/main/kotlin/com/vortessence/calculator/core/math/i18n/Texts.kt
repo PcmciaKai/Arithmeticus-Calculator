@@ -42,6 +42,7 @@ enum class Text(val en: String, val de: String) {
     WHOLE_NUMBERS_ONLY("Only defined for whole numbers", "Nur für ganze Zahlen definiert"),
     CANT_DECOMPOSE("Cannot split this into partial fractions", "Dies kann nicht in Partialbrüche zerlegt werden"),
     CANT_SOLVE_ODE("Cannot solve this differential equation", "Diese Differentialgleichung kann nicht gelöst werden"),
+    DSOLVE_ALONE("dsolve must be the whole line", "dsolve muss die ganze Zeile sein"),
     VECTOR_EXPECTED("Needs a vector (a matrix of one row or one column)", "Ein Vektor wird benötigt (eine Matrix mit einer Zeile oder Spalte)"),
     CROSS_NEEDS_THREE("The cross product needs vectors with 3 components", "Das Kreuzprodukt benötigt Vektoren mit 3 Komponenten"),
     CALCULATION_ERROR("Calculation Error", "Berechnungsfehler"),

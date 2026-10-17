@@ -223,6 +223,12 @@ object MathEngine {
         val parsed = parse(definition?.value ?: input, ctx)
         if (ctx.shouldStop) return failure(input, ctx, expression = parsed)
 
+        // The solution of a differential equation is an equation, not a value to calculate with, nor to store
+        if (parsed.containsExpressionMatching { it is NamedFunction && it.kind == NamedFunctionKind.DSOLVE } &&
+            (definition != null || !(parsed is NamedFunction && parsed.kind == NamedFunctionKind.DSOLVE))
+        ) {
+            return failure(input, ctx, MathIssue.DSOLVE_ALONE, parsed)
+        }
         // A list of eigenvalues and vectors is no value to calculate with, nor to store
         if (parsed.containsExpressionMatching { it is EigenSystem } && (parsed !is EigenSystem || definition != null)) {
             return failure(input, ctx, if (definition != null) MathIssue.SYNTAX_ERROR else MathIssue.EIGEN_ALONE, parsed)
