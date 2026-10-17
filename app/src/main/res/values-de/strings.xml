@@ -107,6 +107,8 @@
     <string name="formula_expand_desc">expand(e): Produkte und Potenzen von Summen ausmultipliziert, z. B. (x + 1)² = x² + 2x + 1</string>
     <string name="formula_apart_name">Partialbruchzerlegung</string>
     <string name="formula_apart_desc">apart(e): ein Bruch von Polynomen als Polynom plus Partialbrüche, z. B. 1/(x² − 1) = ½/(x − 1) − ½/(x + 1). Der Nenner muss in Faktoren x − r mit rationalem r zerfallen, dazu höchstens ein quadratischer ohne rationale Nullstellen (x² + 1). Eine Variable</string>
+    <string name="formula_taylor_name">Taylor-Polynom</string>
+    <string name="formula_taylor_desc">taylor(f, n), taylor(f, x, n) oder taylor(f, x, a, n): das Taylor-Polynom von f in x um a (0, wenn weggelassen) bis zur Potenz n, z. B. taylor(sin(x), x, 0, 5) = x − x³/6 + x⁵/120. n bis 12. In Potenzen von (x − a) geschrieben. Schlägt fehl, wo f oder eine Ableitung bei a nicht definiert ist (ln(x) bei 0)</string>
     <string name="formula_modpow_name">Modulare Potenz</string>
     <string name="formula_modpow_desc">modpow(b, e, m): bᵉ mod m, ohne die riesige Potenz zu berechnen. Ein negatives e braucht ein b, das modulo m ein Inverses hat</string>
     <string name="formula_hypot_name">Hypotenuse</string>
@@ -203,6 +205,7 @@
     <string name="category_vectors">Vektoren</string>
     <string name="category_bitwise">Bitweise</string>
     <string name="category_algebra">Algebra</string>
+    <string name="category_calculus">Analysis</string>
     <string name="formula_and_name">AND</string>
     <string name="formula_and_desc">Bits, die in beiden ganzen Zahlen gesetzt sind: and(12, 10) = 8</string>
     <string name="formula_or_name">OR</string>
@@ -524,6 +527,7 @@
     <string name="step_split_numerator">Teile den Zähler in die Ableitung des Nenners und eine Konstante</string>
     <string name="step_complete_square">Ergänze im Nenner quadratisch</string>
     <string name="step_partial_fractions">Zerlege in Partialbrüche</string>
+    <string name="step_taylor_series">Setze die Ableitungen am Entwicklungspunkt in die Taylor-Formel ein</string>
     <string name="step_by_parts">Integriere partiell</string>
     <string name="step_antiderivative">Bestimme eine Stammfunktion F</string>
     <string name="step_bounds">Setze die Grenzen ein</string>

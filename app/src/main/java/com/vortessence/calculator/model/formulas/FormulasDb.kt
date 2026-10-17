@@ -106,6 +106,7 @@ object FormulasDb {
         Formula(R.string.formula_unitvec_name, R.string.formula_unitvec_desc, R.string.category_vectors, ofValues("unitvec")),
         Formula(R.string.formula_expand_name, R.string.formula_expand_desc, R.string.category_algebra, ofValues("expand")),
         Formula(R.string.formula_apart_name, R.string.formula_apart_desc, R.string.category_algebra, ofValues("apart")),
+        Formula(R.string.formula_taylor_name, R.string.formula_taylor_desc, R.string.category_calculus, ofValues("taylor")),
         Formula(R.string.formula_and_name, R.string.formula_and_desc, R.string.category_bitwise, ofTwo("and")),
         Formula(R.string.formula_or_name, R.string.formula_or_desc, R.string.category_bitwise, ofTwo("or")),
         Formula(R.string.formula_xor_name, R.string.formula_xor_desc, R.string.category_bitwise, ofTwo("xor")),

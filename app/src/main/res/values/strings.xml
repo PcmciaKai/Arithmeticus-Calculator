@@ -163,6 +163,7 @@
     <string name="step_split_numerator">Split the numerator into the derivative of the denominator and a constant</string>
     <string name="step_complete_square">Complete the square in the denominator</string>
     <string name="step_partial_fractions">Split into partial fractions</string>
+    <string name="step_taylor_series">Put the derivatives at the point into the Taylor formula</string>
     <string name="step_by_parts">Integrate by parts</string>
     <string name="step_antiderivative">Find an antiderivative F</string>
     <string name="step_bounds">Insert the bounds</string>
@@ -381,6 +382,8 @@
     <string name="formula_expand_desc">expand(e): products and powers of sums multiplied out, e.g. (x + 1)² = x² + 2x + 1</string>
     <string name="formula_apart_name">Partial fractions</string>
     <string name="formula_apart_desc">apart(e): a fraction of polynomials as a polynomial plus partial fractions, e.g. 1/(x² − 1) = ½/(x − 1) − ½/(x + 1). The denominator must split into factors x − r with rational r, and at most one quadratic without rational roots (x² + 1). One variable</string>
+    <string name="formula_taylor_name">Taylor polynomial</string>
+    <string name="formula_taylor_desc">taylor(f, n), taylor(f, x, n) or taylor(f, x, a, n): the Taylor polynomial of f in x around a (0 if left out) up to the power n, e.g. taylor(sin(x), x, 0, 5) = x − x³/6 + x⁵/120. n up to 12. Written in powers of (x − a). Fails where f or a derivative is not defined at a (ln(x) at 0)</string>
     <string name="formula_modpow_name">Modular power</string>
     <string name="formula_modpow_desc">modpow(b, e, m): bᵉ mod m without working out the huge power. A negative e needs b to have an inverse modulo m</string>
     <string name="formula_hypot_name">Hypotenuse</string>
@@ -477,6 +480,7 @@
     <string name="category_vectors">Vectors</string>
     <string name="category_bitwise">Bitwise</string>
     <string name="category_algebra">Algebra</string>
+    <string name="category_calculus">Calculus</string>
     <string name="formula_and_name">AND</string>
     <string name="formula_and_desc">Bits set in both whole numbers: and(12, 10) = 8</string>
     <string name="formula_or_name">OR</string>

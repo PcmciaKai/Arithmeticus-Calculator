@@ -5,7 +5,7 @@ import com.vortessence.calculator.core.math.type.*
 /**
  * Test input as short text, e.g. "[x^2 - 4;x + 1] > 0": [a;b] is a fraction, ^2 or ^{…} an exponent, sqrt(…) a root,
  * abs(…) and the like are functions, "pi", "inf" and "e" constants, "|" starts a new line, <= and >= are ≤ and ≥,
- * D{…} a derivative, I{…} an antiderivative, I[a,b]{…} an integral, L[x->a]{…} a limit.
+ * "," an argument separator, D{…} a derivative, I{…} an antiderivative, I[a,b]{…} an integral, L[x->a]{…} a limit.
  */
 internal object TestInput {
 
@@ -23,6 +23,7 @@ internal object TestInput {
                 when {
                     c == ' ' -> i++
                     c.isDigit() || c == '.' -> { val st = i; while (peek().isDigit() || peek() == '.') i++; nodes.add(NumberNode(s.substring(st, i))) }
+                    c == ',' -> { i++; nodes.add(SeparatorNode) }
                     c == '+' -> { i++; nodes.add(OperatorNode(MathOp.PLUS)) }
                     c == '-' && !s.startsWith("->", i) -> { i++; nodes.add(OperatorNode(MathOp.MINUS)) }
                     c == '*' -> { i++; nodes.add(OperatorNode(MathOp.MULTIPLY)) }

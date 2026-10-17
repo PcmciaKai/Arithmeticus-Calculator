@@ -580,6 +580,7 @@ private val StepRule.descriptionRes: Int
         StepRule.BACK_SUBSTITUTION -> R.string.step_back_substitution
         StepRule.BY_PARTS -> R.string.step_by_parts
         StepRule.PARTIAL_FRACTIONS -> R.string.step_partial_fractions
+        StepRule.TAYLOR_SERIES -> R.string.step_taylor_series
         StepRule.SPLIT_NUMERATOR -> R.string.step_split_numerator
         StepRule.COMPLETE_SQUARE -> R.string.step_complete_square
         StepRule.ANTIDERIVATIVE -> R.string.step_antiderivative
@@ -859,6 +860,7 @@ internal fun StepRule.formula(language: Language): String? {
         StepRule.SPLIT_NUMERATOR -> "\\frac{px + q}{D} = \\frac{p}{2a}·\\frac{D′}{D} + \\frac{q − \\frac{pb}{2a}}{D}"
         StepRule.COMPLETE_SQUARE -> "ax^2 + bx + c = a((x + \\frac{b}{2a})^2 + k)"
         StepRule.PARTIAL_FRACTIONS -> "\\frac{P}{(x − a)(x − b)} = \\frac{A}{x − a} + \\frac{B}{x − b}"
+        StepRule.TAYLOR_SERIES -> "f(x) ≈ f(a) + f′(a)·(x − a) + \\frac{f″(a)}{2!}·(x − a)^2 + \\frac{f‴(a)}{3!}·(x − a)^3 + …"
         StepRule.ANTIDERIVATIVE -> "\\intab{a}{b}{f}{x} = \\eval{F}{a}{b}"
         StepRule.BOUNDS -> "\\eval{F}{a}{b} = F(b) − F(a)"
         StepRule.ADD_TO_BOTH_SIDES -> "a = b\\text{  ⇔  }a + c = b + c"

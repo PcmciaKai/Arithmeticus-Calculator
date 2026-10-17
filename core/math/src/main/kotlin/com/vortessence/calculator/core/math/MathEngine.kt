@@ -273,6 +273,8 @@ object MathEngine {
             // Multiplied out as it is, not tidied back into factors
             NamedFunctionKind.EXPAND -> simplified
             NamedFunctionKind.APART -> parsed.partialFractions(simplified, ctx) ?: simplified
+            // In powers of (x − a), from the lowest power up
+            NamedFunctionKind.TAYLOR -> parsed.taylorExpansion(ctx.copy())?.toSum() ?: simplified
             else -> displayForm(simplified, ctx)
         } else {
             displayForm(simplified, ctx)

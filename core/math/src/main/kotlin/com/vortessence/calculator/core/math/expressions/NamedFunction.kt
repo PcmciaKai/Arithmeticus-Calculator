@@ -121,6 +121,8 @@ enum class NamedFunctionKind(val functionName: String, val minArguments: Int, va
     EXPAND("expand", 1, 1),
     /** apart(e) or apart(e, x): a fraction of polynomials as a polynomial plus partial fractions, 1/(x² − 1) = ½/(x − 1) − ½/(x + 1). */
     APART("apart", 1, 2),
+    /** taylor(f, n), taylor(f, x, n) or taylor(f, x, a, n): the Taylor polynomial of f in x around a (0 if left out) up to the power n. */
+    TAYLOR("taylor", 2, 4),
     /** modpow(b, e, m): bᵉ mod m for m > 0, worked out without the huge power; a negative e needs b to have an inverse mod m. */
     MODPOW("modpow", 3, 3),
     /** √(a² + b² + ...), the length of the vector (a, b, ...). */
@@ -195,6 +197,7 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
         // Only some are meaningful for complex numbers
         if (kind !in COMPLEX_KINDS && args.any { it.containsImaginaryUnit() }) return fail(context, MathIssue.UNDEFINED)
         if (kind == NamedFunctionKind.EXPAND || kind == NamedFunctionKind.APART) return rewrite(args, context)
+        if (kind == NamedFunctionKind.TAYLOR) return taylor(args, context)
         arithmetic(args, context)?.let { return it }
         if (args.any { it.variables().isNotEmpty() }) return NamedFunction(kind, args)
 
@@ -286,6 +289,51 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
         if (body.variables().isEmpty()) return body
         if (partialFractions(body, context) == null) return fail(context, MathIssue.CANT_DECOMPOSE)
         return body
+    }
+
+    private class TaylorSetup(val variable: Variable?, val point: Expression, val order: Int)
+
+    /** The variable, point and order of taylor(f, n), taylor(f, x, n) or taylor(f, x, a, n); null, with the error reported, if they do not fit. */
+    private fun taylorSetup(args: List<Expression>, context: MathContext): TaylorSetup? {
+        fun refuse(issue: MathIssue): TaylorSetup? { context.stopWithError(issue); return null }
+        val body = args[0]
+        // Without the variable named, the only variable of f; none at all if f is a constant
+        val variable: Variable? = if (args.size == 2) {
+            body.variables().let { if (it.size > 1) return refuse(MathIssue.SYNTAX_ERROR) else it.singleOrNull() }
+        } else {
+            args[1] as? Variable ?: return refuse(MathIssue.SYNTAX_ERROR)
+        }
+        val point = if (args.size == 4) args[2] else Value.ZERO
+        if (variable != null && variable in point.variables()) return refuse(MathIssue.SYNTAX_ERROR)
+        val order = wholeNumber(args.last()) ?: return refuse(MathIssue.WHOLE_NUMBERS_ONLY)
+        if (order.value.signum() < 0) return refuse(MathIssue.UNDEFINED)
+        if (order.compareTo(TaylorSeries.MAX_ORDER.toLong()) > 0) return refuse(MathIssue.VALUES_TOO_LARGE)
+        return TaylorSetup(variable, point, order.toLong().toInt())
+    }
+
+    private fun taylor(args: List<Expression>, context: MathContext): Expression {
+        if (args.any { it.containsUnit() }) return fail(context, MathIssue.INVALID_UNIT)
+        val setup = taylorSetup(args, context) ?: return this
+        // The polynomial of a constant is the constant
+        val variable = setup.variable ?: return args[0]
+        val expansion = TaylorSeries.expand(args[0], variable, setup.point, setup.order, context) ?: return this
+        val polynomial = expansion.toSum().canonicalize(context)
+        return if (context.shouldStop) this else polynomial
+    }
+
+    /** For taylor, the derivatives and values at the point; null for a constant, or if there is none (the error is reported to [context]). */
+    internal fun taylorExpansion(context: MathContext): TaylorSeries.Expansion? {
+        val args = arguments.map { it.canonicalize(context) }
+        if (context.shouldStop) return null
+        val setup = taylorSetup(args, context) ?: return null
+        val variable = setup.variable ?: return null
+        return TaylorSeries.expand(args[0], variable, setup.point, setup.order, context)
+    }
+
+    /** The Taylor polynomial of [taylorExpansion] in powers of (x − a), the way it is shown. */
+    private val taylorPolynomial: Expression? by lazy {
+        val context = MathContext.current().copy()
+        canonicalize(context).takeUnless { context.shouldStop || it === this }
     }
 
     /** The variable apart works on: the second argument, or the only variable of [body]. */
@@ -786,6 +834,9 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
         if (kind == NamedFunctionKind.RE || kind == NamedFunctionKind.IM || kind == NamedFunctionKind.ARG || kind == NamedFunctionKind.CONJ) {
             return complexPartNumerically(bindings)
         }
+        if (kind == NamedFunctionKind.TAYLOR) return taylorPolynomial?.evaluateNumerically(bindings) ?: Double.NaN
+        // The same function in another form (the second argument of apart only names the variable)
+        if (kind == NamedFunctionKind.EXPAND || kind == NamedFunctionKind.APART) return arguments[0].evaluateNumerically(bindings)
         val values = arguments.map { it.evaluateNumerically(bindings) }
         if (values.any { it.isNaN() }) return Double.NaN
         val mean = values.average()
@@ -944,7 +995,7 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
         val MAX_PLACES = BigInt(100L)
         /** The functions that are meaningful for complex numbers. */
         val COMPLEX_KINDS = setOf(
-            NamedFunctionKind.MEAN, NamedFunctionKind.SUM, NamedFunctionKind.PROD,
+            NamedFunctionKind.MEAN, NamedFunctionKind.SUM, NamedFunctionKind.PROD, NamedFunctionKind.EXPAND,
             NamedFunctionKind.RE, NamedFunctionKind.IM, NamedFunctionKind.ARG, NamedFunctionKind.CONJ
         )
     }

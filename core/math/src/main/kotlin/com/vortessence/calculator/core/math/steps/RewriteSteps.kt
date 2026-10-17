@@ -2,6 +2,8 @@ package com.vortessence.calculator.core.math.steps
 
 import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.expressions.Expression
+import com.vortessence.calculator.core.math.expressions.Factorial
+import com.vortessence.calculator.core.math.expressions.Additions
 import com.vortessence.calculator.core.math.expressions.Multiplications
 import com.vortessence.calculator.core.math.expressions.NamedFunction
 import com.vortessence.calculator.core.math.expressions.NamedFunctionKind
@@ -13,7 +15,8 @@ import com.vortessence.calculator.core.math.numbers.Rational
 
 /**
  * The steps of the commands expand(e) and apart(e), which start from the argument: the products and powers multiplied
- * out ([Transforms]), or the fraction split into A/(x − r) + B/(x − s) + … with the numbers worked out.
+ * out ([Transforms]), or the fraction split into A/(x − r) + B/(x − s) + … with the numbers worked out; and of taylor(f, x, a, n),
+ * which starts from the call: the derivatives and their values at a, put into the formula, then simplified.
  */
 internal object RewriteSteps {
 
@@ -23,8 +26,58 @@ internal object RewriteSteps {
         return when (call.kind) {
             NamedFunctionKind.EXPAND -> Transforms.steps(body, Transform.EXPAND, context)
             NamedFunctionKind.APART -> apart(call, body, context)
+            NamedFunctionKind.TAYLOR -> taylor(call, context)
             else -> null
         }
+    }
+
+    private const val MAX_STEPS = 80
+
+    /** f′, f″, f‴, then f⁽⁴⁾ */
+    private fun derivativeMarks(k: Int): String = when (k) {
+        0 -> ""
+        1 -> "′"
+        2 -> "″"
+        3 -> "‴"
+        else -> "⁽" + k.toString().map { "⁰¹²³⁴⁵⁶⁷⁸⁹"[it - '0'] }.joinToString("") + "⁾"
+    }
+
+    private fun taylor(call: NamedFunction, context: MathContext): ExpressionSolution? {
+        val scratch = context.copy()
+        val expansion = call.taylorExpansion(scratch) ?: return null
+        if (scratch.shouldStop || scratch.issues.isNotEmpty()) return null
+        val n = expansion.order
+        val point = expansion.point
+        // A whole number is written into f′(0); anything else is named a
+        val whole = ((point as? Value)?.rational)?.takeIf { !it.isFractional }?.numerator?.value?.toString()?.replace("-", "−")
+        val at = whole ?: "a"
+
+        val notes = buildList {
+            if (whole == null) add(Note(TextExpression("a"), point))
+            for (k in 0..n) {
+                add(Note(TextExpression("f${derivativeMarks(k)}(x)"), expansion.derivatives[k]))
+                add(Note(TextExpression("f${derivativeMarks(k)}($at)"), expansion.values[k]))
+            }
+        }
+        // f(a) + f′(a)·(x − a) + f″(a)/2!·(x − a)² + …, the values put in as they are
+        val base = expansion.base
+        val terms = (0..n).filter { !expansion.values[it].isZero }.map { k ->
+            val value = expansion.values[k]
+            when (k) {
+                0 -> value
+                1 -> Multiplications.of(value, base)
+                else -> Multiplications.of(value, Power(Factorial(Value(k.toLong())), Value.MINUS_ONE), Power(base, Value(k.toLong())))
+            }
+        }
+        if (terms.isEmpty()) return null
+        val formula = if (terms.size == 1) terms.single() else Additions(terms)
+        val target = expansion.toSum()
+
+        val solution = Solver(context)
+        solution.start(call)
+        solution.apply(Match(StepRule.TAYLOR_SERIES, mapOf(emptyList<Int>() to formula), call, formula, notes = notes, showChange = false))
+        if (!solution.simplifyToward(target, MAX_STEPS)) return null
+        return solution.finish(target)
     }
 
     private fun apart(call: NamedFunction, body: Expression, context: MathContext): ExpressionSolution? {
@@ -43,13 +96,15 @@ internal object RewriteSteps {
 
         fun polynomial(c: List<Rational>) = PartialFractions.toExpression(c, v)
         fun fraction(n: List<Rational>) = Multiplications.of(polynomial(n), Power(polynomial(denominator), Value.MINUS_ONE))
-        fun linear(r: Rational): Expression = if (r.isZero) v else com.vortessence.calculator.core.math.expressions.Additions(v, Value(-r))
+        fun linear(r: Rational): Expression = PartialFractions.linearFactor(r, v).expression
         fun powered(base: Expression, k: Int): Expression = if (k == 1) base else Power(base, Value(k.toLong()))
 
         // Q = a·(x − r₁)(x − r₂)…·(x² + px + q)
         val roots = decomposition.roots.sortedByDescending { it.first }
         val factors = roots.map { (r, m) -> powered(linear(r), m) } + listOfNotNull(decomposition.quadratic?.let { polynomial(it.polynomial) })
-        val factored = Multiplications.of(*(listOfNotNull(Value(decomposition.leading).takeIf { it != Value.ONE }) + factors).toTypedArray())
+        // x − p/q is written q·x − p; the q's go into the number in front
+        val leading = roots.fold(decomposition.leading) { l, (r, m) -> l / Rational.of(r.denominator).pow(m.toLong()) }
+        val factored = Multiplications.of(*(listOfNotNull(Value(leading).takeIf { it != Value.ONE }) + factors).toTypedArray())
         val remainder = if (decomposition.quotient.isEmpty()) numerator else decomposition.remainder
 
         // A/(x − r₁) + B/(x − r₂) + …, with letters A, B … for the numbers; (B·x + C)/(x² + px + q) for the quadratic
@@ -75,9 +130,11 @@ internal object RewriteSteps {
             if (writtenForm(polynomial(denominator)) != writtenForm(factored)) add(Note(polynomial(denominator), factored))
             add(Note(fraction(remainder), setup))
             for ((letter, r, k) in letters) {
-                add(Note(letter, Value(decomposition.terms.firstOrNull { it.root == r && it.power == k }?.coefficient ?: Rational.ZERO)))
+                val value = decomposition.terms.firstOrNull { it.root == r && it.power == k }?.coefficient ?: Rational.ZERO
+                add(Note(letter, Value(value * Rational.of(r.denominator).pow(k.toLong()))))
             }
             quadraticLetters?.let { (b, c) ->
+                // As the numerator is written in the result: whole numbers over the number in front of the denominator
                 add(Note(b, Value(decomposition.quadratic!!.slope)))
                 add(Note(c, Value(decomposition.quadratic.offset)))
             }

@@ -222,6 +222,8 @@ enum class StepRule {
     BACK_SUBSTITUTION,
     /** P/((x − a)(x − b)) = A/(x − a) + B/(x − b) */
     PARTIAL_FRACTIONS,
+    /** f(x) = f(a) + f′(a)(x − a) + f″(a)/2!·(x − a)² + … */
+    TAYLOR_SERIES,
     /** (px + q)/D = (p/2a)·D′/D + (q − pb/2a)/D */
     SPLIT_NUMERATOR,
     /** ax² + bx + c = a((x + h)² + k) */

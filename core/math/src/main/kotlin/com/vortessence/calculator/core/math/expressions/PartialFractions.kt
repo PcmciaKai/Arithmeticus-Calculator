@@ -53,7 +53,7 @@ internal object PartialFractions {
             }
             // In the order of the factors as they are written, (x − 1) before (x + 1)
             val ordered = terms.sortedWith(compareByDescending<Term> { it.root }.thenBy { it.power })
-            val all = polynomial + ordered.map { term(it, v) } + listOfNotNull(quadratic?.let { term(it, v) })
+            val all = polynomial + ordered.map { writtenTerm(it, v) } + listOfNotNull(quadratic?.let { writtenTerm(it, v) })
             return if (all.isEmpty()) Value.ZERO else if (all.size == 1) all.single() else Additions(all)
         }
 
@@ -61,11 +61,36 @@ internal object PartialFractions {
         fun term(q: Quadratic, v: Variable): Expression =
             Multiplications.of(toExpression(listOf(q.offset, q.slope), v), Power(toExpression(q.polynomial, v), Value.MINUS_ONE))
 
+        /**
+         * (B·x + C)/(x² + px + q) with whole numbers in the numerator: (2 − x)/(2(x² + x + 1)), not (−x/2 + 1)/(x² + x + 1).
+         */
+        fun writtenTerm(q: Quadratic, v: Variable): Expression {
+            val scale = listOf(q.slope.denominator, q.offset.denominator).fold(BigInt.ONE) { l, d -> l * d / l.gcd(d) }
+            val numerator = toExpression(listOf(q.offset * Rational.of(scale), q.slope * Rational.of(scale)), v)
+            val polynomial = toExpression(q.polynomial, v)
+            return Multiplications.of(numerator, Power(if (scale == BigInt.ONE) polynomial else Multiplications.of(Value(scale), polynomial), Value.MINUS_ONE))
+        }
+
+        /** A/(x − p/q)ᵏ as A·qᵏ/(q·x − p)ᵏ, without a fraction in the denominator; the same as [term] for a whole root. */
+        fun writtenTerm(t: Term, v: Variable): Expression {
+            val factor = linearFactor(t.root, v)
+            return Multiplications.of(Value(t.coefficient * Rational.of(factor.scale).pow(t.power.toLong())), Power(factor.expression, Value(-t.power.toLong())))
+        }
+
         /** A/(x − r)ᵏ */
         fun term(t: Term, v: Variable): Expression {
             val linear: Expression = if (t.root.isZero) v else Additions(v, Value(-t.root))
             return Multiplications.of(Value(t.coefficient), Power(linear, Value(-t.power.toLong())))
         }
+    }
+
+    /** x − r for a whole root r; for p/q the factor q·x − p, where [scale] is q (the fraction A/(x − r) is A·q/(q·x − p)). */
+    class LinearFactor(val scale: BigInt, val expression: Expression)
+
+    fun linearFactor(root: Rational, v: Variable): LinearFactor {
+        val q = root.denominator
+        return if (q == BigInt.ONE) LinearFactor(BigInt.ONE, if (root.isZero) v else Additions(v, Value(-root)))
+        else LinearFactor(q, Additions(Multiplications(Value(q), v), Value(-root.numerator)))
     }
 
     private const val MAX_DEGREE = 8
