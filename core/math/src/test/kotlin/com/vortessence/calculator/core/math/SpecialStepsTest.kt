@@ -89,4 +89,13 @@ class SpecialStepsTest {
         // Not of a linear argument
         assertFalse(calc("I{erf(x^2)}").isSuccess)
     }
+
+    @Test
+    fun theIntegralsOverXNameTheirRule() {
+        assertEquals(listOf(StepRule.INTEGRAL_SINE_OVER_X), rules("I{[sin(x);x]}"))
+        assertEquals(listOf(StepRule.INTEGRAL_COSINE_OVER_X), rules("I{[cos(2*x);x]}"))
+        assertEquals(listOf(StepRule.INTEGRAL_EXPONENTIAL_OVER_X), rules("I{[e^x;x]}"))
+        assertEquals(StepRule.INTEGRAL_CONSTANT_FACTOR, rules("I{[3*sin(x);x]}").first())
+        assertTrue(StepRule.INTEGRAL_SINE_OVER_X in rules("I[1,2]{[sin(x);x]}"))
+    }
 }

@@ -190,14 +190,14 @@ internal class Integrator(private val context: MathContext) {
     }
 
     /** ∫ sin(a·v)/v dv = Si(a·v), ∫ cos(a·v)/v dv = Ci(a·v) and ∫ e^(a·v)/v dv = Ei(a·v). */
-    private fun integralOverVariable(e: Multiplications, v: Variable): Expression? {
+    internal fun integralOverVariable(e: Multiplications, v: Variable): Expression? {
         if (e.operands.size != 2) return null
         val reciprocal = e.operands.indexOfFirst { it is Power && it.base == v && it.exponent == Value.MINUS_ONE }
         if (reciprocal < 0) return null
         val other = e.operands[1 - reciprocal]
         val (type, u) = when {
-            other is TrigonometricFunction && other.type == TrigType.SIN && other.angleUnit == AngleUnit.RADIANS -> SpecialType.SININT to other.operand
-            other is TrigonometricFunction && other.type == TrigType.COS && other.angleUnit == AngleUnit.RADIANS -> SpecialType.COSINT to other.operand
+            other is TrigonometricFunction && other.type == TrigType.SIN && (other.angleUnit ?: context.angleUnit) == AngleUnit.RADIANS -> SpecialType.SININT to other.operand
+            other is TrigonometricFunction && other.type == TrigType.COS && (other.angleUnit ?: context.angleUnit) == AngleUnit.RADIANS -> SpecialType.COSINT to other.operand
             other is Power && other.base == Constant.E && other.exponent.containsVariable(v) -> SpecialType.EXPINT to other.exponent
             else -> return null
         }

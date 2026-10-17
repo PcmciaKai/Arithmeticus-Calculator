@@ -40,6 +40,12 @@ import com.vortessence.calculator.core.math.solvers.Function1D
 import com.vortessence.calculator.core.math.solvers.ImplicitCurve
 import com.vortessence.calculator.core.math.solvers.ImplicitPlotter
 import com.vortessence.calculator.core.math.numbers.BigInt
+import com.vortessence.calculator.core.math.numbers.Factoring
+import com.vortessence.calculator.core.math.expressions.Multiplications
+import com.vortessence.calculator.core.math.expressions.NamedFunction
+import com.vortessence.calculator.core.math.expressions.NamedFunctionKind
+import com.vortessence.calculator.core.math.expressions.Power
+import java.math.BigInteger
 import com.vortessence.calculator.core.math.numbers.Rational
 import com.vortessence.calculator.core.math.solvers.LinearSystemSolver
 import com.vortessence.calculator.core.math.solvers.NonlinearSystemSolver
@@ -198,6 +204,18 @@ object MathEngine {
         return "$subject. ${issue.message(ctx.language)}"
     }
 
+    /**
+     * The whole number [value] as a product of prime powers (360 as 2³·3²·5), which is how factor(n) is shown; the number
+     * itself for 1, −1 and primes. Null if it cannot be factored in time, or is too large.
+     */
+    private fun primeProduct(value: Expression, ctx: MathContext): Expression? {
+        val n = (value as? Value)?.rational?.takeIf { !it.isFractional }?.numerator?.value ?: return value
+        if (n.abs() < BigInteger.TWO) return value
+        val factors = Factoring.factor(n.abs()) { ctx.shouldStop } ?: return null
+        val terms = factors.map { (p, e) -> if (e == 1) Value(BigInt(p)) else Power(Value(BigInt(p)), Value(e.toLong())) }
+        return Multiplications(if (n.signum() < 0) listOf(Value.MINUS_ONE) + terms else terms)
+    }
+
     private fun evaluate(input: MathString, ctx: MathContext): CalculationResult {
         val definition = splitDefinition(input)
         if (definition != null && definition.value.isEmpty) return failure(input, ctx, MathIssue.SYNTAX_ERROR)
@@ -248,7 +266,11 @@ object MathEngine {
         val display = displayWriter(ctx)
         val issues = ctx.issues
         // Symbolic results are shown in a compact form; numbers and quantities as they are
-        val compact = displayForm(simplified, ctx)
+        val compact = if (definition == null && parsed is NamedFunction && parsed.kind == NamedFunctionKind.FACTOR) {
+            primeProduct(simplified, ctx) ?: return failure(input, ctx, if (ctx.shouldStop) MathIssue.TIMEOUT else MathIssue.VALUES_TOO_LARGE, simplified)
+        } else {
+            displayForm(simplified, ctx)
+        }
         // A definition shows what the variable now stands for: "a = 2x²"
         val shown = if (definition != null) Equals(Variable(definition.name), compact) else compact
         val written = display.write(shown)

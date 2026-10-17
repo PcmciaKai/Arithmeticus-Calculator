@@ -200,6 +200,12 @@ enum class StepRule {
     INTEGRAL_HYPERBOLIC_COSECANT,
     /** ∫ e^(−a·x²) dx = √π/(2√a)·erf(√a·x) */
     INTEGRAL_GAUSSIAN,
+    /** ∫ sin(x)/x dx = Si(x) */
+    INTEGRAL_SINE_OVER_X,
+    /** ∫ cos(x)/x dx = Ci(x) */
+    INTEGRAL_COSINE_OVER_X,
+    /** ∫ eˣ/x dx = Ei(x) */
+    INTEGRAL_EXPONENTIAL_OVER_X,
     /** ∫ ln(x) dx = x·ln(x) − x */
     INTEGRAL_LOGARITHM,
     /** sin², cos², 1/(p + qx²), 1/√(p − qx²) */

@@ -57,8 +57,38 @@ class BatchFunctionsTest {
         assertEquals(listOf(MathIssue.UNDEFINED), issues("totient", "0"))
         assertEquals(listOf(MathIssue.UNDEFINED), issues("totient", "-5"))
         assertEquals(listOf(MathIssue.WHOLE_NUMBERS_ONLY), issues("totient", "2.5"))
-        // A large prime cannot be factored in time
-        assertEquals(listOf(MathIssue.VALUES_TOO_LARGE), issues("totient", "4611686018427387847"))
+        assertEquals("4611686018427387846", exact("totient", "4611686018427387847"))
+    }
+
+    @Test
+    fun primeFactorization() {
+        assertEquals("2^3 × 3^2 × 5", exact("factor", "360"))
+        assertEquals("1", exact("factor", "1"))
+        assertEquals("97", exact("factor", "97"))
+        assertEquals("2^10", exact("factor", "1024"))
+        assertEquals("71 × 839 × 1471 × 6857", exact("factor", "600851475143"))
+        // Large factors: 2¹²⁷ − 1 is prime, 10³⁸ is 2³⁸·5³⁸
+        assertEquals("170141183460469231731687303715884105727", exact("factor", "170141183460469231731687303715884105727"))
+        assertEquals("2^38 × 5^38", exact("factor", "100000000000000000000000000000000000000"))
+        // Two primes of 13 digits each, which trial division does not find
+        assertEquals("1000000000039 × 1000000000061", exact("factor", "1000000000100000000002379"))
+        assertEquals("998244353 × 1000000007", exact("factor", "998244359987710471"))
+        // Powers of a prime above the trial division, and the time limit for a number that cannot be factored
+        assertEquals("1000003^3", exact("factor", "1000009000027000027"))
+        assertEquals("1000003^5", exact("factor", "1000015000090000270000405000243"))
+        val start = System.currentTimeMillis()
+        val hard = runBlocking { MathEngine.calculate(call("factor", "340282366920938463463374607431768211457"), MathContext(), timeoutMillis = 800) }
+        assertEquals(listOf(MathIssue.TIMEOUT), hard.issues)
+        assertTrue("took ${System.currentTimeMillis() - start} ms", System.currentTimeMillis() - start < 3000)
+        assertEquals(listOf(MathIssue.VALUES_TOO_LARGE), issues("factor", "1" + "0".repeat(400) + "7"))
+        assertEquals(listOf(MathIssue.UNDEFINED), issues("factor", "0"))
+        assertEquals(listOf(MathIssue.WHOLE_NUMBERS_ONLY), issues("factor", "2.5"))
+        // The number itself in a calculation, and in the other forms
+        assertEquals("13", calc(MathString(call("factor", "12").nodes + OperatorNode(MathOp.PLUS) + NumberNode("1"))).result.toString())
+        assertEquals(360.0, value("factor", "360"), 0.0)
+        assertTrue(ResultFormatter.availableForms(calc(call("factor", "360"))).contains(ResultForm.HEX))
+        // The same factors give φ(10³⁰) = 4·10²⁹
+        assertEquals("400000000000000000000000000000", exact("totient", "1000000000000000000000000000000"))
     }
 
     @Test

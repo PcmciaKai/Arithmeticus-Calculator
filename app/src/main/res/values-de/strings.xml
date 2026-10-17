@@ -98,7 +98,9 @@
     <string name="formula_isprime_name">Primzahltest</string>
     <string name="formula_isprime_desc">1, wenn n eine Primzahl ist, sonst 0</string>
     <string name="formula_totient_name">Eulersche φ-Funktion</string>
-    <string name="formula_totient_desc">totient(n): wie viele der Zahlen 1…n zu n teilerfremd sind. Für ganze Zahlen bis etwa 10¹⁵ (und größere mit kleinen Primfaktoren)</string>
+    <string name="formula_totient_desc">totient(n): wie viele der Zahlen 1…n zu n teilerfremd sind. Für ganze Zahlen; eine mit nur sehr großen Primfaktoren kann zu lange dauern</string>
+    <string name="formula_factor_name">Primfaktorzerlegung</string>
+    <string name="formula_factor_desc">factor(n): n als Produkt von Primzahlpotenzen, z. B. 360 = 2³ × 3² × 5. Als Produkt gezeigt, wenn factor(n) die ganze Zeile ist. Zahlen mit nur großen Primfaktoren können zu lange dauern. Dezimal, Hex usw. zeigen die Zahl selbst</string>
     <string name="formula_modpow_name">Modulare Potenz</string>
     <string name="formula_modpow_desc">modpow(b, e, m): bᵉ mod m, ohne die riesige Potenz zu berechnen. Ein negatives e braucht ein b, das modulo m ein Inverses hat</string>
     <string name="formula_trunc_name">Abschneiden</string>
@@ -391,6 +393,9 @@
     <string name="step_cosint">Leite den Integralkosinus ab</string>
     <string name="step_expint">Leite die Integralexponentialfunktion ab</string>
     <string name="step_integral_gaussian">Integriere die Gauß-Funktion (sie ergibt die Fehlerfunktion)</string>
+    <string name="step_integral_sine_over_x">Integriere sin(x)/x (es ergibt den Integralsinus Si)</string>
+    <string name="step_integral_cosine_over_x">Integriere cos(x)/x (es ergibt den Integralkosinus Ci)</string>
+    <string name="step_integral_exponential_over_x">Integriere eˣ/x (es ergibt die Integralexponentialfunktion Ei)</string>
     <string name="step_normal_density">Setze die Werte in die Dichte der Normalverteilung ein</string>
     <string name="step_normal_probability">Schreibe die Normalverteilung mit der Fehlerfunktion</string>
     <string name="step_normal_quantile">Skaliere das Quantil der Standardnormalverteilung</string>

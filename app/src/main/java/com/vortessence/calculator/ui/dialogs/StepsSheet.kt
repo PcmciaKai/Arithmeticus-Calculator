@@ -568,6 +568,9 @@ private val StepRule.descriptionRes: Int
         StepRule.INTEGRAL_HYPERBOLIC_SECANT -> R.string.step_integral_sech
         StepRule.INTEGRAL_HYPERBOLIC_COSECANT -> R.string.step_integral_csch
         StepRule.INTEGRAL_GAUSSIAN -> R.string.step_integral_gaussian
+        StepRule.INTEGRAL_SINE_OVER_X -> R.string.step_integral_sine_over_x
+        StepRule.INTEGRAL_COSINE_OVER_X -> R.string.step_integral_cosine_over_x
+        StepRule.INTEGRAL_EXPONENTIAL_OVER_X -> R.string.step_integral_exponential_over_x
         StepRule.INTEGRAL_LOGARITHM -> R.string.step_integral_logarithm
         StepRule.INTEGRAL_TABLE -> R.string.step_integral_table
         StepRule.INTEGRAL_INVERSE_HYPERBOLIC_SINE -> R.string.step_integral_inverse_hyperbolic_sine
@@ -847,6 +850,9 @@ internal fun StepRule.formula(language: Language): String? {
         StepRule.INTEGRAL_HYPERBOLIC_SECANT -> "\\int{sech(x)}{x} = atan(sinh(x))"
         StepRule.INTEGRAL_HYPERBOLIC_COSECANT -> "\\int{csch(x)}{x} = ln(|tanh(\\frac{x}{2})|)"
         StepRule.INTEGRAL_GAUSSIAN -> "\\int{e^{−a·x^2}}{x} = \\frac{\\sqrt{π}}{2·\\sqrt{a}}·erf(\\sqrt{a}·x)"
+        StepRule.INTEGRAL_SINE_OVER_X -> "\\int{\\frac{sin(x)}{x}}{x} = Si(x)"
+        StepRule.INTEGRAL_COSINE_OVER_X -> "\\int{\\frac{cos(x)}{x}}{x} = Ci(x)"
+        StepRule.INTEGRAL_EXPONENTIAL_OVER_X -> "\\int{\\frac{e^x}{x}}{x} = Ei(x)"
         StepRule.INTEGRAL_LOGARITHM -> "\\int{ln(x)}{x} = x·ln(x) − x"
         StepRule.SUBSTITUTION -> "\\int{f(g(x))·g′(x)}{x} = \\int{f(u)}{u}"
         StepRule.BY_PARTS -> "\\int{u}{v} = u·v − \\int{v}{u}"

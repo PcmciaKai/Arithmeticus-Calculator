@@ -46,6 +46,9 @@
     <string name="step_cosint">Differentiate the cosine integral</string>
     <string name="step_expint">Differentiate the exponential integral</string>
     <string name="step_integral_gaussian">Integrate the Gaussian function (it gives the error function)</string>
+    <string name="step_integral_sine_over_x">Integrate sin(x)/x (it gives the sine integral Si)</string>
+    <string name="step_integral_cosine_over_x">Integrate cos(x)/x (it gives the cosine integral Ci)</string>
+    <string name="step_integral_exponential_over_x">Integrate eˣ/x (it gives the exponential integral Ei)</string>
     <string name="step_normal_density">Put the values into the density of the normal distribution</string>
     <string name="step_normal_probability">Write the normal probability with the error function</string>
     <string name="step_normal_quantile">Scale the quantile of the standard normal distribution</string>
@@ -369,7 +372,9 @@
     <string name="formula_isprime_name">Prime test</string>
     <string name="formula_isprime_desc">1 if n is prime, otherwise 0</string>
     <string name="formula_totient_name">Euler\'s totient φ(n)</string>
-    <string name="formula_totient_desc">totient(n): how many of 1…n have no common factor with n. For whole numbers up to about 10¹⁵ (and larger ones with small prime factors)</string>
+    <string name="formula_totient_desc">totient(n): how many of 1…n have no common factor with n. For whole numbers; one with only very large prime factors can take too long</string>
+    <string name="formula_factor_name">Prime factorization</string>
+    <string name="formula_factor_desc">factor(n): n as a product of prime powers, e.g. 360 = 2³ × 3² × 5. Shown as a product when factor(n) is the whole line. Numbers with only large prime factors can take too long. Decimal, Hex etc. show the number itself</string>
     <string name="formula_modpow_name">Modular power</string>
     <string name="formula_modpow_desc">modpow(b, e, m): bᵉ mod m without working out the huge power. A negative e needs b to have an inverse modulo m</string>
     <string name="formula_trunc_name">Truncate</string>

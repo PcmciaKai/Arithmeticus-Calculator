@@ -19,6 +19,7 @@ import com.vortessence.calculator.core.math.expressions.Power
 import com.vortessence.calculator.core.math.expressions.TrigType
 import com.vortessence.calculator.core.math.expressions.HyperbolicFunction
 import com.vortessence.calculator.core.math.expressions.SpecialFunction
+import com.vortessence.calculator.core.math.expressions.SpecialType
 import com.vortessence.calculator.core.math.expressions.HyperbolicType
 import com.vortessence.calculator.core.math.expressions.TrigonometricFunction
 import com.vortessence.calculator.core.math.expressions.UnitExpression
@@ -207,6 +208,18 @@ internal object IntegralSteps {
                     val rest = variableFactors.singleOrNull() ?: Multiplications(variableFactors)
                     return rewrite(StepRule.INTEGRAL_CONSTANT_FACTOR, product(*constants.toTypedArray(), Antiderivative(rest, v)))
                 }
+            }
+            // sin(x)/x, cos(x)/x and eˣ/x are the derivatives of Si, Ci and Ei
+            ((f as? Multiplications)?.let { integrator.integralOverVariable(it, v) } as? SpecialFunction)?.let { result ->
+                return rewrite(
+                    when (result.type) {
+                        SpecialType.SININT -> StepRule.INTEGRAL_SINE_OVER_X
+                        SpecialType.COSINT -> StepRule.INTEGRAL_COSINE_OVER_X
+                        else -> StepRule.INTEGRAL_EXPONENTIAL_OVER_X
+                    },
+                    result,
+                    chainRule = false
+                )
             }
             rewriteAsPower()?.let { return it }
             halfAngle()?.let { return it }

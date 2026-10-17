@@ -56,6 +56,7 @@ object FormulasDb {
         Formula(R.string.formula_nextprime_name, R.string.formula_nextprime_desc, R.string.category_numbers, ofValues("nextprime")),
         Formula(R.string.formula_isprime_name, R.string.formula_isprime_desc, R.string.category_numbers, ofValues("isprime")),
         Formula(R.string.formula_totient_name, R.string.formula_totient_desc, R.string.category_numbers, ofValues("totient")),
+        Formula(R.string.formula_factor_name, R.string.formula_factor_desc, R.string.category_numbers, ofValues("factor")),
         Formula(R.string.formula_modpow_name, R.string.formula_modpow_desc, R.string.category_numbers, ofValues("modpow")),
         Formula(R.string.formula_trunc_name, R.string.formula_trunc_desc, R.string.category_numbers, ofValues("trunc")),
         Formula(R.string.formula_frac_name, R.string.formula_frac_desc, R.string.category_numbers, ofValues("frac")),

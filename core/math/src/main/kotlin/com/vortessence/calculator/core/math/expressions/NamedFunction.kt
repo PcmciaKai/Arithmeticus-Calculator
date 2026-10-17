@@ -4,6 +4,7 @@ import com.vortessence.calculator.core.math.context.CalculationMode
 import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.context.MathIssue
 import com.vortessence.calculator.core.math.numbers.BigInt
+import com.vortessence.calculator.core.math.numbers.Factoring
 import com.vortessence.calculator.core.math.numbers.Rational
 import com.vortessence.calculator.core.math.numbers.Real
 import com.vortessence.calculator.core.math.numbers.SpecialMath
@@ -114,6 +115,8 @@ enum class NamedFunctionKind(val functionName: String, val minArguments: Int, va
     TSTAT("tstat", 3),
     /** Euler's totient: how many of 1..n have no common factor with n. */
     TOTIENT("totient", 1, 1),
+    /** factor(n): n as a product of prime powers, e.g. 360 = 2³·3²·5 (the number itself in calculations). */
+    FACTOR("factor", 1, 1),
     /** modpow(b, e, m): bᵉ mod m for m > 0, worked out without the huge power; a negative e needs b to have an inverse mod m. */
     MODPOW("modpow", 3, 3),
     /** √(a² + b² + ...), the length of the vector (a, b, ...). */
@@ -159,7 +162,7 @@ enum class NamedFunctionKind(val functionName: String, val minArguments: Int, va
         fun byName(name: String): NamedFunctionKind? = entries.firstOrNull { it.functionName == name }
 
         private val STEPWISE = setOf(
-            ROUND, FLOOR, CEIL, TRUNC, FRAC, SIGN, MODE, GCD, LCM, NCR, NPR, MULTINOMIAL, FIB, NEXTPRIME, ISPRIME, TOTIENT, MODPOW,
+            ROUND, FLOOR, CEIL, TRUNC, FRAC, SIGN, MODE, GCD, LCM, NCR, NPR, MULTINOMIAL, FIB, NEXTPRIME, ISPRIME, TOTIENT, MODPOW, FACTOR,
             BIT_AND, BIT_OR, BIT_XOR, BIT_NOT, SHIFT_LEFT, SHIFT_RIGHT,
             BINOMPDF, BINOMCDF, POISSONPDF, POISSONCDF
         )
@@ -225,7 +228,7 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
             NamedFunctionKind.ARG -> argument(args[0], context) ?: return this
             NamedFunctionKind.GCD, NamedFunctionKind.LCM, NamedFunctionKind.NCR, NamedFunctionKind.NPR,
             NamedFunctionKind.MULTINOMIAL, NamedFunctionKind.FIB, NamedFunctionKind.NEXTPRIME, NamedFunctionKind.ISPRIME,
-            NamedFunctionKind.TOTIENT, NamedFunctionKind.MODPOW, NamedFunctionKind.BIT_AND, NamedFunctionKind.BIT_OR, NamedFunctionKind.BIT_XOR, NamedFunctionKind.BIT_NOT,
+            NamedFunctionKind.TOTIENT, NamedFunctionKind.MODPOW, NamedFunctionKind.FACTOR, NamedFunctionKind.BIT_AND, NamedFunctionKind.BIT_OR, NamedFunctionKind.BIT_XOR, NamedFunctionKind.BIT_NOT,
             NamedFunctionKind.SHIFT_LEFT, NamedFunctionKind.SHIFT_RIGHT -> {
                 val numbers = args.map { wholeNumber(it) ?: return fail(context, MathIssue.WHOLE_NUMBERS_ONLY) }
                 when (val outcome = wholeNumberFunction(numbers)) {
@@ -673,9 +676,14 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
             }
             NamedFunctionKind.TOTIENT -> {
                 if (first.value.signum() <= 0) return undefined()
-                if (first.value.bitLength() > MAX_FACTOR_BITS) return tooLarge()
-                result(BigInt(totient(first.value) ?: return tooLarge()))
+                if (first == BigInt.ONE) return result(BigInt.ONE)
+                val factors = Factoring.factor(first.value) { MathContext.current().shouldStop }
+                    ?: return if (MathContext.current().shouldStop) Whole.Failed(MathIssue.TIMEOUT) else tooLarge()
+                // φ(n) = n·∏(1 − 1/p)
+                result(BigInt(factors.fold(first.value) { phi, (p, _) -> phi.divide(p).multiply(p.subtract(BigInteger.ONE)) }))
             }
+            // The number itself; as a product of prime powers it is shown when factor(n) is the whole line (see MathEngine)
+            NamedFunctionKind.FACTOR -> if (first == BigInt.ZERO) undefined() else result(first)
             NamedFunctionKind.MODPOW -> {
                 val modulus = numbers[2].value
                 when {
@@ -705,24 +713,6 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
             }
             else -> undefined()
         }
-    }
-
-    /** φ(n) for 1 ≤ n < 2⁶² by trial division, or null if that takes too many steps (a large number with large prime factors). */
-    private fun totient(n: BigInteger): BigInteger? {
-        var rest = n.toLong()
-        var result = rest
-        var tries = 0L
-        var p = 2L
-        while (p <= rest / p) {
-            if (++tries > MAX_FACTOR_TRIES || (tries % 1_000_000L == 0L && MathContext.current().shouldStop)) return null
-            if (rest % p == 0L) {
-                while (rest % p == 0L) rest /= p
-                result -= result / p
-            }
-            p += if (p == 2L) 1 else 2
-        }
-        if (rest > 1) result -= result / rest
-        return BigInteger.valueOf(result)
     }
 
     private fun lcm(a: BigInt, b: BigInt): BigInt =
@@ -901,8 +891,6 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
         const val MAX_COMBINATORICS = 100_000L
         const val MAX_FIBONACCI = 10_000L
         const val MAX_PRIME_BITS = 256
-        const val MAX_FACTOR_BITS = 62
-        const val MAX_FACTOR_TRIES = 20_000_000L
         const val MAX_MODPOW_BITS = 8192
         const val PRIME_CERTAINTY = 40
         /** Binomial and Poisson probabilities are exact up to here, decimals beyond (the exact fractions get huge). */
