@@ -28,6 +28,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import com.vortessence.calculator.R
 import com.vortessence.calculator.core.math.steps.NumberLine
@@ -194,10 +195,10 @@ private fun SectionGroup(steps: List<SolutionStep>, from: Int, to: Int) {
     val count = to - from
     StepItem(steps, from)
     if (expanded) {
-        FoldToggle(stringResource(R.string.steps_hide_section, count), expanded = true) { expanded = false }
+        FoldToggle(pluralStringResource(R.plurals.steps_hide_section, count, count), expanded = true) { expanded = false }
         for (index in from + 1..to) StepItem(steps, index)
     } else {
-        FoldedArrow(highlightColor(from + 1)) { FoldToggle(stringResource(R.string.steps_show_section, count), expanded = false) { expanded = true } }
+        FoldedArrow(highlightColor(from + 1)) { FoldToggle(pluralStringResource(R.plurals.steps_show_section, count, count), expanded = false) { expanded = true } }
         ExpressionLine(steps[to], highlightColor(to + 1))
     }
 }
@@ -285,10 +286,10 @@ private fun CalculationGroup(steps: List<SolutionStep>, from: Int, to: Int) {
     var expanded by rememberSaveable(from) { mutableStateOf(false) }
     val count = to - from + 1
     if (expanded) {
-        FoldToggle(stringResource(R.string.steps_hide_calculations, count), expanded = true) { expanded = false }
+        FoldToggle(pluralStringResource(R.plurals.steps_hide_calculations, count, count), expanded = true) { expanded = false }
         for (index in from..to) StepItem(steps, index)
     } else {
-        FoldedArrow(highlightColor(from)) { FoldToggle(stringResource(R.string.steps_show_calculations, count), expanded = false) { expanded = true } }
+        FoldedArrow(highlightColor(from)) { FoldToggle(pluralStringResource(R.plurals.steps_show_calculations, count, count), expanded = false) { expanded = true } }
         ExpressionLine(steps[to], highlightColor(to + 1))
     }
 }

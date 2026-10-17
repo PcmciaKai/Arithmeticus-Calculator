@@ -37,6 +37,12 @@ android {
     testOptions {
         unitTests.isReturnDefaultValues = true
     }
+    bundle {
+        // The language can be changed in the app, so every device needs all translations
+        language {
+            enableSplit = false
+        }
+    }
 }
 
 dependencies {

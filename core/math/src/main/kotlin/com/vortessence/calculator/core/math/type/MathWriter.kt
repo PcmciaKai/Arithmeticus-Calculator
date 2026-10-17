@@ -565,7 +565,7 @@ class MathWriter(
         factor is Derivative -> 6
         factor is Value || factor is Percent || factor is MixedNumber -> 0
         // Powers of numbers in solution steps: 2³x³
-        factor is Power && factor.base is Value && factor.exponent is Value && (factor.exponent as Value).rational?.isFractional == false -> 0
+        factor is Power && factor.base is Value && factor.exponent is Value && factor.exponent.rational?.isFractional == false -> 0
         factor is Constant -> 1
         factor === ImaginaryUnit -> 2
         variableName(factor) != null -> 3

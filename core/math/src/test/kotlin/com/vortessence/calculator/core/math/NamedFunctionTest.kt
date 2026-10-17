@@ -35,7 +35,7 @@ class NamedFunctionTest {
     private fun numeric(name: String, vararg arguments: String): Double {
         val res = calc(call(name, *arguments))
         assertTrue("$name: ${res.issues}", res.isSuccess)
-        return res.numericValue!!
+        return res.numericValue
     }
 
     private fun issues(name: String, vararg arguments: String) = calc(call(name, *arguments)).issues
@@ -90,7 +90,7 @@ class NamedFunctionTest {
         assertEquals(2.68, numeric("round", "2.675", "2"), 0.0)
         // Rounding π, which is not a fraction
         val pi = ms(listOf(FunctionNode("round", ms(listOf(ConstantNode("π"), SeparatorNode, NumberNode("3"))))))
-        assertEquals(3.142, calc(pi).numericValue!!, 0.0)
+        assertEquals(3.142, calc(pi).numericValue, 0.0)
     }
 
     @Test
@@ -184,7 +184,7 @@ class NamedFunctionTest {
         assertEquals(-0.75, numeric("frac", "-2.75"), 0.0)
         assertEquals("(3)/(4)", exact("frac", "2.75"))
         val pi = ms(listOf(FunctionNode("frac", ms(listOf(ConstantNode("π"))))))
-        assertEquals(Math.PI - 3, calc(pi).numericValue!!, 1e-12)
+        assertEquals(Math.PI - 3, calc(pi).numericValue, 1e-12)
     }
 
     @Test
@@ -215,7 +215,7 @@ class NamedFunctionTest {
         assertEquals("3", single("re", ms(z)).result.toString())
         assertEquals("4", single("im", ms(z)).result.toString())
         assertEquals("3 - 4i", single("conj", ms(z)).result.toString().replace("(", "").replace(")", "").replace("−", "-"))
-        assertEquals(Math.atan2(4.0, 3.0), single("arg", ms(z)).numericValue!!, 1e-12)
+        assertEquals(Math.atan2(4.0, 3.0), single("arg", ms(z)).numericValue, 1e-12)
         // Real numbers
         assertEquals("0", exactComplex("arg", "5"))
         assertEquals("π", exactComplex("arg", "-5"))
@@ -244,7 +244,7 @@ class NamedFunctionTest {
         assertEquals(2.5, sum.expression.withUnitsAsSiFactors().evaluateNumerically(), 1e-12)
         val hypot = single("hypot", withUnit("3" to "m", "400" to "cm"))
         assertEquals(5.0, hypot.expression.withUnitsAsSiFactors().evaluateNumerically(), 1e-12)
-        assertEquals(1.0, single("sign", withUnit("3" to "m")).numericValue!!, 0.0)
+        assertEquals(1.0, single("sign", withUnit("3" to "m")).numericValue, 0.0)
         assertEquals(listOf(MathIssue.INVALID_UNIT), single("trunc", withUnit("3" to "m")).issues)
         val mode = single("mode", withUnit("1" to "m", "5" to "m", "100" to "cm"))
         assertTrue(mode.issues.toString(), mode.isSuccess)
@@ -256,7 +256,7 @@ class NamedFunctionTest {
     fun skewnessOfValuesWithAUnitHasNone() {
         val res = single("skew", withUnit("1" to "m", "1" to "m", "4" to "m"))
         assertTrue(res.issues.toString(), res.isSuccess)
-        assertEquals(2.0 / Math.pow(2.0, 1.5), res.numericValue!!, 1e-12)
+        assertEquals(2.0 / Math.pow(2.0, 1.5), res.numericValue, 1e-12)
         assertFalse(res.expression.containsUnit())
     }
 
@@ -265,7 +265,7 @@ class NamedFunctionTest {
         fun value(name: String, argument: String): Double {
             val res = single(name, ms(listOf(NumberNode(argument))))
             assertTrue("$name: ${res.issues}", res.isSuccess)
-            return res.numericValue!!
+            return res.numericValue
         }
         assertEquals(Math.E, value("exp", "1"), 1e-12)
         assertEquals("1", single("exp", ms(listOf(NumberNode("0")))).result.toString())

@@ -379,7 +379,7 @@ class FuzzChecksTest {
             }
             // the eigenvalues sum to the trace
             val values = lines.mapNotNull { (((it as? com.vortessence.calculator.core.math.steps.Alternatives)?.equations?.get(0)) ?: it).let { e -> (e as? Equals)?.right?.evaluateNumerically() } }
-            if (result != null && values.isNotEmpty() && values.size == n) {
+            if (values.isNotEmpty() && values.size == n) {
                 val trace = (0 until n).sumOf { entries[it * n + it] }
                 // (with repeated eigenvalues the list has them once, so only compare when all are different)
                 if (kotlin.math.abs(values.sum() - trace) > 1e-6) report("eig", "trace $trace but eigenvalues $values for $entries")

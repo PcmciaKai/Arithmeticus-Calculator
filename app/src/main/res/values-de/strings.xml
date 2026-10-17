@@ -237,7 +237,7 @@
     <string name="undo_history_cleared">Verlauf gelöscht</string>
     <string name="undo_entry_deleted">Eintrag gelöscht</string>
     <string name="undo_action">Rückgängig</string>
-    <string name="formulas_search">Suchen (Abweichung, runden, nCr)...</string>
+    <string name="formulas_search">Suchen (Abweichung, runden, nCr)…</string>
     <string name="constant_category_math">Mathematisch</string>
     <string name="constant_category_physics">Physik</string>
     <string name="constant_category_em">Elektromagnetismus</string>
@@ -273,7 +273,7 @@
     <string name="constant_rinf">Rydberg-Konstante</string>
     <string name="constant_mub">Bohrsches Magneton</string>
     <string name="constants_title">Mathematische und physikalische Konstanten</string>
-    <string name="constants_search">Konstanten suchen (c, h, π, G)...</string>
+    <string name="constants_search">Konstanten suchen (c, h, π, G)…</string>
     <string name="units_insert_title">Einheit einfügen</string>
     <string name="units_search">Suchen, z. B. km, Druck, Gallone</string>
     <string name="units_clear_search">Suche löschen</string>
@@ -346,7 +346,10 @@
         <item quantity="one">%1$d Eintrag geöffnet</item>
         <item quantity="other">%1$d Einträge geöffnet</item>
     </plurals>
-    <string name="session_opened_skipped">, %1$d konnten nicht berechnet werden und fehlen</string>
+    <plurals name="session_opened_skipped">
+        <item quantity="one">, %1$d konnte nicht berechnet werden und fehlt</item>
+        <item quantity="other">, %1$d konnten nicht berechnet werden und fehlen</item>
+    </plurals>
     <string name="keypad_infinity">unendlich</string>
     <string name="keypad_mixed_number">gemischte Zahl</string>
     <string name="graph_tool_trace">Spur</string>
@@ -638,14 +641,26 @@
     <string name="steps_title">Schritte</string>
     <string name="steps_none">Für diese Berechnung gibt es keine Schritte.</string>
     <string name="steps_result">Ergebnis</string>
-    <string name="steps_show_section">Die %1$d Schritte der Lösung anzeigen</string>
-    <string name="steps_hide_section">Die %1$d Schritte ausblenden</string>
+    <plurals name="steps_show_section">
+        <item quantity="one">Den %1$d Schritt der Lösung anzeigen</item>
+        <item quantity="other">Die %1$d Schritte der Lösung anzeigen</item>
+    </plurals>
+    <plurals name="steps_hide_section">
+        <item quantity="one">Den %1$d Schritt ausblenden</item>
+        <item quantity="other">Die %1$d Schritte ausblenden</item>
+    </plurals>
     <string name="steps_interval_notation">Intervallschreibweise</string>
     <string name="steps_number_line">Auf der Zahlengeraden</string>
     <string name="steps_chain_rule">Kettenregel</string>
     <string name="steps_linear_argument">Lineares Argument</string>
-    <string name="steps_show_calculations">%1$d Rechnungen</string>
-    <string name="steps_hide_calculations">Die %1$d Rechnungen ausblenden</string>
+    <plurals name="steps_show_calculations">
+        <item quantity="one">%1$d Rechnung</item>
+        <item quantity="other">%1$d Rechnungen</item>
+    </plurals>
+    <plurals name="steps_hide_calculations">
+        <item quantity="one">Die %1$d Rechnung ausblenden</item>
+        <item quantity="other">Die %1$d Rechnungen ausblenden</item>
+    </plurals>
     <string name="percent_hint_plus">%1$s%% wird als %1$s/100 gelesen. Tippen für %2$s + %1$s%% von %2$s = %3$s</string>
     <string name="percent_hint_minus">%1$s%% wird als %1$s/100 gelesen. Tippen für %2$s − %1$s%% von %2$s = %3$s</string>
 </resources>

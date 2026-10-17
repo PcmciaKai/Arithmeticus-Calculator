@@ -421,7 +421,7 @@ internal object IntegralSteps {
             val isSquarePlusNumber = base is Additions && base.operands.size == 2 &&
                 base.operands.any { it == Power(v, Value.TWO) } && base.operands.any { it is Value }
             if (!isSquarePlusNumber) return result to rule
-            val number = (base as Additions).operands.first { it is Value } as Value
+            val number = base.operands.first { it is Value } as Value
             return result to if (number.isNegative) StepRule.INTEGRAL_LOG_ROOT else StepRule.INTEGRAL_INVERSE_HYPERBOLIC_SINE
         }
 

@@ -426,14 +426,14 @@ private fun SlotContext.Slot(
  * outside of an editor (history, steps). [part] tells the labels of one node apart.
  */
 @Composable
-private fun SlotContext.variableLabel(part: Int, tint: Color = accentColor): Modifier {
-    val geometry = caretGeometry ?: return Modifier
-    val path = parentPath
-    val index = nodeIndex
+private fun Modifier.variableLabel(slots: SlotContext, part: Int, tint: Color = slots.accentColor): Modifier {
+    val geometry = slots.caretGeometry ?: return this
+    val path = slots.parentPath
+    val index = slots.nodeIndex
     DisposableEffect(geometry, path, index, part) {
         onDispose { geometry.removeVariableLabel(path, index, part) }
     }
-    return Modifier
+    return this
         .onGloballyPositioned { geometry.setVariableLabel(path, index, part, it) }
         .background(tint.copy(alpha = 0.14f), RoundedCornerShape(4.dp))
         .padding(horizontal = 2.dp)
@@ -1095,7 +1095,7 @@ private fun IntegralView(node: IntegralNode, fontSize: TextUnit, slots: SlotCont
             fontSize = fontSize,
             fontWeight = FontWeight.Normal,
             color = slots.textColor,
-            modifier = slots.variableLabel(part = 0)
+            modifier = Modifier.variableLabel(slots, part = 0)
         )
     }
 }
@@ -1170,7 +1170,7 @@ private fun AntiderivativeView(node: AntiderivativeNode, fontSize: TextUnit, slo
             fontSize = fontSize,
             fontWeight = FontWeight.Normal,
             color = slots.textColor,
-            modifier = slots.variableLabel(part = 0)
+            modifier = Modifier.variableLabel(slots, part = 0)
         )
     }
 }
@@ -1202,7 +1202,7 @@ private fun DerivativeView(node: DerivativeNode, fontSize: TextUnit, slots: Slot
                 fontSize = labelFontSize,
                 color = slots.accentColor,
                 fontWeight = FontWeight.SemiBold,
-                modifier = slots.variableLabel(part = 0)
+                modifier = Modifier.variableLabel(slots, part = 0)
             )
         }
         slots.Slot(child = 0, string = node.body, fontSize = fontSize, modifier = Modifier.stretchyParentheses(slots.textColor, fontSize, isFlat(node.body)))
@@ -1210,7 +1210,7 @@ private fun DerivativeView(node: DerivativeNode, fontSize: TextUnit, slots: Slot
         if (point != null) {
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(text = "|", fontSize = (fontSize.value * 1.4f).sp, fontWeight = FontWeight.ExtraLight, color = slots.textColor)
-                Text(text = "${node.variable}=", fontSize = subscriptFontSize, color = slots.textColor, modifier = slots.variableLabel(part = 1))
+                Text(text = "${node.variable}=", fontSize = subscriptFontSize, color = slots.textColor, modifier = Modifier.variableLabel(slots, part = 1))
                 slots.Slot(child = 1, string = point, fontSize = subscriptFontSize)
             }
         }

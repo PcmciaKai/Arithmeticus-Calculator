@@ -120,7 +120,7 @@ class HyperbolicFunction(
     private fun exactForward(op: Expression, context: MathContext): Expression? {
         val c: Expression = when {
             op == Value.ZERO -> Value.ONE
-            op is Logarithm && op.base == Constant.E && op.operand is Value && (op.operand as Value).rational != null -> op.operand
+            op is Logarithm && op.base == Constant.E && op.operand is Value && op.operand.rational != null -> op.operand
             else -> return null
         }
         // e^x = c, so sinh = (c − 1/c)/2 and cosh = (c + 1/c)/2

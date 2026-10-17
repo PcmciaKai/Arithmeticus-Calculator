@@ -48,9 +48,9 @@ internal object ArithmeticSteps {
     private fun isArithmetic(e: Expression): Boolean = when (e) {
         is Value -> e.rational != null
         is MixedNumber -> true
-        is Percent -> e.operand is Value && (e.operand as Value).rational != null
+        is Percent -> e.operand is Value && e.operand.rational != null
         is Additions, is Multiplications -> true
-        is Power -> e.exponent is Value && (e.exponent as Value).rational != null
+        is Power -> e.exponent is Value && e.exponent.rational != null
         else -> false
     }
 
@@ -96,7 +96,7 @@ internal object ArithmeticSteps {
             val piece = pieces[j]
             val following = pieces.getOrNull(j + 1)
             if (piece == Value.MINUS_ONE && following is LiteralFraction && following.numerator is Value) {
-                signed.add(LiteralFraction((following.numerator as Value).negate(), following.denominator))
+                signed.add(LiteralFraction(following.numerator.negate(), following.denominator))
                 j += 2
             } else {
                 signed.add(piece)

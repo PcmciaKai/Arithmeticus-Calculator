@@ -17,7 +17,7 @@ import com.vortessence.calculator.model.formulas.Formula
 import com.vortessence.calculator.model.formulas.FormulasDb
 import com.vortessence.calculator.ui.math.DecimalMark
 import com.vortessence.calculator.ui.math.MathExpressionView
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import com.vortessence.calculator.R
 
@@ -29,13 +29,13 @@ fun FormulasDialog(
 ) {
     var searchQuery by remember { mutableStateOf("") }
     val hideKeyboard = rememberHideKeyboard()
-    val context = LocalContext.current
-    val grouped = remember(searchQuery, context) {
+    val resources = LocalResources.current
+    val grouped = remember(searchQuery, resources) {
         FormulasDb.items.filter {
             searchQuery.isBlank() ||
-                context.getString(it.name).contains(searchQuery, ignoreCase = true) ||
-                context.getString(it.description).contains(searchQuery, ignoreCase = true) ||
-                context.getString(it.category).contains(searchQuery, ignoreCase = true)
+                resources.getString(it.name).contains(searchQuery, ignoreCase = true) ||
+                resources.getString(it.description).contains(searchQuery, ignoreCase = true) ||
+                resources.getString(it.category).contains(searchQuery, ignoreCase = true)
         }.groupBy { it.category }
     }
 

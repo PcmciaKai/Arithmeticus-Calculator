@@ -140,7 +140,7 @@ internal object DifferentialEquations {
 
     /** ln|u| as ln(u): the sign goes into the constant (a factor of an integrating factor, an e^C). */
     private fun withoutSigns(e: Expression): Expression = e.transform { part ->
-        if (part is Logarithm && part.operand is AbsoluteValue) Logarithm(part.base, (part.operand as AbsoluteValue).operand) else part
+        if (part is Logarithm && part.operand is AbsoluteValue) Logarithm(part.base, part.operand.operand) else part
     }
 
     private fun eq(left: Expression, right: Expression): Expression = Equals(left, right)
@@ -598,7 +598,7 @@ internal object DifferentialEquations {
             val specific = implicitCondition(p, general.solution, x0, conditions[1], context, notes) ?: return null
             return Derivation(y, x, 1, general.equation, specific, general.stages + Stage(Kind.CONSTANTS, notes, specific))
         }
-        val branches = if (general.solution is Alternatives) (general.solution as Alternatives).equations.mapNotNull { (it as? Equals)?.right } else listOfNotNull(solution)
+        val branches = if (general.solution is Alternatives) general.solution.equations.mapNotNull { (it as? Equals)?.right } else listOfNotNull(solution)
         if (branches.isEmpty()) return null
         val found = mutableListOf<Expression>()
         val notes = mutableListOf<Pair<Expression, Expression>>()

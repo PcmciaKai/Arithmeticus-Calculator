@@ -329,7 +329,7 @@ class ReciprocalFuzzTest {
         fun trig(t: TrigType) = { u: Expression -> TrigonometricFunction(t, u, AngleUnit.RADIANS) as Expression }
         fun hyp(t: HyperbolicType) = { u: Expression -> HyperbolicFunction(t, u) as Expression }
         fun squared(make: (Expression) -> Expression) = { u: Expression -> Power(make(u), Value.TWO) as Expression }
-        fun product(first: (Expression) -> Expression, second: (Expression) -> Expression) = { u: Expression -> Multiplications.of(first(u), second(u)) as Expression }
+        fun product(first: (Expression) -> Expression, second: (Expression) -> Expression) = { u: Expression -> Multiplications.of(first(u), second(u)) }
         val integrands: List<Pair<String, (Expression) -> Expression>> = listOf(
             "sec" to trig(TrigType.SEC), "csc" to trig(TrigType.CSC), "cot" to trig(TrigType.COT),
             "sec²" to squared(trig(TrigType.SEC)), "csc²" to squared(trig(TrigType.CSC)), "cot²" to squared(trig(TrigType.COT)),
@@ -352,7 +352,7 @@ class ReciprocalFuzzTest {
             val samples = (0..400).map { f(lo + (hi - lo) * it / 400) }
             if (samples.any { !it.isFinite() || abs(it) > 200 }) continue
             val context = MathContext(mode = CalculationMode.EXACT)
-            val integral = Integral(Value(Math.round(lo * 10).toLong(), 10L), Value(Math.round(hi * 10).toLong(), 10L), body, x)
+            val integral = Integral(Value(Math.round(lo * 10), 10L), Value(Math.round(hi * 10), 10L), body, x)
             // lo and hi are tenths: the same numbers as in the integral
             val lower = Math.round(lo * 10) / 10.0
             val upper = Math.round(hi * 10) / 10.0

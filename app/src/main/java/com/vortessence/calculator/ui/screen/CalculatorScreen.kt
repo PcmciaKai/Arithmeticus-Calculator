@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -124,6 +125,7 @@ fun CalculatorScreen(
 @Composable
 private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: CalculatorUiState) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     if (uiState.isGraphOpen) {
         GraphPlotterView(
             scene = uiState.plotScene,
@@ -150,7 +152,7 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
         if (uiState.showComplexNotice) {
             // Cleared afterwards: clearing it first would restart this effect and cancel the message
             snackbarHostState.showSnackbar(
-                message = context.getString(R.string.notice_complex_on),
+                message = resources.getString(R.string.notice_complex_on),
                 withDismissAction = true
             )
             viewModel.dismissComplexNotice()
@@ -168,20 +170,20 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
         val request = uiState.sessionFileRequest ?: return@LaunchedEffect
         viewModel.sessionFileRequestHandled()
         when (request) {
-            SessionFileRequest.SAVE -> saveFile.launch(context.getString(R.string.session_file_name, LocalDate.now().toString()))
+            SessionFileRequest.SAVE -> saveFile.launch(resources.getString(R.string.session_file_name, LocalDate.now().toString()))
             SessionFileRequest.OPEN -> openFile.launch(arrayOf("*/*"))
         }
     }
     LaunchedEffect(uiState.sessionMessage) {
         val message = uiState.sessionMessage ?: return@LaunchedEffect
         val text = when (message.type) {
-            SessionMessage.Type.SAVED -> context.getString(R.string.session_saved)
-            SessionMessage.Type.SAVE_FAILED -> context.getString(R.string.session_save_failed)
-            SessionMessage.Type.NOT_A_SESSION -> context.getString(R.string.session_not_a_session)
-            SessionMessage.Type.READ_FAILED -> context.getString(R.string.session_read_failed)
+            SessionMessage.Type.SAVED -> resources.getString(R.string.session_saved)
+            SessionMessage.Type.SAVE_FAILED -> resources.getString(R.string.session_save_failed)
+            SessionMessage.Type.NOT_A_SESSION -> resources.getString(R.string.session_not_a_session)
+            SessionMessage.Type.READ_FAILED -> resources.getString(R.string.session_read_failed)
             SessionMessage.Type.OPENED ->
-                context.resources.getQuantityString(R.plurals.session_opened, message.count, message.count) +
-                    if (message.skipped > 0) context.getString(R.string.session_opened_skipped, message.skipped) else ""
+                resources.getQuantityString(R.plurals.session_opened, message.count, message.count) +
+                    if (message.skipped > 0) resources.getQuantityString(R.plurals.session_opened_skipped, message.skipped, message.skipped) else ""
         }
         snackbarHostState.showSnackbar(text, withDismissAction = true)
         viewModel.dismissSessionMessage()
@@ -191,10 +193,10 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
     LaunchedEffect(uiState.undoOffer) {
         val offer = uiState.undoOffer ?: return@LaunchedEffect
         val result = snackbarHostState.showSnackbar(
-            message = context.getString(
+            message = resources.getString(
                 if (offer.kind == UndoOffer.Kind.HISTORY_CLEARED) R.string.undo_history_cleared else R.string.undo_entry_deleted
             ),
-            actionLabel = context.getString(R.string.undo_action),
+            actionLabel = resources.getString(R.string.undo_action),
             withDismissAction = true,
             duration = SnackbarDuration.Long
         )
@@ -228,7 +230,7 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
     fun copy(math: MathString) {
         clipboard.copy(math)
         // Android 13 and later confirm copies themselves
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) showMessage(context.getString(R.string.message_copied))
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) showMessage(resources.getString(R.string.message_copied))
     }
     // Long press on a history entry or the live result copies it
     fun copyWithFeedback(math: MathString) {
@@ -246,8 +248,8 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
             val content = clipboard.paste()
             when {
                 content == null -> Unit
-                content.math == null -> showMessage(context.getString(R.string.message_cant_paste, content.text.ellipsized(24)))
-                !viewModel.paste(content.math) -> showMessage(context.getString(R.string.message_cant_paste_lines))
+                content.math == null -> showMessage(resources.getString(R.string.message_cant_paste, content.text.ellipsized(24)))
+                !viewModel.paste(content.math) -> showMessage(resources.getString(R.string.message_cant_paste_lines))
             }
         },
         onSelectAll = { viewModel.selectAll() },
@@ -514,11 +516,11 @@ private fun LiveResultView(
     hasSteps: Boolean,
     language: Language,
     onShowSteps: () -> Unit,
+    modifier: Modifier = Modifier,
     percentHint: PercentHint? = null,
     onApplyPercentHint: () -> Unit = {},
     variableHint: VariableHint? = null,
-    onApplyVariableHint: (String) -> Unit = {},
-    modifier: Modifier = Modifier
+    onApplyVariableHint: (String) -> Unit = {}
 ) {
     Column(horizontalAlignment = Alignment.End) {
     Box(

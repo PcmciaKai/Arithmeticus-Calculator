@@ -263,14 +263,26 @@
     <string name="steps_title">Steps</string>
     <string name="steps_none">There are no steps for this calculation.</string>
     <string name="steps_result">Result</string>
-    <string name="steps_show_section">Show the %1$d steps of solving it</string>
-    <string name="steps_hide_section">Hide the %1$d steps</string>
+    <plurals name="steps_show_section">
+        <item quantity="one">Show the %1$d step of solving it</item>
+        <item quantity="other">Show the %1$d steps of solving it</item>
+    </plurals>
+    <plurals name="steps_hide_section">
+        <item quantity="one">Hide the %1$d step</item>
+        <item quantity="other">Hide the %1$d steps</item>
+    </plurals>
     <string name="steps_interval_notation">Interval notation</string>
     <string name="steps_number_line">On the number line</string>
     <string name="steps_chain_rule">Chain rule</string>
     <string name="steps_linear_argument">Linear argument</string>
-    <string name="steps_show_calculations">%1$d calculations</string>
-    <string name="steps_hide_calculations">Hide the %1$d calculations</string>
+    <plurals name="steps_show_calculations">
+        <item quantity="one">%1$d calculation</item>
+        <item quantity="other">%1$d calculations</item>
+    </plurals>
+    <plurals name="steps_hide_calculations">
+        <item quantity="one">Hide the %1$d calculation</item>
+        <item quantity="other">Hide the %1$d calculations</item>
+    </plurals>
 
     <!-- Hint under "200 + 10%", which is 200.1 here: what a pocket calculator means, 10% of 200 (%1$s = 10, %2$s = 200, %3$s = 220) -->
     <string name="percent_hint_plus">%1$s%% is read as %1$s/100. Tap for %2$s + %1$s%% of %2$s = %3$s</string>
@@ -512,7 +524,7 @@
     <string name="undo_history_cleared">History cleared</string>
     <string name="undo_entry_deleted">Entry deleted</string>
     <string name="undo_action">Undo</string>
-    <string name="formulas_search">Search (deviation, round, nCr)...</string>
+    <string name="formulas_search">Search (deviation, round, nCr)…</string>
     <string name="constant_category_math">Mathematical</string>
     <string name="constant_category_physics">Physics</string>
     <string name="constant_category_em">Electromagnetism</string>
@@ -548,7 +560,7 @@
     <string name="constant_rinf">Rydberg constant</string>
     <string name="constant_mub">Bohr magneton</string>
     <string name="constants_title">Mathematical &amp; Physical Constants</string>
-    <string name="constants_search">Search constants (c, h, π, G)...</string>
+    <string name="constants_search">Search constants (c, h, π, G)…</string>
     <string name="units_insert_title">Insert unit</string>
     <string name="units_search">Search, e.g. km, pressure, gallon</string>
     <string name="units_clear_search">Clear search</string>
@@ -621,7 +633,10 @@
         <item quantity="one">%1$d entry opened</item>
         <item quantity="other">%1$d entries opened</item>
     </plurals>
-    <string name="session_opened_skipped">, %1$d could not be calculated and were left out</string>
+    <plurals name="session_opened_skipped">
+        <item quantity="one">, %1$d could not be calculated and was left out</item>
+        <item quantity="other">, %1$d could not be calculated and were left out</item>
+    </plurals>
     <string name="keypad_infinity">infinity</string>
     <string name="keypad_mixed_number">mixed number</string>
     <string name="graph_tool_trace">Trace</string>

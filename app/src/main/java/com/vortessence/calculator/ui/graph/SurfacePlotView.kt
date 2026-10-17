@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -77,9 +78,9 @@ class SurfaceViewState {
     var yaw by mutableFloatStateOf(DEFAULT_YAW)
     /** Elevation of the viewer, in radians: 0 looks from the side, π/2 from above. */
     var pitch by mutableFloatStateOf(DEFAULT_PITCH)
-    var centerX by mutableStateOf(0.0)
-    var centerY by mutableStateOf(0.0)
-    var halfRange by mutableStateOf(DEFAULT_HALF_RANGE)
+    var centerX by mutableDoubleStateOf(0.0)
+    var centerY by mutableDoubleStateOf(0.0)
+    var halfRange by mutableDoubleStateOf(DEFAULT_HALF_RANGE)
     /** Null until fitted to the surface (when the graph opens and after [reset]). */
     var zCenter by mutableStateOf<Double?>(null)
     var zHalf by mutableStateOf<Double?>(null)

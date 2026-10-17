@@ -272,7 +272,7 @@ class NewFunctionsTest {
         // A numeric integral has no exact value; reusing its digits must not make up a fraction
         val integral = calc(IntegralNode(ms(n("0")), ms(n("1")), ms(e, pow(x, pow(n("2"))))))
         assertTrue(integral.answer!!.nodes.any { it is NumberNode && it.approximate })
-        val reused = runBlocking { MathEngine.calculate(integral.answer!!, MathContext()) }
+        val reused = runBlocking { MathEngine.calculate(integral.answer, MathContext()) }
         assertResult("1.462651746", reused)
         // Typed decimals are still exact
         assertResult("(1)/(4)", calc(n("0.25")))

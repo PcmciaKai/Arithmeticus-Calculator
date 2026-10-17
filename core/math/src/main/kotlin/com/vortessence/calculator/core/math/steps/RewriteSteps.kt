@@ -147,7 +147,7 @@ internal object RewriteSteps {
                 listOfNotNull(quadraticLetters?.let { (b, c) ->
                     Multiplications.of(
                         com.vortessence.calculator.core.math.expressions.Additions(Multiplications.of(b, v), c),
-                        Power(polynomial(decomposition.quadratic!!.polynomial), Value.MINUS_ONE)
+                        Power(polynomial(decomposition.quadratic.polynomial), Value.MINUS_ONE)
                     )
                 })
         )
@@ -167,7 +167,7 @@ internal object RewriteSteps {
             }
             quadraticLetters?.let { (b, c) ->
                 // As the numerator is written in the result: whole numbers over the number in front of the denominator
-                add(Note(b, Value(decomposition.quadratic!!.slope)))
+                add(Note(b, Value(decomposition.quadratic.slope)))
                 add(Note(c, Value(decomposition.quadratic.offset)))
             }
         }

@@ -317,7 +317,7 @@ internal object SimplificationSteps {
         // 1/√2 typed as (√2)⁻¹, or already as 2^(−1/2)
         val n: Rational = when {
             power.exponent == Value.MINUS_ONE && power.base is Power &&
-                ((power.base as Power).exponent as? Value)?.rational == Rational.HALF -> ((power.base as Power).base as? Value)?.rational
+                (power.base.exponent as? Value)?.rational == Rational.HALF -> (power.base.base as? Value)?.rational
             (power.exponent as? Value)?.rational == Rational.of(-1L, 2L) -> (power.base as? Value)?.rational
             else -> null
         }?.takeIf { !it.isFractional && !it.isNegative && it != Rational.ONE } ?: return null
@@ -406,7 +406,7 @@ internal object SimplificationSteps {
 
     /** 3/6 + 2/6 = (3 + 2)/6 */
     private fun combineLiteralFractions(terms: List<Part>): Match? {
-        val fractions = terms.filter { it.expression is LiteralFraction && (it.expression as LiteralFraction).denominator is Value }
+        val fractions = terms.filter { it.expression is LiteralFraction && it.expression.denominator is Value }
         val group = fractions.groupBy { (it.expression as LiteralFraction).denominator }.values.firstOrNull { it.size >= 2 } ?: return null
         val denominator = (group.first().expression as LiteralFraction).denominator
         val combined = LiteralFraction(Additions(group.map { (it.expression as LiteralFraction).numerator }), denominator)

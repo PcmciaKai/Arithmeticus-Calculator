@@ -376,7 +376,7 @@ internal class Integrator(private val context: MathContext) {
                     factor is Value -> coefficient = coefficient.times(factor)
                     factor == v -> degree += 1
                     factor is Power && factor.base == v && factor.exponent is Value -> {
-                        val n = (factor.exponent as Value).rational ?: return null
+                        val n = factor.exponent.rational ?: return null
                         if (!!n.isFractional || n.isNegative) return null
                         degree += n.numerator.value.toInt()
                     }

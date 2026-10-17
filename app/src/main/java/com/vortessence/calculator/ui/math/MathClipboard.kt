@@ -4,7 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalContext
 import com.vortessence.calculator.core.math.type.MathString
 import com.vortessence.calculator.core.math.type.MathText
 
@@ -44,6 +44,6 @@ class MathClipboard(private val clipboard: ClipboardManager) {
 
 @Composable
 fun rememberMathClipboard(): MathClipboard {
-    val clipboard = LocalClipboard.current
-    return remember(clipboard) { MathClipboard(clipboard.nativeClipboard) }
+    val context = LocalContext.current
+    return remember(context) { MathClipboard(context.getSystemService(ClipboardManager::class.java)) }
 }

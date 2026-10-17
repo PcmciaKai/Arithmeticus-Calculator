@@ -14,7 +14,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vortessence.calculator.model.constants.ConstantsDb
 import com.vortessence.calculator.model.constants.MathConstant
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import com.vortessence.calculator.R
 
@@ -25,15 +25,15 @@ fun ConstantsDialog(
 ) {
     var searchQuery by remember { mutableStateOf("") }
     val hideKeyboard = rememberHideKeyboard()
-    val context = LocalContext.current
-    val filtered = remember(searchQuery) {
+    val resources = LocalResources.current
+    val filtered = remember(searchQuery, resources) {
         if (searchQuery.isBlank()) {
             ConstantsDb.items
         } else {
             ConstantsDb.items.filter {
-                context.getString(it.name).contains(searchQuery, ignoreCase = true) ||
+                resources.getString(it.name).contains(searchQuery, ignoreCase = true) ||
                         it.symbol.contains(searchQuery, ignoreCase = true) ||
-                        context.getString(it.category).contains(searchQuery, ignoreCase = true)
+                        resources.getString(it.category).contains(searchQuery, ignoreCase = true)
             }
         }
     }

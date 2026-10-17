@@ -686,7 +686,7 @@ fun GraphPlotterView(
         GraphHeader(
             // Shown as r = f(θ), the way the curve is read in polar mode
             expression = if (polar) remember(headerLine, function) {
-                headerLine.renameVariables(mapOf(function!!.variable.identifier to "\u03B8", "y" to "r"))
+                headerLine.renameVariables(mapOf(function.variable.identifier to "\u03B8", "y" to "r"))
             } else headerLine,
             variable = if (polar) "r" else "y",
             axisOptions = AxisOptions(
@@ -783,7 +783,7 @@ fun GraphPlotterView(
                 val height = size.height
 
                 if (polar) {
-                    drawPolarGrid(vp, function!!.angleUnit, gridColor, axisColor, labelColor, backgroundColor, textMeasurer)
+                    drawPolarGrid(vp, function.angleUnit, gridColor, axisColor, labelColor, backgroundColor, textMeasurer)
                     drawPolarCurve(polarPoints, vp, curveColor)
                 } else {
                     drawGrid(vp, gridColor, axisColor, labelColor, textMeasurer)
