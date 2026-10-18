@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,7 +27,9 @@ import com.vortessence.calculator.R
 @Composable
 fun FormulasDialog(
     onDismiss: () -> Unit,
-    onFormulaSelected: (MathString) -> Unit
+    onFormulaSelected: (MathString) -> Unit,
+    /** Opens the page of the help on a function, by its id in HelpDb. */
+    onOpenHelp: (String) -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
     val hideKeyboard = rememberHideKeyboard()
@@ -77,7 +81,11 @@ fun FormulasDialog(
                             )
                         }
                         items(formulas, key = { it.name }) { formula ->
-                            FormulaItemRow(formula = formula, onClick = { hideKeyboard(); onFormulaSelected(formula.template) })
+                            FormulaItemRow(
+                                formula = formula,
+                                onClick = { hideKeyboard(); onFormulaSelected(formula.template) },
+                                onHelp = formula.helpTopic?.let { topic -> { hideKeyboard(); onOpenHelp(topic) } }
+                            )
                         }
                     }
                 }
@@ -93,7 +101,7 @@ fun FormulasDialog(
 }
 
 @Composable
-private fun FormulaItemRow(formula: Formula, onClick: () -> Unit) {
+private fun FormulaItemRow(formula: Formula, onClick: () -> Unit, onHelp: (() -> Unit)?) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -126,6 +134,16 @@ private fun FormulaItemRow(formula: Formula, onClick: () -> Unit) {
                 fontSize = 18.sp,
                 textColor = MaterialTheme.colorScheme.onSurface
             )
+            // A function with more to it than fits here has a page in the help
+            if (onHelp != null) {
+                IconButton(onClick = onHelp, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.HelpOutline,
+                        contentDescription = stringResource(R.string.formulas_help, stringResource(formula.name)),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
         }
     }
 }

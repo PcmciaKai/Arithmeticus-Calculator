@@ -7,12 +7,14 @@ import com.vortessence.calculator.core.math.type.*
 /**
  * A ready-made expression for the formula picker. [template] is inserted at the cursor, which
  * then goes to its first empty slot (or before its first comma), ready to type the values.
+ * [helpTopic] is the page of the help (see HelpDb) that explains it in more detail, if there is one.
  */
 data class Formula(
     @StringRes val name: Int,
     @StringRes val description: Int,
     @StringRes val category: Int,
-    val template: MathString
+    val template: MathString,
+    val helpTopic: String? = null
 )
 
 object FormulasDb {
@@ -106,8 +108,8 @@ object FormulasDb {
         Formula(R.string.formula_unitvec_name, R.string.formula_unitvec_desc, R.string.category_vectors, ofValues("unitvec")),
         Formula(R.string.formula_expand_name, R.string.formula_expand_desc, R.string.category_algebra, ofValues("expand")),
         Formula(R.string.formula_apart_name, R.string.formula_apart_desc, R.string.category_algebra, ofValues("apart")),
-        Formula(R.string.formula_taylor_name, R.string.formula_taylor_desc, R.string.category_calculus, ofValues("taylor")),
-        Formula(R.string.formula_dsolve_name, R.string.formula_dsolve_desc, R.string.category_calculus, ofValues("dsolve")),
+        Formula(R.string.formula_taylor_name, R.string.formula_taylor_desc, R.string.category_calculus, ofValues("taylor"), helpTopic = "taylor"),
+        Formula(R.string.formula_dsolve_name, R.string.formula_dsolve_desc, R.string.category_calculus, ofValues("dsolve"), helpTopic = "dsolve"),
         Formula(R.string.formula_and_name, R.string.formula_and_desc, R.string.category_bitwise, ofTwo("and")),
         Formula(R.string.formula_or_name, R.string.formula_or_desc, R.string.category_bitwise, ofTwo("or")),
         Formula(R.string.formula_xor_name, R.string.formula_xor_desc, R.string.category_bitwise, ofTwo("xor")),

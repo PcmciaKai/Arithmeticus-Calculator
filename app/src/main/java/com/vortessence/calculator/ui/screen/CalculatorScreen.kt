@@ -29,6 +29,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -58,6 +59,7 @@ import com.vortessence.calculator.core.math.type.ResultForm
 import com.vortessence.calculator.core.math.type.ResultFormatter
 import com.vortessence.calculator.ui.dialogs.ConstantsDialog
 import com.vortessence.calculator.ui.dialogs.FormulasDialog
+import com.vortessence.calculator.ui.dialogs.HelpDialog
 import com.vortessence.calculator.ui.dialogs.StepsSheet
 import com.vortessence.calculator.ui.dialogs.MatrixDialog
 import com.vortessence.calculator.ui.dialogs.UnitsDialog
@@ -316,28 +318,37 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
                 .focusable()
         ) {
             // History of committed calculations (scrollable, newest at the bottom)
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                state = historyListState,
-                reverseLayout = true,
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(uiState.history, key = { it.id }) { entry ->
-                    SwipeToDeleteBox(
-                        onDelete = { viewModel.deleteHistoryEntry(entry.id) },
-                        modifier = Modifier.animateItem()
-                    ) {
-                        HistoryItemCard(
-                            item = entry.calculation,
-                            form = entry.form,
-                            onInputClick = { viewModel.selectHistoryItem(entry.calculation) },
-                            onResultClick = { viewModel.useResultAsInput(entry.calculation) },
-                            onCopy = ::copyWithFeedback
-                        )
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+                    state = historyListState,
+                    reverseLayout = true,
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(uiState.history, key = { it.id }) { entry ->
+                        SwipeToDeleteBox(
+                            onDelete = { viewModel.deleteHistoryEntry(entry.id) },
+                            modifier = Modifier.animateItem()
+                        ) {
+                            HistoryItemCard(
+                                item = entry.calculation,
+                                form = entry.form,
+                                onInputClick = { viewModel.selectHistoryItem(entry.calculation) },
+                                onResultClick = { viewModel.useResultAsInput(entry.calculation) },
+                                onCopy = ::copyWithFeedback
+                            )
+                        }
                     }
+                }
+                // Once, for a new user: where the help is. Over the oldest part of the history, which is empty on a new install
+                if (uiState.showHelpHint) {
+                    HelpHintCard(
+                        onOpen = { viewModel.openHelp() },
+                        onDismiss = { viewModel.dismissHelpHint() },
+                        modifier = Modifier.align(Alignment.TopCenter).padding(horizontal = 12.dp, vertical = 8.dp)
+                    )
                 }
             }
 
@@ -460,7 +471,16 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
     if (uiState.showFormulasDialog) {
         FormulasDialog(
             onDismiss = { viewModel.dismissFormulasDialog() },
-            onFormulaSelected = { template -> viewModel.insertFormula(template) }
+            onFormulaSelected = { template -> viewModel.insertFormula(template) },
+            onOpenHelp = { topic -> viewModel.openHelp(topic) }
+        )
+    }
+
+    if (uiState.showHelp) {
+        HelpDialog(
+            initialTopic = uiState.helpTopic,
+            onTryExample = { viewModel.tryExample(it) },
+            onDismiss = { viewModel.dismissHelp() }
         )
     }
 
@@ -493,6 +513,7 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
             onLanguageChange = { choice -> (context as? Activity)?.let { AppLanguage.set(it, choice) } },
             onSaveSession = { viewModel.dismissSettingsDialog(); viewModel.requestSessionFile(SessionFileRequest.SAVE) },
             onOpenSession = { viewModel.dismissSettingsDialog(); viewModel.requestSessionFile(SessionFileRequest.OPEN) },
+            onOpenHelp = { viewModel.openHelp() },
             onDismiss = { viewModel.dismissSettingsDialog() }
         )
     }
@@ -744,6 +765,41 @@ private fun SwipeToDeleteBox(
                 .background(MaterialTheme.colorScheme.background)
         ) {
             content()
+        }
+    }
+}
+
+/** Points a new user to the help: open it, or dismiss the note for good. */
+@Composable
+private fun HelpHintCard(onOpen: () -> Unit, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier.widthIn(max = 560.dp).fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer
+    ) {
+        Column(modifier = Modifier.padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = stringResource(R.string.help_hint_title),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.help_hint_dismiss), tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                }
+            }
+            Text(
+                text = stringResource(R.string.help_hint_text),
+                fontSize = 14.sp,
+                lineHeight = 20.sp,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.padding(end = 12.dp)
+            )
+            TextButton(onClick = onOpen, modifier = Modifier.align(Alignment.End)) {
+                Text(stringResource(R.string.help_hint_open))
+            }
         }
     }
 }

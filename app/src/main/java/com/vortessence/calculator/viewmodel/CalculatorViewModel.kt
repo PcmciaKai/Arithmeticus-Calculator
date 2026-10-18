@@ -87,6 +87,11 @@ data class CalculatorUiState(
     val showConstantsDialog: Boolean = false,
     val showFormulasDialog: Boolean = false,
     val showSettingsDialog: Boolean = false,
+    /** Whether the help is open, and on which page (an id of HelpDb) if it was opened right on one. */
+    val showHelp: Boolean = false,
+    val helpTopic: String? = null,
+    /** The one-time note that points a new user to the help; gone for good once it was answered or the help was opened. */
+    val showHelpHint: Boolean = false,
     val showMatrixDialog: Boolean = false,
     /** Size of the most recently inserted matrix, preselected in the matrix dialog. */
     val matrixRows: Int = 2,
@@ -563,6 +568,7 @@ class CalculatorViewModel @JvmOverloads constructor(
         val savedTheme = prefs?.getString("theme_mode", null)
         val themeMode = ThemeMode.entries.firstOrNull { it.name == savedTheme } ?: ThemeMode.SYSTEM
         val complexNumbers = prefs?.getBoolean("complex_numbers", false) ?: false
+        val helpHintSeen = prefs?.getBoolean(KEY_HELP_HINT_SEEN, false) ?: true
         val savedMode = prefs?.getString("input_mode", null)
         val inputMode = InputMode.entries.firstOrNull { it.name == savedMode } ?: InputMode.DECIMAL
         _uiState.update {
@@ -577,7 +583,8 @@ class CalculatorViewModel @JvmOverloads constructor(
                 themeMode = themeMode,
                 matrixRows = matrixRows,
                 matrixCols = matrixCols,
-                complexNumbers = complexNumbers
+                complexNumbers = complexNumbers,
+                showHelpHint = !helpHintSeen
             )
         }
     }
@@ -1115,6 +1122,40 @@ class CalculatorViewModel @JvmOverloads constructor(
     fun dismissSettingsDialog() {
         _uiState.update { it.copy(showSettingsDialog = false) }
     }
+
+    /** Opens the help, on the page [topic] if given (from the function picker), and closes the dialog it was opened from. */
+    fun openHelp(topic: String? = null) {
+        dismissHelpHint()
+        _uiState.update { it.copy(showHelp = true, helpTopic = topic, showSettingsDialog = false, showFormulasDialog = false) }
+    }
+
+    fun dismissHelp() {
+        _uiState.update { it.copy(showHelp = false, helpTopic = null) }
+    }
+
+    fun dismissHelpHint() {
+        if (!_uiState.value.showHelpHint) return
+        prefs?.edit { putBoolean(KEY_HELP_HINT_SEEN, true) }
+        _uiState.update { it.copy(showHelpHint = false) }
+    }
+
+    /**
+     * An example of the help in place of the line, as if it had been typed, to see its result and its steps. The examples are
+     * written in decimal numbers, and one with i needs complex numbers.
+     */
+    fun tryExample(example: MathString) {
+        dismissHelp()
+        if (_uiState.value.inputMode.programmer) setInputMode(InputMode.DECIMAL)
+        if (example.contains { it is ConstantNode && it.name == "i" }) enableComplexNumbers()
+        val nextSeed = seedSource()
+        _uiState.update {
+            it.copy(expression = example.copy(), cursorPath = listOf(example.length), selectionRange = null, result = null, randomSeed = nextSeed)
+        }
+    }
+
+    /** Whether a node of [this], at any depth, is one that [predicate] is true for. */
+    private fun MathString.contains(predicate: (MathNode) -> Boolean): Boolean =
+        nodes.any { node -> predicate(node) || node.subStrings.any { it.contains(predicate) } }
 
     fun dismissMatrixDialog() {
         _uiState.update { it.copy(showMatrixDialog = false) }
@@ -2037,6 +2078,8 @@ class CalculatorViewModel @JvmOverloads constructor(
         /** Longer than a normal calculation may take: the app has just started and calculates the whole history at once. */
         const val RESTORE_TIMEOUT_MILLIS = 15_000L
         const val MAX_SESSION_FILE_BYTES = 16 * 1024 * 1024
+
+        const val KEY_HELP_HINT_SEEN = "help_hint_seen"
 
         val SOURCE_DELIMITERS = setOf(MathOp.EQUALS, MathOp.DEFINE, MathOp.CONVERT, MathOp.LESS, MathOp.GREATER, MathOp.LESS_EQUAL, MathOp.GREATER_EQUAL)
     }

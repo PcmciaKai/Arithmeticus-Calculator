@@ -325,77 +325,77 @@
     <string name="settings_units_imperial">Imperial: ft, lb, gal, psi, …</string>
     <string name="settings_units_us">US: ft, lb, US gal, psi, …</string>
     <string name="formula_mean_name">Mean x̄</string>
-    <string name="formula_mean_desc">Average of the values</string>
+    <string name="formula_mean_desc">The average: mean(2, 4, 9) = 5</string>
     <string name="formula_median_name">Median</string>
-    <string name="formula_median_desc">Middle value when sorted; for an even count the mean of the two middle ones</string>
+    <string name="formula_median_desc">The middle value once sorted; with an even count, the average of the two middle ones</string>
     <string name="formula_stdev_name">Standard deviation s (sample)</string>
-    <string name="formula_stdev_desc">Spread of a sample drawn from a larger population, divides by n − 1</string>
+    <string name="formula_stdev_desc">How spread out a sample is (divides by n − 1)</string>
     <string name="formula_stdevp_name">Standard deviation σ (population)</string>
-    <string name="formula_stdevp_desc">Spread of a complete population, divides by n</string>
+    <string name="formula_stdevp_desc">How spread out a whole population is (divides by n)</string>
     <string name="formula_var_name">Variance s² (sample)</string>
-    <string name="formula_var_desc">Square of the sample standard deviation, divides by n − 1</string>
+    <string name="formula_var_desc">The square of stdev (sample, divides by n − 1)</string>
     <string name="formula_varp_name">Variance σ² (population)</string>
-    <string name="formula_varp_desc">Square of the population standard deviation, divides by n</string>
+    <string name="formula_varp_desc">The square of stdevp (population, divides by n)</string>
     <string name="formula_sem_name">Standard error of the mean</string>
-    <string name="formula_sem_desc">s/√n: how precisely a sample\'s mean estimates the population mean</string>
+    <string name="formula_sem_desc">How precise the mean of a sample is: s/√n</string>
     <string name="formula_min_name">Minimum</string>
-    <string name="formula_min_desc">Smallest of the values</string>
+    <string name="formula_min_desc">The smallest value</string>
     <string name="formula_max_name">Maximum</string>
-    <string name="formula_max_desc">Largest of the values</string>
+    <string name="formula_max_desc">The largest value</string>
     <string name="formula_ncr_name">Combinations nCr</string>
-    <string name="formula_ncr_desc">Ways to choose k of n items, order does not matter: nCr(n, k)</string>
+    <string name="formula_ncr_desc">nCr(n, k): ways to pick k of n items, order does not matter. nCr(5, 2) = 10</string>
     <string name="formula_npr_name">Permutations nPr</string>
-    <string name="formula_npr_desc">Ways to arrange k of n items in order: nPr(n, k)</string>
+    <string name="formula_npr_desc">nPr(n, k): ways to pick k of n items in order. nPr(5, 2) = 20</string>
     <string name="formula_gcd_name">Greatest common divisor</string>
-    <string name="formula_gcd_desc">Largest whole number dividing all values</string>
+    <string name="formula_gcd_desc">The largest number that divides all values: gcd(12, 18) = 6</string>
     <string name="formula_lcm_name">Least common multiple</string>
-    <string name="formula_lcm_desc">Smallest positive multiple of all values</string>
+    <string name="formula_lcm_desc">The smallest number all values divide: lcm(4, 6) = 12</string>
     <string name="formula_round_name">Round</string>
-    <string name="formula_round_desc">To the nearest whole number, halves away from zero</string>
+    <string name="formula_round_desc">To the nearest whole number; halves go away from 0: round(2.5) = 3</string>
     <string name="formula_round_places_name">Round to decimal places</string>
-    <string name="formula_round_places_desc">round(x, n): x with n decimal places</string>
+    <string name="formula_round_places_desc">round(x, n): x rounded to n decimal places</string>
     <string name="formula_floor_name">Round down (floor)</string>
-    <string name="formula_floor_desc">Largest whole number not above the value</string>
+    <string name="formula_floor_desc">Down to a whole number: floor(−2.3) = −3</string>
     <string name="formula_ceil_name">Round up (ceiling)</string>
-    <string name="formula_ceil_desc">Smallest whole number not below the value</string>
+    <string name="formula_ceil_desc">Up to a whole number: ceil(2.1) = 3</string>
     <string name="formula_mode_name">Mode</string>
-    <string name="formula_mode_desc">Most frequent value; the first of them if several occur equally often</string>
+    <string name="formula_mode_desc">The most frequent value; the first of them if there is a tie</string>
     <string name="formula_range_name">Range</string>
-    <string name="formula_range_desc">Largest value minus smallest value</string>
+    <string name="formula_range_desc">The largest minus the smallest value</string>
     <string name="formula_sum_name">Sum</string>
-    <string name="formula_sum_desc">Adds up the values you list: sum(2, 4, 9) = 15. For a series with an index running from a lower to an upper bound use the Σ key</string>
+    <string name="formula_sum_desc">Adds the values you list: sum(2, 4, 9) = 15. For a sum with an index, use the Σ key</string>
     <string name="formula_prod_name">Product</string>
-    <string name="formula_prod_desc">Multiplies the values you list: prod(2, 4, 9) = 72. For a series with an index running from a lower to an upper bound use the ∏ key (long press Σ)</string>
+    <string name="formula_prod_desc">Multiplies the values you list: prod(2, 4, 9) = 72. For a product with an index, long press Σ</string>
     <string name="formula_sumsq_name">Sum of squares</string>
-    <string name="formula_sumsq_desc">The squares of the values added up: sumsq(1, 2, 3) = 14</string>
+    <string name="formula_sumsq_desc">Adds the squares of the values: sumsq(1, 2, 3) = 14</string>
     <string name="formula_percentile_name">Percentile</string>
-    <string name="formula_percentile_desc">percentile(p, values…): the value below which p percent (0 to 100) of the data lie, interpolated between neighbours</string>
+    <string name="formula_percentile_desc">percentile(p, values…): the value that p percent of the data lie below (p from 0 to 100)</string>
     <string name="formula_quartile_name">Quartile</string>
-    <string name="formula_quartile_desc">quartile(q, values…): q from 0 to 4, where 2 is the median</string>
+    <string name="formula_quartile_desc">quartile(q, values…): q = 1, 2 or 3 for the quartiles (2 is the median); 0 and 4 give min and max</string>
     <string name="formula_skew_name">Skewness</string>
-    <string name="formula_skew_desc">Asymmetry of the data (population): 0 if symmetric, positive if the long tail is on the right. Needs at least 3 values</string>
+    <string name="formula_skew_desc">How lopsided the data are: 0 if symmetric, positive if the long tail is on the right. At least 3 values</string>
     <string name="formula_tmargin_name">Margin of error of the mean (t)</string>
-    <string name="formula_tmargin_desc">tmargin(c, values…): the margin of error t·s/√n of the confidence interval of level c (0.95 for 95%) for the mean, with t = tinv((1 + c)/2, n − 1). The interval is mean ± margin</string>
+    <string name="formula_tmargin_desc">tmargin(c, values…): the margin of error of the mean at confidence c (0.95 for 95 percent); the interval is mean ± margin</string>
     <string name="formula_tstat_name">t statistic of a sample</string>
-    <string name="formula_tstat_desc">tstat(μ₀, values…): (mean − μ₀)/(s/√n), the statistic of a one-sample t test against μ₀. Compare it with tinv or work out the p-value with tcdf</string>
+    <string name="formula_tstat_desc">tstat(μ₀, values…): the t value of a one-sample t test against the mean μ₀</string>
     <string name="formula_multinomial_name">Multinomial coefficient</string>
-    <string name="formula_multinomial_desc">Ways to split k₁ + k₂ + … items into groups of these sizes</string>
+    <string name="formula_multinomial_desc">Ways to split k₁ + k₂ + … items into groups of k₁, k₂, … items: multinomial(2, 1) = 3</string>
     <string name="formula_fib_name">Fibonacci number</string>
-    <string name="formula_fib_desc">fib(n): 0, 1, 1, 2, 3, 5, 8, …</string>
+    <string name="formula_fib_desc">fib(n): the n-th Fibonacci number (0, 1, 1, 2, 3, 5, …): fib(10) = 55</string>
     <string name="formula_nextprime_name">Next prime</string>
-    <string name="formula_nextprime_desc">Smallest prime above n</string>
+    <string name="formula_nextprime_desc">The smallest prime above n: nextprime(10) = 11</string>
     <string name="formula_isprime_name">Prime test</string>
-    <string name="formula_isprime_desc">1 if n is prime, otherwise 0</string>
+    <string name="formula_isprime_desc">1 if n is a prime, otherwise 0</string>
     <string name="formula_totient_name">Euler\'s totient φ(n)</string>
-    <string name="formula_totient_desc">totient(n): how many of 1…n have no common factor with n. For whole numbers; one with only very large prime factors can take too long</string>
+    <string name="formula_totient_desc">φ(n): how many of 1 … n share no factor with n: totient(9) = 6</string>
     <string name="formula_factor_name">Prime factorization</string>
-    <string name="formula_factor_desc">factor(n): n as a product of prime powers, e.g. 360 = 2³ × 3² × 5. Shown as a product when factor(n) is the whole line. Numbers with only large prime factors can take too long. Decimal, Hex etc. show the number itself</string>
+    <string name="formula_factor_desc">Splits a whole number into primes: factor(360) = 2³ × 3² × 5</string>
     <string name="formula_expand_name">Expand</string>
-    <string name="formula_expand_desc">expand(e): products and powers of sums multiplied out, e.g. (x + 1)² = x² + 2x + 1</string>
+    <string name="formula_expand_desc">Multiplies out products and powers: expand((x + 1)²) = x² + 2x + 1</string>
     <string name="formula_apart_name">Partial fractions</string>
-    <string name="formula_apart_desc">apart(e): a fraction of polynomials as a polynomial plus partial fractions, e.g. 1/(x² − 1) = ½/(x − 1) − ½/(x + 1). The denominator must split into factors x − r with rational r, and at most one quadratic without rational roots (x² + 1). One variable</string>
+    <string name="formula_apart_desc">Splits a fraction of polynomials into simpler fractions: apart(1/(x² − 1)) = 1/(2(x − 1)) − 1/(2(x + 1))</string>
     <string name="formula_taylor_name">Taylor polynomial</string>
-    <string name="formula_taylor_desc">taylor(f, n), taylor(f, x, n) or taylor(f, x, a, n): the Taylor polynomial of f in x around a (0 if left out) up to the power n, e.g. taylor(sin(x), x, 0, 5) = x − x³/6 + x⁵/120. n up to 12. Written in powers of (x − a). Fails where f or a derivative is not defined at a (ln(x) at 0)</string>
+    <string name="formula_taylor_desc">taylor(f, x, a, n): a polynomial up to xⁿ that approximates f near x = a</string>
     <string name="step_ode_standard_form">Write the equation in standard form</string>
     <string name="step_ode_integrating_factor">Find the integrating factor μ</string>
     <string name="step_ode_linear_solution">Multiply by μ: the left side is (μ·y)′. Integrate both sides</string>
@@ -408,59 +408,59 @@
     <string name="step_ode_undetermined_coefficients">Find a particular solution: a guess of the same kind as the right side (times x if it solves the equation without the right side), with the coefficients worked out</string>
     <string name="step_ode_constants">Choose the constants so that the initial conditions hold</string>
     <string name="formula_dsolve_name">Differential equation</string>
-    <string name="formula_dsolve_desc">dsolve(equation) or dsolve(equation, x₀, y₀): solves an ordinary differential equation typed with the derivative key, e.g. dsolve(d/dx(y) = 2x·y) gives y = C·e^(x²). First order: linear or separable. Second order (also dsolve(equation, x₀, y₀, y′₀)): a·y″ + b·y′ + c·y = r(x) with numbers a, b, c. The solution is checked in the equation; the constants are C (C₁, C₂). Not solved: other types, third order</string>
+    <string name="formula_dsolve_desc">dsolve(equation): solves y′ = 2x·y and the like; type y′ as d/dx(y) (long press ∫dx)</string>
     <string name="formula_modpow_name">Modular power</string>
-    <string name="formula_modpow_desc">modpow(b, e, m): bᵉ mod m without working out the huge power. A negative e needs b to have an inverse modulo m</string>
+    <string name="formula_modpow_desc">modpow(b, e, m): bᵉ mod m, also for huge powers</string>
     <string name="formula_hypot_name">Hypotenuse</string>
-    <string name="formula_hypot_desc">√(a² + b² + …): hypot(3, 4) = 5. The length of the hypotenuse of a right triangle; for the length of a vector use norm</string>
+    <string name="formula_hypot_desc">√(a² + b² + …), the hypotenuse: hypot(3, 4) = 5</string>
     <string name="formula_trunc_name">Truncate</string>
-    <string name="formula_trunc_desc">Cuts off the decimals (rounds towards zero); trunc(x, n) keeps n places</string>
+    <string name="formula_trunc_desc">Drops the decimals: trunc(−2.7) = −2. trunc(x, n) keeps n of them</string>
     <string name="formula_frac_name">Fractional part</string>
-    <string name="formula_frac_desc">Decimals of x with the sign of x: frac(−2.75) = −0.75</string>
+    <string name="formula_frac_desc">Only the decimals, with the sign: frac(−2.75) = −0.75</string>
     <string name="formula_sign_name">Sign</string>
     <string name="formula_sign_desc">−1, 0 or 1 for a negative number, zero or a positive number</string>
     <string name="formula_re_name">Real part</string>
-    <string name="formula_re_desc">The real part a of a + b·i</string>
+    <string name="formula_re_desc">The real part: re(3 + 4i) = 3</string>
     <string name="formula_im_name">Imaginary part</string>
-    <string name="formula_im_desc">The imaginary part b of a + b·i</string>
+    <string name="formula_im_desc">The imaginary part: im(3 + 4i) = 4</string>
     <string name="formula_arg_name">Argument (angle)</string>
-    <string name="formula_arg_desc">The angle of the number to the positive real axis in radians, from −π (excluded) to π</string>
+    <string name="formula_arg_desc">The angle to the positive real axis, in radians from −π to π: arg(i) = π/2</string>
     <string name="formula_conj_name">Complex conjugate</string>
-    <string name="formula_conj_desc">a − b·i for a + b·i</string>
+    <string name="formula_conj_desc">Flips the sign of the imaginary part: conj(3 + 4i) = 3 − 4i</string>
     <string name="formula_gamma_name">Gamma function Γ</string>
-    <string name="formula_gamma_desc">Γ(x) continues the factorial to numbers that are not whole: Γ(n + 1) = n!. Exact for whole and half numbers</string>
+    <string name="formula_gamma_desc">The factorial for any number: Γ(n + 1) = n!, Γ(0.5) = √π</string>
     <string name="formula_lngamma_name">Log-gamma ln Γ</string>
-    <string name="formula_lngamma_desc">ln Γ(x) for x > 0; stays small where Γ(x) gets too large</string>
+    <string name="formula_lngamma_desc">ln Γ(x) for x &gt; 0, for when Γ(x) itself is too large</string>
     <string name="formula_digamma_name">Digamma ψ</string>
-    <string name="formula_digamma_desc">ψ(x) = Γ\'(x)/Γ(x), the slope of ln Γ(x). It appears in the derivative of gamma</string>
+    <string name="formula_digamma_desc">ψ(x) = Γ′(x)/Γ(x), the derivative of ln Γ(x)</string>
     <string name="formula_beta_name">Beta function</string>
-    <string name="formula_beta_desc">B(a, b) = Γ(a)·Γ(b) / Γ(a + b)</string>
+    <string name="formula_beta_desc">B(a, b) = Γ(a)·Γ(b)/Γ(a + b)</string>
     <string name="formula_erf_name">Error function erf</string>
     <string name="formula_erf_desc">2/√π · ∫₀ˣ e^(−t²) dt, the basis of the normal distribution</string>
     <string name="formula_erfc_name">Complementary error function erfc</string>
-    <string name="formula_erfc_desc">1 − erf(x), also accurate for large x</string>
+    <string name="formula_erfc_desc">1 − erf(x), accurate also for large x</string>
     <string name="formula_gammainc_name">Incomplete gamma function</string>
-    <string name="formula_gammainc_desc">gammainc(a, x): the regularized lower incomplete gamma function P(a, x) = γ(a, x)/Γ(a), for a &gt; 0 and x ≥ 0. The chi-square distribution is chisqcdf(x, k) = gammainc(k/2, x/2)</string>
+    <string name="formula_gammainc_desc">gammainc(a, x): the regularized lower incomplete gamma P(a, x), for a &gt; 0 and x ≥ 0</string>
     <string name="formula_betainc_name">Incomplete beta function</string>
-    <string name="formula_betainc_desc">betainc(x, a, b): the regularized incomplete beta function Iₓ(a, b), for 0 ≤ x ≤ 1 and a, b &gt; 0. The cumulative binomial and Student t distributions are made of it</string>
+    <string name="formula_betainc_desc">betainc(x, a, b): the regularized incomplete beta Iₓ(a, b), for 0 ≤ x ≤ 1 and a, b &gt; 0</string>
     <string name="formula_lambertw_name">Lambert W function</string>
-    <string name="formula_lambertw_desc">lambertw(x): the w ≥ −1 with w·eʷ = x, for x ≥ −1/e. The solution of x·eˣ = 5 is lambertw(5)</string>
+    <string name="formula_lambertw_desc">The w with w·eʷ = x, for x ≥ −1/e. Solves x·eˣ = 5: x = lambertw(5)</string>
     <string name="formula_sinint_name">Sine integral Si</string>
-    <string name="formula_sinint_desc">sinint(x) = Si(x) = ∫₀ˣ sin t / t dt. It is the result of ∫ sin x / x dx</string>
+    <string name="formula_sinint_desc">Si(x) = ∫₀ˣ sin(t)/t dt, the antiderivative of sin(x)/x</string>
     <string name="formula_cosint_name">Cosine integral Ci</string>
-    <string name="formula_cosint_desc">cosint(x) = Ci(x) = γ + ln x + ∫₀ˣ (cos t − 1)/t dt, for x ≠ 0. It is the result of ∫ cos x / x dx</string>
+    <string name="formula_cosint_desc">Ci(x), the antiderivative of cos(x)/x, for x ≠ 0</string>
     <string name="formula_expint_name">Exponential integral Ei</string>
-    <string name="formula_expint_desc">expint(x) = Ei(x) = the principal value of ∫ from −∞ to x of eᵗ/t dt, for x ≠ 0. It is the result of ∫ eˣ / x dx</string>
+    <string name="formula_expint_desc">Ei(x), the antiderivative of eˣ/x, for x ≠ 0</string>
     <string name="formula_normalpdf_name">Normal density</string>
-    <string name="formula_normalpdf_desc">normalpdf(x, μ, σ): the bell curve at x. Without μ and σ the standard normal distribution (μ = 0, σ = 1)</string>
+    <string name="formula_normalpdf_desc">normalpdf(x, μ, σ): the height of the bell curve at x. Without μ and σ: the standard normal distribution</string>
     <string name="formula_normalcdf_name">Normal probability (up to x)</string>
-    <string name="formula_normalcdf_desc">normalcdf(x, μ, σ): the probability of a value up to x. Without μ and σ the standard normal distribution</string>
+    <string name="formula_normalcdf_desc">normalcdf(x, μ, σ): the probability of a value up to x. Without μ and σ: the standard normal distribution</string>
     <string name="formula_normalinv_name">Normal quantile</string>
-    <string name="formula_normalinv_desc">normalinv(p, μ, σ): the x with the probability p for a value up to it, for 0 &lt; p &lt; 1. Without μ and σ the standard normal distribution</string>
+    <string name="formula_normalinv_desc">normalinv(p, μ, σ): the x that a value stays below with probability p (0 &lt; p &lt; 1)</string>
     <string name="formula_binompdf_name">Binomial probability (exactly k)</string>
-    <string name="formula_binompdf_desc">binompdf(n, p, k): the probability of exactly k successes in n trials with a success probability p</string>
+    <string name="formula_binompdf_desc">binompdf(n, p, k): the probability of exactly k successes in n tries, each with probability p</string>
     <string name="formula_binomcdf_name">Binomial probability (at most k)</string>
-    <string name="formula_binomcdf_desc">binomcdf(n, p, k): the probability of at most k successes in n trials with a success probability p</string>
+    <string name="formula_binomcdf_desc">binomcdf(n, p, k): the probability of at most k successes in n tries, each with probability p</string>
     <string name="formula_poissonpdf_name">Poisson probability (exactly k)</string>
     <string name="formula_poissonpdf_desc">poissonpdf(λ, k): the probability of exactly k events when λ are expected</string>
     <string name="formula_poissoncdf_name">Poisson probability (at most k)</string>
@@ -468,33 +468,33 @@
     <string name="formula_tpdf_name">Student t density</string>
     <string name="formula_tpdf_desc">tpdf(x, df): the density of the t distribution with df degrees of freedom</string>
     <string name="formula_tcdf_name">Student t probability (up to x)</string>
-    <string name="formula_tcdf_desc">tcdf(x, df): the probability of a value up to x in the t distribution with df degrees of freedom</string>
+    <string name="formula_tcdf_desc">tcdf(x, df): the probability of a value up to x in the t distribution</string>
     <string name="formula_tinv_name">Student t quantile</string>
-    <string name="formula_tinv_desc">tinv(p, df): the x with the probability p for a value up to it, for 0 &lt; p &lt; 1. Gives the critical values of confidence intervals and t tests</string>
+    <string name="formula_tinv_desc">tinv(p, df): the x that a value stays below with probability p; the critical value of a t test</string>
     <string name="formula_chisqpdf_name">Chi-square density</string>
     <string name="formula_chisqpdf_desc">chisqpdf(x, df): the density of the chi-square distribution with df degrees of freedom</string>
     <string name="formula_chisqcdf_name">Chi-square probability (up to x)</string>
-    <string name="formula_chisqcdf_desc">chisqcdf(x, df): the probability of a value up to x in the chi-square distribution with df degrees of freedom</string>
+    <string name="formula_chisqcdf_desc">chisqcdf(x, df): the probability of a value up to x in the chi-square distribution</string>
     <string name="formula_chisqinv_name">Chi-square quantile</string>
-    <string name="formula_chisqinv_desc">chisqinv(p, df): the x with the probability p for a value up to it, for 0 &lt; p &lt; 1. Gives the critical values of chi-square tests</string>
+    <string name="formula_chisqinv_desc">chisqinv(p, df): the x that a value stays below with probability p; the critical value of a chi-square test</string>
     <string name="formula_rand_name">Random number</string>
-    <string name="formula_rand_desc">rand(): a random number from 0 up to (not including) 1. It is drawn once per line: it stays the same while you edit the line, and it is kept with the result in the history</string>
+    <string name="formula_rand_desc">A random number from 0 up to 1 (not 1). It stays the same while you edit the line</string>
     <string name="formula_randint_name">Random whole number</string>
-    <string name="formula_randint_desc">randint(a, b): a random whole number from a to b, both included. Drawn once per line, like rand()</string>
+    <string name="formula_randint_desc">randint(a, b): a random whole number from a to b. It stays the same while you edit the line</string>
     <string name="formula_randnorm_name">Random number (normal distribution)</string>
-    <string name="formula_randnorm_desc">randnorm(μ, σ): a random number of the normal distribution; without μ and σ the standard one (μ = 0, σ = 1). Drawn once per line</string>
+    <string name="formula_randnorm_desc">randnorm(μ, σ): a random number from a normal distribution; without μ and σ the standard one</string>
     <string name="formula_dot_name">Dot product</string>
-    <string name="formula_dot_desc">dot(a, b) = a₁b₁ + a₂b₂ + …, a number. Enter the vectors with the matrix key, as one column (or one row)</string>
+    <string name="formula_dot_desc">dot(a, b): the dot product of two vectors, a₁b₁ + a₂b₂ + …</string>
     <string name="formula_cross_name">Cross product</string>
-    <string name="formula_cross_desc">cross(a, b): the vector perpendicular to a and b (3 components each); its length is |a|·|b|·sin θ</string>
+    <string name="formula_cross_desc">cross(a, b): the vector perpendicular to the 3D vectors a and b</string>
     <string name="formula_norm_name">Length of a vector (norm)</string>
-    <string name="formula_norm_desc">norm(a) = √(a₁² + a₂² + …). The bars |a| give the same</string>
+    <string name="formula_norm_desc">The length of a vector, √(a₁² + a₂² + …); the same as |a|</string>
     <string name="formula_angle_name">Angle between two vectors</string>
-    <string name="formula_angle_desc">angle(a, b) = acos(a·b / (|a|·|b|)), in the unit of the angle setting</string>
+    <string name="formula_angle_desc">angle(a, b): the angle between two vectors, in the angle unit set above the keypad</string>
     <string name="formula_proj_name">Projection of a vector</string>
-    <string name="formula_proj_desc">proj(a, b): the part of a in the direction of b, (a·b)/(b·b)·b</string>
+    <string name="formula_proj_desc">proj(a, b): the part of a that points along b</string>
     <string name="formula_unitvec_name">Unit vector</string>
-    <string name="formula_unitvec_desc">unitvec(a): the vector divided by its length, so it has length 1 and the same direction</string>
+    <string name="formula_unitvec_desc">unitvec(a): the vector of length 1 in the direction of a</string>
     <string name="category_statistics">Statistics</string>
     <string name="category_combinatorics">Combinatorics</string>
     <string name="category_numbers">Numbers</string>
@@ -507,17 +507,17 @@
     <string name="category_algebra">Algebra</string>
     <string name="category_calculus">Calculus</string>
     <string name="formula_and_name">AND</string>
-    <string name="formula_and_desc">Bits set in both whole numbers: and(12, 10) = 8</string>
+    <string name="formula_and_desc">The bits set in both numbers: and(12, 10) = 8</string>
     <string name="formula_or_name">OR</string>
-    <string name="formula_or_desc">Bits set in at least one: or(12, 10) = 14</string>
+    <string name="formula_or_desc">The bits set in either number: or(12, 10) = 14</string>
     <string name="formula_xor_name">XOR</string>
-    <string name="formula_xor_desc">Bits set in exactly one: xor(12, 10) = 6</string>
+    <string name="formula_xor_desc">The bits set in exactly one: xor(12, 10) = 6</string>
     <string name="formula_not_name">NOT</string>
-    <string name="formula_not_desc">All bits flipped, −n − 1: not(5) = −6</string>
+    <string name="formula_not_desc">Flips all bits: not(5) = −6</string>
     <string name="formula_shl_name">Shift left</string>
-    <string name="formula_shl_desc">n·2ᵏ: shl(1, 4) = 16 (also n &lt;&lt; k)</string>
+    <string name="formula_shl_desc">shl(n, k): moves the bits k places left, n·2ᵏ: shl(1, 4) = 16 (also n &lt;&lt; k)</string>
     <string name="formula_shr_name">Shift right</string>
-    <string name="formula_shr_desc">⌊n/2ᵏ⌋: shr(16, 2) = 4 (also n &gt;&gt; k)</string>
+    <string name="formula_shr_desc">shr(n, k): moves the bits k places right: shr(16, 2) = 4 (also n &gt;&gt; k)</string>
     <string name="keypad_matrix">Matrix or vector</string>
     <string name="formulas_title">Functions</string>
     <string name="formulas_hint">Several values are separated by “%1$s”: long press the decimal key for it</string>
@@ -668,4 +668,213 @@
     <string name="graph_slope">slope = %1$s</string>
     <string name="graph_integral_hint">Drag a or b; they snap to zeros and intersections</string>
     <string name="graph_surface_hint">One finger rotates · two fingers move and zoom</string>
+
+    <!-- In-app help (Settings → Help): the help screen, its topics and their pages -->
+    <string name="help_open">How to use this app</string>
+    <string name="help_title">Help</string>
+    <string name="help_back">Back</string>
+    <string name="help_search">Search the help (taylor, matrix, units)…</string>
+    <string name="help_no_results">Nothing found</string>
+    <string name="help_intro">New here? Start with the topics at the top. The functions further down each have their syntax and examples.</string>
+    <string name="help_example">Example</string>
+    <string name="help_section_basics">Getting started</string>
+    <string name="help_section_functions">Functions in detail</string>
+    <string name="help_heading_where">Where to find it</string>
+    <string name="help_heading_syntax">Syntax</string>
+    <string name="help_heading_examples">Examples</string>
+    <string name="help_heading_good_to_know">Good to know</string>
+
+    <string name="help_screen_title">The screen</string>
+    <string name="help_screen_summary">History, input line, live result and keypad</string>
+    <string name="help_screen_1">From top to bottom: the history of your calculations, the input line with its result, and the keypad.</string>
+    <string name="help_screen_2">The result is worked out while you type, so there is no need to press anything to see it. Equations are solved, derivatives and integrals worked out the same way.</string>
+    <string name="help_screen_3">Press the Enter key (↵) to move the line and its result into the history and start a new line.</string>
+    <string name="help_screen_4">If a line cannot be calculated, the reason is shown in red in place of the result.</string>
+
+    <string name="help_keypad_title">The keypad and its pages</string>
+    <string name="help_keypad_summary">Swipe sideways for the scientific keys and the tools</string>
+    <string name="help_keypad_1">The keypad has three pages. It starts on the middle one with the digits. The scientific keys are on the page to the left (swipe right to get there), the tools on the page to the right (swipe left). The dots above the keys show the page you are on, and tapping a dot goes there. On a tablet or an unfolded foldable all three pages are shown side by side.</string>
+    <string name="help_keypad_main">Middle page: numbers</string>
+    <string name="help_keypad_digits">Digits, the decimal point, and ×10ⁿ for a number in scientific notation (5×10³)</string>
+    <string name="help_keypad_operators">The basic operations. ÷ makes a fraction, with the number before it on top</string>
+    <string name="help_keypad_parentheses">A pair of parentheses with the cursor inside</string>
+    <string name="help_keypad_backspace">Deletes what is before the cursor</string>
+    <string name="help_keypad_enter">Puts the line and its result into the history</string>
+    <string name="help_keypad_left">Left page: scientific keys</string>
+    <string name="help_keypad_row1">Factorial, square, square root and the logarithm to base 10</string>
+    <string name="help_keypad_row2">A matrix or vector (opens a size picker), and the trigonometric functions</string>
+    <string name="help_keypad_row3">Integral, sum, the imaginary unit i and π</string>
+    <string name="help_keypad_row4">The equals sign for equations, the variable x, abc for any other letter (opens the system keyboard), and Euler\'s number e</string>
+    <string name="help_keypad_right">Right page: tools</string>
+    <string name="help_keypad_clear">C clears the line. On an empty line it becomes AC, which also clears the history (you can undo it)</string>
+    <string name="help_keypad_units">Opens the list of units (km, psi, kWh, …) to put one into the line</string>
+    <string name="help_keypad_functions">Opens the function picker: statistics, combinatorics, rounding, distributions, Taylor polynomials, differential equations and more</string>
+    <string name="help_keypad_constants">Opens the mathematical and physical constants (c, h, G, …)</string>
+    <string name="help_keypad_graph">Draws the line as a graph</string>
+    <string name="help_keypad_settings">The settings, and this help</string>
+    <string name="help_keypad_top">Above the keys</string>
+    <string name="help_keypad_angle">The angle unit of sin, cos and tan: radians or degrees. Tap to switch</string>
+    <string name="help_keypad_base">The number base: DEC for normal numbers, or HEX, OCT and BIN, which turn the left page into programmer keys (A to F, AND, OR, shifts)</string>
+
+    <string name="help_long_press_title">Long press for more functions</string>
+    <string name="help_long_press_summary">Where ln, asin, d/dx, lim, ≤, := and the rest are</string>
+    <string name="help_long_press_1">Many keys have more functions than their label shows. Keep a key pressed: a popup opens with its other functions. Slide your finger to the one you want and lift it. Lifting without sliding takes the main function.</string>
+    <string name="help_long_press_2">The small labels in the lower corners of a key show what its popup has; “…” means it has even more. Some popups have a second row above the first, for example the hyperbolic functions above sin.</string>
+    <string name="help_long_press_factorial">%, mod and Γ; above them the bitwise AND, OR, XOR and NOT</string>
+    <string name="help_long_press_square">Any power □ⁿ, and the reciprocal □⁻¹ (also the inverse of a matrix)</string>
+    <string name="help_long_press_root">The n-th root ⁿ√□</string>
+    <string name="help_long_press_log">The natural logarithm ln, and the logarithm to any base logₙ</string>
+    <string name="help_long_press_matrix">Transpose Aᵀ, det, rref and eig; above them the vector functions dot, cross, norm, angle, proj and unitvec</string>
+    <string name="help_long_press_trig">The inverse functions (asin), the reciprocal ones (csc, sec, cot) and their inverses; above them the hyperbolic functions (sinh, asinh, …)</string>
+    <string name="help_long_press_integral">The definite integral with bounds, the derivative d/dx, and the derivative at a point</string>
+    <string name="help_long_press_sum">The product ∏ and the limit lim</string>
+    <string name="help_long_press_i">A complex number in polar form r∠θ</string>
+    <string name="help_long_press_pi">Infinity ∞, for limits, sums and integrals</string>
+    <string name="help_long_press_equals">:= to define a variable, and &lt; &gt; ≤ ≥ for inequalities</string>
+    <string name="help_long_press_x">The variables y and z</string>
+    <string name="help_long_press_plus_minus">A raised + or −, for a limit from one side (x → 0⁺)</string>
+    <string name="help_long_press_divide">A mixed number (3½), and ÷ as a sign instead of a fraction</string>
+    <string name="help_long_press_point">The separator between the values of a function, mean(2, 4, 9)</string>
+    <string name="help_long_press_enter">A new line (for a system of equations, or several curves in a graph), and Ans, the last result</string>
+    <string name="help_long_press_units">The arrow → to convert into another unit</string>
+
+    <string name="help_editing_title">Editing the input</string>
+    <string name="help_editing_summary">Cursor, selection, copy and paste</string>
+    <string name="help_editing_1">Tap anywhere in the line to put the cursor there. Fractions, powers and roots have boxes (□) for their parts; tap a box or move the cursor into it to fill it in.</string>
+    <string name="help_editing_2">Press and hold to select a part of the line, and keep dragging to select more. The handles below a selection adjust it. When you lift your finger, a menu offers Cut, Copy, Paste and Select all.</string>
+    <string name="help_editing_3">With something selected, a function key wraps it: select 2x + 1 and tap √□ to get √(2x + 1).</string>
+    <string name="help_editing_4">To paste, tap the cursor (or press and hold an empty spot) and choose Paste. Numbers copied from other apps can be pasted.</string>
+    <string name="help_editing_5">A system of equations or several graphs are written as several lines: long press Enter and choose “new line”.</string>
+
+    <string name="help_history_title">The history</string>
+    <string name="help_history_summary">Reuse, copy and delete earlier calculations</string>
+    <string name="help_history_1">Tap the calculation of an entry to put it back in the line and change it.</string>
+    <string name="help_history_2">Tap the result of an entry to start a new line with it.</string>
+    <string name="help_history_3">Press and hold a calculation or result to copy it. Swipe an entry sideways to delete it; a message lets you undo that.</string>
+    <string name="help_history_4">Ans (long press Enter) stands for the last result, so 2·Ans doubles it.</string>
+
+    <string name="help_results_title">Result forms and steps</string>
+    <string name="help_results_summary">Exact or decimal, and the step-by-step solution</string>
+    <string name="help_results_1">Results are exact where possible: fractions, roots and π stay as they are. The buttons next to the result switch between the forms that make sense for it: Exact, Decimal, Sci (scientific notation), Mixed (mixed numbers), Polar (complex numbers) and HEX, OCT, BIN.</string>
+    <string name="help_results_forms_example">Exact; tap Decimal for 0.5833333333</string>
+    <string name="help_results_2">Steps opens the step-by-step solution: each step with the rule that was used. Steps are there for equations, systems, inequalities, derivatives, integrals, limits, matrices, Taylor polynomials, differential equations and more.</string>
+    <string name="help_results_3">Press and hold the result to copy it.</string>
+
+    <string name="help_variables_title">Variables and letters</string>
+    <string name="help_variables_summary">x, y, z, any letter, and storing values with :=</string>
+    <string name="help_variables_1">The x key types x; long press it for y and z. For any other letter tap abc: the system keyboard opens and types into the line. Letters next to each other are multiplied, so ab means a·b. A function name followed by “(” starts that function, for example sin( or mean(.</string>
+    <string name="help_variables_2">Variables are lower-case letters. e, π and i are constants, not variables.</string>
+    <string name="help_variables_define">Storing a value</string>
+    <string name="help_variables_3">Write a letter, := (long press =) and a value, and press Enter. From then on the letter has this value in every line.</string>
+    <string name="help_variables_4">This also stores matrices and vectors, for example m := a matrix, so you can use m in the next lines. Delete the line from the history to forget the value.</string>
+
+
+    <string name="help_functions_title">The function picker</string>
+    <string name="help_functions_summary">Statistics, combinatorics, rounding and more</string>
+    <string name="help_functions_1">The Func key on the right page opens all functions that have no key of their own, sorted by topic. Search for a name or a word of its description. Each entry tells what the function does and how it is written.</string>
+    <string name="help_functions_2">Tapping one puts it into the line with the cursor inside. Values are separated with the separator: long press the decimal point key for it.</string>
+    <string name="help_functions_3">If you select values first (2, 4, 9) and then pick a function, it takes them.</string>
+
+    <string name="help_equations_title">Equations and inequalities</string>
+    <string name="help_equations_summary">Solve for x, systems of equations, inequalities</string>
+    <string name="help_equations_1">Type an equation with the = key (left page). It is solved for its variable while you type.</string>
+    <string name="help_equations_systems">Systems of equations</string>
+    <string name="help_equations_2">Write each equation on its own line: long press Enter and choose “new line” between them. Linear and many non-linear systems are solved.</string>
+    <string name="help_equations_inequalities">Inequalities</string>
+    <string name="help_equations_3">Long press = for &lt;, &gt;, ≤ and ≥. The solution is also given in interval notation and on a number line in the steps.</string>
+
+    <string name="help_derivatives_title">Derivatives</string>
+    <string name="help_derivatives_summary">d/dx, the derivative at a point, partial derivatives</string>
+    <string name="help_derivatives_1">Long press ∫dx (left page) and choose d/dx, then type the function inside.</string>
+    <string name="help_derivatives_2">For the value of the derivative at a point, choose the third entry of the popup, d/dx with x = a, and fill in the point.</string>
+    <string name="help_derivatives_3">To differentiate by another variable, tap the x of dx and type the letter. With a second variable in the function the derivative is a partial one and is written ∂/∂x.</string>
+    <string name="help_derivatives_partial_note">y is a constant here</string>
+
+    <string name="help_integrals_title">Integrals</string>
+    <string name="help_integrals_summary">Antiderivatives and definite integrals</string>
+    <string name="help_integrals_1">Tap ∫dx (left page) for an antiderivative and type the function inside.</string>
+    <string name="help_integrals_2">For a definite integral, long press ∫dx and choose the one with bounds; fill in the lower and upper bound. ∞ (long press π) works as a bound.</string>
+    <string name="help_integrals_3">Tap the x of dx to integrate over another variable. A definite integral that has no formula is worked out numerically.</string>
+
+    <string name="help_limits_title">Sums, products and limits</string>
+    <string name="help_limits_summary">Σ, ∏, lim, and sum or prod of a list</string>
+    <string name="help_limits_1">Tap Σ (left page) for a sum: fill in the index with its start (n = 1), the end and the term. Long press Σ for the product ∏.</string>
+    <string name="help_limits_2">Long press Σ and choose lim for a limit: fill in the point after the arrow and the function.</string>
+    <string name="help_limits_side_note">The raised + (long press +) makes it a limit from the right</string>
+
+    <string name="help_taylor_title">Taylor polynomials</string>
+    <string name="help_taylor_summary">taylor(f, x, a, n): a function as a polynomial around a point</string>
+    <string name="help_taylor_1">taylor gives the Taylor polynomial of a function: the polynomial that matches the function and its first n derivatives at the point a. Near a it is a good approximation of the function.</string>
+    <string name="help_taylor_where">Func (right page) → Calculus → Taylor polynomial. Or tap abc and type taylor( .</string>
+    <string name="help_taylor_syntax_1">Around 0, in the only variable of f, up to the power n</string>
+    <string name="help_taylor_syntax_2">In the variable x, around 0, up to the power n. Needed when f has several variables</string>
+    <string name="help_taylor_syntax_3">In x around the point a, up to the power n. a is a number or a constant such as π</string>
+    <string name="help_taylor_example_point">Around a = 1 it is written in powers of (x − 1)</string>
+    <string name="help_taylor_notes_1">n is a whole number from 0 to 12.</string>
+    <string name="help_taylor_notes_2">f and its derivatives must be defined at a: taylor(ln(x), x, 0, 3) or taylor(sin(x)/x, x, 0, 4) give an error. Choose another point, or simplify f first.</string>
+    <string name="help_taylor_notes_3">The result is a polynomial you can work with: differentiate or integrate it, or draw it together with f in the graph (each on its own line) to see where it is close. Steps shows the derivatives at a and the formula.</string>
+
+    <string name="help_dsolve_title">Differential equations</string>
+    <string name="help_dsolve_summary">dsolve: ordinary differential equations of first and second order</string>
+    <string name="help_dsolve_1">dsolve solves an ordinary differential equation for the unknown function y(x): it gives the general solution with constants C (C₁, C₂), or, with initial conditions, the one solution that meets them.</string>
+    <string name="help_dsolve_where">Func (right page) → Calculus → Differential equation. Or tap abc and type dsolve( .</string>
+    <string name="help_dsolve_typing">y′ is written with the derivative key: long press ∫dx and choose d/dx, then type y (long press x). For y″ put a d/dx inside a d/dx. The = is the key on the left page, and the commas before the conditions come from a long press on the decimal point key.</string>
+    <string name="help_dsolve_syntax_1">The general solution</string>
+    <string name="help_dsolve_syntax_2">First order, with the initial condition y(x₀) = y₀</string>
+    <string name="help_dsolve_syntax_3">Second order, with the conditions y(x₀) = y₀ and y′(x₀) = y′₀</string>
+    <string name="help_dsolve_kinds">What it solves</string>
+    <string name="help_dsolve_kinds_1">First order: linear equations a·y′ + b·y = c, where a, b and c may depend on x, and separable equations y′ = f(x)·g(y). When a separable equation cannot be solved for y, the solution is given as an equation in x and y.</string>
+    <string name="help_dsolve_kinds_2">Second order: a·y″ + b·y′ + c·y = r(x) with numbers a, b, c. The right side r(x) can be 0, or made of polynomials, eᵏˣ, sin and cos.</string>
+    <string name="help_dsolve_example_separable">Separable</string>
+    <string name="help_dsolve_example_linear">Linear, first order</string>
+    <string name="help_dsolve_example_condition">With y(0) = 3</string>
+    <string name="help_dsolve_example_second">Second order, y″ + y = 0</string>
+    <string name="help_dsolve_example_second_condition">With y(0) = 0 and y′(0) = 1</string>
+    <string name="help_dsolve_notes_1">Every solution is checked by putting it back into the equation. Equations of other kinds (y′ = y² + x, y″ with non-constant coefficients, third order) are not solved and give a message.</string>
+    <string name="help_dsolve_notes_2">The unknown may have another letter than y, and the variable is x unless you tap the x of dx to change it. Steps shows the method: separating the variables, the integrating factor, or the characteristic equation.</string>
+
+    <string name="help_matrices_title">Matrices and vectors</string>
+    <string name="help_matrices_summary">Size picker, det, inverse, eigenvalues, vector functions</string>
+    <string name="help_matrices_1">Tap the matrix key (left page, the bracketed grid). Drag across the grid to choose the size and lift your finger to insert it, or choose a 2D or 3D vector. A vector is a matrix with one column (or one row).</string>
+    <string name="help_matrices_2">Matrices are added, subtracted and multiplied with the usual keys. Long press the matrix key for the transpose, det, rref (row reduction) and eig (eigenvalues and eigenvectors). The inverse is □⁻¹ (long press □²).</string>
+    <string name="help_matrices_3">The upper row of the popup has the vector functions: dot and cross product, norm, the angle between two vectors, projection and unit vector.</string>
+    <string name="help_matrices_4">To use a matrix again, store it with := (see Variables). Lines with a parameter, (1, 2) + r·(2, 1), can be drawn in the graph.</string>
+
+    <string name="help_complex_title">Complex numbers</string>
+    <string name="help_complex_summary">i, polar form r∠θ</string>
+    <string name="help_complex_1">Tap i (left page) to type the imaginary unit; this turns complex numbers on in the settings. Long press i for the polar form r∠θ.</string>
+    <string name="help_complex_2">The Polar button next to a complex result shows it as r∠θ. The function picker has re, im, arg and conj under Complex numbers.</string>
+
+    <string name="help_units_title">Units and constants</string>
+    <string name="help_units_summary">Calculate with units, convert, physical constants</string>
+    <string name="help_units_1">Tap Units (right page) and search for a unit to put it after a number. Calculations with units keep track of them, and results are shown in the unit system of the settings.</string>
+    <string name="help_units_2">To convert, long press Units for the arrow →, then put the target unit after it.</string>
+    <string name="help_units_3">Const (right page) has mathematical and physical constants with their units, such as the speed of light c or Planck\'s constant h. Search by name or symbol and tap one to insert it.</string>
+
+    <string name="help_graph_title">Graphs</string>
+    <string name="help_graph_summary">Curves, intersections, tangents, areas, 3D surfaces</string>
+    <string name="help_graph_1">Type a function and tap Graph (right page). Several lines become several curves, and where they cross is marked.</string>
+    <string name="help_graph_example_function">A function of x</string>
+    <string name="help_graph_example_implicit">An equation in x and y: a circle</string>
+    <string name="help_graph_example_surface">A function of x and y is drawn as a 3D surface</string>
+    <string name="help_graph_2">Pinch to zoom and drag to move. Tap a curve to place a point on it; it snaps to zeros, maxima, minima, inflection points and intersections.</string>
+    <string name="help_graph_3">The graph tools: Trace follows the curve, Tangent shows the slope at the point, Integral shows the area between two bounds a and b. The axes menu has logarithmic axes and polar coordinates.</string>
+    <string name="help_graph_4">To add a curve, use “Add another equation”; each curve can be hidden and shown again. A 3D surface turns with one finger and moves and zooms with two.</string>
+
+    <string name="help_bases_title">Hexadecimal, octal and binary</string>
+    <string name="help_bases_summary">Programmer keys and bitwise operations</string>
+    <string name="help_bases_1">Tap DEC above the keypad and choose HEX, OCT or BIN. The digit keys then type in that base, and the left page has the digits A to F and the bitwise keys AND, OR, XOR, NOT and the shifts &lt;&lt; and &gt;&gt;. Numbers get their prefix by themselves (0x, 0o, 0b), and results are shown in the base.</string>
+    <string name="help_bases_2">Back in DEC, the result buttons HEX, OCT and BIN still show a whole number in the other bases.</string>
+    <string name="help_bases_example_note">Typed in HEX mode</string>
+    <string name="help_dsolve_equation">equation</string>
+    <string name="help_history_sessions">Saving and opening</string>
+    <string name="help_history_5">Settings → Session → Save… writes the line and the whole history to a text file, for example to keep a set of calculations or move it to another device. Open… reads such a file back: replace the history with it, or add its entries below.</string>
+    <string name="help_limits_lists">For a list of numbers there is no need for an index: sum and prod in the function picker (Func → Statistics) add up or multiply the values you list.</string>
+    <string name="help_try">Try it</string>
+    <string name="help_try_description">Put %1$s into the line</string>
+    <string name="help_hint_title">New here?</string>
+    <string name="help_hint_text">Find out where each function is and how to use it. The help is also in the settings.</string>
+    <string name="help_hint_open">Show me how</string>
+    <string name="help_hint_dismiss">Dismiss</string>
+    <string name="formulas_help">Help for %1$s</string>
 </resources>

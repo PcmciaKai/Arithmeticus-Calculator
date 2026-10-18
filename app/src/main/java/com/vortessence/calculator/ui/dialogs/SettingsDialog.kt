@@ -6,6 +6,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -39,6 +40,7 @@ fun SettingsDialog(
     onLanguageChange: (LanguageChoice) -> Unit,
     onSaveSession: () -> Unit,
     onOpenSession: () -> Unit,
+    onOpenHelp: () -> Unit,
     onDismiss: () -> Unit
 ) {
     var showSupport by remember { mutableStateOf(false) }
@@ -59,6 +61,15 @@ fun SettingsDialog(
                     .padding(vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // First, for whoever opens the settings to find out how the app works
+                FilledTonalButton(onClick = onOpenHelp, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.help_open))
+                }
+
+                HorizontalDivider()
+
                 // Complex numbers
                 Row(
                     modifier = Modifier.fillMaxWidth(),
