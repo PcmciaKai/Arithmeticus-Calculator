@@ -74,7 +74,8 @@ class GraphScreenTest {
     }
 
     private val isLegendDot = SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Checkbox)
-    private val isLegendLabel = SemanticsMatcher.keyIsDefined(SemanticsProperties.Selected)
+    // The tools below the graph can be selected too, but they have a text, not a description
+    private val isLegendLabel = SemanticsMatcher.keyIsDefined(SemanticsProperties.Selected) and SemanticsMatcher.keyIsDefined(SemanticsProperties.ContentDescription)
 
     private fun waitForSummary(text: String) = rule.waitUntil(10_000) { rule.onAllNodes(summary(text)).fetchSemanticsNodes().isNotEmpty() }
 

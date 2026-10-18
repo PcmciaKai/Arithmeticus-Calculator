@@ -112,8 +112,9 @@ class CalculatorScreenTest {
 
         // The line is empty after Enter: AC (on the last page of the keypad) clears the history. A wide
         // keypad shows all its pages at once, it has nothing to scroll
-        val clear = compose.onAllNodesWithText("AC")[0]
-        if (compose.onAllNodes(hasText("AC") and hasAnyAncestor(hasScrollAction())).fetchSemanticsNodes().isNotEmpty()) clear.performScrollTo()
+        val clearAll = hasContentDescription(compose.activity.getString(R.string.a11y_clear_all))
+        val clear = compose.onAllNodes(clearAll)[0]
+        if (compose.onAllNodes(clearAll and hasAnyAncestor(hasScrollAction())).fetchSemanticsNodes().isNotEmpty()) clear.performScrollTo()
         clear.performClick()
         compose.waitUntil(5_000) { compose.onAllNodesWithText("History cleared").fetchSemanticsNodes().isNotEmpty() }
         compose.onAllNodes(described("1 + 1")).assertCountEquals(0)
