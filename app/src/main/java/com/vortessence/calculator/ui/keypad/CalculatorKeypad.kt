@@ -179,14 +179,11 @@ private const val ALL_COLUMNS = 11
 
 /** From this window width on, the keypad shows all its pages at once (a tablet, an unfolded foldable). */
 private val WIDE_KEYPAD_MIN_WIDTH = 600.dp
-/** The extra room between two pages of the wide keypad, so it still reads as three blocks. */
-private val WIDE_PAGE_GAP = 8.dp
-private val WIDE_MAX_KEY_WIDTH = 104.dp
-private val WIDE_MAX_KEY_HEIGHT = 80.dp
-/** Below this the hints of the long-press functions run into the label of the key. */
-private val WIDE_MIN_KEY_HEIGHT = 64.dp
-/** Narrow wide keys (a tablet held upright) may be somewhat higher than wide. */
-private const val WIDE_KEY_HEIGHT_FACTOR = 1.25f
+/** The least extra room between two pages of the wide keypad, so it still reads as three blocks. */
+private val WIDE_MIN_PAGE_GAP = 4.dp
+/** The keys stay square: about as large as on a phone, the room that is left goes to the gaps between the pages. */
+private val WIDE_MAX_KEY_SIZE = 80.dp
+private val WIDE_MIN_KEY_SIZE = 48.dp
 /** The share of the window height the wide keypad takes at most; the rest is for the history and the line. */
 private const val WIDE_MAX_KEYPAD_FRACTION = 0.5f
 
@@ -216,27 +213,27 @@ fun CalculatorKeypad(
         // In whole pixels, as the keys and the spacings are laid out: with a density such as 2.4375 the rounded
         // sizes add up to more than the unrounded ones, and the last column of a page would be cut off
         val spacingPx = with(density) { spacing.roundToPx() }
-        val pageGapPx = with(density) { WIDE_PAGE_GAP.roundToPx() }
         val rowWidthPx = constraints.maxWidth - with(density) { 8.dp.roundToPx() } * 2
+        // Eleven columns and two gaps between the pages (each a spacer between two spacings)
+        val wideFixedPx = spacingPx * (ALL_COLUMNS + 1)
         val buttonWidthPx = if (wide) {
-            // Eleven columns and two gaps between the pages (each a spacer between two spacings)
-            ((rowWidthPx - spacingPx * (ALL_COLUMNS + 1) - pageGapPx * 2) / ALL_COLUMNS)
-                .coerceAtMost(with(density) { WIDE_MAX_KEY_WIDTH.roundToPx() })
+            // Square keys, as large as the width allows, but no larger than on a phone and leaving the history about
+            // half the window
+            val windowHeight = with(density) { LocalWindowInfo.current.containerSize.height.toDp() }
+            val heightForKeys = (windowHeight * WIDE_MAX_KEYPAD_FRACTION - INDICATOR_ROW_HEIGHT - 8.dp - spacing * 3) / 4
+            val maxKeyPx = with(density) { minOf(WIDE_MAX_KEY_SIZE, heightForKeys).coerceAtLeast(WIDE_MIN_KEY_SIZE).roundToPx() }
+            ((rowWidthPx - wideFixedPx - with(density) { WIDE_MIN_PAGE_GAP.roundToPx() } * 2) / ALL_COLUMNS).coerceAtMost(maxKeyPx)
         } else {
             (rowWidthPx - spacingPx * (VISIBLE_COLUMNS - 1)) / VISIBLE_COLUMNS
         }
         val buttonWidth = with(density) { buttonWidthPx.toDp() }
-        // The keys of a phone are square; wide keys have their own height, so the keypad leaves the history about half the window
-        val keyHeight = if (wide) {
-            val windowHeight = with(density) { LocalWindowInfo.current.containerSize.height.toDp() }
-            val heightForKeys = (windowHeight * WIDE_MAX_KEYPAD_FRACTION - INDICATOR_ROW_HEIGHT - 8.dp - spacing * 3) / 4
-            minOf(buttonWidth * WIDE_KEY_HEIGHT_FACTOR, WIDE_MAX_KEY_HEIGHT, heightForKeys).coerceAtLeast(WIDE_MIN_KEY_HEIGHT)
-        } else {
-            buttonWidth
-        }
-        val keypadWidth = with(density) { (buttonWidthPx * ALL_COLUMNS + spacingPx * (ALL_COLUMNS + 1) + pageGapPx * 2).toDp() }
+        // The room the keys leave goes to the two gaps between the pages, each at most a key wide; the keypad is
+        // centred in what is still left
+        val pageGapPx = ((rowWidthPx - wideFixedPx - buttonWidthPx * ALL_COLUMNS) / 2).coerceAtMost(buttonWidthPx)
+        val pageGapWidth = with(density) { pageGapPx.toDp() }
+        val keypadWidth = with(density) { (buttonWidthPx * ALL_COLUMNS + wideFixedPx + pageGapPx * 2).toDp() }
         // Between two pages; only the wide keypad has it, the pages of a phone are next to each other
-        val pageGap: @Composable () -> Unit = { if (wide) Spacer(Modifier.width(WIDE_PAGE_GAP)) }
+        val pageGap: @Composable () -> Unit = { if (wide) Spacer(Modifier.width(pageGapWidth)) }
         val colStepPx = (buttonWidthPx + spacingPx).toFloat()
         val mainPagePx = LEFT_COLUMNS * (buttonWidthPx + spacingPx)
         val scrollState = rememberScrollState()
@@ -402,7 +399,7 @@ fun CalculatorKeypad(
                 verticalArrangement = Arrangement.spacedBy(spacing)
             ) {
                 // Row 1
-                Row(modifier = Modifier.height(keyHeight), horizontalArrangement = Arrangement.spacedBy(spacing)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing)) {
                     // Page 0 (cols 0..3)
                     if (!programmer) {
                         // Long press: percent, remainder and Γ; the bitwise operators are in the row above them (the programmer
@@ -470,7 +467,7 @@ fun CalculatorKeypad(
                 }
 
                 // Row 2
-                Row(modifier = Modifier.height(keyHeight), horizontalArrangement = Arrangement.spacedBy(spacing)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing)) {
                     // Page 0 (cols 0..3)
                     if (!programmer) {
                         // Matrices and vectors (a matrix of one column or one row): the key shows a bracketed grid. Its popup has
@@ -591,7 +588,7 @@ fun CalculatorKeypad(
                 }
 
                 // Row 3
-                Row(modifier = Modifier.height(keyHeight), horizontalArrangement = Arrangement.spacedBy(spacing)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing)) {
                     // Page 0 (cols 0..3)
                     if (!programmer) {
                         // Long press: definite integral, derivative, derivative at a point. In the
@@ -665,7 +662,7 @@ fun CalculatorKeypad(
                 }
 
                 // Row 4
-                Row(modifier = Modifier.height(keyHeight), horizontalArrangement = Arrangement.spacedBy(spacing)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing)) {
                     // Page 0 (cols 0..3)
                     KeyButton(
                         text = "=",
@@ -975,9 +972,7 @@ private fun KeyButton(
 
     Box(
         modifier = Modifier
-            // As high as its row: square on a phone, lower on a wide keypad
-            .width(finalWidth)
-            .fillMaxHeight()
+            .size(width = finalWidth, height = buttonWidth)
             .onGloballyPositioned { keyLeftInWindow = it.positionInWindow().x }
             // Before the background, so that the whole key (not only its label) is dimmed; always in the chain, so that
             // a key that gets enabled again keeps its shading
@@ -1003,10 +998,13 @@ private fun KeyButton(
         // Second function bottom left, third bottom centre, a fourth would go bottom right.
         // The accent color would vanish on the (accent colored) Enter key.
         val hintColor = if (bgColor == MaterialTheme.colorScheme.primary) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onPrimaryContainer
+        // In the line height of the theme a hint stands well above the edge of the key; on a small key (a tablet
+        // held upright, a narrow phone) that brings it up against the label, so there it gets a line of its size
+        val compactHints = buttonWidth < COMPACT_HINTS_KEY_SIZE
         hints.take(HINT_POSITIONS.size).forEachIndexed { index, alternate ->
             val hintModifier = Modifier
                 .align(HINT_POSITIONS[index])
-                .padding(start = 8.dp, end = 8.dp, bottom = 4.dp)
+                .padding(start = 8.dp, end = 8.dp, bottom = if (compactHints) 6.dp else 4.dp)
             if (alternate.icon != null) {
                 // Lifted so its centre is level with the middle of the lowercase letters of the
                 // text hints beside it (a text box has its descender space below the letters)
@@ -1014,12 +1012,13 @@ private fun KeyButton(
                     alternate.icon,
                     contentDescription = alternate.label.text,
                     tint = hintColor,
-                    modifier = hintModifier.padding(bottom = 8.dp).size(width = 12.dp, height = 7.dp)
+                    modifier = hintModifier.padding(bottom = if (compactHints) 4.dp else 8.dp).size(width = 12.dp, height = 7.dp)
                 )
             } else {
                 Text(
                     text = alternate.label,
                     fontSize = 10.sp,
+                    lineHeight = if (compactHints) 12.sp else TextUnit.Unspecified,
                     fontWeight = FontWeight.Medium,
                     color = hintColor,
                     modifier = hintModifier
@@ -1039,6 +1038,9 @@ private fun KeyButton(
         }
     }
 }
+
+/** Keys smaller than this have their hints closer to the bottom edge (see [KeyButton]). */
+private val COMPACT_HINTS_KEY_SIZE = 72.dp
 
 /** How long the keypad rests after scrolling before it settles on its page (the fling of a swipe starts within this). */
 private const val SETTLE_DELAY_MS = 100L
