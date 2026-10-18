@@ -58,7 +58,15 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.TextUnit
@@ -156,9 +164,17 @@ sealed class KeyAction {
 
 /**
  * A second (or third) function of a key, reachable via long press. With an [icon] the popup
- * shows it instead of the [label] (which then only describes it).
+ * shows it instead of the [label] (which then only describes it). A screen reader says [description]
+ * where the label is a symbol it would read out badly.
  */
-private class KeyAlternate(val label: AnnotatedString, val icon: ImageVector? = null, val onSelect: () -> Unit)
+private class KeyAlternate(
+    val label: AnnotatedString,
+    val icon: ImageVector? = null,
+    val description: String? = null,
+    val onSelect: () -> Unit
+) {
+    val spoken: String get() = description ?: label.text
+}
 
 /**
  * A label with a raised and/or lowered part, drawn in Roboto: the font lacks most
@@ -200,8 +216,9 @@ fun CalculatorKeypad(
     onKeyAction: (KeyAction) -> Unit
 ) {
     val coroutineScope = rememberCoroutineScope()
-    fun alt(label: CharSequence, action: KeyAction) = KeyAlternate(
-        label as? AnnotatedString ?: AnnotatedString(label.toString())
+    fun alt(label: CharSequence, action: KeyAction, description: String? = null) = KeyAlternate(
+        label as? AnnotatedString ?: AnnotatedString(label.toString()),
+        description = description
     ) { onKeyAction(action) }
     fun variableAlternates(vararg names: String) = names.map { alt(it, KeyAction.Variable(it)) }
 
@@ -244,8 +261,8 @@ fun CalculatorKeypad(
             KeyButton(text = digit, buttonWidth = buttonWidth, enabled = inputMode.hasDigit(digit)) { onKeyAction(KeyAction.Number(digit)) }
         }
         // An operator key of the programmer pages
-        val bitKey: @Composable (String) -> Unit = { symbol ->
-            KeyButton(text = symbol, buttonWidth = buttonWidth, isAccent = true, textSize = PROGRAMMER_KEY_TEXT) { onKeyAction(KeyAction.Operator(symbol)) }
+        val bitKey: @Composable (String, String?) -> Unit = { symbol, description ->
+            KeyButton(text = symbol, description = description, buttonWidth = buttonWidth, isAccent = true, textSize = PROGRAMMER_KEY_TEXT) { onKeyAction(KeyAction.Operator(symbol)) }
         }
 
         // The page the keypad rests on (0 left, 1 main, 2 right); a swipe moves at most one page from it
@@ -305,9 +322,11 @@ fun CalculatorKeypad(
                             stiffness = Spring.StiffnessMedium
                         )
                     ) {
-                        val delta = value - lastValue
-                        scrollBy(delta)
-                        lastValue = value
+                        // A hard swipe makes the spring overshoot the page; the scroll stays on the page instead of
+                        // following the spring past the target and back
+                        val next = value.coerceIn(minOf(current, target), maxOf(current, target))
+                        scrollBy(next - lastValue)
+                        lastValue = next
                     }
                     return 0f
                 }
@@ -347,11 +366,16 @@ fun CalculatorKeypad(
                 ) {
                     for (page in 0 until 3) {
                         val isSelected = currentPage == page
+                        val pageName = stringResource(R.string.a11y_keypad_page, page + 1, 3)
                         // The dot is small, the area that takes the tap around it is not
                         Box(
                             modifier = Modifier
                                 .fillMaxHeight()
                                 .width(PAGE_DOT_TOUCH_WIDTH)
+                                .semantics {
+                                    contentDescription = pageName
+                                    selected = isSelected
+                                }
                                 .clickable {
                                     val target = when (page) {
                                         0 -> 0
@@ -406,9 +430,10 @@ fun CalculatorKeypad(
                         // pages have them as keys)
                         KeyButton(
                             text = "!",
+                            description = stringResource(R.string.a11y_factorial),
                             buttonWidth = buttonWidth,
                             isAccent = true,
-                            alternates = listOf(alt("%", KeyAction.Operator("%")), alt("mod", KeyAction.Operator("mod")), alt("Γ", KeyAction.Function("Γ"))),
+                            alternates = listOf(alt("%", KeyAction.Operator("%")), alt("mod", KeyAction.Operator("mod")), alt("Γ", KeyAction.Function("Γ"), stringResource(R.string.a11y_gamma))),
                             upperAlternates = listOf(
                                 alt("AND", KeyAction.Operator("AND")),
                                 alt("OR", KeyAction.Operator("OR")),
@@ -419,21 +444,26 @@ fun CalculatorKeypad(
                         ) { onKeyAction(KeyAction.Operator("!")) }
                         KeyButton(
                             text = "□²",
+                            description = stringResource(R.string.a11y_square),
                             buttonWidth = buttonWidth,
                             isAccent = true,
-                            alternates = listOf(alt(scriptLabel("□", sup = "n"), KeyAction.Power), alt(scriptLabel("□", sup = "−1"), KeyAction.Reciprocal))
+                            alternates = listOf(
+                                alt(scriptLabel("□", sup = "n"), KeyAction.Power, stringResource(R.string.a11y_power)),
+                                alt(scriptLabel("□", sup = "−1"), KeyAction.Reciprocal, stringResource(R.string.a11y_reciprocal))
+                            )
                         ) { onKeyAction(KeyAction.Square) }
                         KeyButton(
                             text = "√□",
+                            description = stringResource(R.string.a11y_sqrt),
                             buttonWidth = buttonWidth,
                             isAccent = true,
-                            alternates = listOf(alt("ⁿ√□", KeyAction.NthRoot))
+                            alternates = listOf(alt("ⁿ√□", KeyAction.NthRoot, stringResource(R.string.a11y_nth_root)))
                         ) { onKeyAction(KeyAction.Sqrt) }
                         KeyButton(
                             text = "log",
                             buttonWidth = buttonWidth,
                             isAccent = true,
-                            alternates = listOf(alt("ln", KeyAction.Function("ln")), alt(scriptLabel("log", sub = "n"), KeyAction.LogBase))
+                            alternates = listOf(alt("ln", KeyAction.Function("ln"), stringResource(R.string.a11y_ln)), alt(scriptLabel("log", sub = "n"), KeyAction.LogBase, stringResource(R.string.a11y_log_base)))
                         ) { onKeyAction(KeyAction.Function("log")) }
 
                     } else {
@@ -446,12 +476,14 @@ fun CalculatorKeypad(
                     digitKey("9")
                     KeyButton(
                         text = "( )",
+                        description = stringResource(R.string.a11y_parentheses),
                         buttonWidth = buttonWidth,
                         isAccent = true,
-                        alternates = listOf(alt("| |", KeyAction.Function("abs")))
+                        alternates = listOf(alt("| |", KeyAction.Function("abs"), stringResource(R.string.a11y_abs)))
                     ) { onKeyAction(KeyAction.Parentheses) }
                     KeyButton(
-                        icon = { Icon(Icons.AutoMirrored.Filled.Backspace, contentDescription = stringResource(R.string.keypad_backspace), tint = AccentRed, modifier = Modifier.size(24.dp)) },
+                        icon = { Icon(Icons.AutoMirrored.Filled.Backspace, contentDescription = null, tint = AccentRed, modifier = Modifier.size(24.dp)) },
+                        description = stringResource(R.string.keypad_backspace),
                         buttonWidth = buttonWidth
                     ) { onKeyAction(KeyAction.Backspace) }
 
@@ -459,6 +491,7 @@ fun CalculatorKeypad(
                     // Page 2 (cols 9..10)
                     KeyButton(
                         text = if (isLineEmpty) "AC" else "C",
+                        description = if (isLineEmpty) stringResource(R.string.a11y_clear_all) else stringResource(R.string.a11y_clear),
                         buttonWidth = buttonWidth,
                         colSpan = 2,
                         spacing = spacing,
@@ -473,11 +506,12 @@ fun CalculatorKeypad(
                         // Matrices and vectors (a matrix of one column or one row): the key shows a bracketed grid. Its popup has
                         // the matrix functions in the lower row and the vector functions above them
                         KeyButton(
-                            content = { Icon(MatrixIcon, contentDescription = stringResource(R.string.keypad_matrix), tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(28.dp)) },
+                            content = { Icon(MatrixIcon, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(28.dp)) },
+                            description = stringResource(R.string.keypad_matrix),
                             buttonWidth = buttonWidth,
                             isAccent = true,
                             alternates = listOf(
-                                alt(scriptLabel("A", sup = "T"), KeyAction.Transpose),
+                                alt(scriptLabel("A", sup = "T"), KeyAction.Transpose, stringResource(R.string.a11y_transpose)),
                                 alt("det", KeyAction.Function("det")),
                                 alt("rref", KeyAction.Function("rref")),
                                 alt("eig", KeyAction.Function("eig"))
@@ -493,7 +527,7 @@ fun CalculatorKeypad(
                             popupIcon = MatrixIcon,
                             // The most common one; the dots tell that the popup has more (det, rref, eig, the vector functions), as for sin
                             hints = listOf(
-                                alt(scriptLabel("A", sup = "T"), KeyAction.Transpose),
+                                alt(scriptLabel("A", sup = "T"), KeyAction.Transpose, stringResource(R.string.a11y_transpose)),
                                 KeyAlternate(AnnotatedString("…")) { }
                             )
                         ) { onKeyAction(KeyAction.Matrix) }
@@ -553,7 +587,7 @@ fun CalculatorKeypad(
                         ) { onKeyAction(KeyAction.Function("tan")) }
 
                     } else {
-                        digitKey("E"); digitKey("F"); bitKey("AND"); bitKey("OR")
+                        digitKey("E"); digitKey("F"); bitKey("AND", null); bitKey("OR", null)
                     }
                     pageGap()
                     // Page 1 (cols 4..8)
@@ -563,11 +597,11 @@ fun CalculatorKeypad(
                     // Long press: a plus or minus as a superscript, for a limit from one side (x → 0⁺)
                     KeyButton(
                         text = "+", buttonWidth = buttonWidth, isOp = true,
-                        alternates = listOf(KeyAlternate(scriptLabel("a", sup = "+")) { onKeyAction(KeyAction.SuperscriptSign(plus = true)) })
+                        alternates = listOf(KeyAlternate(scriptLabel("a", sup = "+"), description = stringResource(R.string.a11y_superscript_plus)) { onKeyAction(KeyAction.SuperscriptSign(plus = true)) })
                     ) { onKeyAction(KeyAction.Operator("+")) }
                     KeyButton(
                         text = "−", buttonWidth = buttonWidth, isOp = true,
-                        alternates = listOf(KeyAlternate(scriptLabel("a", sup = "−")) { onKeyAction(KeyAction.SuperscriptSign(plus = false)) })
+                        alternates = listOf(KeyAlternate(scriptLabel("a", sup = "−"), description = stringResource(R.string.a11y_superscript_minus)) { onKeyAction(KeyAction.SuperscriptSign(plus = false)) })
                     ) { onKeyAction(KeyAction.Operator("−")) }
 
                     pageGap()
@@ -575,7 +609,8 @@ fun CalculatorKeypad(
                     // Long press: convert to a unit ("5 km → mi"); the popup shows the arrow
                     KeyButton(
                         buttonWidth = buttonWidth,
-                        content = { IconLabel(Icons.Default.Straighten, stringResource(R.string.keypad_units), stringResource(R.string.keypad_units)) },
+                        content = { IconLabel(Icons.Default.Straighten, stringResource(R.string.keypad_units)) },
+                        description = stringResource(R.string.keypad_units),
                         popupIcon = Icons.Default.Straighten,
                         alternates = listOf(
                             KeyAlternate(AnnotatedString("→"), ConvertArrowIcon) { onKeyAction(KeyAction.Convert) }
@@ -583,7 +618,8 @@ fun CalculatorKeypad(
                     ) { onKeyAction(KeyAction.OpenUnits) }
                     KeyButton(
                         buttonWidth = buttonWidth,
-                        content = { IconLabel(Icons.AutoMirrored.Filled.MenuBook, stringResource(R.string.keypad_formulas_short), stringResource(R.string.keypad_formulas)) }
+                        content = { IconLabel(Icons.AutoMirrored.Filled.MenuBook, stringResource(R.string.keypad_formulas_short)) },
+                        description = stringResource(R.string.keypad_formulas)
                     ) { onKeyAction(KeyAction.OpenFormulas) }
                 }
 
@@ -593,30 +629,33 @@ fun CalculatorKeypad(
                     if (!programmer) {
                         // Long press: definite integral, derivative, derivative at a point. In the
                         // popup the definite integral shows its bounds to tell it from the indefinite one.
-                        val derivative = alt("d/dx", KeyAction.Derivative)
+                        val derivative = alt("d/dx", KeyAction.Derivative, stringResource(R.string.a11y_derivative))
                         KeyButton(
                             text = "∫dx",
+                            description = stringResource(R.string.a11y_antiderivative),
                             buttonWidth = buttonWidth,
                             isAccent = true,
                             alternates = listOf(
-                                alt(scriptLabel("∫", sup = "b", sub = "a") + AnnotatedString("dx"), KeyAction.Integral),
+                                alt(scriptLabel("∫", sup = "b", sub = "a") + AnnotatedString("dx"), KeyAction.Integral, stringResource(R.string.a11y_definite_integral)),
                                 derivative,
-                                alt(scriptLabel("d/dx", sub = "x=a"), KeyAction.DerivativeAt)
+                                alt(scriptLabel("d/dx", sub = "x=a"), KeyAction.DerivativeAt, stringResource(R.string.a11y_derivative_at))
                             ),
                             // More labels do not fit on the key
                             hints = listOf(derivative)
                         ) { onKeyAction(KeyAction.Antiderivative) }
                         KeyButton(
                             text = "Σ",
+                            description = stringResource(R.string.a11y_sum),
                             buttonWidth = buttonWidth,
                             isAccent = true,
-                            alternates = listOf(alt("∏", KeyAction.Product), alt("lim", KeyAction.Limit))
+                            alternates = listOf(alt("∏", KeyAction.Product, stringResource(R.string.a11y_product)), alt("lim", KeyAction.Limit, stringResource(R.string.a11y_limit)))
                         ) { onKeyAction(KeyAction.Sum) }
                         KeyButton(
                             text = "i",
+                            description = stringResource(R.string.a11y_imaginary_unit),
                             buttonWidth = buttonWidth,
                             isAccent = true,
-                            alternates = listOf(alt("r∠θ", KeyAction.Polar))
+                            alternates = listOf(alt("r∠θ", KeyAction.Polar, stringResource(R.string.a11y_polar)))
                         ) { onKeyAction(KeyAction.ImaginaryUnit) }
                         KeyButton(
                             text = "π",
@@ -625,9 +664,9 @@ fun CalculatorKeypad(
                         ) { onKeyAction(KeyAction.Constant("π")) }
 
                     } else {
-                        bitKey("XOR")
+                        bitKey("XOR", null)
                         KeyButton(text = "NOT", buttonWidth = buttonWidth, isAccent = true, textSize = PROGRAMMER_KEY_TEXT) { onKeyAction(KeyAction.Function("not")) }
-                        bitKey("<<"); bitKey(">>")
+                        bitKey("<<", stringResource(R.string.a11y_shift_left)); bitKey(">>", stringResource(R.string.a11y_shift_right))
                     }
                     pageGap()
                     // Page 1 (cols 4..8)
@@ -639,11 +678,12 @@ fun CalculatorKeypad(
                     // popup tells them apart by showing the main function as a fraction
                     KeyButton(
                         text = "÷",
+                        description = stringResource(R.string.a11y_fraction),
                         buttonWidth = buttonWidth,
                         isOp = true,
                         alternates = listOf(
                             KeyAlternate(AnnotatedString(stringResource(R.string.keypad_mixed_number)), MixedFractionIcon) { onKeyAction(KeyAction.MixedFraction) },
-                            alt("÷", KeyAction.InlineDivide)
+                            alt("÷", KeyAction.InlineDivide, stringResource(R.string.a11y_inline_divide))
                         ),
                         popupIcon = FractionIcon,
                         hints = emptyList()
@@ -653,11 +693,13 @@ fun CalculatorKeypad(
                     // Page 2 (cols 9..10)
                     KeyButton(
                         buttonWidth = buttonWidth,
-                        content = { IconLabel(Icons.Default.Science, stringResource(R.string.keypad_constants_short), stringResource(R.string.keypad_constants)) }
+                        content = { IconLabel(Icons.Default.Science, stringResource(R.string.keypad_constants_short)) },
+                        description = stringResource(R.string.keypad_constants)
                     ) { onKeyAction(KeyAction.OpenConstants) }
                     KeyButton(
                         buttonWidth = buttonWidth,
-                        content = { IconLabel(Icons.Default.AutoGraph, stringResource(R.string.keypad_graph), stringResource(R.string.keypad_graph_2d)) }
+                        content = { IconLabel(Icons.Default.AutoGraph, stringResource(R.string.keypad_graph)) },
+                        description = stringResource(R.string.keypad_graph_2d)
                     ) { onKeyAction(KeyAction.OpenGraph) }
                 }
 
@@ -670,7 +712,7 @@ fun CalculatorKeypad(
                         isAccent = true,
                         // Long press: a definition, and the signs of an inequality
                         alternates = listOf(
-                            alt(":=", KeyAction.Operator(":=")),
+                            alt(":=", KeyAction.Operator(":="), stringResource(R.string.a11y_define)),
                             alt("<", KeyAction.Operator("<")),
                             alt(">", KeyAction.Operator(">")),
                             alt("≤", KeyAction.Operator("≤")),
@@ -685,7 +727,8 @@ fun CalculatorKeypad(
                     // Any other letter (capitals too, e.g. for matrices) comes from the system keyboard
                     KeyButton(
                         buttonWidth = buttonWidth,
-                        content = { IconLabel(Icons.Default.Keyboard, "abc", stringResource(R.string.keypad_variable)) }
+                        content = { IconLabel(Icons.Default.Keyboard, "abc") },
+                        description = stringResource(R.string.keypad_variable)
                     ) { onKeyAction(KeyAction.FreeVariable) }
                     // The same keys on every page of the mode: e is of no use to whole numbers, so mod takes its place
                     if (!programmer) {
@@ -711,6 +754,7 @@ fun CalculatorKeypad(
                         KeyButton(
                             buttonWidth = buttonWidth,
                             isAccent = true,
+                            description = stringResource(R.string.a11y_exponent),
                             content = {
                                 Text(
                                     text = scriptLabel("×10", sup = "□"),
@@ -725,7 +769,7 @@ fun CalculatorKeypad(
                         icon = {
                             Icon(
                                 Icons.AutoMirrored.Filled.KeyboardReturn,
-                                contentDescription = stringResource(R.string.keypad_enter),
+                                contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onPrimary,
                                 modifier = Modifier.size(28.dp)
                             )
@@ -734,6 +778,7 @@ fun CalculatorKeypad(
                         colSpan = 2,
                         spacing = spacing,
                         bgColor = MaterialTheme.colorScheme.primary,
+                        description = stringResource(R.string.keypad_enter),
                         popupIcon = Icons.AutoMirrored.Filled.KeyboardReturn,
                         // Long press: a new line, and the result of the last Enter
                         alternates = listOf(alt(stringResource(R.string.keypad_new_line), KeyAction.NewLine), alt("Ans", KeyAction.Ans))
@@ -745,7 +790,8 @@ fun CalculatorKeypad(
                         buttonWidth = buttonWidth,
                         colSpan = 2,
                         spacing = spacing,
-                        content = { IconLabel(Icons.Default.Settings, stringResource(R.string.keypad_settings), stringResource(R.string.keypad_settings)) }
+                        content = { IconLabel(Icons.Default.Settings, stringResource(R.string.keypad_settings)) },
+                        description = stringResource(R.string.keypad_settings)
                     ) { onKeyAction(KeyAction.OpenSettings) }
                 }
             }
@@ -825,9 +871,9 @@ private fun InputModeChip(mode: InputMode, onChange: (InputMode) -> Unit, modifi
  * (24sp) would leave a gap of several dp between icon and text.
  */
 @Composable
-private fun IconLabel(icon: ImageVector, label: String, contentDescription: String) {
+private fun IconLabel(icon: ImageVector, label: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-        Icon(icon, contentDescription = contentDescription, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(18.dp))
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(18.dp))
         Text(label, fontSize = 11.sp, lineHeight = 12.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
     }
 }
@@ -860,6 +906,8 @@ private fun KeyButton(
     enabled: Boolean = true,
     /** The size of [text], where the length of the text should not decide it (the names of the operators next to each other). */
     textSize: TextUnit? = null,
+    /** What a screen reader says for the key, where [text] is a symbol it would read out badly or the key has none. */
+    description: String? = null,
     onClick: () -> Unit
 ) {
     val defaultBg = when {
@@ -905,7 +953,7 @@ private fun KeyButton(
         val currentOnClick by rememberUpdatedState(onClick)
         // The popup starts with the main function, preselected, so an accidental long press
         // does what a tap would have done
-        val lowerEntries by rememberUpdatedState(listOf(KeyAlternate(popupLabel ?: AnnotatedString(text.orEmpty()), popupIcon, onClick)) + alternates)
+        val lowerEntries by rememberUpdatedState(listOf(KeyAlternate(popupLabel ?: AnnotatedString(text.orEmpty()), popupIcon, description, onClick)) + alternates)
         val upperEntries by rememberUpdatedState(upperAlternates)
         Modifier
             .indication(interactionSource, LocalIndication.current)
@@ -979,6 +1027,20 @@ private fun KeyButton(
             .alpha(if (enabled) 1f else DISABLED_KEY_ALPHA)
             .clip(RoundedCornerShape(16.dp))
             .background(defaultBg)
+            // A screen reader gets the key as one button with its spoken name (not its label and hints); the
+            // long-press functions, which it cannot reach by sliding the finger, are its actions
+            .clearAndSetSemantics {
+                contentDescription = description ?: text.orEmpty()
+                role = Role.Button
+                if (enabled) {
+                    onClick { onClick.invoke(); true }
+                    customActions = (alternates + upperAlternates).map { alternate ->
+                        CustomAccessibilityAction(alternate.spoken) { alternate.onSelect(); true }
+                    }
+                } else {
+                    disabled()
+                }
+            }
             .then(if (enabled) touchFeedback.then(gestureModifier) else Modifier),
         contentAlignment = Alignment.Center
     ) {
@@ -1028,7 +1090,7 @@ private fun KeyButton(
 
         popupSelection?.let { selected ->
             AlternatesPopup(
-                listOf(KeyAlternate(popupLabel ?: AnnotatedString(text.orEmpty()), popupIcon, onClick)) + alternates,
+                listOf(KeyAlternate(popupLabel ?: AnnotatedString(text.orEmpty()), popupIcon, description, onClick)) + alternates,
                 upperAlternates,
                 selected,
                 cellWidth = with(LocalDensity.current) { popupCellPx.toDp() },
@@ -1231,7 +1293,7 @@ private fun AlternatesRow(
             ) {
                 val color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
                 if (alternate.icon != null) {
-                    Icon(alternate.icon, contentDescription = alternate.label.text, tint = color, modifier = Modifier.size(26.dp))
+                    Icon(alternate.icon, contentDescription = alternate.spoken, tint = color, modifier = Modifier.size(26.dp))
                 } else {
                     // The cells have a fixed size: a larger system font only grows the labels a little, and they never wrap
                     val fontScale = LocalDensity.current.fontScale
