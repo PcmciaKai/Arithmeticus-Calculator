@@ -222,8 +222,18 @@ enum class StepRule {
     BACK_SUBSTITUTION,
     /** P/((x − a)(x − b)) = A/(x − a) + B/(x − b) */
     PARTIAL_FRACTIONS,
-    /** f(x) = f(a) + f′(a)(x − a) + f″(a)/2!·(x − a)² + … */
+    /** f, a and n: the polynomial with the value and the first n derivatives of f at a */
+    TAYLOR_PROBLEM,
+    /** Tₙ(x) = f(a) + f′(a)(x − a) + f″(a)/2!·(x − a)² + … up to n */
+    TAYLOR_FORMULA,
+    /** f′, f″, … f⁽ⁿ⁾ */
+    TAYLOR_DERIVATIVES,
+    /** f(a), f′(a), … */
+    TAYLOR_VALUES,
+    /** the values put into the formula */
     TAYLOR_SERIES,
+    /** k! worked out, the terms that are 0 left out */
+    TAYLOR_SIMPLIFY,
     /** the equation as typed: a function y(x) is asked for */
     ODE_PROBLEM,
     /** the same, with y(x₀) = y₀ (and y′(x₀) = y₁) */

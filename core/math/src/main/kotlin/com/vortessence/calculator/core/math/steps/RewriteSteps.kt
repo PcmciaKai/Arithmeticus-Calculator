@@ -2,6 +2,7 @@ package com.vortessence.calculator.core.math.steps
 
 import com.vortessence.calculator.core.math.context.MathContext
 import com.vortessence.calculator.core.math.expressions.DifferentialEquations
+import com.vortessence.calculator.core.math.expressions.Equals
 import com.vortessence.calculator.core.math.expressions.Expression
 import com.vortessence.calculator.core.math.expressions.Factorial
 import com.vortessence.calculator.core.math.expressions.Additions
@@ -34,7 +35,6 @@ internal object RewriteSteps {
         }
     }
 
-    private const val MAX_STEPS = 80
 
     /**
      * The stages of the derivation of the solution of an ordinary differential equation, each with what it works out: what is
@@ -106,41 +106,61 @@ internal object RewriteSteps {
         else -> "⁽" + k.toString().map { "⁰¹²³⁴⁵⁶⁷⁸⁹"[it - '0'] }.joinToString("") + "⁾"
     }
 
+    /** Tₙ: the degree as small lowered digits */
+    private fun subscript(n: Int): String = n.toString().map { "₀₁₂₃₄₅₆₇₈₉"[it - '0'] }.joinToString("")
+
+    /**
+     * The steps of taylor(f, x, a, n) as in a textbook: what is asked for (f, a and n), the formula for this n, the derivatives,
+     * their values at a, the values put into the formula, then the factorials worked out and the terms that are 0 left out.
+     */
     private fun taylor(call: NamedFunction, context: MathContext): ExpressionSolution? {
         val scratch = context.copy()
         val expansion = call.taylorExpansion(scratch) ?: return null
         if (scratch.shouldStop || scratch.issues.isNotEmpty()) return null
         val n = expansion.order
         val point = expansion.point
+        val x = expansion.variable.identifier
         // A whole number is written into f′(0); anything else is named a
         val whole = ((point as? Value)?.rational)?.takeIf { !it.isFractional }?.numerator?.value?.toString()?.replace("-", "−")
         val at = whole ?: "a"
+        fun f(k: Int, argument: String) = TextExpression("f${derivativeMarks(k)}($argument)")
+        fun rows(rows: List<Expression>) = if (rows.size == 1) rows.single() else Alternatives(rows)
 
-        val notes = buildList {
-            if (whole == null) add(Note(TextExpression("a"), point))
-            for (k in 0..n) {
-                add(Note(TextExpression("f${derivativeMarks(k)}(x)"), expansion.derivatives[k]))
-                add(Note(TextExpression("f${derivativeMarks(k)}($at)"), expansion.values[k]))
-            }
-        }
-        // f(a) + f′(a)·(x − a) + f″(a)/2!·(x − a)² + …, the values put in as they are
+        // f(a) + f′(a)·(x − a) + f″(a)/2!·(x − a)² + …, written as it is read: the fraction before the power
         val base = expansion.base
-        val terms = (0..n).filter { !expansion.values[it].isZero }.map { k ->
-            val value = expansion.values[k]
-            when (k) {
-                0 -> value
-                1 -> Multiplications.of(value, base)
-                else -> Multiplications.of(value, Power(Factorial(Value(k.toLong())), Value.MINUS_ONE), Power(base, Value(k.toLong())))
-            }
+        fun term(k: Int, value: Expression): Expression = when (k) {
+            0 -> value
+            1 -> WrittenOut(listOf(value, base))
+            else -> WrittenOut(listOf(LiteralFraction(value, Factorial(Value(k.toLong()))), Power(base, Value(k.toLong()))))
         }
-        if (terms.isEmpty()) return null
-        val formula = if (terms.size == 1) terms.single() else Additions(terms)
+        fun polynomial(values: List<Expression>) = Additions((0..n).map { term(it, values[it]) }).let { if (n == 0) it.operands.single() else it }
+        val name = TextExpression("T${subscript(n)}($x)")
+        val general = Equals(name, polynomial((0..n).map { f(it, at) }))
+
+        val problemNotes = listOf(Note(TextExpression("a"), point), Note(TextExpression("n"), Value(n.toLong())))
+        val derivatives = rows((0..n).map { k -> Equals(f(k, x), expansion.derivatives[k]) })
+        // f″(0) = −sin(0) = 0: the point put in (boxed, and kept as it is: 3·1), then its value (only the value where nothing is put in)
+        val values = rows((0..n).map { k ->
+            val derivative = expansion.derivatives[k]
+            val inserted = derivative.transform { if (it == expansion.variable) Marked(point, PENDING_COLOR, boxed = true, keep = true) else it }
+            Equals(f(k, at), if (derivative.containsVariable(expansion.variable)) Equals(inserted, expansion.values[k]) else expansion.values[k])
+        })
+        // The values put in, each boxed and kept as it is, also 0 and 1
+        val inserted = Equals(name, polynomial(expansion.values.map { Marked(it, PENDING_COLOR, boxed = true, keep = true) }))
         val target = expansion.toSum()
+        if (target.isZero && n > 0 && expansion.values.all { it.isZero }) return null
+        val factorials = (2..n).map { k -> Note(Factorial(Value(k.toLong())), Value((1..k).fold(1L) { p, i -> p * i })) }
 
         val solution = Solver(context)
         solution.start(call)
-        solution.apply(Match(StepRule.TAYLOR_SERIES, mapOf(emptyList<Int>() to formula), call, formula, notes = notes, showChange = false))
-        if (!solution.simplifyToward(target, MAX_STEPS)) return null
+        fun step(rule: StepRule, line: Expression, notes: List<Note> = emptyList(), boxed: Boolean = true) =
+            solution.apply(Match(rule, mapOf(emptyList<Int>() to line), unmarked(solution.current), line, notes = notes, showChange = false, boxReplacements = boxed))
+        step(StepRule.TAYLOR_PROBLEM, Equals(f(0, x), expansion.derivatives[0]), problemNotes)
+        step(StepRule.TAYLOR_FORMULA, general)
+        step(StepRule.TAYLOR_DERIVATIVES, derivatives)
+        step(StepRule.TAYLOR_VALUES, values, boxed = false)
+        step(StepRule.TAYLOR_SERIES, inserted, boxed = false)
+        step(StepRule.TAYLOR_SIMPLIFY, Equals(name, target), factorials)
         return solution.finish(target)
     }
 

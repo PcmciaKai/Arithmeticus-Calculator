@@ -562,7 +562,12 @@
     <string name="step_split_numerator">Teile den Zähler in die Ableitung des Nenners und eine Konstante</string>
     <string name="step_complete_square">Ergänze im Nenner quadratisch</string>
     <string name="step_partial_fractions">Zerlege in Partialbrüche</string>
-    <string name="step_taylor_series">Setze die Ableitungen am Entwicklungspunkt in die Taylor-Formel ein</string>
+    <string name="step_taylor_problem">Taylorpolynom: gesucht ist das Polynom Tₙ vom Grad n, das bei x = a denselben Wert und dieselben ersten n Ableitungen wie f hat. In der Nähe von a nähert es f an, umso besser, je größer n ist</string>
+    <string name="step_taylor_formula">Schreibe die Taylorformel bis zum Grad n auf: für jedes k von 0 bis n die k-te Ableitung an der Stelle a, geteilt durch k!, mal (x − a)^k</string>
+    <string name="step_taylor_derivatives">Leite f immer wieder ab, bis zur n-ten Ableitung: jede ist die Ableitung der vorherigen</string>
+    <string name="step_taylor_values">Setze x = a in f und in jede Ableitung ein</string>
+    <string name="step_taylor_series">Setze die Werte in die Taylorformel ein</string>
+    <string name="step_taylor_simplify">Berechne die Fakultäten und vereinfache jeden Term; die Terme mit dem Wert 0 fallen weg</string>
     <string name="step_by_parts">Integriere partiell</string>
     <string name="step_antiderivative">Bestimme eine Stammfunktion F</string>
     <string name="step_bounds">Setze die Grenzen ein</string>
@@ -826,7 +831,7 @@
     <string name="help_taylor_example_point">Um a = 1 wird es in Potenzen von (x − 1) geschrieben</string>
     <string name="help_taylor_notes_1">n ist eine ganze Zahl von 0 bis 12.</string>
     <string name="help_taylor_notes_2">f und seine Ableitungen müssen bei a definiert sein: taylor(ln(x), x, 0, 3) oder taylor(sin(x)/x, x, 0, 4) ergeben einen Fehler. Wähl eine andere Stelle oder vereinfache f vorher.</string>
-    <string name="help_taylor_notes_3">Das Ergebnis ist ein Polynom, mit dem du weiterrechnen kannst: ableiten, integrieren, oder zusammen mit f im Graph zeichnen (jedes in einer eigenen Zeile), um zu sehen, wo es nah dran ist. Schritte zeigt die Ableitungen bei a und die Formel.</string>
+    <string name="help_taylor_notes_3">Das Ergebnis ist ein Polynom, mit dem du weiterrechnen kannst: ableiten, integrieren, oder zusammen mit f im Graph zeichnen (jedes in einer eigenen Zeile), um zu sehen, wo es nah dran ist. Schritte zeigt den ganzen Weg: die Taylorformel für n, die Ableitungen, ihre Werte bei a, die eingesetzten Werte und das vereinfachte Polynom.</string>
 
     <string name="help_dsolve_title">Differentialgleichungen</string>
     <string name="help_dsolve_summary">dsolve: gewöhnliche Differentialgleichungen erster und zweiter Ordnung</string>

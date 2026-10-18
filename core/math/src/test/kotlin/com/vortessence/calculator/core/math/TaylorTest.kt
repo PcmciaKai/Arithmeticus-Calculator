@@ -107,15 +107,29 @@ class TaylorTest {
     }
 
     @Test
-    fun theStepsPutTheDerivativesIntoTheFormula() {
+    fun theStepsGoTheWayOfATextbook() {
         val solution = steps("taylor(sin(x),x,0,5)")!!
-        assertEquals(listOf(StepRule.TAYLOR_SERIES, StepRule.SIMPLIFY), solution.steps.mapNotNull { it.rule })
-        // f, f′ … f⁽⁵⁾ and their values at 0
-        val notes = solution.steps[1].notes.map { it.toString() }
-        assertEquals(12, notes.size)
-        assertEquals("f(x) = sin(x)", notes.first())
-        assertEquals("f‴(0) =  − 1", notes[7])
-        assertTrue(notes.last(), notes.last().startsWith("f⁽⁵⁾(0)"))
+        assertEquals(
+            listOf(StepRule.TAYLOR_PROBLEM, StepRule.TAYLOR_FORMULA, StepRule.TAYLOR_DERIVATIVES, StepRule.TAYLOR_VALUES, StepRule.TAYLOR_SERIES, StepRule.TAYLOR_SIMPLIFY),
+            solution.steps.mapNotNull { it.rule }
+        )
+        fun line(rule: StepRule) = solution.steps.first { it.rule == rule }
+        fun shown(rule: StepRule) = line(rule).expression.toString()
+        // What is asked for: f, a and n
+        assertEquals("[f(x) = sin(x)]", shown(StepRule.TAYLOR_PROBLEM).trim('{', '}'))
+        assertEquals(listOf("a = 0", "n = 5"), line(StepRule.TAYLOR_PROBLEM).notes.map { it.toString() })
+        // The formula for n = 5, the fraction before the power
+        assertTrue(shown(StepRule.TAYLOR_FORMULA), shown(StepRule.TAYLOR_FORMULA).contains("T₅(x) = f(0) + f′(0) × x + (f″(0))/(2!) × (x)^(2)"))
+        assertTrue(shown(StepRule.TAYLOR_FORMULA), shown(StepRule.TAYLOR_FORMULA).contains("(f⁽⁵⁾(0))/(5!) × (x)^(5)"))
+        // f to f⁽⁵⁾, one in each line, and their values with the point put in
+        assertTrue(shown(StepRule.TAYLOR_DERIVATIVES).contains("f‴(x) =  − cos(x)"))
+        assertTrue(shown(StepRule.TAYLOR_VALUES).contains("f‴(0) =  − cos([0]) =  − 1"))
+        // The values put in, also those that are 0, then the factorials worked out
+        assertTrue(shown(StepRule.TAYLOR_SERIES), shown(StepRule.TAYLOR_SERIES).contains("([0])/(2!)"))
+        assertEquals(listOf("2! = 2", "3! = 6", "4! = 24", "5! = 120"), line(StepRule.TAYLOR_SIMPLIFY).notes.map { it.toString() })
+        assertEquals("x − ((x)^(3))/(6) + ((x)^(5))/(120)", solution.result.toString())
+        // A point put in stays as it is: 3·1
+        assertTrue(steps("taylor(x^2+3x,x,1,0)")!!.steps.first { it.rule == StepRule.TAYLOR_VALUES }.expression.toString().contains("3 × [1]"))
         // A point that is not a whole number is named a
         assertEquals("a = π", steps("taylor(sin(x),x,pi,3)")!!.steps[1].notes.first().toString())
         // Nothing to show for a constant

@@ -163,7 +163,12 @@
     <string name="step_split_numerator">Split the numerator into the derivative of the denominator and a constant</string>
     <string name="step_complete_square">Complete the square in the denominator</string>
     <string name="step_partial_fractions">Split into partial fractions</string>
-    <string name="step_taylor_series">Put the derivatives at the point into the Taylor formula</string>
+    <string name="step_taylor_problem">Taylor polynomial: wanted is the polynomial Tₙ of degree n that has the same value and the same first n derivatives as f at x = a. Near a it approximates f, the better the higher n is</string>
+    <string name="step_taylor_formula">Write down the Taylor formula up to degree n: for each k from 0 to n, the k-th derivative at a, divided by k!, times (x − a)^k</string>
+    <string name="step_taylor_derivatives">Differentiate f again and again, up to the n-th derivative: each one is the derivative of the one before</string>
+    <string name="step_taylor_values">Put x = a into f and into each derivative</string>
+    <string name="step_taylor_series">Put the values into the Taylor formula</string>
+    <string name="step_taylor_simplify">Work out the factorials and simplify each term; the terms with the value 0 drop out</string>
     <string name="step_by_parts">Integrate by parts</string>
     <string name="step_antiderivative">Find an antiderivative F</string>
     <string name="step_bounds">Insert the bounds</string>
@@ -831,7 +836,7 @@
     <string name="help_taylor_example_point">Around a = 1 it is written in powers of (x − 1)</string>
     <string name="help_taylor_notes_1">n is a whole number from 0 to 12.</string>
     <string name="help_taylor_notes_2">f and its derivatives must be defined at a: taylor(ln(x), x, 0, 3) or taylor(sin(x)/x, x, 0, 4) give an error. Choose another point, or simplify f first.</string>
-    <string name="help_taylor_notes_3">The result is a polynomial you can work with: differentiate or integrate it, or draw it together with f in the graph (each on its own line) to see where it is close. Steps shows the derivatives at a and the formula.</string>
+    <string name="help_taylor_notes_3">The result is a polynomial you can work with: differentiate or integrate it, or draw it together with f in the graph (each on its own line) to see where it is close. Steps shows the whole way: the Taylor formula for n, the derivatives, their values at a, the values put in, and the simplified polynomial.</string>
 
     <string name="help_dsolve_title">Differential equations</string>
     <string name="help_dsolve_summary">dsolve: ordinary differential equations of first and second order</string>

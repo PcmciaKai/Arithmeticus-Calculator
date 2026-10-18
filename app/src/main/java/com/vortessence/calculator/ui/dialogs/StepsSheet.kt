@@ -590,7 +590,12 @@ private val StepRule.descriptionRes: Int
         StepRule.BACK_SUBSTITUTION -> R.string.step_back_substitution
         StepRule.BY_PARTS -> R.string.step_by_parts
         StepRule.PARTIAL_FRACTIONS -> R.string.step_partial_fractions
+        StepRule.TAYLOR_PROBLEM -> R.string.step_taylor_problem
+        StepRule.TAYLOR_FORMULA -> R.string.step_taylor_formula
+        StepRule.TAYLOR_DERIVATIVES -> R.string.step_taylor_derivatives
+        StepRule.TAYLOR_VALUES -> R.string.step_taylor_values
         StepRule.TAYLOR_SERIES -> R.string.step_taylor_series
+        StepRule.TAYLOR_SIMPLIFY -> R.string.step_taylor_simplify
         StepRule.ODE_PROBLEM -> R.string.step_ode_problem
         StepRule.ODE_INITIAL_VALUE_PROBLEM -> R.string.step_ode_initial_value_problem
         StepRule.ODE_TYPE_SEPARABLE -> R.string.step_ode_type_separable
@@ -920,7 +925,8 @@ internal fun StepRule.formula(language: Language): String? {
         StepRule.ODE_HOMOGENEOUS_DOUBLE -> "y = (C₁ + C₂·x)·e^{rx}"
         StepRule.ODE_HOMOGENEOUS_COMPLEX -> "y = e^{αx}·(C₁·cos(βx) + C₂·sin(βx))"
         StepRule.ODE_VARIATION_OF_PARAMETERS -> "yₚ = −y₁·\\int{\\frac{y₂·r}{a·W}}{x} + y₂·\\int{\\frac{y₁·r}{a·W}}{x}"
-        StepRule.TAYLOR_SERIES -> "f(x) ≈ f(a) + f′(a)·(x − a) + \\frac{f″(a)}{2!}·(x − a)^2 + …"
+        StepRule.TAYLOR_FORMULA -> "Tₙ(x) = f(a) + f′(a)·(x − a) + \\frac{f″(a)}{2!}·(x − a)^2 + … + \\frac{f⁽ⁿ⁾(a)}{n!}·(x − a)^n"
+        StepRule.TAYLOR_SIMPLIFY -> "k! = 1·2·3·…·k"
         StepRule.ANTIDERIVATIVE -> "\\intab{a}{b}{f}{x} = \\eval{F}{a}{b}"
         StepRule.BOUNDS -> "\\eval{F}{a}{b} = F(b) − F(a)"
         StepRule.ADD_TO_BOTH_SIDES -> "a = b\\text{  ⇔  }a + c = b + c"
@@ -957,7 +963,7 @@ internal fun StepRule.formula(language: Language): String? {
         StepRule.FACTOR_OUT -> "ax^2 + bx = x·(ax + b)"
         StepRule.ZERO_PRODUCT -> "a·b = 0\\text{  ⇔  }a = 0\\text{${w(Text.FORMULA_OR)}}b = 0"
         StepRule.QUADRATIC_FORMULA -> "x = \\frac{−b ± \\sqrt{D}}{2a}\\text{${w(Text.FORMULA_WITH)}}D = b^2 − 4ac"
-        StepRule.ODE_SOLVE_FOR_UNKNOWN, StepRule.ODE_TRY_EXPONENTIAL, StepRule.ODE_UNDETERMINED_COEFFICIENTS, StepRule.ODE_CONSTANTS,
+        StepRule.ODE_SOLVE_FOR_UNKNOWN, StepRule.ODE_TRY_EXPONENTIAL, StepRule.TAYLOR_PROBLEM, StepRule.TAYLOR_DERIVATIVES, StepRule.TAYLOR_VALUES, StepRule.TAYLOR_SERIES, StepRule.ODE_UNDETERMINED_COEFFICIENTS, StepRule.ODE_CONSTANTS,
         StepRule.ODE_PROBLEM, StepRule.ODE_INITIAL_VALUE_PROBLEM, StepRule.ODE_DERIVATIVE_OF_SOLUTION, StepRule.ODE_INSERT_CONDITIONS,
         StepRule.ODE_SOLVE_CONSTANTS, StepRule.ODE_PUT_CONSTANTS,
         StepRule.ROOT_OF_NUMBER, StepRule.IDENTITY, StepRule.SOLVE_FOR, StepRule.SUBSTITUTE_SOLUTION,
