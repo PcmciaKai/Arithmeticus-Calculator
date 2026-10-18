@@ -328,7 +328,12 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
                         .padding(horizontal = 16.dp),
                     state = historyListState,
                     reverseLayout = true,
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    // With the input line's own 6dp above it, the newest entry is as far from the input line as from the
+                    // entry above it
+                    contentPadding = PaddingValues(bottom = 4.dp),
+                    // Bottom: a few entries sit just above the input line, not at the top (spacedBy alone aligns to the top
+                    // even in a reversed list), where the help hint would cover them
+                    verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.Bottom)
                 ) {
                     items(uiState.history, key = { it.id }) { entry ->
                         SwipeToDeleteBox(
