@@ -15,7 +15,11 @@ import java.util.Locale
 enum class LanguageChoice(val tag: String?) {
     SYSTEM(null),
     ENGLISH("en"),
-    GERMAN("de")
+    GERMAN("de"),
+    FRENCH("fr"),
+    SPANISH("es"),
+    RUSSIAN("ru"),
+    CHINESE("zh-CN")
 }
 
 /**
@@ -30,8 +34,8 @@ object AppLanguage {
     fun choice(context: Context): LanguageChoice {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val locales = context.getSystemService(LocaleManager::class.java).applicationLocales
-            val tag = if (locales.isEmpty) null else locales[0].language
-            return LanguageChoice.entries.firstOrNull { it.tag != null && it.tag == tag } ?: LanguageChoice.SYSTEM
+            val language = if (locales.isEmpty) null else locales[0].language
+            return LanguageChoice.entries.firstOrNull { it.tag != null && it.tag.substringBefore('-') == language } ?: LanguageChoice.SYSTEM
         }
         val saved = try { context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE).getString(KEY, null) } catch (e: Exception) { null }
         return LanguageChoice.entries.firstOrNull { it.name == saved } ?: LanguageChoice.SYSTEM
@@ -61,7 +65,7 @@ object AppLanguage {
 
     /** The language the app shows its texts in now (English where the language of the device is not available). */
     fun current(context: Context): Language = try {
-        val tag = choice(context).tag ?: Resources.getSystem().configuration.locales[0].language
+        val tag = choice(context).tag ?: Resources.getSystem().configuration.locales[0].toLanguageTag()
         Language.fromTag(tag)
     } catch (e: Exception) {
         // (no system to ask, as in unit tests)

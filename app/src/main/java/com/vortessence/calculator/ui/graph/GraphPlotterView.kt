@@ -1292,7 +1292,7 @@ private fun formatLineEquation(slope: Double, intercept: Double): String {
  * within numerical noise of zero are shown as 0.
  */
 internal fun formatGraphNumber(value: Double, significantDigits: Int = 6): String {
-    if (value.isNaN()) return Texts.get(Text.UNDEFINED_VALUE, Language.fromTag(java.util.Locale.getDefault().language))
+    if (value.isNaN()) return Texts.get(Text.UNDEFINED_VALUE, Language.fromTag(java.util.Locale.getDefault().toLanguageTag()))
     if (value.isInfinite()) return if (value > 0) "\u221E" else "\u2212\u221E"
     if (abs(value) < 1e-9) return "0"
     val rounded = BigDecimal(value).round(java.math.MathContext(significantDigits)).stripTrailingZeros()

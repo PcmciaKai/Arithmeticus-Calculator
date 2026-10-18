@@ -1,0 +1,911 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Calculator</string>
+
+    <!-- Names of the rules in the step-by-step solutions -->
+    <string name="step_constant">La dérivée d’une constante est nulle</string>
+    <string name="step_variable">La dérivée de la variable vaut un</string>
+    <string name="step_sum">Dériver terme à terme</string>
+    <string name="step_constant_factor">Sortir la constante</string>
+    <string name="step_product">Appliquer la règle du produit</string>
+    <string name="step_quotient">Appliquer la règle du quotient</string>
+    <string name="step_power">Appliquer la règle de la puissance</string>
+    <string name="step_exponential">Dériver la fonction exponentielle</string>
+    <string name="step_general_power">Écrire la puissance en base e</string>
+    <string name="step_logarithm">Dériver le logarithme</string>
+    <string name="step_change_of_base">Changer la base du logarithme</string>
+    <string name="step_sine">Dériver le sinus</string>
+    <string name="step_cosine">Dériver le cosinus</string>
+    <string name="step_tangent">Dériver la tangente</string>
+    <string name="step_arcsine">Dériver l’arc sinus</string>
+    <string name="step_arccosine">Dériver l’arc cosinus</string>
+    <string name="step_arctangent">Dériver l’arc tangente</string>
+    <string name="step_secant">Dériver la sécante</string>
+    <string name="step_cosecant">Dériver la cosécante</string>
+    <string name="step_cotangent">Dériver la cotangente</string>
+    <string name="step_arcsecant">Dériver l’arc sécante</string>
+    <string name="step_arccosecant">Dériver l’arc cosécante</string>
+    <string name="step_arccotangent">Dériver l’arc cotangente</string>
+    <string name="step_sinh">Dériver le sinus hyperbolique</string>
+    <string name="step_cosh">Dériver le cosinus hyperbolique</string>
+    <string name="step_tanh">Dériver la tangente hyperbolique</string>
+    <string name="step_sech">Dériver la sécante hyperbolique</string>
+    <string name="step_csch">Dériver la cosécante hyperbolique</string>
+    <string name="step_coth">Dériver la cotangente hyperbolique</string>
+    <string name="step_asinh">Dériver l’argument sinus hyperbolique</string>
+    <string name="step_acosh">Dériver l’argument cosinus hyperbolique</string>
+    <string name="step_atanh">Dériver l’argument tangente hyperbolique</string>
+    <string name="step_asech">Dériver l’argument sécante hyperbolique</string>
+    <string name="step_acsch">Dériver l’argument cosécante hyperbolique</string>
+    <string name="step_acoth">Dériver l’argument cotangente hyperbolique</string>
+    <string name="step_gamma">Dériver la fonction gamma</string>
+    <string name="step_lngamma">Dériver la fonction log-gamma</string>
+    <string name="step_erf">Dériver la fonction d’erreur</string>
+    <string name="step_erfc">Dériver la fonction d’erreur complémentaire</string>
+    <string name="step_lambertw">Dériver la fonction W de Lambert</string>
+    <string name="step_sinint">Dériver le sinus intégral</string>
+    <string name="step_cosint">Dériver le cosinus intégral</string>
+    <string name="step_expint">Dériver l’exponentielle intégrale</string>
+    <string name="step_integral_gaussian">Intégrer la fonction gaussienne (on obtient la fonction d’erreur)</string>
+    <string name="step_integral_sine_over_x">Intégrer sin(x)/x (on obtient le sinus intégral Si)</string>
+    <string name="step_integral_cosine_over_x">Intégrer cos(x)/x (on obtient le cosinus intégral Ci)</string>
+    <string name="step_integral_exponential_over_x">Intégrer eˣ/x (on obtient l’exponentielle intégrale Ei)</string>
+    <string name="step_normal_density">Remplacer les valeurs dans la densité de la loi normale</string>
+    <string name="step_normal_probability">Écrire la probabilité normale avec la fonction d’erreur</string>
+    <string name="step_normal_quantile">Mettre à l’échelle le quantile de la loi normale centrée réduite</string>
+    <string name="step_student_density">Remplacer les valeurs dans la densité de la loi de Student</string>
+    <string name="step_chi_square_density">Remplacer les valeurs dans la densité de la loi du khi deux</string>
+    <string name="step_binomial_probability">Remplacer les valeurs dans la probabilité binomiale</string>
+    <string name="step_binomial_cumulative">Additionner les probabilités binomiales de 0 jusqu’à k</string>
+    <string name="step_poisson_probability">Remplacer les valeurs dans la probabilité de Poisson</string>
+    <string name="step_poisson_cumulative">Additionner les probabilités de Poisson de 0 jusqu’à k</string>
+    <string name="step_binomial_coefficient">Calculer le coefficient binomial</string>
+    <string name="step_factorial">Calculer la factorielle</string>
+    <string name="step_write_out_sum">Écrire la somme terme par terme, chaque terme calculé</string>
+    <string name="step_dot_product">Multiplier les composantes correspondantes et les additionner</string>
+    <string name="step_cross_product">Calculer le produit vectoriel composante par composante</string>
+    <string name="step_vector_norm">La norme d’un vecteur est la racine de la somme des carrés de ses composantes</string>
+    <string name="step_vector_angle">L’angle se déduit du produit scalaire et des normes des deux vecteurs</string>
+    <string name="step_vector_projection">Projeter le vecteur sur l’autre</string>
+    <string name="step_unit_vector">Diviser le vecteur par sa norme</string>
+    <string name="step_compare_components">Deux vecteurs sont égaux quand leurs composantes le sont : une équation par composante</string>
+    <string name="step_insert_parameter">Remplacer le paramètre dans sa droite pour obtenir le point d’intersection</string>
+    <string name="step_absolute_value">Dériver la valeur absolue</string>
+    <string name="step_fundamental_theorem">Appliquer le théorème fondamental de l’analyse</string>
+    <string name="step_imaginary_root">Prendre la racine d’un nombre négatif</string>
+    <string name="step_multiply_numbers">Multiplier les nombres</string>
+    <string name="step_extend_fractions">Mettre les fractions au même dénominateur</string>
+    <string name="step_tangent_as_fraction">Écrire la tangente comme sinus sur cosinus</string>
+    <string name="step_reciprocal_equation">Prendre l’inverse des deux membres : sécante ↔ cosinus, cosécante ↔ sinus, cotangente ↔ tangente</string>
+    <string name="step_reciprocal_trigonometric">Écrire la sécante, la cosécante et la cotangente avec le sinus et le cosinus</string>
+    <string name="step_hyperbolic_solution">Appliquer la fonction hyperbolique réciproque (pour cosh et sech, la valeur négative est aussi une solution)</string>
+    <string name="step_exact_trigonometric_value">La valeur exacte d’un angle remarquable (cercle trigonométrique)</string>
+    <string name="step_logarithm_of_power">Le logarithme d’une puissance de sa base est l’exposant</string>
+    <string name="step_exponential_of_logarithm">La base élevée à la puissance de son logarithme donne le nombre</string>
+    <string name="step_root_of_fraction">La racine d’une fraction : la racine du numérateur sur la racine du dénominateur</string>
+    <string name="step_polynomial_division">Diviser les polynômes : le quotient plus une fraction de degré inférieur</string>
+    <string name="step_cyclic_by_parts">Intégrer deux fois par parties : la même intégrale réapparaît, on la résout</string>
+    <string name="step_half_angle">Écrire le carré du sinus ou du cosinus avec l’angle double</string>
+    <string name="step_pythagorean_identity">Le carré du sinus plus le carré du cosinus d’un même angle vaut 1</string>
+    <string name="step_secant_identity">Le carré de la sécante moins le carré de la tangente d’un même angle vaut 1</string>
+    <string name="step_cosecant_identity">Le carré de la cosécante moins le carré de la cotangente d’un même angle vaut 1</string>
+    <string name="step_hyperbolic_identity">Le carré du cosinus hyperbolique moins le carré du sinus hyperbolique d’un même nombre vaut 1</string>
+    <string name="step_reciprocal_functions">Une fonction multipliée par sa fonction inverse du même angle vaut 1</string>
+    <string name="step_exact_hyperbolic_value">La valeur exacte d’une fonction hyperbolique (en 0, ou en un logarithme)</string>
+    <string name="step_trig_odd_power">Une puissance impaire du sinus ou du cosinus : garder un facteur, écrire le reste avec l’autre fonction</string>
+    <string name="step_rationalize">Supprimer la racine du dénominateur : multiplier le numérateur et le dénominateur par celle-ci</string>
+    <string name="step_divide_by_negative">Diviser les deux membres par un nombre négatif : le sens de l’inégalité change</string>
+    <string name="step_multiply_by_negative">Multiplier les deux membres par un nombre négatif : le sens de l’inégalité change</string>
+    <string name="step_inequality_swap">Échanger les membres : le sens de l’inégalité change</string>
+    <string name="step_inequality_one_side">Tout passer à gauche : comparer à 0</string>
+    <string name="step_inequality_zeros">Le signe ne peut changer que là où les deux membres sont égaux (le membre de gauche moins celui de droite vaut 0)</string>
+    <string name="step_inequality_breaks">… ou là où l’expression n’est pas définie : un dénominateur s’annule, ou une racine ou un logarithme commence</string>
+    <string name="step_inequality_critical">Ces points découpent la droite en intervalles ; le signe est le même dans chacun d’eux</string>
+    <string name="step_inequality_result">Tester une valeur dans chaque intervalle (et chaque point) : là où l’inégalité est vraie, c’est la solution</string>
+    <string name="step_log_combine">Regrouper les logarithmes : la somme est le logarithme du produit, la différence celui du quotient</string>
+    <string name="step_log_equal">Logarithmes égaux de même base : leurs arguments sont égaux</string>
+    <string name="step_pythagorean">Écrire le sinus au carré avec le cosinus (ou l’inverse)</string>
+    <string name="step_factor_common">Mettre le facteur commun en évidence</string>
+    <string name="step_root_of_square">La racine d’un carré est la valeur absolue</string>
+    <string name="step_double_angle">Écrire l’angle double avec l’angle simple</string>
+    <string name="step_amplitude_form">Regrouper sinus et cosinus en un seul sinus, avec R = √(a² + b²) et tan φ = b/a (π ajouté si a &lt; 0)</string>
+    <string name="step_percent_as_fraction">Écrire le pourcentage comme une fraction : un pour cent est un centième</string>
+    <string name="step_improper_fraction">Écrire le nombre fractionnaire comme une fraction impropre</string>
+    <string name="step_multiply_fractions">Multiplier les numérateurs et les dénominateurs</string>
+    <string name="step_simplify_root">Sortir de la racine le plus grand facteur carré</string>
+    <string name="step_divide_numbers">Diviser les nombres</string>
+    <string name="step_reduce_fraction">Simplifier la fraction</string>
+    <string name="step_number_power">Calculer la puissance</string>
+    <string name="step_divide_by_fraction">Diviser par la fraction</string>
+    <string name="step_rewrite_as_power">Écrire sous forme de puissance</string>
+    <string name="step_chain_rule">Appliquer la règle de dérivation en chaîne</string>
+    <string name="step_power_as_root">Écrire la puissance sous forme de racine</string>
+    <string name="step_power_as_fraction">Écrire la puissance sous forme de fraction</string>
+    <string name="step_power_of_power">Multiplier les exposants</string>
+    <string name="step_power_of_product">Élever chaque facteur à la puissance</string>
+    <string name="step_expand">Développer</string>
+    <string name="step_expand_power">Développer la puissance</string>
+    <string name="step_combine_fractions">Réunir les fractions</string>
+    <string name="step_add_numbers">Additionner les nombres</string>
+    <string name="step_subtract_numbers">Soustraire les nombres</string>
+    <string name="step_add_and_subtract_numbers">Additionner et soustraire les nombres</string>
+    <string name="step_subtract_same">Soustraire</string>
+    <string name="step_combine_powers">Additionner les exposants</string>
+    <string name="step_cancel_common_factor">Factoriser et simplifier le facteur commun</string>
+    <string name="step_tangent_as_quotient">Sinus sur cosinus est la tangente</string>
+    <string name="step_cancel">Simplifier</string>
+    <string name="step_distribute">Développer</string>
+    <string name="step_combine_like_terms">Regrouper les termes semblables</string>
+    <string name="step_integral_constant">Intégrer la constante</string>
+    <string name="step_integral_sum">Intégrer terme à terme</string>
+    <string name="step_integral_constant_factor">Sortir la constante</string>
+    <string name="step_integral_power">Appliquer la règle de la puissance</string>
+    <string name="step_integral_reciprocal">Intégrer 1/x</string>
+    <string name="step_integral_exponential">Intégrer la fonction exponentielle</string>
+    <string name="step_integral_sine">Intégrer le sinus</string>
+    <string name="step_integral_cosine">Intégrer le cosinus</string>
+    <string name="step_integral_tangent">Intégrer la tangente</string>
+    <string name="step_integral_secant">Intégrer la sécante</string>
+    <string name="step_integral_cosecant">Intégrer la cosécante</string>
+    <string name="step_integral_cotangent">Intégrer la cotangente</string>
+    <string name="step_integral_sinh">Intégrer le sinus hyperbolique</string>
+    <string name="step_integral_cosh">Intégrer le cosinus hyperbolique</string>
+    <string name="step_integral_tanh">Intégrer la tangente hyperbolique</string>
+    <string name="step_integral_coth">Intégrer la cotangente hyperbolique</string>
+    <string name="step_integral_sech">Intégrer la sécante hyperbolique</string>
+    <string name="step_integral_csch">Intégrer la cosécante hyperbolique</string>
+    <string name="step_integral_logarithm">Intégrer le logarithme</string>
+    <string name="step_integral_table">Utiliser une primitive usuelle</string>
+    <string name="step_integral_inverse_hyperbolic_sine">Intégrer un sur la racine d’un carré plus un nombre : l’argument sinus hyperbolique</string>
+    <string name="step_integral_log_root">Intégrer un sur la racine d’un carré moins un nombre : un logarithme (le même pour x positif et négatif)</string>
+    <string name="step_expand_integrand">Développer l’intégrande</string>
+    <string name="step_substitution">Faire un changement de variable</string>
+    <string name="step_back_substitution">Revenir à la variable d’origine</string>
+    <string name="step_split_numerator">Décomposer le numérateur en la dérivée du dénominateur plus une constante</string>
+    <string name="step_complete_square">Mettre le dénominateur sous forme canonique</string>
+    <string name="step_partial_fractions">Décomposer en éléments simples</string>
+    <string name="step_taylor_problem">Polynôme de Taylor : on cherche le polynôme Tₙ de degré n qui a en x = a la même valeur et les mêmes n premières dérivées que f. Près de a, il approche f, d’autant mieux que n est grand</string>
+    <string name="step_taylor_formula">Écrire la formule de Taylor jusqu’au degré n : pour chaque k de 0 à n, la dérivée k-ième en a, divisée par k!, fois (x − a)^k</string>
+    <string name="step_taylor_derivatives">Dériver f encore et encore, jusqu’à la dérivée n-ième : chacune est la dérivée de la précédente</string>
+    <string name="step_taylor_values">Remplacer x par a dans f et dans chaque dérivée</string>
+    <string name="step_taylor_series">Remplacer les valeurs dans la formule de Taylor</string>
+    <string name="step_taylor_simplify">Calculer les factorielles et simplifier chaque terme ; les termes nuls disparaissent</string>
+    <string name="step_by_parts">Intégrer par parties</string>
+    <string name="step_antiderivative">Trouver une primitive F</string>
+    <string name="step_bounds">Remplacer par les bornes</string>
+    <string name="step_add_to_both_sides">Ajouter aux deux membres</string>
+    <string name="step_subtract_from_both_sides">Soustraire des deux membres</string>
+    <string name="step_multiply_both_sides">Multiplier les deux membres</string>
+    <string name="step_divide_both_sides">Diviser les deux membres</string>
+    <string name="step_swap_sides">Échanger les membres</string>
+    <string name="step_square_root_both_sides">Prendre la racine carrée des deux membres</string>
+    <string name="step_factor_out">Mettre x en facteur</string>
+    <string name="step_factor_by_root">Extraire un facteur : si P(r) = 0, alors (x − r) est un facteur</string>
+    <string name="step_nth_root_both_sides">Prendre la racine des deux membres</string>
+    <string name="step_logarithm_both_sides">Prendre le logarithme des deux membres</string>
+    <string name="step_square_both_sides">Élever les deux membres au carré</string>
+    <string name="step_trig_general_solution">La fonction est périodique : ajouter des périodes entières, 2π pour le sinus et le cosinus, π pour la tangente</string>
+    <string name="step_divide_by_highest_power">Diviser le numérateur et le dénominateur par la plus haute puissance du dénominateur</string>
+    <string name="step_trig_inequality_isolate">Isoler la fonction trigonométrique</string>
+    <string name="step_trig_inequality_period">Sur une période, la solution est un ou deux intervalles, trouvés avec la fonction réciproque ; chaque période donne les mêmes, décalés de 2kπ (kπ pour la tangente et la cotangente)</string>
+    <string name="step_trig_inequality_solve_x">L’argument est maintenant x : soustraire et diviser dans chaque membre</string>
+    <string name="step_trig_inequality_bounded">Le sinus et le cosinus sont toujours compris entre −1 et 1</string>
+    <string name="step_substitute_ratio">Chaque terme est de degré 2 : diviser par x² et poser t = y/x (x = 0 n’est pas une solution de cette équation, il est vérifié à part)</string>
+    <string name="step_absolute_value_split">L’intérieur de |…| est positif ou négatif : |g| vaut g où g ≥ 0 et −g où g &lt; 0. Chaque cas est une équation à part</string>
+    <string name="step_absolute_value_case">Résoudre ce cas : ses solutions ne comptent que là où sa condition est vraie</string>
+    <string name="step_inequality_system_each">Chaque inégalité est d’abord résolue séparément</string>
+    <string name="step_inequality_system_intersect">Toutes doivent être vraies : seules les valeurs présentes dans chaque solution restent</string>
+    <string name="step_log_sum">Logarithmes de même base : une somme est le logarithme du produit, une différence le logarithme du quotient, et n·log a vaut log(aⁿ)</string>
+    <string name="step_log_quotient">ln a / ln b est le logarithme de a en base b (changement de base)</string>
+    <string name="step_limit_conjugate">Ici √a − b est de la forme ∞ − ∞ : multiplier par la quantité conjuguée (la même avec l’autre signe) la transforme en quotient</string>
+    <string name="step_limit_difference_of_squares">(a + b)(a − b) = a² − b² : les racines disparaissent du numérateur</string>
+    <string name="step_limit_exponent_infinite">Si l’exposant tend vers ∞, eᵍ tend vers ∞ ; s’il tend vers −∞, eᵍ tend vers 0</string>
+    <string name="step_limit_absolute_value">Près du point, de ce côté, l’intérieur de |…| garde son signe, donc |g| = g (positif) ou −g (négatif)</string>
+    <string name="step_limit_vanish">Les termes qui tendent vers 0 disparaissent (une variable au dénominateur, e^(−x)), et l’arctan d’un nombre qui croît tend vers ±π/2</string>
+    <string name="step_limit_constant">La limite d’une constante est la constante</string>
+    <string name="step_limit_grows">La plus haute puissance croît sans limite</string>
+    <string name="step_limit_reciprocal">Un dénominateur qui croît sans limite : le quotient tend vers 0</string>
+    <string name="step_limit_substitute">Remplacer par le point</string>
+    <string name="step_limit_reciprocal_substitution">Poser u = 1/x : alors u tend vers 0</string>
+    <string name="step_limit_exponential_form">La base tend vers 1 et l’exposant vers ∞ : écrire la puissance avec e et prendre la limite de l’exposant</string>
+    <string name="step_limit_exponential_result">La limite est e à la puissance de cette limite</string>
+    <string name="step_factor_polynomial">Trouver les racines du polynôme (théorème des racines rationnelles) : chaque racine r donne un facteur (x − r)</string>
+    <string name="matrix_store_hint">Pour réutiliser une matrice ou un vecteur, enregistre-le avec := (appui long sur =), par exemple v := [vecteur]</string>
+    <string name="steps_option_solution">Solution</string>
+    <string name="transform_expand">Développer</string>
+    <string name="transform_factor">Factoriser</string>
+    <string name="transform_combine">Une fraction</string>
+
+    <string name="step_determinant_2x2">Le déterminant d’une matrice 2×2 : le produit de la diagonale moins le produit de l’autre diagonale</string>
+    <string name="step_determinant_cofactor">Développer le déterminant selon une ligne ou une colonne : chaque coefficient fois le déterminant de ce qui reste quand on barre sa ligne et sa colonne, les signes alternent</string>
+    <string name="step_inverse_2x2">L’inverse d’une matrice 2×2 : échanger la diagonale, changer le signe des deux autres coefficients et diviser par le déterminant</string>
+    <string name="step_inverse_augment">Écrire la matrice à côté de la matrice identité : les opérations sur les lignes qui transforment la partie gauche en identité transforment la partie droite en inverse</string>
+    <string name="step_row_swap">Échanger deux lignes pour obtenir un pivot non nul</string>
+    <string name="step_row_scale">Diviser la ligne par son pivot pour que le pivot vaille 1</string>
+    <string name="step_row_add">Ajouter ou soustraire un multiple de la ligne du pivot pour annuler les autres coefficients de cette colonne</string>
+    <string name="step_row_reduce_begin">Échelonnement : les opérations sur les lignes rendent chaque pivot égal à 1 et les autres coefficients de sa colonne nuls (forme échelonnée réduite)</string>
+    <string name="step_eigen_characteristic">Les valeurs propres λ sont celles pour lesquelles A − λ·I n’est pas inversible : le déterminant de A − λ·I est nul</string>
+    <string name="step_eigen_vector">Un vecteur propre v de cette valeur propre vérifie (A − λ·I)·v = 0 : échelonner les lignes</string>
+    <string name="step_eigen_vector_result">Les variables libres valent 1 et 0 ; v est mis à l’échelle en nombres entiers (tout multiple est aussi un vecteur propre)</string>
+    <string name="step_eigen_result">Les valeurs propres, chacune avec un vecteur propre</string>
+    <string name="step_inverse_result">La partie gauche est la matrice identité : la partie droite est l’inverse</string>
+    <string name="step_matrix_multiply">Multiplier les matrices : chaque coefficient est une ligne de la première fois une colonne de la seconde</string>
+    <string name="step_matrix_scalar">Un nombre fois une matrice : il multiplie chaque coefficient</string>
+    <string name="step_matrix_add">Additionner les matrices coefficient par coefficient</string>
+    <string name="step_matrix_subtract">Soustraire les matrices coefficient par coefficient</string>
+    <string name="step_matrix_transpose">La transposée : les lignes deviennent des colonnes</string>
+    <string name="step_matrix_power">Une puissance d’une matrice est la matrice multipliée par elle-même</string>
+    <string name="step_improper_integral">Une borne est infinie : la primitive en t au lieu de la borne, puis la limite quand t tend vers l’infini</string>
+    <string name="step_limit_pole">Le dénominateur tend vers 0 et le numérateur non : le quotient croît sans limite, les signes indiquent dans quel sens</string>
+    <string name="step_limit_logarithm_zero">Le logarithme d’un nombre qui tend vers 0⁺ tend vers −∞</string>
+    <string name="step_limit_product_as_quotient">C’est de la forme 0·∞ : écrire d’abord le produit comme un quotient</string>
+    <string name="step_lhopital">C’est de la forme 0/0 ou ∞/∞ : appliquer la règle de L’Hôpital</string>
+    <string name="step_zero_fraction">Une fraction est nulle si son numérateur est nul</string>
+    <string name="step_absolute_values_equal">Deux valeurs absolues sont égales : leurs intérieurs sont égaux ou opposés</string>
+    <string name="step_absolute_value_cases">Séparer les deux cas de la valeur absolue</string>
+    <string name="step_exponentiate_both_sides">Élever la base à la puissance des deux membres</string>
+    <string name="step_check_solutions">Vérifier les solutions dans l’équation de départ</string>
+    <string name="step_substitute_power">Poser une nouvelle variable</string>
+    <string name="step_back_substitute_power">Revenir à la variable d’origine</string>
+    <string name="step_one_side">Aucune règle ne résout ceci exactement : tout d’un côté, f(x) = 0</string>
+    <string name="step_newton_method">Méthode de Newton</string>
+    <string name="step_no_real_solution">Il n’y a pas de solution réelle : ceci n’est jamais vrai</string>
+    <string name="step_contradiction">Les deux membres ne sont jamais égaux : il n’y a pas de solution</string>
+    <string name="step_zero_product">Un produit est nul si l’un de ses facteurs est nul</string>
+    <string name="step_quadratic_formula">Appliquer la formule du second degré</string>
+    <string name="step_root_of_number">Calculer la racine</string>
+    <string name="step_solve_for">Résoudre l’une des équations par rapport à une variable</string>
+    <string name="step_substitute_solution">La remplacer dans les autres équations</string>
+    <string name="step_multiply_equations">Multiplier les équations pour qu’une variable ait le même coefficient</string>
+    <string name="step_add_equations">Additionner les équations</string>
+    <string name="step_subtract_equations">Soustraire les équations</string>
+    <string name="step_insert_value">Remplacer par la valeur</string>
+    <string name="step_collect_solution">Rassembler les solutions</string>
+    <string name="step_identity">Les deux membres sont égaux pour toute valeur</string>
+    <string name="step_simplify">Simplifier</string>
+    <string name="step_substitute">Remplacer par le point</string>
+    <string name="step_evaluate">Calculer</string>
+
+    <string name="steps_title">Étapes</string>
+    <string name="steps_none">Il n’y a pas d’étapes pour ce calcul.</string>
+    <string name="steps_result">Résultat</string>
+    <plurals name="steps_show_section">
+        <item quantity="one">Afficher l’étape de résolution (%1$d)</item>
+        <item quantity="many">Afficher les %1$d étapes de résolution</item>
+        <item quantity="other">Afficher les %1$d étapes de résolution</item>
+    </plurals>
+    <plurals name="steps_hide_section">
+        <item quantity="one">Masquer l’étape (%1$d)</item>
+        <item quantity="many">Masquer les %1$d étapes</item>
+        <item quantity="other">Masquer les %1$d étapes</item>
+    </plurals>
+    <string name="steps_interval_notation">Notation en intervalles</string>
+    <string name="steps_number_line">Sur la droite numérique</string>
+    <string name="steps_chain_rule">Règle de dérivation en chaîne</string>
+    <string name="steps_linear_argument">Argument linéaire</string>
+    <plurals name="steps_show_calculations">
+        <item quantity="one">%1$d calcul</item>
+        <item quantity="many">%1$d calculs</item>
+        <item quantity="other">%1$d calculs</item>
+    </plurals>
+    <plurals name="steps_hide_calculations">
+        <item quantity="one">Masquer le calcul (%1$d)</item>
+        <item quantity="many">Masquer les %1$d calculs</item>
+        <item quantity="other">Masquer les %1$d calculs</item>
+    </plurals>
+
+    <!-- Hint under "200 + 10%", which is 200.1 here: what a pocket calculator means, 10% of 200 (%1$s = 10, %2$s = 200, %3$s = 220) -->
+    <string name="percent_hint_plus">%1$s %% est lu comme %1$s/100. Touche pour %2$s + %1$s %% de %2$s = %3$s</string>
+    <string name="percent_hint_minus">%1$s %% est lu comme %1$s/100. Touche pour %2$s − %1$s %% de %2$s = %3$s</string>
+    <string name="settings_title">Réglages de la calculatrice</string>
+    <string name="settings_angle_unit">Unité d’angle</string>
+    <string name="settings_radians">Radians</string>
+    <string name="settings_degrees">Degrés</string>
+    <string name="settings_radians_short">RAD</string>
+    <string name="settings_degrees_short">DEG</string>
+    <string name="settings_complex">Nombres complexes</string>
+    <string name="settings_complex_on">Permet √−4 = 2i</string>
+    <string name="settings_complex_off">√−4 est une erreur</string>
+    <string name="settings_units_for_results">Unités des résultats</string>
+    <string name="settings_metric">Métrique</string>
+    <string name="settings_imperial">Impérial</string>
+    <string name="settings_us">US</string>
+    <string name="settings_number_display">Affichage des nombres</string>
+    <string name="settings_decimal_places">Décimales</string>
+    <string name="settings_decimal_auto">Auto, jusqu’à 10 chiffres</string>
+    <string name="settings_decimal_fixed">Toujours %1$d, p. ex. %2$s</string>
+    <string name="settings_digit_grouping">Grouper les chiffres</string>
+    <string name="settings_digit_grouping_desc">Afficher 300 000</string>
+    <string name="settings_decimal_comma">Virgule décimale</string>
+    <string name="settings_decimal_comma_desc">1,5 au lieu de 1.5</string>
+    <string name="settings_appearance">Apparence</string>
+    <string name="settings_theme_system">Système</string>
+    <string name="settings_theme_light">Clair</string>
+    <string name="settings_theme_dark">Sombre</string>
+    <string name="settings_language">Langue</string>
+    <string name="settings_language_system">Système</string>
+    <string name="settings_support">♥︎ Soutenir cette app</string>
+    <string name="settings_done">OK</string>
+    <string name="settings_auto">Auto</string>
+    <string name="common_close">Fermer</string>
+    <string name="support_text">Je suis très heureux que cette app te plaise. Elle est open source et restera toujours gratuite, mais je serais ravi si tu m’offrais un café.\n\nMalheureusement, à cause des règles de Google, je ne peux pas simplement ajouter un bouton menant à une page de don. Si tu trouves ce projet sur mon GitHub (PcmciaKai), tu trouveras sûrement aussi un moyen de laisser un pourboire.</string>
+    <string name="settings_units_si">SI : m, kg, m³, N, Pa, J, K, …</string>
+    <string name="settings_units_imperial">Impérial : ft, lb, gal, psi, …</string>
+    <string name="settings_units_us">US : ft, lb, gal US, psi, …</string>
+    <string name="formula_mean_name">Moyenne x̄</string>
+    <string name="formula_mean_desc">La moyenne : mean(2, 4, 9) = 5</string>
+    <string name="formula_median_name">Médiane</string>
+    <string name="formula_median_desc">La valeur du milieu une fois triées ; pour un nombre pair de valeurs, la moyenne des deux du milieu</string>
+    <string name="formula_stdev_name">Écart type s (échantillon)</string>
+    <string name="formula_stdev_desc">La dispersion d’un échantillon (divise par n − 1)</string>
+    <string name="formula_stdevp_name">Écart type σ (population)</string>
+    <string name="formula_stdevp_desc">La dispersion d’une population entière (divise par n)</string>
+    <string name="formula_var_name">Variance s² (échantillon)</string>
+    <string name="formula_var_desc">Le carré de stdev (échantillon, divise par n − 1)</string>
+    <string name="formula_varp_name">Variance σ² (population)</string>
+    <string name="formula_varp_desc">Le carré de stdevp (population, divise par n)</string>
+    <string name="formula_sem_name">Erreur type de la moyenne</string>
+    <string name="formula_sem_desc">La précision de la moyenne d’un échantillon : s/√n</string>
+    <string name="formula_min_name">Minimum</string>
+    <string name="formula_min_desc">La plus petite valeur</string>
+    <string name="formula_max_name">Maximum</string>
+    <string name="formula_max_desc">La plus grande valeur</string>
+    <string name="formula_ncr_name">Combinaisons nCr</string>
+    <string name="formula_ncr_desc">nCr(n, k) : le nombre de façons de choisir k éléments parmi n, sans ordre. nCr(5, 2) = 10</string>
+    <string name="formula_npr_name">Arrangements nPr</string>
+    <string name="formula_npr_desc">nPr(n, k) : le nombre de façons de choisir k éléments parmi n, dans l’ordre. nPr(5, 2) = 20</string>
+    <string name="formula_gcd_name">Plus grand commun diviseur</string>
+    <string name="formula_gcd_desc">Le plus grand nombre qui divise toutes les valeurs : gcd(12, 18) = 6</string>
+    <string name="formula_lcm_name">Plus petit commun multiple</string>
+    <string name="formula_lcm_desc">Le plus petit nombre divisible par toutes les valeurs : lcm(4, 6) = 12</string>
+    <string name="formula_round_name">Arrondir</string>
+    <string name="formula_round_desc">Au nombre entier le plus proche ; les demis s’éloignent de 0 : round(2.5) = 3</string>
+    <string name="formula_round_places_name">Arrondir à n décimales</string>
+    <string name="formula_round_places_desc">round(x, n) : x arrondi à n décimales</string>
+    <string name="formula_floor_name">Arrondir vers le bas (partie entière)</string>
+    <string name="formula_floor_desc">Vers le bas, à un nombre entier : floor(−2.3) = −3</string>
+    <string name="formula_ceil_name">Arrondir vers le haut</string>
+    <string name="formula_ceil_desc">Vers le haut, à un nombre entier : ceil(2.1) = 3</string>
+    <string name="formula_mode_name">Mode</string>
+    <string name="formula_mode_desc">La valeur la plus fréquente ; la première d’entre elles en cas d’égalité</string>
+    <string name="formula_range_name">Étendue</string>
+    <string name="formula_range_desc">La plus grande valeur moins la plus petite</string>
+    <string name="formula_sum_name">Somme</string>
+    <string name="formula_sum_desc">Additionne les valeurs listées : sum(2, 4, 9) = 15. Pour une somme avec un indice, utilise la touche Σ</string>
+    <string name="formula_prod_name">Produit</string>
+    <string name="formula_prod_desc">Multiplie les valeurs listées : prod(2, 4, 9) = 72. Pour un produit avec un indice, appui long sur Σ</string>
+    <string name="formula_sumsq_name">Somme des carrés</string>
+    <string name="formula_sumsq_desc">Additionne les carrés des valeurs : sumsq(1, 2, 3) = 14</string>
+    <string name="formula_percentile_name">Centile</string>
+    <string name="formula_percentile_desc">percentile(p, valeurs…) : la valeur sous laquelle se trouvent p pour cent des données (p de 0 à 100)</string>
+    <string name="formula_quartile_name">Quartile</string>
+    <string name="formula_quartile_desc">quartile(q, valeurs…) : q = 1, 2 ou 3 pour les quartiles (2 est la médiane) ; 0 et 4 donnent le min et le max</string>
+    <string name="formula_skew_name">Asymétrie</string>
+    <string name="formula_skew_desc">À quel point les données sont asymétriques : 0 si symétriques, positive si la longue queue est à droite. Au moins 3 valeurs</string>
+    <string name="formula_tmargin_name">Marge d’erreur de la moyenne (t)</string>
+    <string name="formula_tmargin_desc">tmargin(c, valeurs…) : la marge d’erreur de la moyenne au niveau de confiance c (0.95 pour 95 pour cent) ; l’intervalle est moyenne ± marge</string>
+    <string name="formula_tstat_name">Statistique t d’un échantillon</string>
+    <string name="formula_tstat_desc">tstat(μ₀, valeurs…) : la valeur t d’un test t à un échantillon par rapport à la moyenne μ₀</string>
+    <string name="formula_multinomial_name">Coefficient multinomial</string>
+    <string name="formula_multinomial_desc">Le nombre de façons de répartir k₁ + k₂ + … éléments en groupes de k₁, k₂, … éléments : multinomial(2, 1) = 3</string>
+    <string name="formula_fib_name">Nombre de Fibonacci</string>
+    <string name="formula_fib_desc">fib(n) : le n-ième nombre de Fibonacci (0, 1, 1, 2, 3, 5, …) : fib(10) = 55</string>
+    <string name="formula_nextprime_name">Nombre premier suivant</string>
+    <string name="formula_nextprime_desc">Le plus petit nombre premier supérieur à n : nextprime(10) = 11</string>
+    <string name="formula_isprime_name">Test de primalité</string>
+    <string name="formula_isprime_desc">1 si n est premier, 0 sinon</string>
+    <string name="formula_totient_name">Indicatrice d’Euler φ(n)</string>
+    <string name="formula_totient_desc">φ(n) : combien des nombres de 1 à n n’ont aucun facteur commun avec n : totient(9) = 6</string>
+    <string name="formula_factor_name">Décomposition en facteurs premiers</string>
+    <string name="formula_factor_desc">Décompose un nombre entier en facteurs premiers : factor(360) = 2³ × 3² × 5</string>
+    <string name="formula_expand_name">Développer</string>
+    <string name="formula_expand_desc">Développe les produits et les puissances : expand((x + 1)²) = x² + 2x + 1</string>
+    <string name="formula_apart_name">Éléments simples</string>
+    <string name="formula_apart_desc">Décompose une fraction de polynômes en fractions plus simples : apart(1/(x² − 1)) = 1/(2(x − 1)) − 1/(2(x + 1))</string>
+    <string name="formula_taylor_name">Polynôme de Taylor</string>
+    <string name="formula_taylor_desc">taylor(f, x, a, n) : un polynôme jusqu’à xⁿ qui approche f près de x = a</string>
+    <string name="step_ode_problem">Une équation différentielle : on cherche une fonction y(x) pour laquelle y et ses dérivées (y′ = dy/dx, y″ = d²y/dx²) rendent l’équation vraie pour tout x. La solution contient des constantes libres C, car une telle équation a de nombreuses solutions</string>
+    <string name="step_ode_initial_value_problem">Un problème de Cauchy : on cherche une fonction y(x) pour laquelle y et ses dérivées (y′ = dy/dx, y″ = d²y/dx²) rendent l’équation vraie pour tout x, et qui prend les valeurs initiales données. D’abord la solution générale, puis les constantes pour les valeurs initiales</string>
+    <string name="step_ode_type_separable">Type : premier ordre, à variables séparables. Le membre de droite est une fonction de x fois une fonction de y, on peut donc séparer les variables</string>
+    <string name="step_ode_type_linear">Type : premier ordre, linéaire. y et y′ n’apparaissent qu’à la puissance un et ne sont pas multipliés entre eux ; sous forme standard, on la résout avec un facteur intégrant</string>
+    <string name="step_ode_type_second_order_homogeneous">Type : second ordre, linéaire à coefficients constants, homogène (le membre de droite vaut 0). On la résout avec l’équation caractéristique</string>
+    <string name="step_ode_type_second_order_inhomogeneous">Type : second ordre, linéaire à coefficients constants, avec second membre (le membre de droite r(x) n’est pas nul). Solution = solution générale yₕ de l’équation homogène (membre de droite 0) + une solution particulière yₚ</string>
+    <string name="step_ode_integrating_factor">Trouver le facteur intégrant μ</string>
+    <string name="step_ode_linear_solution">Multiplier par μ : le membre de gauche est (μ·y)′. Intégrer les deux membres</string>
+    <string name="step_ode_separate">Séparer les variables : écrire y′ comme dy/dx, diviser par g(y) et multiplier par dx, pour que y soit seulement à gauche et x seulement à droite</string>
+    <string name="step_ode_integrate_both">Intégrer les deux membres : celui de gauche par rapport à y, celui de droite par rapport à x</string>
+    <string name="step_ode_integrals">Calculer les deux intégrales. Les deux constantes d’intégration sont regroupées en une seule constante C à droite</string>
+    <string name="step_ode_absolute_value">Enlever la valeur absolue : le signe ± passe dans la constante. ±e^C est à nouveau une constante quelconque, on l’appelle encore C</string>
+    <string name="step_ode_new_constant">La partie constante est à nouveau une constante quelconque : on l’appelle encore C</string>
+    <string name="step_ode_solve_for_unknown">Résoudre pour y</string>
+    <string name="step_ode_try_exponential">Essayer y = e^(rx) : remplacer y, y′ = r·e^(rx) et y″ = r²·e^(rx) dans l’équation</string>
+    <string name="step_ode_factor_exponential">Mettre e^(rx) en facteur</string>
+    <string name="step_ode_characteristic">Diviser par e^(rx), qui n’est jamais nul. Il reste l’équation caractéristique, une équation du second degré en r</string>
+    <string name="step_ode_characteristic_roots">Résoudre l’équation caractéristique avec la formule du second degré</string>
+    <string name="step_ode_homogeneous_distinct">Deux racines réelles distinctes r₁ et r₂ : e^(r₁x) et e^(r₂x) sont toutes deux solutions. La solution générale les combine</string>
+    <string name="step_ode_homogeneous_double">Une racine double r : e^(rx) et x·e^(rx) sont toutes deux solutions. La solution générale les combine</string>
+    <string name="step_ode_homogeneous_complex">Racines complexes α ± βi : e^(αx)·cos(βx) et e^(αx)·sin(βx) sont toutes deux des solutions réelles. La solution générale les combine</string>
+    <string name="step_ode_variation_of_parameters">Trouver une solution particulière par variation des constantes (W est le wronskien)</string>
+    <string name="step_ode_undetermined_coefficients">Trouver une solution particulière : une forme du même type que le membre de droite (multipliée par x si elle résout l’équation sans second membre), dont on calcule les coefficients</string>
+    <string name="step_ode_constants">Choisir les constantes pour que les conditions initiales soient vérifiées</string>
+    <string name="step_ode_derivative_of_solution">Dériver la solution générale : la condition sur y′ nécessite y′</string>
+    <string name="step_ode_insert_conditions">Remplacer les valeurs initiales dans la solution générale</string>
+    <string name="step_ode_solve_constants">Résoudre pour les constantes</string>
+    <string name="step_ode_put_constants">Remplacer les constantes dans la solution générale : c’est la solution du problème de Cauchy</string>
+    <string name="step_power_both_sides">Élever les deux membres à la puissance 1/n</string>
+    <string name="step_inverse_function_both_sides">Appliquer la fonction réciproque aux deux membres</string>
+    <string name="formula_dsolve_name">Équation différentielle</string>
+    <string name="formula_dsolve_desc">dsolve(équation) : résout y′ = 2x·y et similaires ; tape y′ comme d/dx(y) (appui long sur ∫dx)</string>
+    <string name="formula_modpow_name">Puissance modulaire</string>
+    <string name="formula_modpow_desc">modpow(b, e, m) : bᵉ mod m, même pour d’énormes puissances</string>
+    <string name="formula_hypot_name">Hypoténuse</string>
+    <string name="formula_hypot_desc">√(a² + b² + …), l’hypoténuse : hypot(3, 4) = 5</string>
+    <string name="formula_trunc_name">Tronquer</string>
+    <string name="formula_trunc_desc">Supprime les décimales : trunc(−2.7) = −2. trunc(x, n) en garde n</string>
+    <string name="formula_frac_name">Partie fractionnaire</string>
+    <string name="formula_frac_desc">Seulement les décimales, avec le signe : frac(−2.75) = −0.75</string>
+    <string name="formula_sign_name">Signe</string>
+    <string name="formula_sign_desc">−1, 0 ou 1 pour un nombre négatif, zéro ou un nombre positif</string>
+    <string name="formula_re_name">Partie réelle</string>
+    <string name="formula_re_desc">La partie réelle : re(3 + 4i) = 3</string>
+    <string name="formula_im_name">Partie imaginaire</string>
+    <string name="formula_im_desc">La partie imaginaire : im(3 + 4i) = 4</string>
+    <string name="formula_arg_name">Argument (angle)</string>
+    <string name="formula_arg_desc">L’angle avec l’axe réel positif, en radians de −π à π : arg(i) = π/2</string>
+    <string name="formula_conj_name">Conjugué complexe</string>
+    <string name="formula_conj_desc">Change le signe de la partie imaginaire : conj(3 + 4i) = 3 − 4i</string>
+    <string name="formula_gamma_name">Fonction gamma Γ</string>
+    <string name="formula_gamma_desc">La factorielle pour tout nombre : Γ(n + 1) = n!, Γ(0.5) = √π</string>
+    <string name="formula_lngamma_name">Log-gamma ln Γ</string>
+    <string name="formula_lngamma_desc">ln Γ(x) pour x &gt; 0, quand Γ(x) lui-même est trop grand</string>
+    <string name="formula_digamma_name">Digamma ψ</string>
+    <string name="formula_digamma_desc">ψ(x) = Γ′(x)/Γ(x), la dérivée de ln Γ(x)</string>
+    <string name="formula_beta_name">Fonction bêta</string>
+    <string name="formula_beta_desc">B(a, b) = Γ(a)·Γ(b)/Γ(a + b)</string>
+    <string name="formula_erf_name">Fonction d’erreur erf</string>
+    <string name="formula_erf_desc">2/√π · ∫₀ˣ e^(−t²) dt, la base de la loi normale</string>
+    <string name="formula_erfc_name">Fonction d’erreur complémentaire erfc</string>
+    <string name="formula_erfc_desc">1 − erf(x), précise même pour de grands x</string>
+    <string name="formula_gammainc_name">Fonction gamma incomplète</string>
+    <string name="formula_gammainc_desc">gammainc(a, x) : la gamma incomplète inférieure régularisée P(a, x), pour a &gt; 0 et x ≥ 0</string>
+    <string name="formula_betainc_name">Fonction bêta incomplète</string>
+    <string name="formula_betainc_desc">betainc(x, a, b) : la bêta incomplète régularisée Iₓ(a, b), pour 0 ≤ x ≤ 1 et a, b &gt; 0</string>
+    <string name="formula_lambertw_name">Fonction W de Lambert</string>
+    <string name="formula_lambertw_desc">Le w tel que w·eʷ = x, pour x ≥ −1/e. Résout x·eˣ = 5 : x = lambertw(5)</string>
+    <string name="formula_sinint_name">Sinus intégral Si</string>
+    <string name="formula_sinint_desc">Si(x) = ∫₀ˣ sin(t)/t dt, la primitive de sin(x)/x</string>
+    <string name="formula_cosint_name">Cosinus intégral Ci</string>
+    <string name="formula_cosint_desc">Ci(x), la primitive de cos(x)/x, pour x ≠ 0</string>
+    <string name="formula_expint_name">Exponentielle intégrale Ei</string>
+    <string name="formula_expint_desc">Ei(x), la primitive de eˣ/x, pour x ≠ 0</string>
+    <string name="formula_normalpdf_name">Densité normale</string>
+    <string name="formula_normalpdf_desc">normalpdf(x, μ, σ) : la hauteur de la courbe en cloche en x. Sans μ et σ : la loi normale centrée réduite</string>
+    <string name="formula_normalcdf_name">Probabilité normale (jusqu’à x)</string>
+    <string name="formula_normalcdf_desc">normalcdf(x, μ, σ) : la probabilité d’une valeur jusqu’à x. Sans μ et σ : la loi normale centrée réduite</string>
+    <string name="formula_normalinv_name">Quantile normal</string>
+    <string name="formula_normalinv_desc">normalinv(p, μ, σ) : le x en dessous duquel une valeur reste avec la probabilité p (0 &lt; p &lt; 1)</string>
+    <string name="formula_binompdf_name">Probabilité binomiale (exactement k)</string>
+    <string name="formula_binompdf_desc">binompdf(n, p, k) : la probabilité d’exactement k succès en n essais, chacun avec la probabilité p</string>
+    <string name="formula_binomcdf_name">Probabilité binomiale (au plus k)</string>
+    <string name="formula_binomcdf_desc">binomcdf(n, p, k) : la probabilité d’au plus k succès en n essais, chacun avec la probabilité p</string>
+    <string name="formula_poissonpdf_name">Probabilité de Poisson (exactement k)</string>
+    <string name="formula_poissonpdf_desc">poissonpdf(λ, k) : la probabilité d’exactement k événements quand λ sont attendus</string>
+    <string name="formula_poissoncdf_name">Probabilité de Poisson (au plus k)</string>
+    <string name="formula_poissoncdf_desc">poissoncdf(λ, k) : la probabilité d’au plus k événements quand λ sont attendus</string>
+    <string name="formula_tpdf_name">Densité de Student t</string>
+    <string name="formula_tpdf_desc">tpdf(x, df) : la densité de la loi de Student à df degrés de liberté</string>
+    <string name="formula_tcdf_name">Probabilité de Student t (jusqu’à x)</string>
+    <string name="formula_tcdf_desc">tcdf(x, df) : la probabilité d’une valeur jusqu’à x dans la loi de Student</string>
+    <string name="formula_tinv_name">Quantile de Student t</string>
+    <string name="formula_tinv_desc">tinv(p, df) : le x en dessous duquel une valeur reste avec la probabilité p ; la valeur critique d’un test t</string>
+    <string name="formula_chisqpdf_name">Densité du khi deux</string>
+    <string name="formula_chisqpdf_desc">chisqpdf(x, df) : la densité de la loi du khi deux à df degrés de liberté</string>
+    <string name="formula_chisqcdf_name">Probabilité du khi deux (jusqu’à x)</string>
+    <string name="formula_chisqcdf_desc">chisqcdf(x, df) : la probabilité d’une valeur jusqu’à x dans la loi du khi deux</string>
+    <string name="formula_chisqinv_name">Quantile du khi deux</string>
+    <string name="formula_chisqinv_desc">chisqinv(p, df) : le x en dessous duquel une valeur reste avec la probabilité p ; la valeur critique d’un test du khi deux</string>
+    <string name="formula_rand_name">Nombre aléatoire</string>
+    <string name="formula_rand_desc">Un nombre aléatoire de 0 jusqu’à 1 (1 exclu). Il reste le même pendant que tu modifies la ligne</string>
+    <string name="formula_randint_name">Nombre entier aléatoire</string>
+    <string name="formula_randint_desc">randint(a, b) : un nombre entier aléatoire de a à b. Il reste le même pendant que tu modifies la ligne</string>
+    <string name="formula_randnorm_name">Nombre aléatoire (loi normale)</string>
+    <string name="formula_randnorm_desc">randnorm(μ, σ) : un nombre aléatoire suivant une loi normale ; sans μ et σ, la loi centrée réduite</string>
+    <string name="formula_dot_name">Produit scalaire</string>
+    <string name="formula_dot_desc">dot(a, b) : le produit scalaire de deux vecteurs, a₁b₁ + a₂b₂ + …</string>
+    <string name="formula_cross_name">Produit vectoriel</string>
+    <string name="formula_cross_desc">cross(a, b) : le vecteur perpendiculaire aux vecteurs 3D a et b</string>
+    <string name="formula_norm_name">Norme d’un vecteur</string>
+    <string name="formula_norm_desc">La longueur d’un vecteur, √(a₁² + a₂² + …) ; la même chose que |a|</string>
+    <string name="formula_angle_name">Angle entre deux vecteurs</string>
+    <string name="formula_angle_desc">angle(a, b) : l’angle entre deux vecteurs, dans l’unité d’angle choisie au-dessus du clavier</string>
+    <string name="formula_proj_name">Projection d’un vecteur</string>
+    <string name="formula_proj_desc">proj(a, b) : la partie de a dirigée selon b</string>
+    <string name="formula_unitvec_name">Vecteur unitaire</string>
+    <string name="formula_unitvec_desc">unitvec(a) : le vecteur de longueur 1 dans la direction de a</string>
+    <string name="category_statistics">Statistiques</string>
+    <string name="category_combinatorics">Combinatoire</string>
+    <string name="category_numbers">Nombres</string>
+    <string name="category_complex">Nombres complexes</string>
+    <string name="category_special">Fonctions spéciales</string>
+    <string name="category_distributions">Lois de probabilité</string>
+    <string name="category_random">Nombres aléatoires</string>
+    <string name="category_vectors">Vecteurs</string>
+    <string name="category_bitwise">Opérations bit à bit</string>
+    <string name="category_algebra">Algèbre</string>
+    <string name="category_calculus">Analyse</string>
+    <string name="formula_and_name">ET</string>
+    <string name="formula_and_desc">Les bits à 1 dans les deux nombres : and(12, 10) = 8</string>
+    <string name="formula_or_name">OU</string>
+    <string name="formula_or_desc">Les bits à 1 dans l’un ou l’autre nombre : or(12, 10) = 14</string>
+    <string name="formula_xor_name">OU exclusif</string>
+    <string name="formula_xor_desc">Les bits à 1 dans exactement un des deux : xor(12, 10) = 6</string>
+    <string name="formula_not_name">NON</string>
+    <string name="formula_not_desc">Inverse tous les bits : not(5) = −6</string>
+    <string name="formula_shl_name">Décalage à gauche</string>
+    <string name="formula_shl_desc">shl(n, k) : décale les bits de k positions vers la gauche, n·2ᵏ : shl(1, 4) = 16 (aussi n &lt;&lt; k)</string>
+    <string name="formula_shr_name">Décalage à droite</string>
+    <string name="formula_shr_desc">shr(n, k) : décale les bits de k positions vers la droite : shr(16, 2) = 4 (aussi n &gt;&gt; k)</string>
+    <string name="keypad_matrix">Matrice ou vecteur</string>
+    <string name="formulas_title">Fonctions</string>
+    <string name="formulas_hint">Plusieurs valeurs sont séparées par « %1$s » : appui long sur la touche décimale pour l’obtenir</string>
+    <string name="undo_history_cleared">Historique effacé</string>
+    <string name="undo_entry_deleted">Entrée supprimée</string>
+    <string name="undo_action">Annuler</string>
+    <string name="formulas_search">Rechercher (écart, arrondir, nCr)…</string>
+    <string name="constant_category_math">Mathématiques</string>
+    <string name="constant_category_physics">Physique</string>
+    <string name="constant_category_em">Électromagnétisme</string>
+    <string name="constant_category_thermo">Thermodynamique</string>
+    <string name="constant_category_chemistry">Chimie</string>
+    <string name="constant_category_atomic">Atomique</string>
+    <string name="constant_pi">Pi (constante d’Archimède)</string>
+    <string name="constant_e">Nombre d’Euler</string>
+    <string name="constant_phi">Nombre d’or</string>
+    <string name="constant_sqrt2">Constante de Pythagore</string>
+    <string name="constant_c">Vitesse de la lumière dans le vide</string>
+    <string name="constant_h">Constante de Planck</string>
+    <string name="constant_hbar">Constante de Planck réduite</string>
+    <string name="constant_gravitation">Constante gravitationnelle</string>
+    <string name="constant_g">Accélération normale de la pesanteur</string>
+    <string name="constant_qe">Charge élémentaire</string>
+    <string name="constant_eps0">Permittivité du vide</string>
+    <string name="constant_mu0">Perméabilité magnétique du vide</string>
+    <string name="constant_ke">Constante de Coulomb</string>
+    <string name="constant_kb">Constante de Boltzmann</string>
+    <string name="constant_gasconstant">Constante des gaz parfaits</string>
+    <string name="constant_sigma">Constante de Stefan-Boltzmann</string>
+    <string name="constant_wien">Constante de Wien</string>
+    <string name="constant_na">Constante d’Avogadro</string>
+    <string name="constant_faraday">Constante de Faraday</string>
+    <string name="constant_vm">Volume molaire d’un gaz parfait (0 °C, 1 atm)</string>
+    <string name="constant_mu">Constante de masse atomique</string>
+    <string name="constant_me">Masse de l’électron</string>
+    <string name="constant_mp">Masse du proton</string>
+    <string name="constant_mn">Masse du neutron</string>
+    <string name="constant_alpha">Constante de structure fine</string>
+    <string name="constant_a0">Rayon de Bohr</string>
+    <string name="constant_rinf">Constante de Rydberg</string>
+    <string name="constant_mub">Magnéton de Bohr</string>
+    <string name="constants_title">Constantes mathématiques et physiques</string>
+    <string name="constants_search">Rechercher une constante (c, h, π, G)…</string>
+    <string name="units_insert_title">Insérer une unité</string>
+    <string name="units_search">Rechercher, p. ex. km, pression, gallon</string>
+    <string name="units_clear_search">Effacer la recherche</string>
+    <string name="units_none">Aucune unité trouvée</string>
+    <string name="matrix_vector_2d">Vecteur 2D</string>
+    <string name="matrix_vector_3d">Vecteur 3D</string>
+    <string name="matrix_kind_matrix">Matrice</string>
+    <string name="matrix_kind_column_vector">Vecteur colonne</string>
+    <string name="matrix_kind_row_vector">Vecteur ligne</string>
+    <string name="matrix_title">Matrice ou vecteur</string>
+    <string name="matrix_drag_hint">Fais glisser pour choisir la taille, relâche pour insérer. Un vecteur est une matrice d’une colonne (ou d’une ligne)</string>
+    <string name="matrix_insert">Insérer</string>
+    <string name="common_cancel">Annuler</string>
+    <string name="variable_title">Variable</string>
+    <string name="variable_prompt">Tape une lettre</string>
+    <string name="variable_is_constant">%1$s est une constante</string>
+    <string name="variable_is_transpose">T désigne la transposée d’une matrice</string>
+    <string name="variable_hint_derivative">Dériver par rapport à %1$s</string>
+    <string name="variable_hint_integral">Intégrer par rapport à %1$s</string>
+    <string name="keypad_variable">Lettre</string>
+    <string name="typing_hint">Les lettres sont des variables : ab signifie a · b. Un nom de fonction suivi de ( comme sin( ou mean( commence cette fonction.</string>
+    <string name="notice_complex_on">Les nombres complexes sont maintenant activés. Tu peux les désactiver dans les réglages.</string>
+    <string name="message_copied">Copié</string>
+    <string name="message_cant_paste">Impossible de coller « %1$s » comme expression mathématique</string>
+    <string name="message_cant_paste_lines">Plusieurs lignes ne peuvent pas être collées dans une fraction, une racine, …</string>
+    <string name="result_form_exact">Exact</string>
+    <string name="result_form_decimal">Décimal</string>
+    <string name="result_form_scientific">Sci</string>
+    <string name="result_form_mixed">Mixte</string>
+    <string name="result_form_polar">Polaire</string>
+    <string name="history_delete">Supprimer</string>
+    <string name="keypad_backspace">Retour arrière</string>
+    <string name="keypad_units">Unités</string>
+    <string name="keypad_formulas">Fonctions</string>
+    <string name="keypad_formulas_short">Fonc</string>
+    <string name="keypad_constants">Constantes</string>
+    <string name="keypad_constants_short">Const</string>
+    <string name="keypad_graph">Graphe</string>
+    <string name="keypad_graph_2d">Graphe 2D</string>
+    <string name="keypad_enter">Entrée</string>
+    <string name="keypad_new_line">nouvelle ligne</string>
+    <string name="keypad_settings">Réglages</string>
+    <string name="keypad_number_base">Base de numération</string>
+    <string name="result_form_hex">HEX</string>
+    <string name="result_form_oct">OCT</string>
+    <string name="result_form_bin">BIN</string>
+    <string name="settings_session">Session</string>
+    <string name="settings_session_desc">Enregistrer ou ouvrir la ligne et l’historique</string>
+    <string name="settings_session_save">Enregistrer…</string>
+    <string name="settings_session_open">Ouvrir…</string>
+    <string name="session_file_name">calculatrice-%1$s.txt</string>
+    <string name="session_import_title">Ouvrir une session</string>
+    <string name="session_import_text">Il y a déjà un historique. Le remplacer par celui du fichier, ou ajouter les entrées du fichier à la suite ?</string>
+    <string name="session_import_replace">Remplacer</string>
+    <string name="session_import_add">Ajouter à la suite</string>
+    <string name="session_cancel">Annuler</string>
+    <string name="session_saved">Session enregistrée</string>
+    <string name="session_save_failed">La session n’a pas pu être enregistrée</string>
+    <string name="session_not_a_session">Ce fichier n’est pas une session enregistrée</string>
+    <string name="session_read_failed">Le fichier n’a pas pu être lu</string>
+    <plurals name="graph_summary_curves">
+        <item quantity="one">%d courbe</item>
+        <item quantity="many">%d courbes</item>
+        <item quantity="other">%d courbes</item>
+    </plurals>
+    <plurals name="graph_summary_crossings">
+        <item quantity="one">%d intersection</item>
+        <item quantity="many">%d intersections</item>
+        <item quantity="other">%d intersections</item>
+    </plurals>
+    <plurals name="session_opened">
+        <item quantity="one">%1$d entrée ouverte</item>
+        <item quantity="many">%1$d entrées ouvertes</item>
+        <item quantity="other">%1$d entrées ouvertes</item>
+    </plurals>
+    <plurals name="session_opened_skipped">
+        <item quantity="one">, %1$d n’a pas pu être calculée et a été ignorée</item>
+        <item quantity="many">, %1$d n’ont pas pu être calculées et ont été ignorées</item>
+        <item quantity="other">, %1$d n’ont pas pu être calculées et ont été ignorées</item>
+    </plurals>
+    <string name="keypad_infinity">infini</string>
+    <string name="keypad_mixed_number">nombre fractionnaire</string>
+    <string name="graph_tool_trace">Suivre</string>
+    <string name="graph_tool_tangent">Tangente</string>
+    <string name="graph_tool_integral">Intégrale</string>
+    <string name="graph_point_zero">Zéro</string>
+    <string name="graph_point_maximum">Maximum</string>
+    <string name="graph_point_minimum">Minimum</string>
+    <string name="graph_point_inflection">Point d’inflexion</string>
+    <string name="graph_point_y_intercept">Ordonnée à l’origine</string>
+    <string name="graph_cannot_plot">Cette expression ne peut pas être tracée</string>
+    <string name="graph_tap_hint">Touche la courbe pour placer le curseur</string>
+    <string name="graph_recenter">Recentrer</string>
+    <string name="graph_close">Fermer le graphe</string>
+    <string name="graph_toggle_curve">Afficher ou masquer la courbe</string>
+    <string name="graph_curve_shown">affichée</string>
+    <string name="graph_curve_hidden">masquée</string>
+    <string name="graph_add_line">Ajouter une équation</string>
+    <string name="graph_intersection">Intersection</string>
+    <string name="graph_line_cannot_plot">ne peut pas être tracée</string>
+    <string name="graph_surface_alone">Seule la surface est tracée : un graphe 3D ne peut pas être combiné avec d’autres lignes</string>
+    <string name="graph_axes">Axes</string>
+    <string name="graph_log_x">Axe des x logarithmique</string>
+    <string name="graph_log_y">Axe des y logarithmique</string>
+    <string name="graph_polar">Coordonnées polaires</string>
+    <string name="graph_drag_curve">Fais glisser le point le long de la courbe ; il s’aimante aux points mis en évidence</string>
+    <string name="graph_drag_graph">Fais glisser le long du graphe ; il s’aimante aux points mis en évidence</string>
+    <string name="graph_vertical_tangent">tangente verticale</string>
+    <string name="graph_slope">pente = %1$s</string>
+    <string name="graph_integral_hint">Fais glisser a ou b ; ils s’aimantent aux zéros et aux intersections</string>
+    <string name="graph_surface_hint">Un doigt fait tourner · deux doigts déplacent et zooment</string>
+
+    <!-- In-app help (Settings → Help): the help screen, its topics and their pages -->
+    <string name="help_open">Comment utiliser cette app</string>
+    <string name="help_title">Aide</string>
+    <string name="help_back">Retour</string>
+    <string name="help_search">Rechercher dans l’aide (taylor, matrice, unités)…</string>
+    <string name="help_no_results">Aucun résultat</string>
+    <string name="help_intro">Nouveau ici ? Commence par les sujets du haut. Les fonctions plus bas ont chacune leur syntaxe et des exemples.</string>
+    <string name="help_example">Exemple</string>
+    <string name="help_section_basics">Premiers pas</string>
+    <string name="help_section_functions">Les fonctions en détail</string>
+    <string name="help_heading_where">Où la trouver</string>
+    <string name="help_heading_syntax">Syntaxe</string>
+    <string name="help_heading_examples">Exemples</string>
+    <string name="help_heading_good_to_know">Bon à savoir</string>
+
+    <string name="help_screen_title">L’écran</string>
+    <string name="help_screen_summary">Historique, ligne de saisie, résultat en direct et clavier</string>
+    <string name="help_screen_1">De haut en bas : l’historique de tes calculs, la ligne de saisie avec son résultat, et le clavier.</string>
+    <string name="help_screen_2">Le résultat est calculé pendant la saisie, inutile d’appuyer sur quoi que ce soit pour le voir. Les équations sont résolues, les dérivées et les intégrales calculées de la même façon.</string>
+    <string name="help_screen_3">Appuie sur la touche Entrée (↵) pour déplacer la ligne et son résultat dans l’historique et commencer une nouvelle ligne.</string>
+    <string name="help_screen_4">Si une ligne ne peut pas être calculée, la raison s’affiche en rouge à la place du résultat.</string>
+
+    <string name="help_keypad_title">Le clavier et ses pages</string>
+    <string name="help_keypad_summary">Balaie sur le côté pour les touches scientifiques et les outils</string>
+    <string name="help_keypad_1">Le clavier a trois pages. Il démarre sur celle du milieu, avec les chiffres. Les touches scientifiques sont sur la page de gauche (balaie vers la droite pour y aller), les outils sur la page de droite (balaie vers la gauche). Les points au-dessus des touches indiquent la page affichée ; touche un point pour y aller. Sur une tablette ou un pliable déplié, les trois pages sont affichées côte à côte.</string>
+    <string name="help_keypad_main">Page du milieu : nombres</string>
+    <string name="help_keypad_digits">Les chiffres, le point décimal, et ×10ⁿ pour un nombre en notation scientifique (5×10³)</string>
+    <string name="help_keypad_operators">Les opérations de base. ÷ crée une fraction, avec le nombre qui précède au numérateur</string>
+    <string name="help_keypad_parentheses">Une paire de parenthèses avec le curseur à l’intérieur</string>
+    <string name="help_keypad_backspace">Efface ce qui se trouve avant le curseur</string>
+    <string name="help_keypad_enter">Place la ligne et son résultat dans l’historique</string>
+    <string name="help_keypad_left">Page de gauche : touches scientifiques</string>
+    <string name="help_keypad_row1">Factorielle, carré, racine carrée et logarithme de base 10</string>
+    <string name="help_keypad_row2">Une matrice ou un vecteur (ouvre un sélecteur de taille), et les fonctions trigonométriques</string>
+    <string name="help_keypad_row3">Intégrale, somme, l’unité imaginaire i et π</string>
+    <string name="help_keypad_row4">Le signe égal pour les équations, la variable x, abc pour toute autre lettre (ouvre le clavier du système), et le nombre d’Euler e</string>
+    <string name="help_keypad_right">Page de droite : outils</string>
+    <string name="help_keypad_clear">C efface la ligne. Sur une ligne vide, elle devient AC, qui efface aussi l’historique (tu peux annuler)</string>
+    <string name="help_keypad_units">Ouvre la liste des unités (km, psi, kWh, …) pour en insérer une dans la ligne</string>
+    <string name="help_keypad_functions">Ouvre le sélecteur de fonctions : statistiques, combinatoire, arrondis, lois de probabilité, polynômes de Taylor, équations différentielles et plus encore</string>
+    <string name="help_keypad_constants">Ouvre les constantes mathématiques et physiques (c, h, G, …)</string>
+    <string name="help_keypad_graph">Trace la ligne sous forme de graphe</string>
+    <string name="help_keypad_settings">Les réglages, et cette aide</string>
+    <string name="help_keypad_top">Au-dessus des touches</string>
+    <string name="help_keypad_angle">L’unité d’angle de sin, cos et tan : radians ou degrés. Touche pour changer</string>
+    <string name="help_keypad_base">La base de numération : DEC pour les nombres habituels, ou HEX, OCT et BIN, qui transforment la page de gauche en touches de programmeur (A à F, AND, OR, décalages)</string>
+
+    <string name="help_long_press_title">Appui long pour plus de fonctions</string>
+    <string name="help_long_press_summary">Où se trouvent ln, asin, d/dx, lim, ≤, := et le reste</string>
+    <string name="help_long_press_1">Beaucoup de touches ont plus de fonctions que ce qu’indique leur étiquette. Maintiens une touche appuyée : une fenêtre s’ouvre avec ses autres fonctions. Fais glisser le doigt jusqu’à celle que tu veux et relâche. Relâcher sans glisser donne la fonction principale.</string>
+    <string name="help_long_press_2">Les petites étiquettes dans les coins inférieurs d’une touche montrent ce que contient sa fenêtre ; « … » signifie qu’il y en a encore plus. Certaines fenêtres ont une deuxième rangée au-dessus de la première, par exemple les fonctions hyperboliques au-dessus de sin.</string>
+    <string name="help_long_press_factorial">%, mod et Γ ; au-dessus, les opérations bit à bit AND, OR, XOR et NOT</string>
+    <string name="help_long_press_square">Toute puissance □ⁿ, et l’inverse □⁻¹ (aussi l’inverse d’une matrice)</string>
+    <string name="help_long_press_root">La racine n-ième ⁿ√□</string>
+    <string name="help_long_press_log">Le logarithme naturel ln, et le logarithme de base quelconque logₙ</string>
+    <string name="help_long_press_matrix">Transposée Aᵀ, det, rref et eig ; au-dessus, les fonctions vectorielles dot, cross, norm, angle, proj et unitvec</string>
+    <string name="help_long_press_trig">Les fonctions réciproques (asin), les fonctions inverses (csc, sec, cot) et leurs réciproques ; au-dessus, les fonctions hyperboliques (sinh, asinh, …)</string>
+    <string name="help_long_press_integral">L’intégrale définie avec bornes, la dérivée d/dx, et la dérivée en un point</string>
+    <string name="help_long_press_sum">Le produit ∏ et la limite lim</string>
+    <string name="help_long_press_i">Un nombre complexe sous forme polaire r∠θ</string>
+    <string name="help_long_press_pi">L’infini ∞, pour les limites, les sommes et les intégrales</string>
+    <string name="help_long_press_equals">:= pour définir une variable, et &lt; &gt; ≤ ≥ pour les inégalités</string>
+    <string name="help_long_press_x">Les variables y et z</string>
+    <string name="help_long_press_plus_minus">Un + ou − en exposant, pour une limite d’un côté (x → 0⁺)</string>
+    <string name="help_long_press_divide">Un nombre fractionnaire (3½), et ÷ comme signe au lieu d’une fraction</string>
+    <string name="help_long_press_point">Le séparateur entre les valeurs d’une fonction, mean(2, 4, 9)</string>
+    <string name="help_long_press_enter">Une nouvelle ligne (pour un système d’équations, ou plusieurs courbes dans un graphe), et Ans, le dernier résultat</string>
+    <string name="help_long_press_units">La flèche → pour convertir dans une autre unité</string>
+
+    <string name="help_editing_title">Modifier la saisie</string>
+    <string name="help_editing_summary">Curseur, sélection, copier et coller</string>
+    <string name="help_editing_1">Touche n’importe où dans la ligne pour y placer le curseur. Les fractions, puissances et racines ont des cases (□) pour leurs parties ; touche une case ou déplace le curseur dedans pour la remplir.</string>
+    <string name="help_editing_2">Maintiens appuyé pour sélectionner une partie de la ligne, et continue à glisser pour en sélectionner plus. Les poignées sous une sélection permettent de l’ajuster. Quand tu relèves le doigt, un menu propose Couper, Copier, Coller et Tout sélectionner.</string>
+    <string name="help_editing_3">Si quelque chose est sélectionné, une touche de fonction l’entoure : sélectionne 2x + 1 et touche √□ pour obtenir √(2x + 1).</string>
+    <string name="help_editing_4">Pour coller, touche le curseur (ou maintiens appuyé sur un endroit vide) et choisis Coller. Les nombres copiés depuis d’autres apps peuvent être collés.</string>
+    <string name="help_editing_5">Un système d’équations ou plusieurs graphes s’écrivent sur plusieurs lignes : appui long sur Entrée et choisis « nouvelle ligne ».</string>
+
+    <string name="help_history_title">L’historique</string>
+    <string name="help_history_summary">Réutiliser, copier et supprimer des calculs précédents</string>
+    <string name="help_history_1">Touche le calcul d’une entrée pour le remettre dans la ligne et le modifier.</string>
+    <string name="help_history_2">Touche le résultat d’une entrée pour commencer une nouvelle ligne avec lui.</string>
+    <string name="help_history_3">Maintiens appuyé sur un calcul ou un résultat pour le copier. Balaie une entrée sur le côté pour la supprimer ; un message te permet d’annuler.</string>
+    <string name="help_history_4">Ans (appui long sur Entrée) désigne le dernier résultat, donc 2·Ans le double.</string>
+
+    <string name="help_results_title">Formes du résultat et étapes</string>
+    <string name="help_results_summary">Exact ou décimal, et la solution étape par étape</string>
+    <string name="help_results_1">Les résultats sont exacts quand c’est possible : les fractions, racines et π restent tels quels. Les boutons à côté du résultat passent d’une forme pertinente à l’autre : Exact, Décimal, Sci (notation scientifique), Mixte (nombres fractionnaires), Polaire (nombres complexes) et HEX, OCT, BIN.</string>
+    <string name="help_results_forms_example">Exact ; touche Décimal pour 0.5833333333</string>
+    <string name="help_results_2">Étapes ouvre la solution étape par étape : chaque étape avec la règle utilisée. Il y a des étapes pour les équations, les systèmes, les inégalités, les dérivées, les intégrales, les limites, les matrices, les polynômes de Taylor, les équations différentielles et plus encore.</string>
+    <string name="help_results_3">Maintiens appuyé sur le résultat pour le copier.</string>
+
+    <string name="help_variables_title">Variables et lettres</string>
+    <string name="help_variables_summary">x, y, z, n’importe quelle lettre, et enregistrer des valeurs avec :=</string>
+    <string name="help_variables_1">La touche x tape x ; appui long pour y et z. Pour toute autre lettre, touche abc : le clavier du système s’ouvre et tape dans la ligne. Des lettres côte à côte sont multipliées, donc ab signifie a·b. Un nom de fonction suivi de « ( » commence cette fonction, par exemple sin( ou mean(.</string>
+    <string name="help_variables_2">Les variables sont des lettres minuscules. e, π et i sont des constantes, pas des variables.</string>
+    <string name="help_variables_define">Enregistrer une valeur</string>
+    <string name="help_variables_3">Écris une lettre, := (appui long sur =) et une valeur, puis appuie sur Entrée. Dès lors, la lettre a cette valeur dans toutes les lignes.</string>
+    <string name="help_variables_4">Cela enregistre aussi des matrices et des vecteurs, par exemple m := une matrice, pour utiliser m dans les lignes suivantes. Supprime la ligne de l’historique pour oublier la valeur.</string>
+
+
+    <string name="help_functions_title">Le sélecteur de fonctions</string>
+    <string name="help_functions_summary">Statistiques, combinatoire, arrondis et plus encore</string>
+    <string name="help_functions_1">La touche Fonc de la page de droite ouvre toutes les fonctions qui n’ont pas de touche propre, classées par thème. Recherche un nom ou un mot de la description. Chaque entrée indique ce que fait la fonction et comment l’écrire.</string>
+    <string name="help_functions_2">En toucher une l’insère dans la ligne avec le curseur à l’intérieur. Les valeurs sont séparées par le séparateur : appui long sur la touche du point décimal pour l’obtenir.</string>
+    <string name="help_functions_3">Si tu sélectionnes d’abord des valeurs (2, 4, 9) puis choisis une fonction, elle les prend.</string>
+
+    <string name="help_equations_title">Équations et inégalités</string>
+    <string name="help_equations_summary">Résoudre pour x, systèmes d’équations, inégalités</string>
+    <string name="help_equations_1">Tape une équation avec la touche = (page de gauche). Elle est résolue pour sa variable pendant la saisie.</string>
+    <string name="help_equations_systems">Systèmes d’équations</string>
+    <string name="help_equations_2">Écris chaque équation sur sa propre ligne : appui long sur Entrée et choisis « nouvelle ligne » entre elles. Les systèmes linéaires et de nombreux systèmes non linéaires sont résolus.</string>
+    <string name="help_equations_inequalities">Inégalités</string>
+    <string name="help_equations_3">Appui long sur = pour &lt;, &gt;, ≤ et ≥. La solution est aussi donnée en notation d’intervalles et sur une droite numérique dans les étapes.</string>
+
+    <string name="help_derivatives_title">Dérivées</string>
+    <string name="help_derivatives_summary">d/dx, la dérivée en un point, les dérivées partielles</string>
+    <string name="help_derivatives_1">Appui long sur ∫dx (page de gauche) et choisis d/dx, puis tape la fonction à l’intérieur.</string>
+    <string name="help_derivatives_2">Pour la valeur de la dérivée en un point, choisis la troisième entrée de la fenêtre, d/dx avec x = a, et indique le point.</string>
+    <string name="help_derivatives_3">Pour dériver par rapport à une autre variable, touche le x de dx et tape la lettre. Avec une deuxième variable dans la fonction, la dérivée est partielle et s’écrit ∂/∂x.</string>
+    <string name="help_derivatives_partial_note">y est ici une constante</string>
+
+    <string name="help_integrals_title">Intégrales</string>
+    <string name="help_integrals_summary">Primitives et intégrales définies</string>
+    <string name="help_integrals_1">Touche ∫dx (page de gauche) pour une primitive et tape la fonction à l’intérieur.</string>
+    <string name="help_integrals_2">Pour une intégrale définie, appui long sur ∫dx et choisis celle avec bornes ; indique la borne inférieure et la borne supérieure. ∞ (appui long sur π) peut servir de borne.</string>
+    <string name="help_integrals_3">Touche le x de dx pour intégrer par rapport à une autre variable. Une intégrale définie sans formule est calculée numériquement.</string>
+
+    <string name="help_limits_title">Sommes, produits et limites</string>
+    <string name="help_limits_summary">Σ, ∏, lim, et sum ou prod d’une liste</string>
+    <string name="help_limits_1">Touche Σ (page de gauche) pour une somme : indique l’indice avec sa valeur de départ (n = 1), la fin et le terme. Appui long sur Σ pour le produit ∏.</string>
+    <string name="help_limits_2">Appui long sur Σ et choisis lim pour une limite : indique le point après la flèche et la fonction.</string>
+    <string name="help_limits_side_note">Le + en exposant (appui long sur +) en fait une limite à droite</string>
+
+    <string name="help_taylor_title">Polynômes de Taylor</string>
+    <string name="help_taylor_summary">taylor(f, x, a, n) : une fonction sous forme de polynôme autour d’un point</string>
+    <string name="help_taylor_1">taylor donne le polynôme de Taylor d’une fonction : le polynôme qui a la même valeur et les mêmes n premières dérivées que la fonction au point a. Près de a, c’est une bonne approximation de la fonction.</string>
+    <string name="help_taylor_where">Fonc (page de droite) → Analyse → Polynôme de Taylor. Ou touche abc et tape taylor( .</string>
+    <string name="help_taylor_syntax_1">Autour de 0, dans la seule variable de f, jusqu’à la puissance n</string>
+    <string name="help_taylor_syntax_2">Dans la variable x, autour de 0, jusqu’à la puissance n. Nécessaire quand f a plusieurs variables</string>
+    <string name="help_taylor_syntax_3">En x autour du point a, jusqu’à la puissance n. a est un nombre ou une constante comme π</string>
+    <string name="help_taylor_example_point">Autour de a = 1, il s’écrit en puissances de (x − 1)</string>
+    <string name="help_taylor_notes_1">n est un nombre entier de 0 à 12.</string>
+    <string name="help_taylor_notes_2">f et ses dérivées doivent être définies en a : taylor(ln(x), x, 0, 3) ou taylor(sin(x)/x, x, 0, 4) donnent une erreur. Choisis un autre point, ou simplifie d’abord f.</string>
+    <string name="help_taylor_notes_3">Le résultat est un polynôme avec lequel tu peux travailler : le dériver ou l’intégrer, ou le tracer avec f dans le graphe (chacun sur sa ligne) pour voir où il est proche. Étapes montre tout le chemin : la formule de Taylor pour n, les dérivées, leurs valeurs en a, les valeurs remplacées et le polynôme simplifié.</string>
+
+    <string name="help_dsolve_title">Équations différentielles</string>
+    <string name="help_dsolve_summary">dsolve : équations différentielles ordinaires du premier et du second ordre</string>
+    <string name="help_dsolve_1">dsolve résout une équation différentielle ordinaire pour la fonction inconnue y(x) : il donne la solution générale avec des constantes C (C₁, C₂), ou, avec des conditions initiales, la solution qui les vérifie.</string>
+    <string name="help_dsolve_where">Fonc (page de droite) → Analyse → Équation différentielle. Ou touche abc et tape dsolve( .</string>
+    <string name="help_dsolve_typing">y′ s’écrit avec la touche de dérivée : appui long sur ∫dx et choisis d/dx, puis tape y (appui long sur x). Pour y″, mets un d/dx dans un d/dx. Le = est la touche de la page de gauche, et les virgules avant les conditions s’obtiennent par un appui long sur la touche du point décimal.</string>
+    <string name="help_dsolve_syntax_1">La solution générale</string>
+    <string name="help_dsolve_syntax_2">Premier ordre, avec la condition initiale y(x₀) = y₀</string>
+    <string name="help_dsolve_syntax_3">Second ordre, avec les conditions y(x₀) = y₀ et y′(x₀) = y′₀</string>
+    <string name="help_dsolve_kinds">Ce qu’il résout</string>
+    <string name="help_dsolve_kinds_1">Premier ordre : les équations linéaires a·y′ + b·y = c, où a, b et c peuvent dépendre de x, et les équations à variables séparables y′ = f(x)·g(y). Quand une équation à variables séparables ne peut pas être résolue pour y, la solution est donnée comme une équation en x et y. Une équation qui est les deux, comme y′ = 3x·y, est résolue en séparant les variables, comme dans la plupart des manuels.</string>
+    <string name="help_dsolve_kinds_2">Second ordre : a·y″ + b·y′ + c·y = r(x) avec des nombres a, b, c. Le membre de droite r(x) peut être 0, ou composé de polynômes, de eᵏˣ, de sin et de cos.</string>
+    <string name="help_dsolve_example_separable">À variables séparables</string>
+    <string name="help_dsolve_example_linear">Linéaire, premier ordre</string>
+    <string name="help_dsolve_example_condition">Avec y(0) = 3</string>
+    <string name="help_dsolve_example_second">Second ordre, y″ + y = 0</string>
+    <string name="help_dsolve_example_second_condition">Avec y(0) = 0 et y′(0) = 1</string>
+    <string name="help_dsolve_notes_1">Chaque solution est vérifiée en la remplaçant dans l’équation. Les équations d’autres types (y′ = y² + x, y″ à coefficients non constants, troisième ordre) ne sont pas résolues et donnent un message.</string>
+    <string name="help_dsolve_notes_2">L’inconnue peut avoir une autre lettre que y, et la variable est x sauf si tu touches le x de dx pour la changer. Étapes montre la méthode : séparation des variables, facteur intégrant ou équation caractéristique.</string>
+
+    <string name="help_matrices_title">Matrices et vecteurs</string>
+    <string name="help_matrices_summary">Sélecteur de taille, det, inverse, valeurs propres, fonctions vectorielles</string>
+    <string name="help_matrices_1">Appuie sur la touche matrice (page de gauche, la grille entre crochets). Fais glisser sur la grille pour choisir la taille et relève le doigt pour l’insérer, ou choisis un vecteur 2D ou 3D. Un vecteur est une matrice d’une colonne (ou d’une ligne).</string>
+    <string name="help_matrices_2">Les matrices s’additionnent, se soustraient et se multiplient avec les touches habituelles. Appui long sur la touche matrice pour la transposée, det, rref (échelonnement) et eig (valeurs et vecteurs propres). L’inverse est □⁻¹ (appui long sur □²).</string>
+    <string name="help_matrices_3">La rangée supérieure de la fenêtre contient les fonctions vectorielles : produit scalaire et vectoriel, norme, angle entre deux vecteurs, projection et vecteur unitaire.</string>
+    <string name="help_matrices_4">Pour réutiliser une matrice, enregistre-la avec := (voir Variables). Les droites avec un paramètre, (1, 2) + r·(2, 1), peuvent être tracées dans le graphe.</string>
+
+    <string name="help_complex_title">Nombres complexes</string>
+    <string name="help_complex_summary">i, forme polaire r∠θ</string>
+    <string name="help_complex_1">Touche i (page de gauche) pour taper l’unité imaginaire ; cela active les nombres complexes dans les réglages. Appui long sur i pour la forme polaire r∠θ.</string>
+    <string name="help_complex_2">Le bouton Polaire à côté d’un résultat complexe l’affiche sous la forme r∠θ. Le sélecteur de fonctions contient re, im, arg et conj sous Nombres complexes.</string>
+
+    <string name="help_units_title">Unités et constantes</string>
+    <string name="help_units_summary">Calculer avec des unités, convertir, constantes physiques</string>
+    <string name="help_units_1">Touche Unités (page de droite) et recherche une unité pour la placer après un nombre. Les calculs avec unités en tiennent compte, et les résultats sont affichés dans le système d’unités des réglages.</string>
+    <string name="help_units_2">Pour convertir, appui long sur Unités pour la flèche →, puis place l’unité cible après elle.</string>
+    <string name="help_units_3">Const (page de droite) contient les constantes mathématiques et physiques avec leurs unités, comme la vitesse de la lumière c ou la constante de Planck h. Recherche par nom ou symbole et touches-en une pour l’insérer.</string>
+
+    <string name="help_graph_title">Graphes</string>
+    <string name="help_graph_summary">Courbes, intersections, tangentes, aires, surfaces 3D</string>
+    <string name="help_graph_1">Tape une fonction et touche Graphe (page de droite). Plusieurs lignes donnent plusieurs courbes, et leurs points d’intersection sont marqués.</string>
+    <string name="help_graph_example_function">Une fonction de x</string>
+    <string name="help_graph_example_implicit">Une équation en x et y : un cercle</string>
+    <string name="help_graph_example_surface">Une fonction de x et y est tracée comme une surface 3D</string>
+    <string name="help_graph_2">Pince pour zoomer et fais glisser pour déplacer. Touche une courbe pour y placer un point ; il s’aimante aux zéros, maximums, minimums, points d’inflexion et intersections.</string>
+    <string name="help_graph_3">Les outils du graphe : Suivre parcourt la courbe, Tangente montre la pente au point, Intégrale montre l’aire entre deux bornes a et b. Le menu des axes propose des axes logarithmiques et les coordonnées polaires.</string>
+    <string name="help_graph_4">Pour ajouter une courbe, utilise « Ajouter une équation » ; chaque courbe peut être masquée puis réaffichée. Une surface 3D tourne avec un doigt, se déplace et zoome avec deux.</string>
+
+    <string name="help_bases_title">Hexadécimal, octal et binaire</string>
+    <string name="help_bases_summary">Touches de programmeur et opérations bit à bit</string>
+    <string name="help_bases_1">Touche DEC au-dessus du clavier et choisis HEX, OCT ou BIN. Les touches des chiffres tapent alors dans cette base, et la page de gauche a les chiffres A à F et les touches bit à bit AND, OR, XOR, NOT et les décalages &lt;&lt; et &gt;&gt;. Les nombres reçoivent leur préfixe automatiquement (0x, 0o, 0b), et les résultats sont affichés dans la base.</string>
+    <string name="help_bases_2">De retour en DEC, les boutons de résultat HEX, OCT et BIN montrent toujours un nombre entier dans les autres bases.</string>
+    <string name="help_bases_example_note">Tapé en mode HEX</string>
+    <string name="help_dsolve_equation">équation</string>
+    <string name="help_history_sessions">Enregistrer et ouvrir</string>
+    <string name="help_history_5">Réglages → Session → Enregistrer… écrit la ligne et tout l’historique dans un fichier texte, par exemple pour garder une série de calculs ou la transférer sur un autre appareil. Ouvrir… relit un tel fichier : il remplace l’historique, ou ses entrées sont ajoutées à la suite.</string>
+    <string name="help_limits_lists">Pour une liste de nombres, pas besoin d’indice : sum et prod dans le sélecteur de fonctions (Fonc → Statistiques) additionnent ou multiplient les valeurs listées.</string>
+    <string name="help_try">Essayer</string>
+    <string name="help_try_description">Mettre %1$s dans la ligne</string>
+    <string name="help_hint_title">Nouveau ici ?</string>
+    <string name="help_hint_text">Découvre où se trouve chaque fonction et comment l’utiliser. L’aide se trouve aussi dans les réglages.</string>
+    <string name="help_hint_open">Me montrer</string>
+    <string name="help_hint_dismiss">Fermer</string>
+    <string name="formulas_help">Aide pour %1$s</string>
+</resources>

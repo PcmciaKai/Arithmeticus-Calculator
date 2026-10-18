@@ -2,7 +2,8 @@ package com.vortessence.calculator.core.math.i18n
 
 /**
  * The names of the units, the groups of units that go together and the kinds of quantity (Length, Pressure …) as they are in the
- * unit catalog (English), in the other languages. A name that is not in a table is shown as it is.
+ * unit catalog (English), in the other languages: German here, the others each in a file of their own (UnitNamesFr.kt …). A name
+ * that is not in a table is shown as it is.
  */
 object UnitNames {
 
@@ -257,9 +258,37 @@ object UnitNames {
         "Volume" to "Volumen"
     )
 
-    fun unit(name: String, language: Language): String = if (language == Language.GERMAN) unitsDe[name] ?: name else name
+    fun unit(name: String, language: Language): String = units(language)?.get(name) ?: name
 
-    fun family(name: String, language: Language): String = if (language == Language.GERMAN) familiesDe[name] ?: name else name
+    fun family(name: String, language: Language): String = families(language)?.get(name) ?: name
 
-    fun category(name: String, language: Language): String = if (language == Language.GERMAN) categoriesDe[name] ?: name else name
+    fun category(name: String, language: Language): String = categories(language)?.get(name) ?: name
+
+    /** The table of [language], none for English (the names of the catalog). */
+    internal fun units(language: Language): Map<String, String>? = when (language) {
+        Language.ENGLISH -> null
+        Language.GERMAN -> unitsDe
+        Language.FRENCH -> UnitNamesFr.units
+        Language.SPANISH -> UnitNamesEs.units
+        Language.RUSSIAN -> UnitNamesRu.units
+        Language.CHINESE -> UnitNamesZh.units
+    }
+
+    internal fun families(language: Language): Map<String, String>? = when (language) {
+        Language.ENGLISH -> null
+        Language.GERMAN -> familiesDe
+        Language.FRENCH -> UnitNamesFr.families
+        Language.SPANISH -> UnitNamesEs.families
+        Language.RUSSIAN -> UnitNamesRu.families
+        Language.CHINESE -> UnitNamesZh.families
+    }
+
+    internal fun categories(language: Language): Map<String, String>? = when (language) {
+        Language.ENGLISH -> null
+        Language.GERMAN -> categoriesDe
+        Language.FRENCH -> UnitNamesFr.categories
+        Language.SPANISH -> UnitNamesEs.categories
+        Language.RUSSIAN -> UnitNamesRu.categories
+        Language.CHINESE -> UnitNamesZh.categories
+    }
 }

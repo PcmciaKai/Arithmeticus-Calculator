@@ -320,6 +320,10 @@ private fun languageName(choice: LanguageChoice): Int = when (choice) {
     LanguageChoice.SYSTEM -> R.string.settings_language_system
     LanguageChoice.ENGLISH -> R.string.settings_language_english
     LanguageChoice.GERMAN -> R.string.settings_language_german
+    LanguageChoice.FRENCH -> R.string.settings_language_french
+    LanguageChoice.SPANISH -> R.string.settings_language_spanish
+    LanguageChoice.RUSSIAN -> R.string.settings_language_russian
+    LanguageChoice.CHINESE -> R.string.settings_language_chinese
 }
 
 private const val MAX_DECIMAL_PLACES = 12

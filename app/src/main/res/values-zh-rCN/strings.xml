@@ -1,0 +1,895 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Calculator</string>
+
+    <!-- Names of the rules in the step-by-step solutions -->
+    <string name="step_constant">常数的导数为零</string>
+    <string name="step_variable">自变量的导数为一</string>
+    <string name="step_sum">逐项求导</string>
+    <string name="step_constant_factor">提出常数</string>
+    <string name="step_product">应用乘积法则</string>
+    <string name="step_quotient">应用商法则</string>
+    <string name="step_power">应用幂法则</string>
+    <string name="step_exponential">对指数函数求导</string>
+    <string name="step_general_power">把幂写成以 e 为底</string>
+    <string name="step_logarithm">对对数求导</string>
+    <string name="step_change_of_base">对数换底</string>
+    <string name="step_sine">对正弦求导</string>
+    <string name="step_cosine">对余弦求导</string>
+    <string name="step_tangent">对正切求导</string>
+    <string name="step_arcsine">对反正弦求导</string>
+    <string name="step_arccosine">对反余弦求导</string>
+    <string name="step_arctangent">对反正切求导</string>
+    <string name="step_secant">对正割求导</string>
+    <string name="step_cosecant">对余割求导</string>
+    <string name="step_cotangent">对余切求导</string>
+    <string name="step_arcsecant">对反正割求导</string>
+    <string name="step_arccosecant">对反余割求导</string>
+    <string name="step_arccotangent">对反余切求导</string>
+    <string name="step_sinh">对双曲正弦求导</string>
+    <string name="step_cosh">对双曲余弦求导</string>
+    <string name="step_tanh">对双曲正切求导</string>
+    <string name="step_sech">对双曲正割求导</string>
+    <string name="step_csch">对双曲余割求导</string>
+    <string name="step_coth">对双曲余切求导</string>
+    <string name="step_asinh">对反双曲正弦求导</string>
+    <string name="step_acosh">对反双曲余弦求导</string>
+    <string name="step_atanh">对反双曲正切求导</string>
+    <string name="step_asech">对反双曲正割求导</string>
+    <string name="step_acsch">对反双曲余割求导</string>
+    <string name="step_acoth">对反双曲余切求导</string>
+    <string name="step_gamma">对伽马函数求导</string>
+    <string name="step_lngamma">对对数伽马函数求导</string>
+    <string name="step_erf">对误差函数求导</string>
+    <string name="step_erfc">对互补误差函数求导</string>
+    <string name="step_lambertw">对朗伯 W 函数求导</string>
+    <string name="step_sinint">对正弦积分求导</string>
+    <string name="step_cosint">对余弦积分求导</string>
+    <string name="step_expint">对指数积分求导</string>
+    <string name="step_integral_gaussian">对高斯函数积分（得到误差函数）</string>
+    <string name="step_integral_sine_over_x">对 sin(x)/x 积分（得到正弦积分 Si）</string>
+    <string name="step_integral_cosine_over_x">对 cos(x)/x 积分（得到余弦积分 Ci）</string>
+    <string name="step_integral_exponential_over_x">对 eˣ/x 积分（得到指数积分 Ei）</string>
+    <string name="step_normal_density">把数值代入正态分布的密度函数</string>
+    <string name="step_normal_probability">用误差函数表示正态分布的概率</string>
+    <string name="step_normal_quantile">对标准正态分布的分位数进行缩放</string>
+    <string name="step_student_density">把数值代入 t 分布的密度函数</string>
+    <string name="step_chi_square_density">把数值代入卡方分布的密度函数</string>
+    <string name="step_binomial_probability">把数值代入二项分布概率</string>
+    <string name="step_binomial_cumulative">把从 0 到 k 的二项分布概率相加</string>
+    <string name="step_poisson_probability">把数值代入泊松分布概率</string>
+    <string name="step_poisson_cumulative">把从 0 到 k 的泊松分布概率相加</string>
+    <string name="step_binomial_coefficient">计算二项式系数</string>
+    <string name="step_factorial">计算阶乘</string>
+    <string name="step_write_out_sum">把求和展开写出，并算出各项</string>
+    <string name="step_dot_product">对应分量相乘再相加</string>
+    <string name="step_cross_product">逐个分量计算叉积</string>
+    <string name="step_vector_norm">向量的长度是各分量平方和的平方根</string>
+    <string name="step_vector_angle">夹角由点积和两个向量的长度得出</string>
+    <string name="step_vector_projection">把向量投影到另一个向量上</string>
+    <string name="step_unit_vector">用向量除以它的长度</string>
+    <string name="step_compare_components">两个向量相等即各分量相等：每个分量一个方程</string>
+    <string name="step_insert_parameter">把参数代入其所在直线，得到两直线的交点</string>
+    <string name="step_absolute_value">对绝对值求导</string>
+    <string name="step_fundamental_theorem">应用微积分基本定理</string>
+    <string name="step_imaginary_root">对负数开方</string>
+    <string name="step_multiply_numbers">数相乘</string>
+    <string name="step_extend_fractions">通分</string>
+    <string name="step_tangent_as_fraction">把正切写成正弦除以余弦</string>
+    <string name="step_reciprocal_equation">两边取倒数：正割 ↔ 余弦，余割 ↔ 正弦，余切 ↔ 正切</string>
+    <string name="step_reciprocal_trigonometric">用正弦和余弦表示正割、余割和余切</string>
+    <string name="step_hyperbolic_solution">应用反双曲函数（对于 cosh 和 sech，负值也是解）</string>
+    <string name="step_exact_trigonometric_value">特殊角的精确值（单位圆）</string>
+    <string name="step_logarithm_of_power">以某数为底、该数的幂的对数等于指数</string>
+    <string name="step_exponential_of_logarithm">底数的幂以其对数为指数时，结果就是该数</string>
+    <string name="step_root_of_fraction">分数的根：分子的根除以分母的根</string>
+    <string name="step_polynomial_division">多项式除法：商加上一个次数更低的分式</string>
+    <string name="step_cyclic_by_parts">两次分部积分：同一个积分再次出现，解出它</string>
+    <string name="step_half_angle">用二倍角表示正弦或余弦的平方</string>
+    <string name="step_pythagorean_identity">同角的正弦平方加余弦平方等于 1</string>
+    <string name="step_secant_identity">同角的正割平方减正切平方等于 1</string>
+    <string name="step_cosecant_identity">同角的余割平方减余切平方等于 1</string>
+    <string name="step_hyperbolic_identity">同一数的双曲余弦平方减双曲正弦平方等于 1</string>
+    <string name="step_reciprocal_functions">同角的函数乘以其倒数函数等于 1</string>
+    <string name="step_exact_hyperbolic_value">双曲函数的精确值（在 0 处或在对数处）</string>
+    <string name="step_trig_odd_power">正弦或余弦的奇数次幂：保留一个因子，其余用另一个函数表示</string>
+    <string name="step_rationalize">分母有理化：分子和分母同乘以该根式</string>
+    <string name="step_divide_by_negative">两边同除以负数：不等号方向改变</string>
+    <string name="step_multiply_by_negative">两边同乘以负数：不等号方向改变</string>
+    <string name="step_inequality_swap">交换两边：不等号方向改变</string>
+    <string name="step_inequality_one_side">全部移到左边：与 0 比较</string>
+    <string name="step_inequality_zeros">符号只可能在两边相等的地方改变（左边减右边等于 0）</string>
+    <string name="step_inequality_breaks">……或在无定义的地方改变：分母为 0，或根式、对数开始有定义</string>
+    <string name="step_inequality_critical">这些点把数轴分成若干区间；每个区间内符号相同</string>
+    <string name="step_inequality_result">在每个区间（和每个点）中取一个值检验：不等式成立的部分就是解</string>
+    <string name="step_log_combine">合并对数：和是积的对数，差是商的对数</string>
+    <string name="step_log_equal">同底的对数相等：真数相等</string>
+    <string name="step_pythagorean">用余弦表示正弦的平方（或反过来）</string>
+    <string name="step_factor_common">提取公因式</string>
+    <string name="step_root_of_square">平方的平方根是绝对值</string>
+    <string name="step_double_angle">用单角表示二倍角</string>
+    <string name="step_amplitude_form">把正弦和余弦合成一个正弦，其中 R = √(a² + b²)，tan φ = b/a（若 a &lt; 0 则加 π）</string>
+    <string name="step_percent_as_fraction">把百分数写成分数：百分之一就是一百分之一</string>
+    <string name="step_improper_fraction">把带分数写成假分数</string>
+    <string name="step_multiply_fractions">分子乘分子，分母乘分母</string>
+    <string name="step_simplify_root">把最大的平方因子移到根号外</string>
+    <string name="step_divide_numbers">数相除</string>
+    <string name="step_reduce_fraction">约分</string>
+    <string name="step_number_power">计算幂</string>
+    <string name="step_divide_by_fraction">除以分数</string>
+    <string name="step_rewrite_as_power">写成幂的形式</string>
+    <string name="step_chain_rule">应用链式法则</string>
+    <string name="step_power_as_root">把幂写成根式</string>
+    <string name="step_power_as_fraction">把幂写成分数</string>
+    <string name="step_power_of_power">指数相乘</string>
+    <string name="step_power_of_product">每个因子分别乘方</string>
+    <string name="step_expand">展开</string>
+    <string name="step_expand_power">展开幂</string>
+    <string name="step_combine_fractions">合并分数</string>
+    <string name="step_add_numbers">数相加</string>
+    <string name="step_subtract_numbers">数相减</string>
+    <string name="step_add_and_subtract_numbers">数的加减</string>
+    <string name="step_subtract_same">相减</string>
+    <string name="step_combine_powers">指数相加</string>
+    <string name="step_cancel_common_factor">因式分解并约去公因式</string>
+    <string name="step_tangent_as_quotient">正弦除以余弦就是正切</string>
+    <string name="step_cancel">约去</string>
+    <string name="step_distribute">展开</string>
+    <string name="step_combine_like_terms">合并同类项</string>
+    <string name="step_integral_constant">对常数积分</string>
+    <string name="step_integral_sum">逐项积分</string>
+    <string name="step_integral_constant_factor">提出常数</string>
+    <string name="step_integral_power">应用幂法则</string>
+    <string name="step_integral_reciprocal">对 1/x 积分</string>
+    <string name="step_integral_exponential">对指数函数积分</string>
+    <string name="step_integral_sine">对正弦积分</string>
+    <string name="step_integral_cosine">对余弦积分</string>
+    <string name="step_integral_tangent">对正切积分</string>
+    <string name="step_integral_secant">对正割积分</string>
+    <string name="step_integral_cosecant">对余割积分</string>
+    <string name="step_integral_cotangent">对余切积分</string>
+    <string name="step_integral_sinh">对双曲正弦积分</string>
+    <string name="step_integral_cosh">对双曲余弦积分</string>
+    <string name="step_integral_tanh">对双曲正切积分</string>
+    <string name="step_integral_coth">对双曲余切积分</string>
+    <string name="step_integral_sech">对双曲正割积分</string>
+    <string name="step_integral_csch">对双曲余割积分</string>
+    <string name="step_integral_logarithm">对对数积分</string>
+    <string name="step_integral_table">使用基本积分公式</string>
+    <string name="step_integral_inverse_hyperbolic_sine">对一除以（平方加一个数）的平方根积分：反双曲正弦</string>
+    <string name="step_integral_log_root">对一除以（平方减一个数）的平方根积分：一个对数（x 为正或为负时相同）</string>
+    <string name="step_expand_integrand">展开被积函数</string>
+    <string name="step_substitution">换元</string>
+    <string name="step_back_substitution">回代</string>
+    <string name="step_split_numerator">把分子拆成分母的导数加一个常数</string>
+    <string name="step_complete_square">对分母配方</string>
+    <string name="step_partial_fractions">分解为部分分式</string>
+    <string name="step_taylor_problem">泰勒多项式：要求一个 n 次多项式 Tₙ，使它在 x = a 处与 f 的函数值及前 n 阶导数都相同。在 a 附近它逼近 f，n 越大逼近得越好</string>
+    <string name="step_taylor_formula">写出到 n 次的泰勒公式：对每个从 0 到 n 的 k，取在 a 处的 k 阶导数，除以 k!，再乘以 (x − a)^k</string>
+    <string name="step_taylor_derivatives">对 f 反复求导，直到 n 阶导数：每一个都是前一个的导数</string>
+    <string name="step_taylor_values">把 x = a 代入 f 及各阶导数</string>
+    <string name="step_taylor_series">把这些值代入泰勒公式</string>
+    <string name="step_taylor_simplify">算出阶乘并化简每一项；值为 0 的项消去</string>
+    <string name="step_by_parts">分部积分</string>
+    <string name="step_antiderivative">求一个原函数 F</string>
+    <string name="step_bounds">代入上下限</string>
+    <string name="step_add_to_both_sides">两边同时加上</string>
+    <string name="step_subtract_from_both_sides">两边同时减去</string>
+    <string name="step_multiply_both_sides">两边同时乘以</string>
+    <string name="step_divide_both_sides">两边同时除以</string>
+    <string name="step_swap_sides">交换两边</string>
+    <string name="step_square_root_both_sides">两边开平方</string>
+    <string name="step_factor_out">提出 x</string>
+    <string name="step_factor_by_root">分离出一个因式：若 P(r) = 0，则 (x − r) 是一个因式</string>
+    <string name="step_nth_root_both_sides">两边开方</string>
+    <string name="step_logarithm_both_sides">两边取对数</string>
+    <string name="step_square_both_sides">两边平方</string>
+    <string name="step_trig_general_solution">函数是周期的：加上整数个周期，正弦和余弦为 2π，正切为 π</string>
+    <string name="step_divide_by_highest_power">分子和分母同除以分母的最高次幂</string>
+    <string name="step_trig_inequality_isolate">把三角函数单独留在一边</string>
+    <string name="step_trig_inequality_period">在一个周期内，解是由反函数求得的一个或两个区间；每个周期都给出相同的区间，相差 2kπ（正切和余切为 kπ）</string>
+    <string name="step_trig_inequality_solve_x">现在里面是 x：在每一部分上做减法和除法</string>
+    <string name="step_trig_inequality_bounded">正弦和余弦的值总在 −1 和 1 之间</string>
+    <string name="step_substitute_ratio">每一项都是 2 次的：除以 x²，并令 t = y/x（x = 0 不是该方程的解，单独检验）</string>
+    <string name="step_absolute_value_split">|…| 里面的式子为正或为负：当 g ≥ 0 时 |g| 是 g，当 g &lt; 0 时是 −g。每种情况都是一个单独的方程</string>
+    <string name="step_absolute_value_case">求解这种情况：其解只在条件成立的地方才算数</string>
+    <string name="step_inequality_system_each">先分别求解每个不等式</string>
+    <string name="step_inequality_system_intersect">所有不等式都必须成立：只保留每个解中都有的值</string>
+    <string name="step_log_sum">同底的对数：和是积的对数，差是商的对数，n·log a 等于 log(aⁿ)</string>
+    <string name="step_log_quotient">ln a / ln b 是以 b 为底 a 的对数（换底公式）</string>
+    <string name="step_limit_conjugate">这里 √a − b 是 ∞ − ∞ 型：乘以共轭式（符号相反的同一式子）把它变成商</string>
+    <string name="step_limit_difference_of_squares">(a + b)(a − b) = a² − b²：分子中的根式消失</string>
+    <string name="step_limit_exponent_infinite">若指数趋于 ∞，则 eᵍ 趋于 ∞；若趋于 −∞，则 eᵍ 趋于 0</string>
+    <string name="step_limit_absolute_value">在该点的这一侧附近，|…| 里面的式子保持符号，所以 |g| = g（为正）或 −g（为负）</string>
+    <string name="step_limit_vanish">趋于 0 的项消失（分母中的变量、e^(−x)），而趋于无穷的数的 arctan 趋于 ±π/2</string>
+    <string name="step_limit_constant">常数的极限就是该常数</string>
+    <string name="step_limit_grows">最高次幂无限增大</string>
+    <string name="step_limit_reciprocal">分母无限增大：商趋于 0</string>
+    <string name="step_limit_substitute">代入该点</string>
+    <string name="step_limit_reciprocal_substitution">令 u = 1/x：则 u 趋于 0</string>
+    <string name="step_limit_exponential_form">底数趋于 1，指数趋于 ∞：把幂写成以 e 为底，并求指数的极限</string>
+    <string name="step_limit_exponential_result">极限是 e 的该极限次幂</string>
+    <string name="step_factor_polynomial">求多项式的根（有理根定理）：每个根 r 给出一个因式 (x − r)</string>
+    <string name="matrix_store_hint">要再次使用矩阵或向量，请用 := 保存（长按 =），例如 v := [向量]</string>
+    <string name="steps_option_solution">解</string>
+    <string name="transform_expand">展开</string>
+    <string name="transform_factor">因式分解</string>
+    <string name="transform_combine">合为一个分式</string>
+
+    <string name="step_determinant_2x2">2×2 矩阵的行列式：主对角线之积减去另一条对角线之积</string>
+    <string name="step_determinant_cofactor">按一行或一列展开行列式：每个元素乘以划去其所在行和列后剩下部分的行列式，符号交替</string>
+    <string name="step_inverse_2x2">2×2 矩阵的逆：交换主对角线元素，另外两个元素变号，再除以行列式</string>
+    <string name="step_inverse_augment">把矩阵与单位矩阵并排写：把左边化为单位矩阵的行变换会把右边化为逆矩阵</string>
+    <string name="step_row_swap">交换两行，得到不为 0 的主元</string>
+    <string name="step_row_scale">用该行除以其主元，使主元为 1</string>
+    <string name="step_row_add">加上或减去主元行的倍数，使这一列的其他元素为 0</string>
+    <string name="step_row_reduce_begin">行化简：行变换使每个主元为 1，其所在列的其他元素为 0（简化行阶梯形）</string>
+    <string name="step_eigen_characteristic">特征值 λ 是使 A − λ·I 不可逆的值：A − λ·I 的行列式为 0</string>
+    <string name="step_eigen_vector">该特征值的特征向量 v 满足 (A − λ·I)·v = 0：进行行化简</string>
+    <string name="step_eigen_vector_result">自由变量取 1 和 0；v 缩放为整数（任何倍数也是特征向量）</string>
+    <string name="step_eigen_result">特征值，每个都附一个特征向量</string>
+    <string name="step_inverse_result">左边是单位矩阵：右边就是逆矩阵</string>
+    <string name="step_matrix_multiply">矩阵相乘：每个元素是第一个矩阵的一行乘以第二个矩阵的一列</string>
+    <string name="step_matrix_scalar">数乘矩阵：它乘以每一个元素</string>
+    <string name="step_matrix_add">矩阵逐元素相加</string>
+    <string name="step_matrix_subtract">矩阵逐元素相减</string>
+    <string name="step_matrix_transpose">转置：行变成列</string>
+    <string name="step_matrix_power">矩阵的幂就是矩阵自乘</string>
+    <string name="step_improper_integral">有一个积分限是无穷：在 t 处而不是在该限处取原函数值，再求 t 趋于无穷时的极限</string>
+    <string name="step_limit_pole">分母趋于 0 而分子不趋于 0：商无限增大，符号决定方向</string>
+    <string name="step_limit_logarithm_zero">趋于 0⁺ 的数的对数趋于 −∞</string>
+    <string name="step_limit_product_as_quotient">这是 0·∞ 型：先把乘积写成商</string>
+    <string name="step_lhopital">这是 0/0 或 ∞/∞ 型：应用洛必达法则</string>
+    <string name="step_zero_fraction">分子为零时分式为零</string>
+    <string name="step_absolute_values_equal">两个绝对值相等：里面的式子相等或互为相反数</string>
+    <string name="step_absolute_value_cases">分成绝对值的两种情况</string>
+    <string name="step_exponentiate_both_sides">以底数为底，对两边取幂</string>
+    <string name="step_check_solutions">在原方程中检验解</string>
+    <string name="step_substitute_power">换元</string>
+    <string name="step_back_substitute_power">回代</string>
+    <string name="step_one_side">没有规则能精确求解：全部移到一边，f(x) = 0</string>
+    <string name="step_newton_method">牛顿法</string>
+    <string name="step_no_real_solution">没有实数解：这永远不成立</string>
+    <string name="step_contradiction">两边永远不相等：无解</string>
+    <string name="step_zero_product">乘积为零当且仅当其中一个因子为零</string>
+    <string name="step_quadratic_formula">应用求根公式</string>
+    <string name="step_root_of_number">计算根</string>
+    <string name="step_solve_for">从其中一个方程解出一个变量</string>
+    <string name="step_substitute_solution">代入其他方程</string>
+    <string name="step_multiply_equations">方程乘以适当的数，使某个变量的系数相同</string>
+    <string name="step_add_equations">方程相加</string>
+    <string name="step_subtract_equations">方程相减</string>
+    <string name="step_insert_value">代入该值</string>
+    <string name="step_collect_solution">汇总各解</string>
+    <string name="step_identity">两边对任何值都相等</string>
+    <string name="step_simplify">化简</string>
+    <string name="step_substitute">代入该点</string>
+    <string name="step_evaluate">计算</string>
+
+    <string name="steps_title">步骤</string>
+    <string name="steps_none">此计算没有步骤。</string>
+    <string name="steps_result">结果</string>
+    <plurals name="steps_show_section">
+        <item quantity="other">显示求解的 %1$d 个步骤</item>
+    </plurals>
+    <plurals name="steps_hide_section">
+        <item quantity="other">隐藏 %1$d 个步骤</item>
+    </plurals>
+    <string name="steps_interval_notation">区间表示</string>
+    <string name="steps_number_line">在数轴上</string>
+    <string name="steps_chain_rule">链式法则</string>
+    <string name="steps_linear_argument">线性参数</string>
+    <plurals name="steps_show_calculations">
+        <item quantity="other">%1$d 项计算</item>
+    </plurals>
+    <plurals name="steps_hide_calculations">
+        <item quantity="other">隐藏 %1$d 项计算</item>
+    </plurals>
+
+    <!-- Hint under "200 + 10%", which is 200.1 here: what a pocket calculator means, 10% of 200 (%1$s = 10, %2$s = 200, %3$s = 220) -->
+    <string name="percent_hint_plus">%1$s%% 被视为 %1$s/100。点按改为 %2$s + %2$s 的 %1$s%% = %3$s</string>
+    <string name="percent_hint_minus">%1$s%% 被视为 %1$s/100。点按改为 %2$s − %2$s 的 %1$s%% = %3$s</string>
+    <string name="settings_title">计算器设置</string>
+    <string name="settings_angle_unit">角度单位</string>
+    <string name="settings_radians">弧度</string>
+    <string name="settings_degrees">角度</string>
+    <string name="settings_radians_short">RAD</string>
+    <string name="settings_degrees_short">DEG</string>
+    <string name="settings_complex">复数</string>
+    <string name="settings_complex_on">允许 √−4 = 2i</string>
+    <string name="settings_complex_off">√−4 视为错误</string>
+    <string name="settings_units_for_results">结果的单位</string>
+    <string name="settings_metric">公制</string>
+    <string name="settings_imperial">英制</string>
+    <string name="settings_us">美制</string>
+    <string name="settings_number_display">数字显示</string>
+    <string name="settings_decimal_places">小数位数</string>
+    <string name="settings_decimal_auto">自动，最多 10 位</string>
+    <string name="settings_decimal_fixed">固定 %1$d 位，例如 %2$s</string>
+    <string name="settings_digit_grouping">数字分组</string>
+    <string name="settings_digit_grouping_desc">显示为 300 000</string>
+    <string name="settings_decimal_comma">小数逗号</string>
+    <string name="settings_decimal_comma_desc">用 1,5 代替 1.5</string>
+    <string name="settings_appearance">外观</string>
+    <string name="settings_theme_system">跟随系统</string>
+    <string name="settings_theme_light">浅色</string>
+    <string name="settings_theme_dark">深色</string>
+    <string name="settings_language">语言</string>
+    <string name="settings_language_system">跟随系统</string>
+    <string name="settings_support">♥︎ 支持此应用</string>
+    <string name="settings_done">完成</string>
+    <string name="settings_auto">自动</string>
+    <string name="common_close">关闭</string>
+    <string name="support_text">很高兴你喜欢这个应用。它是开源的，并且永远免费，不过如果你愿意请我喝杯咖啡，我会非常开心。\n\n遗憾的是，由于 Google 的政策，我不能直接添加一个跳转到捐赠页面的按钮。如果你能在我的 GitHub（PcmciaKai）上找到这个项目，相信你也能找到打赏的方式。</string>
+    <string name="settings_units_si">国际单位制：m, kg, m³, N, Pa, J, K, …</string>
+    <string name="settings_units_imperial">英制：ft, lb, gal, psi, …</string>
+    <string name="settings_units_us">美制：ft, lb, US gal, psi, …</string>
+    <string name="formula_mean_name">平均值 x̄</string>
+    <string name="formula_mean_desc">算术平均数：mean(2, 4, 9) = 5</string>
+    <string name="formula_median_name">中位数</string>
+    <string name="formula_median_desc">排序后位于中间的值；个数为偶数时取中间两个的平均值</string>
+    <string name="formula_stdev_name">标准差 s（样本）</string>
+    <string name="formula_stdev_desc">样本的离散程度（除以 n − 1）</string>
+    <string name="formula_stdevp_name">标准差 σ（总体）</string>
+    <string name="formula_stdevp_desc">整个总体的离散程度（除以 n）</string>
+    <string name="formula_var_name">方差 s²（样本）</string>
+    <string name="formula_var_desc">stdev 的平方（样本，除以 n − 1）</string>
+    <string name="formula_varp_name">方差 σ²（总体）</string>
+    <string name="formula_varp_desc">stdevp 的平方（总体，除以 n）</string>
+    <string name="formula_sem_name">平均值的标准误差</string>
+    <string name="formula_sem_desc">样本平均值的精确程度：s/√n</string>
+    <string name="formula_min_name">最小值</string>
+    <string name="formula_min_desc">最小的值</string>
+    <string name="formula_max_name">最大值</string>
+    <string name="formula_max_desc">最大的值</string>
+    <string name="formula_ncr_name">组合数 nCr</string>
+    <string name="formula_ncr_desc">nCr(n, k)：从 n 个中选 k 个、不计顺序的方法数。nCr(5, 2) = 10</string>
+    <string name="formula_npr_name">排列数 nPr</string>
+    <string name="formula_npr_desc">nPr(n, k)：从 n 个中按顺序选 k 个的方法数。nPr(5, 2) = 20</string>
+    <string name="formula_gcd_name">最大公约数</string>
+    <string name="formula_gcd_desc">能整除所有值的最大的数：gcd(12, 18) = 6</string>
+    <string name="formula_lcm_name">最小公倍数</string>
+    <string name="formula_lcm_desc">能被所有值整除的最小的数：lcm(4, 6) = 12</string>
+    <string name="formula_round_name">四舍五入</string>
+    <string name="formula_round_desc">取最接近的整数；一半时远离 0：round(2.5) = 3</string>
+    <string name="formula_round_places_name">保留小数位</string>
+    <string name="formula_round_places_desc">round(x, n)：把 x 四舍五入到 n 位小数</string>
+    <string name="formula_floor_name">向下取整（floor）</string>
+    <string name="formula_floor_desc">向下取到整数：floor(−2.3) = −3</string>
+    <string name="formula_ceil_name">向上取整（ceiling）</string>
+    <string name="formula_ceil_desc">向上取到整数：ceil(2.1) = 3</string>
+    <string name="formula_mode_name">众数</string>
+    <string name="formula_mode_desc">出现次数最多的值；并列时取第一个</string>
+    <string name="formula_range_name">极差</string>
+    <string name="formula_range_desc">最大值减去最小值</string>
+    <string name="formula_sum_name">求和</string>
+    <string name="formula_sum_desc">把列出的值相加：sum(2, 4, 9) = 15。带下标的求和请用 Σ 键</string>
+    <string name="formula_prod_name">求积</string>
+    <string name="formula_prod_desc">把列出的值相乘：prod(2, 4, 9) = 72。带下标的求积请长按 Σ</string>
+    <string name="formula_sumsq_name">平方和</string>
+    <string name="formula_sumsq_desc">把各值的平方相加：sumsq(1, 2, 3) = 14</string>
+    <string name="formula_percentile_name">百分位数</string>
+    <string name="formula_percentile_desc">percentile(p, 值…)：有 p% 的数据位于其下方的值（p 从 0 到 100）</string>
+    <string name="formula_quartile_name">四分位数</string>
+    <string name="formula_quartile_desc">quartile(q, 值…)：q = 1、2 或 3 表示四分位数（2 为中位数）；0 和 4 给出最小值和最大值</string>
+    <string name="formula_skew_name">偏度</string>
+    <string name="formula_skew_desc">数据的偏斜程度：对称时为 0，长尾在右侧时为正。至少 3 个值</string>
+    <string name="formula_tmargin_name">平均值的误差范围（t）</string>
+    <string name="formula_tmargin_desc">tmargin(c, 值…)：置信水平 c（95% 即 0.95）下平均值的误差范围；区间为 平均值 ± 误差范围</string>
+    <string name="formula_tstat_name">样本的 t 统计量</string>
+    <string name="formula_tstat_desc">tstat(μ₀, 值…)：针对平均值 μ₀ 的单样本 t 检验的 t 值</string>
+    <string name="formula_multinomial_name">多项式系数</string>
+    <string name="formula_multinomial_desc">把 k₁ + k₂ + … 个元素分成 k₁、k₂、… 个一组的方法数：multinomial(2, 1) = 3</string>
+    <string name="formula_fib_name">斐波那契数</string>
+    <string name="formula_fib_desc">fib(n)：第 n 个斐波那契数（0, 1, 1, 2, 3, 5, …）：fib(10) = 55</string>
+    <string name="formula_nextprime_name">下一个质数</string>
+    <string name="formula_nextprime_desc">大于 n 的最小质数：nextprime(10) = 11</string>
+    <string name="formula_isprime_name">质数检验</string>
+    <string name="formula_isprime_desc">n 是质数时为 1，否则为 0</string>
+    <string name="formula_totient_name">欧拉函数 φ(n)</string>
+    <string name="formula_totient_desc">φ(n)：1 … n 中与 n 互质的数的个数：totient(9) = 6</string>
+    <string name="formula_factor_name">质因数分解</string>
+    <string name="formula_factor_desc">把整数分解为质因数：factor(360) = 2³ × 3² × 5</string>
+    <string name="formula_expand_name">展开</string>
+    <string name="formula_expand_desc">展开乘积和幂：expand((x + 1)²) = x² + 2x + 1</string>
+    <string name="formula_apart_name">部分分式</string>
+    <string name="formula_apart_desc">把多项式分式拆成更简单的分式：apart(1/(x² − 1)) = 1/(2(x − 1)) − 1/(2(x + 1))</string>
+    <string name="formula_taylor_name">泰勒多项式</string>
+    <string name="formula_taylor_desc">taylor(f, x, a, n)：在 x = a 附近逼近 f、最高到 xⁿ 的多项式</string>
+    <string name="step_ode_problem">一个微分方程：要求函数 y(x)，使 y 及其导数（y′ = dy/dx，y″ = d²y/dx²）对每个 x 都满足该方程。由于这样的方程有许多解，解中含有任意常数 C</string>
+    <string name="step_ode_initial_value_problem">一个初值问题：要求函数 y(x)，使 y 及其导数（y′ = dy/dx，y″ = d²y/dx²）对每个 x 都满足该方程，并取给定的初值。先求通解，再根据初值求常数</string>
+    <string name="step_ode_type_separable">类型：一阶，可分离变量。右边是 x 的函数乘以 y 的函数，因此可以分离变量</string>
+    <string name="step_ode_type_linear">类型：一阶，线性。y 和 y′ 只以一次方出现且不相乘；写成标准形式后用积分因子求解</string>
+    <string name="step_ode_type_second_order_homogeneous">类型：二阶常系数线性，齐次（右边为 0）。用特征方程求解</string>
+    <string name="step_ode_type_second_order_inhomogeneous">类型：二阶常系数线性，非齐次（右边 r(x) 不为 0）。解 = 齐次方程（右边为 0）的通解 yₕ + 一个特解 yₚ</string>
+    <string name="step_ode_integrating_factor">求积分因子 μ</string>
+    <string name="step_ode_linear_solution">乘以 μ：左边就是 (μ·y)′。两边积分</string>
+    <string name="step_ode_separate">分离变量：把 y′ 写成 dy/dx，除以 g(y) 并乘以 dx，使 y 只在左边，x 只在右边</string>
+    <string name="step_ode_integrate_both">两边积分：左边对 y 积分，右边对 x 积分</string>
+    <string name="step_ode_integrals">计算两个积分。两个积分常数合并为右边的一个常数 C</string>
+    <string name="step_ode_absolute_value">去掉绝对值：符号 ± 并入常数。±e^C 仍是任意常数，所以仍记作 C</string>
+    <string name="step_ode_new_constant">常数部分仍是任意常数：仍记作 C</string>
+    <string name="step_ode_solve_for_unknown">解出 y</string>
+    <string name="step_ode_try_exponential">尝试 y = e^(rx)：把 y、y′ = r·e^(rx) 和 y″ = r²·e^(rx) 代入方程</string>
+    <string name="step_ode_factor_exponential">提出 e^(rx)</string>
+    <string name="step_ode_characteristic">除以永不为 0 的 e^(rx)。剩下的就是特征方程，一个关于 r 的二次方程</string>
+    <string name="step_ode_characteristic_roots">用求根公式解特征方程</string>
+    <string name="step_ode_homogeneous_distinct">两个不同的实根 r₁ 和 r₂：e^(r₁x) 和 e^(r₂x) 都是解。通解是它们的组合</string>
+    <string name="step_ode_homogeneous_double">一个二重根 r：e^(rx) 和 x·e^(rx) 都是解。通解是它们的组合</string>
+    <string name="step_ode_homogeneous_complex">复根 α ± βi：e^(αx)·cos(βx) 和 e^(αx)·sin(βx) 都是实数解。通解是它们的组合</string>
+    <string name="step_ode_variation_of_parameters">用常数变易法求特解（W 是朗斯基行列式）</string>
+    <string name="step_ode_undetermined_coefficients">求特解：设一个与右边同类型的式子（若它满足去掉右边后的方程，则乘以 x），并求出系数</string>
+    <string name="step_ode_constants">选择常数，使初始条件成立</string>
+    <string name="step_ode_derivative_of_solution">对通解求导：关于 y′ 的条件需要 y′</string>
+    <string name="step_ode_insert_conditions">把初值代入通解</string>
+    <string name="step_ode_solve_constants">解出常数</string>
+    <string name="step_ode_put_constants">把常数代入通解：这就是初值问题的解</string>
+    <string name="step_power_both_sides">两边同时取 1/n 次幂</string>
+    <string name="step_inverse_function_both_sides">对两边应用反函数</string>
+    <string name="formula_dsolve_name">微分方程</string>
+    <string name="formula_dsolve_desc">dsolve(方程)：求解 y′ = 2x·y 之类的方程；y′ 输入为 d/dx(y)（长按 ∫dx）</string>
+    <string name="formula_modpow_name">模幂</string>
+    <string name="formula_modpow_desc">modpow(b, e, m)：bᵉ mod m，指数很大时也适用</string>
+    <string name="formula_hypot_name">斜边</string>
+    <string name="formula_hypot_desc">√(a² + b² + …)，即斜边长：hypot(3, 4) = 5</string>
+    <string name="formula_trunc_name">截断</string>
+    <string name="formula_trunc_desc">去掉小数部分：trunc(−2.7) = −2。trunc(x, n) 保留 n 位</string>
+    <string name="formula_frac_name">小数部分</string>
+    <string name="formula_frac_desc">只保留小数部分，带符号：frac(−2.75) = −0.75</string>
+    <string name="formula_sign_name">符号</string>
+    <string name="formula_sign_desc">负数、零、正数分别为 −1、0、1</string>
+    <string name="formula_re_name">实部</string>
+    <string name="formula_re_desc">实部：re(3 + 4i) = 3</string>
+    <string name="formula_im_name">虚部</string>
+    <string name="formula_im_desc">虚部：im(3 + 4i) = 4</string>
+    <string name="formula_arg_name">辐角</string>
+    <string name="formula_arg_desc">与正实轴的夹角，以弧度表示，范围 −π 到 π：arg(i) = π/2</string>
+    <string name="formula_conj_name">共轭复数</string>
+    <string name="formula_conj_desc">改变虚部的符号：conj(3 + 4i) = 3 − 4i</string>
+    <string name="formula_gamma_name">伽马函数 Γ</string>
+    <string name="formula_gamma_desc">任意数的阶乘：Γ(n + 1) = n!，Γ(0.5) = √π</string>
+    <string name="formula_lngamma_name">对数伽马 ln Γ</string>
+    <string name="formula_lngamma_desc">ln Γ(x)，x &gt; 0，用于 Γ(x) 本身过大时</string>
+    <string name="formula_digamma_name">双伽马 ψ</string>
+    <string name="formula_digamma_desc">ψ(x) = Γ′(x)/Γ(x)，即 ln Γ(x) 的导数</string>
+    <string name="formula_beta_name">贝塔函数</string>
+    <string name="formula_beta_desc">B(a, b) = Γ(a)·Γ(b)/Γ(a + b)</string>
+    <string name="formula_erf_name">误差函数 erf</string>
+    <string name="formula_erf_desc">2/√π · ∫₀ˣ e^(−t²) dt，正态分布的基础</string>
+    <string name="formula_erfc_name">互补误差函数 erfc</string>
+    <string name="formula_erfc_desc">1 − erf(x)，x 很大时也精确</string>
+    <string name="formula_gammainc_name">不完全伽马函数</string>
+    <string name="formula_gammainc_desc">gammainc(a, x)：正则化下不完全伽马函数 P(a, x)，a &gt; 0 且 x ≥ 0</string>
+    <string name="formula_betainc_name">不完全贝塔函数</string>
+    <string name="formula_betainc_desc">betainc(x, a, b)：正则化不完全贝塔函数 Iₓ(a, b)，0 ≤ x ≤ 1 且 a, b &gt; 0</string>
+    <string name="formula_lambertw_name">朗伯 W 函数</string>
+    <string name="formula_lambertw_desc">满足 w·eʷ = x 的 w，x ≥ −1/e。可解 x·eˣ = 5：x = lambertw(5)</string>
+    <string name="formula_sinint_name">正弦积分 Si</string>
+    <string name="formula_sinint_desc">Si(x) = ∫₀ˣ sin(t)/t dt，sin(x)/x 的原函数</string>
+    <string name="formula_cosint_name">余弦积分 Ci</string>
+    <string name="formula_cosint_desc">Ci(x)，cos(x)/x 的原函数，x ≠ 0</string>
+    <string name="formula_expint_name">指数积分 Ei</string>
+    <string name="formula_expint_desc">Ei(x)，eˣ/x 的原函数，x ≠ 0</string>
+    <string name="formula_normalpdf_name">正态分布密度</string>
+    <string name="formula_normalpdf_desc">normalpdf(x, μ, σ)：钟形曲线在 x 处的高度。省略 μ 和 σ 时为标准正态分布</string>
+    <string name="formula_normalcdf_name">正态分布概率（到 x 为止）</string>
+    <string name="formula_normalcdf_desc">normalcdf(x, μ, σ)：取值不超过 x 的概率。省略 μ 和 σ 时为标准正态分布</string>
+    <string name="formula_normalinv_name">正态分布分位数</string>
+    <string name="formula_normalinv_desc">normalinv(p, μ, σ)：取值以概率 p 低于它的 x（0 &lt; p &lt; 1）</string>
+    <string name="formula_binompdf_name">二项分布概率（恰好 k 次）</string>
+    <string name="formula_binompdf_desc">binompdf(n, p, k)：n 次试验、每次成功概率为 p 时恰好成功 k 次的概率</string>
+    <string name="formula_binomcdf_name">二项分布概率（至多 k 次）</string>
+    <string name="formula_binomcdf_desc">binomcdf(n, p, k)：n 次试验、每次成功概率为 p 时至多成功 k 次的概率</string>
+    <string name="formula_poissonpdf_name">泊松分布概率（恰好 k 次）</string>
+    <string name="formula_poissonpdf_desc">poissonpdf(λ, k)：期望为 λ 时恰好发生 k 次的概率</string>
+    <string name="formula_poissoncdf_name">泊松分布概率（至多 k 次）</string>
+    <string name="formula_poissoncdf_desc">poissoncdf(λ, k)：期望为 λ 时至多发生 k 次的概率</string>
+    <string name="formula_tpdf_name">学生 t 分布密度</string>
+    <string name="formula_tpdf_desc">tpdf(x, df)：自由度为 df 的 t 分布的密度</string>
+    <string name="formula_tcdf_name">学生 t 分布概率（到 x 为止）</string>
+    <string name="formula_tcdf_desc">tcdf(x, df)：t 分布中取值不超过 x 的概率</string>
+    <string name="formula_tinv_name">学生 t 分布分位数</string>
+    <string name="formula_tinv_desc">tinv(p, df)：取值以概率 p 低于它的 x；即 t 检验的临界值</string>
+    <string name="formula_chisqpdf_name">卡方分布密度</string>
+    <string name="formula_chisqpdf_desc">chisqpdf(x, df)：自由度为 df 的卡方分布的密度</string>
+    <string name="formula_chisqcdf_name">卡方分布概率（到 x 为止）</string>
+    <string name="formula_chisqcdf_desc">chisqcdf(x, df)：卡方分布中取值不超过 x 的概率</string>
+    <string name="formula_chisqinv_name">卡方分布分位数</string>
+    <string name="formula_chisqinv_desc">chisqinv(p, df)：取值以概率 p 低于它的 x；即卡方检验的临界值</string>
+    <string name="formula_rand_name">随机数</string>
+    <string name="formula_rand_desc">0 到 1 之间的随机数（不含 1）。编辑该行时保持不变</string>
+    <string name="formula_randint_name">随机整数</string>
+    <string name="formula_randint_desc">randint(a, b)：a 到 b 之间的随机整数。编辑该行时保持不变</string>
+    <string name="formula_randnorm_name">随机数（正态分布）</string>
+    <string name="formula_randnorm_desc">randnorm(μ, σ)：服从正态分布的随机数；省略 μ 和 σ 时为标准正态分布</string>
+    <string name="formula_dot_name">点积</string>
+    <string name="formula_dot_desc">dot(a, b)：两个向量的点积，a₁b₁ + a₂b₂ + …</string>
+    <string name="formula_cross_name">叉积</string>
+    <string name="formula_cross_desc">cross(a, b)：垂直于三维向量 a 和 b 的向量</string>
+    <string name="formula_norm_name">向量的长度（范数）</string>
+    <string name="formula_norm_desc">向量的长度 √(a₁² + a₂² + …)；与 |a| 相同</string>
+    <string name="formula_angle_name">两个向量的夹角</string>
+    <string name="formula_angle_desc">angle(a, b)：两个向量的夹角，单位为键盘上方设定的角度单位</string>
+    <string name="formula_proj_name">向量的投影</string>
+    <string name="formula_proj_desc">proj(a, b)：a 沿 b 方向的分量</string>
+    <string name="formula_unitvec_name">单位向量</string>
+    <string name="formula_unitvec_desc">unitvec(a)：与 a 同方向、长度为 1 的向量</string>
+    <string name="category_statistics">统计</string>
+    <string name="category_combinatorics">组合数学</string>
+    <string name="category_numbers">数</string>
+    <string name="category_complex">复数</string>
+    <string name="category_special">特殊函数</string>
+    <string name="category_distributions">概率分布</string>
+    <string name="category_random">随机数</string>
+    <string name="category_vectors">向量</string>
+    <string name="category_bitwise">位运算</string>
+    <string name="category_algebra">代数</string>
+    <string name="category_calculus">微积分</string>
+    <string name="formula_and_name">按位与</string>
+    <string name="formula_and_desc">两个数中都为 1 的位：and(12, 10) = 8</string>
+    <string name="formula_or_name">按位或</string>
+    <string name="formula_or_desc">任一数中为 1 的位：or(12, 10) = 14</string>
+    <string name="formula_xor_name">按位异或</string>
+    <string name="formula_xor_desc">恰好在一个数中为 1 的位：xor(12, 10) = 6</string>
+    <string name="formula_not_name">按位取反</string>
+    <string name="formula_not_desc">翻转所有位：not(5) = −6</string>
+    <string name="formula_shl_name">左移</string>
+    <string name="formula_shl_desc">shl(n, k)：把各位左移 k 位，即 n·2ᵏ：shl(1, 4) = 16（也可写 n &lt;&lt; k）</string>
+    <string name="formula_shr_name">右移</string>
+    <string name="formula_shr_desc">shr(n, k)：把各位右移 k 位：shr(16, 2) = 4（也可写 n &gt;&gt; k）</string>
+    <string name="keypad_matrix">矩阵或向量</string>
+    <string name="formulas_title">函数</string>
+    <string name="formulas_hint">多个值之间用“%1$s”分隔：长按小数点键即可输入</string>
+    <string name="undo_history_cleared">历史记录已清除</string>
+    <string name="undo_entry_deleted">记录已删除</string>
+    <string name="undo_action">撤销</string>
+    <string name="formulas_search">搜索（标准差、四舍五入、nCr）…</string>
+    <string name="constant_category_math">数学</string>
+    <string name="constant_category_physics">物理</string>
+    <string name="constant_category_em">电磁学</string>
+    <string name="constant_category_thermo">热力学</string>
+    <string name="constant_category_chemistry">化学</string>
+    <string name="constant_category_atomic">原子物理</string>
+    <string name="constant_pi">圆周率（阿基米德常数）</string>
+    <string name="constant_e">自然常数（欧拉数）</string>
+    <string name="constant_phi">黄金比例</string>
+    <string name="constant_sqrt2">毕达哥拉斯常数</string>
+    <string name="constant_c">真空中的光速</string>
+    <string name="constant_h">普朗克常数</string>
+    <string name="constant_hbar">约化普朗克常数</string>
+    <string name="constant_gravitation">万有引力常数</string>
+    <string name="constant_g">标准重力加速度</string>
+    <string name="constant_qe">元电荷</string>
+    <string name="constant_eps0">真空介电常数</string>
+    <string name="constant_mu0">真空磁导率</string>
+    <string name="constant_ke">库仑常数</string>
+    <string name="constant_kb">玻尔兹曼常数</string>
+    <string name="constant_gasconstant">摩尔气体常数</string>
+    <string name="constant_sigma">斯特藩-玻尔兹曼常数</string>
+    <string name="constant_wien">维恩位移常数</string>
+    <string name="constant_na">阿伏伽德罗常数</string>
+    <string name="constant_faraday">法拉第常数</string>
+    <string name="constant_vm">理想气体摩尔体积（0 °C，1 atm）</string>
+    <string name="constant_mu">原子质量常数</string>
+    <string name="constant_me">电子质量</string>
+    <string name="constant_mp">质子质量</string>
+    <string name="constant_mn">中子质量</string>
+    <string name="constant_alpha">精细结构常数</string>
+    <string name="constant_a0">玻尔半径</string>
+    <string name="constant_rinf">里德伯常数</string>
+    <string name="constant_mub">玻尔磁子</string>
+    <string name="constants_title">数学与物理常数</string>
+    <string name="constants_search">搜索常数（c, h, π, G）…</string>
+    <string name="units_insert_title">插入单位</string>
+    <string name="units_search">搜索，例如 km、压强、加仑</string>
+    <string name="units_clear_search">清除搜索</string>
+    <string name="units_none">未找到单位</string>
+    <string name="matrix_vector_2d">二维向量</string>
+    <string name="matrix_vector_3d">三维向量</string>
+    <string name="matrix_kind_matrix">矩阵</string>
+    <string name="matrix_kind_column_vector">列向量</string>
+    <string name="matrix_kind_row_vector">行向量</string>
+    <string name="matrix_title">矩阵或向量</string>
+    <string name="matrix_drag_hint">拖动选择大小，松开即可插入。向量是只有一列（或一行）的矩阵</string>
+    <string name="matrix_insert">插入</string>
+    <string name="common_cancel">取消</string>
+    <string name="variable_title">变量</string>
+    <string name="variable_prompt">输入一个字母</string>
+    <string name="variable_is_constant">%1$s 是常数</string>
+    <string name="variable_is_transpose">T 表示矩阵的转置</string>
+    <string name="variable_hint_derivative">对 %1$s 求导</string>
+    <string name="variable_hint_integral">对 %1$s 积分</string>
+    <string name="keypad_variable">字母</string>
+    <string name="typing_hint">字母是变量：ab 表示 a · b。函数名加 (，例如 sin( 或 mean(，即开始该函数。</string>
+    <string name="notice_complex_on">复数现已开启。你可以在设置中关闭。</string>
+    <string name="message_copied">已复制</string>
+    <string name="message_cant_paste">无法将“%1$s”粘贴为数学表达式</string>
+    <string name="message_cant_paste_lines">多行内容不能粘贴到分数、根式等中</string>
+    <string name="result_form_exact">精确</string>
+    <string name="result_form_decimal">小数</string>
+    <string name="result_form_scientific">科学</string>
+    <string name="result_form_mixed">带分数</string>
+    <string name="result_form_polar">极坐标</string>
+    <string name="history_delete">删除</string>
+    <string name="keypad_backspace">退格</string>
+    <string name="keypad_units">单位</string>
+    <string name="keypad_formulas">函数</string>
+    <string name="keypad_formulas_short">函数</string>
+    <string name="keypad_constants">常数</string>
+    <string name="keypad_constants_short">常数</string>
+    <string name="keypad_graph">图形</string>
+    <string name="keypad_graph_2d">二维图形</string>
+    <string name="keypad_enter">确认</string>
+    <string name="keypad_new_line">换行</string>
+    <string name="keypad_settings">设置</string>
+    <string name="keypad_number_base">进制</string>
+    <string name="result_form_hex">HEX</string>
+    <string name="result_form_oct">OCT</string>
+    <string name="result_form_bin">BIN</string>
+    <string name="settings_session">会话</string>
+    <string name="settings_session_desc">保存或打开输入行和历史记录</string>
+    <string name="settings_session_save">保存…</string>
+    <string name="settings_session_open">打开…</string>
+    <string name="session_file_name">calculator-%1$s.txt</string>
+    <string name="session_import_title">打开会话</string>
+    <string name="session_import_text">已有历史记录。要用文件中的记录替换它，还是把文件中的记录添加到下方？</string>
+    <string name="session_import_replace">替换</string>
+    <string name="session_import_add">添加到下方</string>
+    <string name="session_cancel">取消</string>
+    <string name="session_saved">会话已保存</string>
+    <string name="session_save_failed">无法保存会话</string>
+    <string name="session_not_a_session">此文件不是已保存的会话</string>
+    <string name="session_read_failed">无法读取该文件</string>
+    <plurals name="graph_summary_curves">
+        <item quantity="other">%d 条曲线</item>
+    </plurals>
+    <plurals name="graph_summary_crossings">
+        <item quantity="other">%d 个交点</item>
+    </plurals>
+    <plurals name="session_opened">
+        <item quantity="other">已打开 %1$d 条记录</item>
+    </plurals>
+    <plurals name="session_opened_skipped">
+        <item quantity="other">，%1$d 条无法计算，已略过</item>
+    </plurals>
+    <string name="keypad_infinity">无穷大</string>
+    <string name="keypad_mixed_number">带分数</string>
+    <string name="graph_tool_trace">追踪</string>
+    <string name="graph_tool_tangent">切线</string>
+    <string name="graph_tool_integral">积分</string>
+    <string name="graph_point_zero">零点</string>
+    <string name="graph_point_maximum">极大值</string>
+    <string name="graph_point_minimum">极小值</string>
+    <string name="graph_point_inflection">拐点</string>
+    <string name="graph_point_y_intercept">y 轴截距</string>
+    <string name="graph_cannot_plot">无法绘制此表达式</string>
+    <string name="graph_tap_hint">点按曲线以放置光标</string>
+    <string name="graph_recenter">重新居中</string>
+    <string name="graph_close">关闭图形</string>
+    <string name="graph_toggle_curve">显示或隐藏曲线</string>
+    <string name="graph_curve_shown">已显示</string>
+    <string name="graph_curve_hidden">已隐藏</string>
+    <string name="graph_add_line">添加方程</string>
+    <string name="graph_intersection">交点</string>
+    <string name="graph_line_cannot_plot">无法绘制</string>
+    <string name="graph_surface_alone">只绘制曲面：三维图形不能与其他行组合</string>
+    <string name="graph_axes">坐标轴</string>
+    <string name="graph_log_x">对数 x 轴</string>
+    <string name="graph_log_y">对数 y 轴</string>
+    <string name="graph_polar">极坐标</string>
+    <string name="graph_drag_curve">沿曲线拖动该点；会吸附到高亮的点</string>
+    <string name="graph_drag_graph">沿图形拖动；会吸附到高亮的点</string>
+    <string name="graph_vertical_tangent">垂直切线</string>
+    <string name="graph_slope">斜率 = %1$s</string>
+    <string name="graph_integral_hint">拖动 a 或 b；它们会吸附到零点和交点</string>
+    <string name="graph_surface_hint">单指旋转 · 双指移动和缩放</string>
+
+    <!-- In-app help (Settings → Help): the help screen, its topics and their pages -->
+    <string name="help_open">如何使用此应用</string>
+    <string name="help_title">帮助</string>
+    <string name="help_back">返回</string>
+    <string name="help_search">搜索帮助（taylor、矩阵、单位）…</string>
+    <string name="help_no_results">未找到内容</string>
+    <string name="help_intro">第一次使用？先看上面的主题。下面的每个函数都有语法和示例。</string>
+    <string name="help_example">示例</string>
+    <string name="help_section_basics">入门</string>
+    <string name="help_section_functions">函数详解</string>
+    <string name="help_heading_where">在哪里找到</string>
+    <string name="help_heading_syntax">语法</string>
+    <string name="help_heading_examples">示例</string>
+    <string name="help_heading_good_to_know">须知</string>
+
+    <string name="help_screen_title">屏幕</string>
+    <string name="help_screen_summary">历史记录、输入行、实时结果和键盘</string>
+    <string name="help_screen_1">从上到下依次是：计算的历史记录、输入行及其结果，以及键盘。</string>
+    <string name="help_screen_2">结果会在输入时自动计算，无需按任何键就能看到。方程会被求解，导数和积分也同样会被算出。</string>
+    <string name="help_screen_3">按确认键（↵）可把当前行及其结果移入历史记录，并开始新的一行。</string>
+    <string name="help_screen_4">如果某行无法计算，会在结果的位置用红色显示原因。</string>
+
+    <string name="help_keypad_title">键盘及其页面</string>
+    <string name="help_keypad_summary">左右滑动可切换到科学计算键和工具</string>
+    <string name="help_keypad_1">键盘共有三页，初始显示中间带数字的一页。科学计算键在左边一页（向右滑动前往），工具在右边一页（向左滑动前往）。按键上方的圆点表示当前所在页面，点按圆点即可跳转。在平板或展开的折叠屏上，三页会并排显示。</string>
+    <string name="help_keypad_main">中间页：数字</string>
+    <string name="help_keypad_digits">数字、小数点，以及用于科学记数法的 ×10ⁿ（5×10³）</string>
+    <string name="help_keypad_operators">基本运算。÷ 会生成分数，前面的数作为分子</string>
+    <string name="help_keypad_parentheses">一对括号，光标在括号内</string>
+    <string name="help_keypad_backspace">删除光标前的内容</string>
+    <string name="help_keypad_enter">把当前行及其结果放入历史记录</string>
+    <string name="help_keypad_left">左页：科学计算键</string>
+    <string name="help_keypad_row1">阶乘、平方、平方根和以 10 为底的对数</string>
+    <string name="help_keypad_row2">矩阵或向量（打开大小选择器），以及三角函数</string>
+    <string name="help_keypad_row3">积分、求和、虚数单位 i 和 π</string>
+    <string name="help_keypad_row4">用于方程的等号、变量 x、用于其他字母的 abc（打开系统键盘），以及自然常数 e</string>
+    <string name="help_keypad_right">右页：工具</string>
+    <string name="help_keypad_clear">C 清除当前行。在空行上它变为 AC，同时清除历史记录（可以撤销）</string>
+    <string name="help_keypad_units">打开单位列表（km、psi、kWh、…），把单位插入当前行</string>
+    <string name="help_keypad_functions">打开函数选择器：统计、组合数学、取整、概率分布、泰勒多项式、微分方程等</string>
+    <string name="help_keypad_constants">打开数学与物理常数（c、h、G、…）</string>
+    <string name="help_keypad_graph">把当前行绘制成图形</string>
+    <string name="help_keypad_settings">设置，以及本帮助</string>
+    <string name="help_keypad_top">按键上方</string>
+    <string name="help_keypad_angle">sin、cos 和 tan 的角度单位：弧度或角度。点按切换</string>
+    <string name="help_keypad_base">进制：DEC 为普通数字，HEX、OCT 和 BIN 会把左页变成程序员键（A 到 F、AND、OR、移位）</string>
+
+    <string name="help_long_press_title">长按获取更多函数</string>
+    <string name="help_long_press_summary">ln、asin、d/dx、lim、≤、:= 等在哪里</string>
+    <string name="help_long_press_1">许多按键的功能比标签上显示的更多。按住一个键，会弹出包含其他功能的窗口。把手指滑到想要的功能上再松开。不滑动直接松开则使用主功能。</string>
+    <string name="help_long_press_2">按键下角的小标签显示弹出窗口中有什么；“…”表示还有更多。有些弹出窗口在第一行上方还有第二行，例如 sin 上方的双曲函数。</string>
+    <string name="help_long_press_factorial">%、mod 和 Γ；其上方为位运算 AND、OR、XOR 和 NOT</string>
+    <string name="help_long_press_square">任意次幂 □ⁿ，以及倒数 □⁻¹（也是矩阵的逆）</string>
+    <string name="help_long_press_root">n 次方根 ⁿ√□</string>
+    <string name="help_long_press_log">自然对数 ln，以及以任意数为底的对数 logₙ</string>
+    <string name="help_long_press_matrix">转置 Aᵀ、det、rref 和 eig；其上方为向量函数 dot、cross、norm、angle、proj 和 unitvec</string>
+    <string name="help_long_press_trig">反函数（asin）、倒数函数（csc、sec、cot）及其反函数；其上方为双曲函数（sinh、asinh、…）</string>
+    <string name="help_long_press_integral">带上下限的定积分、导数 d/dx，以及某点处的导数</string>
+    <string name="help_long_press_sum">求积 ∏ 和极限 lim</string>
+    <string name="help_long_press_i">极坐标形式的复数 r∠θ</string>
+    <string name="help_long_press_pi">无穷大 ∞，用于极限、求和与积分</string>
+    <string name="help_long_press_equals">用于定义变量的 :=，以及用于不等式的 &lt; &gt; ≤ ≥</string>
+    <string name="help_long_press_x">变量 y 和 z</string>
+    <string name="help_long_press_plus_minus">上标的 + 或 −，用于单侧极限（x → 0⁺）</string>
+    <string name="help_long_press_divide">带分数（3½），以及作为符号而非分数的 ÷</string>
+    <string name="help_long_press_point">函数各值之间的分隔符，如 mean(2, 4, 9)</string>
+    <string name="help_long_press_enter">换行（用于方程组或图形中的多条曲线），以及表示上一个结果的 Ans</string>
+    <string name="help_long_press_units">用于换算为其他单位的箭头 →</string>
+
+    <string name="help_editing_title">编辑输入</string>
+    <string name="help_editing_summary">光标、选择、复制和粘贴</string>
+    <string name="help_editing_1">点按行中任意位置即可把光标放到那里。分数、幂和根式的各部分都有方框（□）；点按方框或把光标移入其中即可填写。</string>
+    <string name="help_editing_2">按住可选择行的一部分，继续拖动可选择更多。选区下方的手柄可以调整选区。松开手指后，菜单会提供剪切、复制、粘贴和全选。</string>
+    <string name="help_editing_3">选中内容后，函数键会把它包起来：选中 2x + 1 再点按 √□，得到 √(2x + 1)。</string>
+    <string name="help_editing_4">要粘贴，点按光标（或按住空白处）并选择粘贴。可以粘贴从其他应用复制的数字。</string>
+    <string name="help_editing_5">方程组或多个图形要写成多行：长按确认键并选择“换行”。</string>
+
+    <string name="help_history_title">历史记录</string>
+    <string name="help_history_summary">重用、复制和删除以前的计算</string>
+    <string name="help_history_1">点按某条记录的算式，可把它放回输入行进行修改。</string>
+    <string name="help_history_2">点按某条记录的结果，可用它开始新的一行。</string>
+    <string name="help_history_3">按住算式或结果可复制它。向侧边滑动记录可删除；随后的提示可让你撤销。</string>
+    <string name="help_history_4">Ans（长按确认键）表示上一个结果，所以 2·Ans 就是它的两倍。</string>
+
+    <string name="help_results_title">结果形式与步骤</string>
+    <string name="help_results_summary">精确值或小数，以及分步解答</string>
+    <string name="help_results_1">结果尽可能为精确值：分数、根式和 π 保持原样。结果旁的按钮可在适用的形式之间切换：精确、小数、科学（科学记数法）、带分数、极坐标（复数）以及 HEX、OCT、BIN。</string>
+    <string name="help_results_forms_example">精确；点按“小数”得到 0.5833333333</string>
+    <string name="help_results_2">“步骤”会打开分步解答：每一步都附有所用的规则。方程、方程组、不等式、导数、积分、极限、矩阵、泰勒多项式、微分方程等都有步骤。</string>
+    <string name="help_results_3">按住结果可复制它。</string>
+
+    <string name="help_variables_title">变量与字母</string>
+    <string name="help_variables_summary">x、y、z、任意字母，以及用 := 保存值</string>
+    <string name="help_variables_1">x 键输入 x；长按可输入 y 和 z。其他字母请点按 abc：系统键盘会打开并输入到当前行。相邻的字母表示相乘，所以 ab 表示 a·b。函数名后接“(”即开始该函数，例如 sin( 或 mean(。</string>
+    <string name="help_variables_2">变量是小写字母。e、π 和 i 是常数，不是变量。</string>
+    <string name="help_variables_define">保存一个值</string>
+    <string name="help_variables_3">输入一个字母、:=（长按 =）和一个值，然后按确认键。此后该字母在每一行中都具有这个值。</string>
+    <string name="help_variables_4">这样也可以保存矩阵和向量，例如 m := 一个矩阵，之后的行中就能使用 m。从历史记录中删除该行即可让它忘记这个值。</string>
+
+
+    <string name="help_functions_title">函数选择器</string>
+    <string name="help_functions_summary">统计、组合数学、取整等</string>
+    <string name="help_functions_1">右页上的“函数”键会打开所有没有单独按键的函数，并按主题分类。可以搜索名称或描述中的词。每个条目都说明了函数的作用及写法。</string>
+    <string name="help_functions_2">点按一个函数即可把它放入当前行，光标在其中。各值之间用分隔符隔开：长按小数点键即可输入。</string>
+    <string name="help_functions_3">如果先选中一些值（2, 4, 9）再选择函数，函数会使用这些值。</string>
+
+    <string name="help_equations_title">方程与不等式</string>
+    <string name="help_equations_summary">解 x、方程组、不等式</string>
+    <string name="help_equations_1">用 = 键（左页）输入方程。输入时就会对其变量求解。</string>
+    <string name="help_equations_systems">方程组</string>
+    <string name="help_equations_2">每个方程各写一行：在它们之间长按确认键并选择“换行”。可以求解线性方程组和许多非线性方程组。</string>
+    <string name="help_equations_inequalities">不等式</string>
+    <string name="help_equations_3">长按 = 可输入 &lt;、&gt;、≤ 和 ≥。步骤中还会以区间表示和数轴给出解。</string>
+
+    <string name="help_derivatives_title">导数</string>
+    <string name="help_derivatives_summary">d/dx、某点处的导数、偏导数</string>
+    <string name="help_derivatives_1">长按 ∫dx（左页）并选择 d/dx，然后在其中输入函数。</string>
+    <string name="help_derivatives_2">要求某点处导数的值，选择弹出窗口中的第三项，即带 x = a 的 d/dx，并填入该点。</string>
+    <string name="help_derivatives_3">要对其他变量求导，点按 dx 中的 x 并输入字母。函数中有第二个变量时，导数为偏导数，写作 ∂/∂x。</string>
+    <string name="help_derivatives_partial_note">这里 y 是常数</string>
+
+    <string name="help_integrals_title">积分</string>
+    <string name="help_integrals_summary">原函数与定积分</string>
+    <string name="help_integrals_1">点按 ∫dx（左页）求原函数，并在其中输入函数。</string>
+    <string name="help_integrals_2">求定积分时，长按 ∫dx 并选择带上下限的那项；填入下限和上限。∞（长按 π）也可作为积分限。</string>
+    <string name="help_integrals_3">点按 dx 中的 x 可对其他变量积分。没有解析式的定积分会用数值方法计算。</string>
+
+    <string name="help_limits_title">求和、求积与极限</string>
+    <string name="help_limits_summary">Σ、∏、lim，以及对列表的 sum 或 prod</string>
+    <string name="help_limits_1">点按 Σ（左页）求和：填入下标及其起始值（n = 1）、终止值和通项。长按 Σ 可求积 ∏。</string>
+    <string name="help_limits_2">长按 Σ 并选择 lim 求极限：填入箭头后的点和函数。</string>
+    <string name="help_limits_side_note">上标的 +（长按 +）表示右极限</string>
+
+    <string name="help_taylor_title">泰勒多项式</string>
+    <string name="help_taylor_summary">taylor(f, x, a, n)：在某点附近把函数表示为多项式</string>
+    <string name="help_taylor_1">taylor 给出函数的泰勒多项式：在点 a 处与函数及其前 n 阶导数都相同的多项式。在 a 附近它能很好地逼近该函数。</string>
+    <string name="help_taylor_where">函数（右页）→ 微积分 → 泰勒多项式。或点按 abc 并输入 taylor( 。</string>
+    <string name="help_taylor_syntax_1">在 0 附近，关于 f 唯一的变量，直到 n 次幂</string>
+    <string name="help_taylor_syntax_2">关于变量 x，在 0 附近，直到 n 次幂。f 有多个变量时需要</string>
+    <string name="help_taylor_syntax_3">关于 x，在点 a 附近，直到 n 次幂。a 是数或常数，如 π</string>
+    <string name="help_taylor_example_point">在 a = 1 附近，按 (x − 1) 的幂展开</string>
+    <string name="help_taylor_notes_1">n 是 0 到 12 之间的整数。</string>
+    <string name="help_taylor_notes_2">f 及其导数在 a 处必须有定义：taylor(ln(x), x, 0, 3) 或 taylor(sin(x)/x, x, 0, 4) 会报错。请换一个点，或先化简 f。</string>
+    <string name="help_taylor_notes_3">结果是可以继续运算的多项式：可对它求导或积分，或在图形中与 f 一起绘制（各占一行），看看它在哪里接近 f。“步骤”展示完整过程：n 次泰勒公式、各阶导数、它们在 a 处的值、代入的值以及化简后的多项式。</string>
+
+    <string name="help_dsolve_title">微分方程</string>
+    <string name="help_dsolve_summary">dsolve：一阶和二阶常微分方程</string>
+    <string name="help_dsolve_1">dsolve 对未知函数 y(x) 求解常微分方程：给出含常数 C（C₁、C₂）的通解，或在给定初始条件时给出满足条件的那个解。</string>
+    <string name="help_dsolve_where">函数（右页）→ 微积分 → 微分方程。或点按 abc 并输入 dsolve( 。</string>
+    <string name="help_dsolve_typing">y′ 用导数键输入：长按 ∫dx 并选择 d/dx，然后输入 y（长按 x）。y″ 则在 d/dx 中再放一个 d/dx。= 是左页上的键，条件前的逗号通过长按小数点键输入。</string>
+    <string name="help_dsolve_syntax_1">通解</string>
+    <string name="help_dsolve_syntax_2">一阶，带初始条件 y(x₀) = y₀</string>
+    <string name="help_dsolve_syntax_3">二阶，带条件 y(x₀) = y₀ 和 y′(x₀) = y′₀</string>
+    <string name="help_dsolve_kinds">能求解的类型</string>
+    <string name="help_dsolve_kinds_1">一阶：线性方程 a·y′ + b·y = c（a、b、c 可以依赖于 x），以及可分离变量方程 y′ = f(x)·g(y)。当可分离变量方程无法解出 y 时，解以关于 x 和 y 的方程给出。同时属于两类的方程，如 y′ = 3x·y，与大多数教科书一样用分离变量法求解。</string>
+    <string name="help_dsolve_kinds_2">二阶：a·y″ + b·y′ + c·y = r(x)，其中 a、b、c 为数。右边 r(x) 可以为 0，或由多项式、eᵏˣ、sin 和 cos 组成。</string>
+    <string name="help_dsolve_example_separable">可分离变量</string>
+    <string name="help_dsolve_example_linear">一阶线性</string>
+    <string name="help_dsolve_example_condition">带 y(0) = 3</string>
+    <string name="help_dsolve_example_second">二阶，y″ + y = 0</string>
+    <string name="help_dsolve_example_second_condition">带 y(0) = 0 和 y′(0) = 1</string>
+    <string name="help_dsolve_notes_1">每个解都会代回方程进行检验。其他类型的方程（y′ = y² + x、非常系数的 y″、三阶）不会求解，并给出提示。</string>
+    <string name="help_dsolve_notes_2">未知函数可以用 y 以外的字母，自变量为 x，除非你点按 dx 中的 x 进行更改。“步骤”会展示所用的方法：分离变量、积分因子或特征方程。</string>
+
+    <string name="help_matrices_title">矩阵与向量</string>
+    <string name="help_matrices_summary">大小选择器、det、逆矩阵、特征值、向量函数</string>
+    <string name="help_matrices_1">点按矩阵键（左页上带方括号的网格）。在网格上拖动选择大小，松开手指即可插入，也可选择二维或三维向量。向量是只有一列（或一行）的矩阵。</string>
+    <string name="help_matrices_2">矩阵用常规按键进行加、减、乘。长按矩阵键可使用转置、det、rref（行化简）和 eig（特征值与特征向量）。逆矩阵为 □⁻¹（长按 □²）。</string>
+    <string name="help_matrices_3">弹出窗口的上一行是向量函数：点积和叉积、范数、两向量的夹角、投影和单位向量。</string>
+    <string name="help_matrices_4">要再次使用矩阵，请用 := 保存（见“变量”）。带参数的直线，如 (1, 2) + r·(2, 1)，可以在图形中绘制。</string>
+
+    <string name="help_complex_title">复数</string>
+    <string name="help_complex_summary">i，极坐标形式 r∠θ</string>
+    <string name="help_complex_1">点按 i（左页）输入虚数单位；这会在设置中开启复数。长按 i 可输入极坐标形式 r∠θ。</string>
+    <string name="help_complex_2">复数结果旁的“极坐标”按钮会把它显示为 r∠θ。函数选择器的“复数”下有 re、im、arg 和 conj。</string>
+
+    <string name="help_units_title">单位与常数</string>
+    <string name="help_units_summary">带单位计算、换算、物理常数</string>
+    <string name="help_units_1">点按“单位”（右页）并搜索单位，把它放在数字后面。带单位的计算会自动处理单位，结果以设置中的单位制显示。</string>
+    <string name="help_units_2">要换算，长按“单位”输入箭头 →，然后在其后放上目标单位。</string>
+    <string name="help_units_3">“常数”（右页）包含带单位的数学与物理常数，例如光速 c 或普朗克常数 h。按名称或符号搜索，点按即可插入。</string>
+
+    <string name="help_graph_title">图形</string>
+    <string name="help_graph_summary">曲线、交点、切线、面积、三维曲面</string>
+    <string name="help_graph_1">输入函数并点按“图形”（右页）。多行会绘制成多条曲线，并标出它们的交点。</string>
+    <string name="help_graph_example_function">关于 x 的函数</string>
+    <string name="help_graph_example_implicit">关于 x 和 y 的方程：一个圆</string>
+    <string name="help_graph_example_surface">关于 x 和 y 的函数绘制为三维曲面</string>
+    <string name="help_graph_2">双指缩放，拖动平移。点按曲线可在其上放置一个点；它会吸附到零点、极大值、极小值、拐点和交点。</string>
+    <string name="help_graph_3">图形工具：“追踪”沿曲线移动，“切线”显示该点的斜率，“积分”显示两个界限 a 和 b 之间的面积。坐标轴菜单中有对数坐标轴和极坐标。</string>
+    <string name="help_graph_4">要添加曲线，请使用“添加方程”；每条曲线都可以隐藏后再显示。三维曲面单指旋转，双指移动和缩放。</string>
+
+    <string name="help_bases_title">十六进制、八进制和二进制</string>
+    <string name="help_bases_summary">程序员键和位运算</string>
+    <string name="help_bases_1">点按键盘上方的 DEC 并选择 HEX、OCT 或 BIN。此时数字键按该进制输入，左页有数字 A 到 F 以及位运算键 AND、OR、XOR、NOT 和移位 &lt;&lt;、&gt;&gt;。数字会自动加上前缀（0x、0o、0b），结果也以该进制显示。</string>
+    <string name="help_bases_2">回到 DEC 后，结果按钮 HEX、OCT 和 BIN 仍会把整数显示为其他进制。</string>
+    <string name="help_bases_example_note">在 HEX 模式下输入</string>
+    <string name="help_dsolve_equation">方程</string>
+    <string name="help_history_sessions">保存与打开</string>
+    <string name="help_history_5">设置 → 会话 → 保存… 会把输入行和全部历史记录写入一个文本文件，例如用来保留一组计算或转移到其他设备。打开… 会读回这样的文件：用它替换历史记录，或把其中的记录添加到下方。</string>
+    <string name="help_limits_lists">对于数字列表，不需要下标：函数选择器中的 sum 和 prod（函数 → 统计）会把列出的值相加或相乘。</string>
+    <string name="help_try">试一试</string>
+    <string name="help_try_description">把 %1$s 放入当前行</string>
+    <string name="help_hint_title">第一次使用？</string>
+    <string name="help_hint_text">了解每个函数的位置和用法。帮助也可以在设置中找到。</string>
+    <string name="help_hint_open">告诉我</string>
+    <string name="help_hint_dismiss">关闭</string>
+    <string name="formulas_help">%1$s 的帮助</string>
+</resources>

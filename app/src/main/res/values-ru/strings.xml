@@ -1,0 +1,919 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Calculator</string>
+
+    <!-- Names of the rules in the step-by-step solutions -->
+    <string name="step_constant">Производная константы равна нулю</string>
+    <string name="step_variable">Производная переменной равна единице</string>
+    <string name="step_sum">Дифференцировать почленно</string>
+    <string name="step_constant_factor">Вынести константу</string>
+    <string name="step_product">Применить правило произведения</string>
+    <string name="step_quotient">Применить правило частного</string>
+    <string name="step_power">Применить правило степени</string>
+    <string name="step_exponential">Продифференцировать показательную функцию</string>
+    <string name="step_general_power">Записать степень с основанием e</string>
+    <string name="step_logarithm">Продифференцировать логарифм</string>
+    <string name="step_change_of_base">Перейти к другому основанию логарифма</string>
+    <string name="step_sine">Продифференцировать синус</string>
+    <string name="step_cosine">Продифференцировать косинус</string>
+    <string name="step_tangent">Продифференцировать тангенс</string>
+    <string name="step_arcsine">Продифференцировать арксинус</string>
+    <string name="step_arccosine">Продифференцировать арккосинус</string>
+    <string name="step_arctangent">Продифференцировать арктангенс</string>
+    <string name="step_secant">Продифференцировать секанс</string>
+    <string name="step_cosecant">Продифференцировать косеканс</string>
+    <string name="step_cotangent">Продифференцировать котангенс</string>
+    <string name="step_arcsecant">Продифференцировать арксеканс</string>
+    <string name="step_arccosecant">Продифференцировать арккосеканс</string>
+    <string name="step_arccotangent">Продифференцировать арккотангенс</string>
+    <string name="step_sinh">Продифференцировать гиперболический синус</string>
+    <string name="step_cosh">Продифференцировать гиперболический косинус</string>
+    <string name="step_tanh">Продифференцировать гиперболический тангенс</string>
+    <string name="step_sech">Продифференцировать гиперболический секанс</string>
+    <string name="step_csch">Продифференцировать гиперболический косеканс</string>
+    <string name="step_coth">Продифференцировать гиперболический котангенс</string>
+    <string name="step_asinh">Продифференцировать обратный гиперболический синус</string>
+    <string name="step_acosh">Продифференцировать обратный гиперболический косинус</string>
+    <string name="step_atanh">Продифференцировать обратный гиперболический тангенс</string>
+    <string name="step_asech">Продифференцировать обратный гиперболический секанс</string>
+    <string name="step_acsch">Продифференцировать обратный гиперболический косеканс</string>
+    <string name="step_acoth">Продифференцировать обратный гиперболический котангенс</string>
+    <string name="step_gamma">Продифференцировать гамма-функцию</string>
+    <string name="step_lngamma">Продифференцировать логарифм гамма-функции</string>
+    <string name="step_erf">Продифференцировать функцию ошибок</string>
+    <string name="step_erfc">Продифференцировать дополнительную функцию ошибок</string>
+    <string name="step_lambertw">Продифференцировать W-функцию Ламберта</string>
+    <string name="step_sinint">Продифференцировать интегральный синус</string>
+    <string name="step_cosint">Продифференцировать интегральный косинус</string>
+    <string name="step_expint">Продифференцировать интегральную показательную функцию</string>
+    <string name="step_integral_gaussian">Проинтегрировать функцию Гаусса (получается функция ошибок)</string>
+    <string name="step_integral_sine_over_x">Проинтегрировать sin(x)/x (получается интегральный синус Si)</string>
+    <string name="step_integral_cosine_over_x">Проинтегрировать cos(x)/x (получается интегральный косинус Ci)</string>
+    <string name="step_integral_exponential_over_x">Проинтегрировать eˣ/x (получается интегральная показательная функция Ei)</string>
+    <string name="step_normal_density">Подставить значения в плотность нормального распределения</string>
+    <string name="step_normal_probability">Записать нормальную вероятность через функцию ошибок</string>
+    <string name="step_normal_quantile">Масштабировать квантиль стандартного нормального распределения</string>
+    <string name="step_student_density">Подставить значения в плотность распределения Стьюдента</string>
+    <string name="step_chi_square_density">Подставить значения в плотность распределения хи-квадрат</string>
+    <string name="step_binomial_probability">Подставить значения в биномиальную вероятность</string>
+    <string name="step_binomial_cumulative">Сложить биномиальные вероятности от 0 до k</string>
+    <string name="step_poisson_probability">Подставить значения в вероятность Пуассона</string>
+    <string name="step_poisson_cumulative">Сложить вероятности Пуассона от 0 до k</string>
+    <string name="step_binomial_coefficient">Вычислить биномиальный коэффициент</string>
+    <string name="step_factorial">Вычислить факториал</string>
+    <string name="step_write_out_sum">Расписать сумму, вычислив её члены</string>
+    <string name="step_dot_product">Перемножить соответствующие компоненты и сложить</string>
+    <string name="step_cross_product">Вычислить векторное произведение покомпонентно</string>
+    <string name="step_vector_norm">Длина вектора — корень из суммы квадратов его компонент</string>
+    <string name="step_vector_angle">Угол находится из скалярного произведения и длин двух векторов</string>
+    <string name="step_vector_projection">Спроецировать вектор на другой</string>
+    <string name="step_unit_vector">Разделить вектор на его длину</string>
+    <string name="step_compare_components">Два вектора равны, когда равны их компоненты: по одному уравнению на компоненту</string>
+    <string name="step_insert_parameter">Подставить параметр в уравнение его прямой, чтобы получить точку пересечения</string>
+    <string name="step_absolute_value">Продифференцировать модуль</string>
+    <string name="step_fundamental_theorem">Применить формулу Ньютона — Лейбница</string>
+    <string name="step_imaginary_root">Извлечь корень из отрицательного числа</string>
+    <string name="step_multiply_numbers">Перемножить числа</string>
+    <string name="step_extend_fractions">Привести дроби к общему знаменателю</string>
+    <string name="step_tangent_as_fraction">Записать тангенс как синус, делённый на косинус</string>
+    <string name="step_reciprocal_equation">Перейти к обратным величинам в обеих частях: секанс ↔ косинус, косеканс ↔ синус, котангенс ↔ тангенс</string>
+    <string name="step_reciprocal_trigonometric">Записать секанс, косеканс и котангенс через синус и косинус</string>
+    <string name="step_hyperbolic_solution">Применить обратную гиперболическую функцию (для cosh и sech отрицательное значение тоже является решением)</string>
+    <string name="step_exact_trigonometric_value">Точное значение для особого угла (единичная окружность)</string>
+    <string name="step_logarithm_of_power">Логарифм степени своего основания равен показателю</string>
+    <string name="step_exponential_of_logarithm">Основание в степени своего логарифма равно числу</string>
+    <string name="step_root_of_fraction">Корень из дроби: корень из числителя, делённый на корень из знаменателя</string>
+    <string name="step_polynomial_division">Разделить многочлены: частное и дробь меньшей степени</string>
+    <string name="step_cyclic_by_parts">Дважды проинтегрировать по частям: тот же интеграл появляется снова, выразить его</string>
+    <string name="step_half_angle">Записать квадрат синуса или косинуса через двойной угол</string>
+    <string name="step_pythagorean_identity">Квадрат синуса плюс квадрат косинуса одного угла равен 1</string>
+    <string name="step_secant_identity">Квадрат секанса минус квадрат тангенса одного угла равен 1</string>
+    <string name="step_cosecant_identity">Квадрат косеканса минус квадрат котангенса одного угла равен 1</string>
+    <string name="step_hyperbolic_identity">Квадрат гиперболического косинуса минус квадрат гиперболического синуса одного числа равен 1</string>
+    <string name="step_reciprocal_functions">Функция, умноженная на обратную ей функцию того же угла, равна 1</string>
+    <string name="step_exact_hyperbolic_value">Точное значение гиперболической функции (в 0 или в логарифме)</string>
+    <string name="step_trig_odd_power">Нечётная степень синуса или косинуса: оставить один множитель, остальное записать через другую функцию</string>
+    <string name="step_rationalize">Избавиться от корня в знаменателе: умножить числитель и знаменатель на него</string>
+    <string name="step_divide_by_negative">Разделить обе части на отрицательное число: знак неравенства меняется на противоположный</string>
+    <string name="step_multiply_by_negative">Умножить обе части на отрицательное число: знак неравенства меняется на противоположный</string>
+    <string name="step_inequality_swap">Поменять части местами: знак неравенства меняется на противоположный</string>
+    <string name="step_inequality_one_side">Всё перенести влево: сравнить с 0</string>
+    <string name="step_inequality_zeros">Знак может меняться только там, где обе части равны (левая часть минус правая равна 0)</string>
+    <string name="step_inequality_breaks">…или там, где выражение не определено: знаменатель равен 0, или начинается корень или логарифм</string>
+    <string name="step_inequality_critical">Эти точки делят прямую на интервалы; внутри каждого знак одинаков</string>
+    <string name="step_inequality_result">Проверить по одному значению в каждом интервале (и каждую точку): где неравенство выполняется, там решение</string>
+    <string name="step_log_combine">Объединить логарифмы: сумма — логарифм произведения, разность — логарифм частного</string>
+    <string name="step_log_equal">Равные логарифмы с одним основанием: аргументы равны</string>
+    <string name="step_pythagorean">Записать квадрат синуса через косинус (или наоборот)</string>
+    <string name="step_factor_common">Вынести общий множитель</string>
+    <string name="step_root_of_square">Корень из квадрата — это модуль</string>
+    <string name="step_double_angle">Записать двойной угол через одинарный</string>
+    <string name="step_amplitude_form">Объединить синус и косинус в один синус, где R = √(a² + b²) и tan φ = b/a (плюс π, если a &lt; 0)</string>
+    <string name="step_percent_as_fraction">Записать процент как дробь: процент — это сотая доля</string>
+    <string name="step_improper_fraction">Записать смешанное число в виде неправильной дроби</string>
+    <string name="step_multiply_fractions">Перемножить числители и знаменатели</string>
+    <string name="step_simplify_root">Вынести из-под корня наибольший множитель-квадрат</string>
+    <string name="step_divide_numbers">Разделить числа</string>
+    <string name="step_reduce_fraction">Сократить дробь</string>
+    <string name="step_number_power">Вычислить степень</string>
+    <string name="step_divide_by_fraction">Разделить на дробь</string>
+    <string name="step_rewrite_as_power">Записать в виде степени</string>
+    <string name="step_chain_rule">Применить правило дифференцирования сложной функции</string>
+    <string name="step_power_as_root">Записать степень в виде корня</string>
+    <string name="step_power_as_fraction">Записать степень в виде дроби</string>
+    <string name="step_power_of_power">Перемножить показатели</string>
+    <string name="step_power_of_product">Возвести каждый множитель в степень</string>
+    <string name="step_expand">Раскрыть скобки</string>
+    <string name="step_expand_power">Раскрыть степень</string>
+    <string name="step_combine_fractions">Объединить дроби</string>
+    <string name="step_add_numbers">Сложить числа</string>
+    <string name="step_subtract_numbers">Вычесть числа</string>
+    <string name="step_add_and_subtract_numbers">Сложить и вычесть числа</string>
+    <string name="step_subtract_same">Вычесть</string>
+    <string name="step_combine_powers">Сложить показатели</string>
+    <string name="step_cancel_common_factor">Разложить на множители и сократить общий множитель</string>
+    <string name="step_tangent_as_quotient">Синус, делённый на косинус, — это тангенс</string>
+    <string name="step_cancel">Сократить</string>
+    <string name="step_distribute">Раскрыть скобки</string>
+    <string name="step_combine_like_terms">Привести подобные слагаемые</string>
+    <string name="step_integral_constant">Проинтегрировать константу</string>
+    <string name="step_integral_sum">Интегрировать почленно</string>
+    <string name="step_integral_constant_factor">Вынести константу</string>
+    <string name="step_integral_power">Применить правило степени</string>
+    <string name="step_integral_reciprocal">Проинтегрировать 1/x</string>
+    <string name="step_integral_exponential">Проинтегрировать показательную функцию</string>
+    <string name="step_integral_sine">Проинтегрировать синус</string>
+    <string name="step_integral_cosine">Проинтегрировать косинус</string>
+    <string name="step_integral_tangent">Проинтегрировать тангенс</string>
+    <string name="step_integral_secant">Проинтегрировать секанс</string>
+    <string name="step_integral_cosecant">Проинтегрировать косеканс</string>
+    <string name="step_integral_cotangent">Проинтегрировать котангенс</string>
+    <string name="step_integral_sinh">Проинтегрировать гиперболический синус</string>
+    <string name="step_integral_cosh">Проинтегрировать гиперболический косинус</string>
+    <string name="step_integral_tanh">Проинтегрировать гиперболический тангенс</string>
+    <string name="step_integral_coth">Проинтегрировать гиперболический котангенс</string>
+    <string name="step_integral_sech">Проинтегрировать гиперболический секанс</string>
+    <string name="step_integral_csch">Проинтегрировать гиперболический косеканс</string>
+    <string name="step_integral_logarithm">Проинтегрировать логарифм</string>
+    <string name="step_integral_table">Воспользоваться табличным интегралом</string>
+    <string name="step_integral_inverse_hyperbolic_sine">Проинтегрировать единицу, делённую на корень из суммы квадрата и числа: обратный гиперболический синус</string>
+    <string name="step_integral_log_root">Проинтегрировать единицу, делённую на корень из разности квадрата и числа: логарифм (одинаковый для положительных и отрицательных x)</string>
+    <string name="step_expand_integrand">Раскрыть скобки в подынтегральном выражении</string>
+    <string name="step_substitution">Сделать замену переменной</string>
+    <string name="step_back_substitution">Сделать обратную замену</string>
+    <string name="step_split_numerator">Разбить числитель на производную знаменателя и константу</string>
+    <string name="step_complete_square">Выделить полный квадрат в знаменателе</string>
+    <string name="step_partial_fractions">Разложить на простейшие дроби</string>
+    <string name="step_taylor_problem">Многочлен Тейлора: нужно найти многочлен Tₙ степени n, который в точке x = a имеет то же значение и те же первые n производных, что и f. Вблизи a он приближает f, и тем лучше, чем больше n</string>
+    <string name="step_taylor_formula">Записать формулу Тейлора до степени n: для каждого k от 0 до n — k-я производная в точке a, делённая на k!, умноженная на (x − a)^k</string>
+    <string name="step_taylor_derivatives">Дифференцировать f снова и снова, до n-й производной: каждая — производная предыдущей</string>
+    <string name="step_taylor_values">Подставить x = a в f и в каждую производную</string>
+    <string name="step_taylor_series">Подставить значения в формулу Тейлора</string>
+    <string name="step_taylor_simplify">Вычислить факториалы и упростить каждый член; члены, равные 0, исчезают</string>
+    <string name="step_by_parts">Проинтегрировать по частям</string>
+    <string name="step_antiderivative">Найти первообразную F</string>
+    <string name="step_bounds">Подставить пределы</string>
+    <string name="step_add_to_both_sides">Прибавить к обеим частям</string>
+    <string name="step_subtract_from_both_sides">Вычесть из обеих частей</string>
+    <string name="step_multiply_both_sides">Умножить обе части</string>
+    <string name="step_divide_both_sides">Разделить обе части</string>
+    <string name="step_swap_sides">Поменять части местами</string>
+    <string name="step_square_root_both_sides">Извлечь квадратный корень из обеих частей</string>
+    <string name="step_factor_out">Вынести x за скобки</string>
+    <string name="step_factor_by_root">Выделить множитель: если P(r) = 0, то (x − r) — множитель</string>
+    <string name="step_nth_root_both_sides">Извлечь корень из обеих частей</string>
+    <string name="step_logarithm_both_sides">Прологарифмировать обе части</string>
+    <string name="step_square_both_sides">Возвести обе части в квадрат</string>
+    <string name="step_trig_general_solution">Функция периодична: добавить целое число периодов, 2π для синуса и косинуса, π для тангенса</string>
+    <string name="step_divide_by_highest_power">Разделить числитель и знаменатель на старшую степень знаменателя</string>
+    <string name="step_trig_inequality_isolate">Выразить тригонометрическую функцию</string>
+    <string name="step_trig_inequality_period">В пределах одного периода решение — один или два интервала, найденные с помощью обратной функции; каждый период даёт те же интервалы, сдвинутые на 2kπ (kπ для тангенса и котангенса)</string>
+    <string name="step_trig_inequality_solve_x">Теперь аргумент — x: вычесть и разделить во всех частях</string>
+    <string name="step_trig_inequality_bounded">Синус и косинус всегда лежат между −1 и 1</string>
+    <string name="step_substitute_ratio">Все члены имеют степень 2: разделить на x² и положить t = y/x (x = 0 не является решением этого уравнения, это проверяется отдельно)</string>
+    <string name="step_absolute_value_split">Выражение под |…| положительно или отрицательно: |g| равно g там, где g ≥ 0, и −g там, где g &lt; 0. Каждый случай — отдельное уравнение</string>
+    <string name="step_absolute_value_case">Решить этот случай: его решения подходят только там, где выполняется его условие</string>
+    <string name="step_inequality_system_each">Сначала каждое неравенство решается отдельно</string>
+    <string name="step_inequality_system_intersect">Все должны выполняться: остаются только значения, входящие в каждое решение</string>
+    <string name="step_log_sum">Логарифмы с одним основанием: сумма — логарифм произведения, разность — логарифм частного, а n·log a равно log(aⁿ)</string>
+    <string name="step_log_quotient">ln a / ln b — логарифм a по основанию b (переход к другому основанию)</string>
+    <string name="step_limit_conjugate">Здесь √a − b даёт ∞ − ∞: умножение на сопряжённое выражение (то же с другим знаком) превращает его в частное</string>
+    <string name="step_limit_difference_of_squares">(a + b)(a − b) = a² − b²: корни исчезают из числителя</string>
+    <string name="step_limit_exponent_infinite">Если показатель стремится к ∞, eᵍ стремится к ∞; если к −∞, eᵍ стремится к 0</string>
+    <string name="step_limit_absolute_value">Вблизи точки с этой стороны выражение под |…| сохраняет знак, поэтому |g| = g (положительно) или −g (отрицательно)</string>
+    <string name="step_limit_vanish">Члены, стремящиеся к 0, исчезают (переменная в знаменателе, e^(−x)), а arctan растущего числа стремится к ±π/2</string>
+    <string name="step_limit_constant">Предел константы равен самой константе</string>
+    <string name="step_limit_grows">Старшая степень неограниченно растёт</string>
+    <string name="step_limit_reciprocal">Знаменатель неограниченно растёт: частное стремится к 0</string>
+    <string name="step_limit_substitute">Подставить точку</string>
+    <string name="step_limit_reciprocal_substitution">Замена u = 1/x: тогда u стремится к 0</string>
+    <string name="step_limit_exponential_form">Основание стремится к 1, а показатель к ∞: записать степень через e и найти предел показателя</string>
+    <string name="step_limit_exponential_result">Предел равен e в степени этого предела</string>
+    <string name="step_factor_polynomial">Найти корни многочлена (теорема о рациональных корнях): каждый корень r даёт множитель (x − r)</string>
+    <string name="matrix_store_hint">Чтобы снова использовать матрицу или вектор, сохраните их через := (долгое нажатие на =), например v := [вектор]</string>
+    <string name="steps_option_solution">Решение</string>
+    <string name="transform_expand">Раскрыть</string>
+    <string name="transform_factor">Разложить</string>
+    <string name="transform_combine">Одна дробь</string>
+
+    <string name="step_determinant_2x2">Определитель матрицы 2×2: произведение элементов диагонали минус произведение элементов другой диагонали</string>
+    <string name="step_determinant_cofactor">Разложить определитель по строке или столбцу: каждый элемент умножается на определитель того, что остаётся после вычёркивания его строки и столбца, знаки чередуются</string>
+    <string name="step_inverse_2x2">Обратная матрица 2×2: поменять местами элементы диагонали, сменить знак двух других элементов и разделить на определитель</string>
+    <string name="step_inverse_augment">Записать матрицу рядом с единичной: преобразования строк, превращающие левую часть в единичную матрицу, превращают правую часть в обратную</string>
+    <string name="step_row_swap">Поменять местами две строки, чтобы получить ненулевой ведущий элемент</string>
+    <string name="step_row_scale">Разделить строку на её ведущий элемент, чтобы он стал равен 1</string>
+    <string name="step_row_add">Прибавить или вычесть кратное строки с ведущим элементом, чтобы обнулить остальные элементы этого столбца</string>
+    <string name="step_row_reduce_begin">Приведение к ступенчатому виду: преобразования строк делают каждый ведущий элемент равным 1, а остальные элементы его столбца — нулями (приведённый ступенчатый вид)</string>
+    <string name="step_eigen_characteristic">Собственные значения λ — это те, при которых A − λ·I необратима: определитель A − λ·I равен 0</string>
+    <string name="step_eigen_vector">Собственный вектор v для этого собственного значения удовлетворяет (A − λ·I)·v = 0: привести строки к ступенчатому виду</string>
+    <string name="step_eigen_vector_result">Свободным переменным присваиваются 1 и 0; v масштабируется до целых чисел (любое кратное тоже собственный вектор)</string>
+    <string name="step_eigen_result">Собственные значения, каждое с собственным вектором</string>
+    <string name="step_inverse_result">Левая часть — единичная матрица: правая часть — обратная</string>
+    <string name="step_matrix_multiply">Перемножить матрицы: каждый элемент — строка первой, умноженная на столбец второй</string>
+    <string name="step_matrix_scalar">Число, умноженное на матрицу: оно умножает каждый элемент</string>
+    <string name="step_matrix_add">Сложить матрицы поэлементно</string>
+    <string name="step_matrix_subtract">Вычесть матрицы поэлементно</string>
+    <string name="step_matrix_transpose">Транспонирование: строки становятся столбцами</string>
+    <string name="step_matrix_power">Степень матрицы — это матрица, умноженная сама на себя</string>
+    <string name="step_improper_integral">Один из пределов бесконечен: первообразная в точке t вместо предела, а затем предел при t, стремящемся к бесконечности</string>
+    <string name="step_limit_pole">Знаменатель стремится к 0, а числитель нет: частное неограниченно растёт, знаки показывают направление</string>
+    <string name="step_limit_logarithm_zero">Логарифм числа, стремящегося к 0⁺, стремится к −∞</string>
+    <string name="step_limit_product_as_quotient">Это 0·∞: сначала записать произведение в виде частного</string>
+    <string name="step_lhopital">Это 0/0 или ∞/∞: применить правило Лопиталя</string>
+    <string name="step_zero_fraction">Дробь равна нулю, если её числитель равен нулю</string>
+    <string name="step_absolute_values_equal">Два модуля равны: выражения под ними равны или противоположны</string>
+    <string name="step_absolute_value_cases">Рассмотреть два случая модуля</string>
+    <string name="step_exponentiate_both_sides">Возвести основание в степень обеих частей</string>
+    <string name="step_check_solutions">Проверить решения в исходном уравнении</string>
+    <string name="step_substitute_power">Сделать замену</string>
+    <string name="step_back_substitute_power">Сделать обратную замену</string>
+    <string name="step_one_side">Ни одно правило не решает это точно: всё в одну сторону, f(x) = 0</string>
+    <string name="step_newton_method">Метод Ньютона</string>
+    <string name="step_no_real_solution">Действительных решений нет: это никогда не выполняется</string>
+    <string name="step_contradiction">Обе части никогда не равны: решений нет</string>
+    <string name="step_zero_product">Произведение равно нулю, если один из множителей равен нулю</string>
+    <string name="step_quadratic_formula">Применить формулу корней квадратного уравнения</string>
+    <string name="step_root_of_number">Вычислить корень</string>
+    <string name="step_solve_for">Выразить переменную из одного из уравнений</string>
+    <string name="step_substitute_solution">Подставить её в остальные уравнения</string>
+    <string name="step_multiply_equations">Умножить уравнения так, чтобы у переменной был одинаковый коэффициент</string>
+    <string name="step_add_equations">Сложить уравнения</string>
+    <string name="step_subtract_equations">Вычесть уравнения</string>
+    <string name="step_insert_value">Подставить значение</string>
+    <string name="step_collect_solution">Собрать решения</string>
+    <string name="step_identity">Обе части равны при любом значении</string>
+    <string name="step_simplify">Упростить</string>
+    <string name="step_substitute">Подставить точку</string>
+    <string name="step_evaluate">Вычислить</string>
+
+    <string name="steps_title">Шаги</string>
+    <string name="steps_none">Для этого вычисления нет шагов.</string>
+    <string name="steps_result">Результат</string>
+    <plurals name="steps_show_section">
+        <item quantity="one">Показать %1$d шаг решения</item>
+        <item quantity="few">Показать %1$d шага решения</item>
+        <item quantity="many">Показать %1$d шагов решения</item>
+        <item quantity="other">Показать %1$d шага решения</item>
+    </plurals>
+    <plurals name="steps_hide_section">
+        <item quantity="one">Скрыть %1$d шаг</item>
+        <item quantity="few">Скрыть %1$d шага</item>
+        <item quantity="many">Скрыть %1$d шагов</item>
+        <item quantity="other">Скрыть %1$d шага</item>
+    </plurals>
+    <string name="steps_interval_notation">Запись в виде интервалов</string>
+    <string name="steps_number_line">На числовой прямой</string>
+    <string name="steps_chain_rule">Производная сложной функции</string>
+    <string name="steps_linear_argument">Линейный аргумент</string>
+    <plurals name="steps_show_calculations">
+        <item quantity="one">%1$d вычисление</item>
+        <item quantity="few">%1$d вычисления</item>
+        <item quantity="many">%1$d вычислений</item>
+        <item quantity="other">%1$d вычисления</item>
+    </plurals>
+    <plurals name="steps_hide_calculations">
+        <item quantity="one">Скрыть %1$d вычисление</item>
+        <item quantity="few">Скрыть %1$d вычисления</item>
+        <item quantity="many">Скрыть %1$d вычислений</item>
+        <item quantity="other">Скрыть %1$d вычисления</item>
+    </plurals>
+
+    <!-- Hint under "200 + 10%", which is 200.1 here: what a pocket calculator means, 10% of 200 (%1$s = 10, %2$s = 200, %3$s = 220) -->
+    <string name="percent_hint_plus">%1$s%% читается как %1$s/100. Нажмите для %2$s + %1$s%% от %2$s = %3$s</string>
+    <string name="percent_hint_minus">%1$s%% читается как %1$s/100. Нажмите для %2$s − %1$s%% от %2$s = %3$s</string>
+    <string name="settings_title">Настройки калькулятора</string>
+    <string name="settings_angle_unit">Единица угла</string>
+    <string name="settings_radians">Радианы</string>
+    <string name="settings_degrees">Градусы</string>
+    <string name="settings_radians_short">RAD</string>
+    <string name="settings_degrees_short">DEG</string>
+    <string name="settings_complex">Комплексные числа</string>
+    <string name="settings_complex_on">Разрешает √−4 = 2i</string>
+    <string name="settings_complex_off">√−4 — ошибка</string>
+    <string name="settings_units_for_results">Единицы результатов</string>
+    <string name="settings_metric">Метрические</string>
+    <string name="settings_imperial">Британские</string>
+    <string name="settings_us">США</string>
+    <string name="settings_number_display">Отображение чисел</string>
+    <string name="settings_decimal_places">Знаки после запятой</string>
+    <string name="settings_decimal_auto">Авто, до 10 цифр</string>
+    <string name="settings_decimal_fixed">Всегда %1$d, напр. %2$s</string>
+    <string name="settings_digit_grouping">Группировка разрядов</string>
+    <string name="settings_digit_grouping_desc">Показывать как 300 000</string>
+    <string name="settings_decimal_comma">Десятичная запятая</string>
+    <string name="settings_decimal_comma_desc">1,5 вместо 1.5</string>
+    <string name="settings_appearance">Оформление</string>
+    <string name="settings_theme_system">Системная</string>
+    <string name="settings_theme_light">Светлая</string>
+    <string name="settings_theme_dark">Тёмная</string>
+    <string name="settings_language">Язык</string>
+    <string name="settings_language_system">Системный</string>
+    <string name="settings_support">♥︎ Поддержать приложение</string>
+    <string name="settings_done">Готово</string>
+    <string name="settings_auto">Авто</string>
+    <string name="common_close">Закрыть</string>
+    <string name="support_text">Я очень рад, что вам нравится это приложение. Оно с открытым исходным кодом и всегда будет бесплатным, но я был бы благодарен, если бы вы угостили меня кофе.\n\nК сожалению, из-за правил Google я не могу просто добавить кнопку, ведущую на страницу для пожертвований. Уверен, если вы найдёте этот проект на моём GitHub (PcmciaKai), то найдёте и способ оставить чаевые.</string>
+    <string name="settings_units_si">СИ: m, kg, m³, N, Pa, J, K, …</string>
+    <string name="settings_units_imperial">Британские: ft, lb, gal, psi, …</string>
+    <string name="settings_units_us">США: ft, lb, US gal, psi, …</string>
+    <string name="formula_mean_name">Среднее x̄</string>
+    <string name="formula_mean_desc">Среднее арифметическое: mean(2, 4, 9) = 5</string>
+    <string name="formula_median_name">Медиана</string>
+    <string name="formula_median_desc">Среднее значение после сортировки; при чётном количестве — среднее двух средних</string>
+    <string name="formula_stdev_name">Стандартное отклонение s (выборка)</string>
+    <string name="formula_stdev_desc">Насколько разбросана выборка (делит на n − 1)</string>
+    <string name="formula_stdevp_name">Стандартное отклонение σ (генеральная совокупность)</string>
+    <string name="formula_stdevp_desc">Насколько разбросана вся совокупность (делит на n)</string>
+    <string name="formula_var_name">Дисперсия s² (выборка)</string>
+    <string name="formula_var_desc">Квадрат stdev (выборка, делит на n − 1)</string>
+    <string name="formula_varp_name">Дисперсия σ² (генеральная совокупность)</string>
+    <string name="formula_varp_desc">Квадрат stdevp (совокупность, делит на n)</string>
+    <string name="formula_sem_name">Стандартная ошибка среднего</string>
+    <string name="formula_sem_desc">Насколько точно среднее выборки: s/√n</string>
+    <string name="formula_min_name">Минимум</string>
+    <string name="formula_min_desc">Наименьшее значение</string>
+    <string name="formula_max_name">Максимум</string>
+    <string name="formula_max_desc">Наибольшее значение</string>
+    <string name="formula_ncr_name">Сочетания nCr</string>
+    <string name="formula_ncr_desc">nCr(n, k): число способов выбрать k из n элементов без учёта порядка. nCr(5, 2) = 10</string>
+    <string name="formula_npr_name">Размещения nPr</string>
+    <string name="formula_npr_desc">nPr(n, k): число способов выбрать k из n элементов с учётом порядка. nPr(5, 2) = 20</string>
+    <string name="formula_gcd_name">Наибольший общий делитель</string>
+    <string name="formula_gcd_desc">Наибольшее число, на которое делятся все значения: gcd(12, 18) = 6</string>
+    <string name="formula_lcm_name">Наименьшее общее кратное</string>
+    <string name="formula_lcm_desc">Наименьшее число, которое делится на все значения: lcm(4, 6) = 12</string>
+    <string name="formula_round_name">Округлить</string>
+    <string name="formula_round_desc">До ближайшего целого; половины округляются от 0: round(2.5) = 3</string>
+    <string name="formula_round_places_name">Округлить до знаков</string>
+    <string name="formula_round_places_desc">round(x, n): x, округлённое до n знаков после запятой</string>
+    <string name="formula_floor_name">Округлить вниз (floor)</string>
+    <string name="formula_floor_desc">Вниз до целого: floor(−2.3) = −3</string>
+    <string name="formula_ceil_name">Округлить вверх (ceiling)</string>
+    <string name="formula_ceil_desc">Вверх до целого: ceil(2.1) = 3</string>
+    <string name="formula_mode_name">Мода</string>
+    <string name="formula_mode_desc">Самое частое значение; при равенстве — первое из них</string>
+    <string name="formula_range_name">Размах</string>
+    <string name="formula_range_desc">Наибольшее значение минус наименьшее</string>
+    <string name="formula_sum_name">Сумма</string>
+    <string name="formula_sum_desc">Складывает перечисленные значения: sum(2, 4, 9) = 15. Для суммы с индексом используйте клавишу Σ</string>
+    <string name="formula_prod_name">Произведение</string>
+    <string name="formula_prod_desc">Перемножает перечисленные значения: prod(2, 4, 9) = 72. Для произведения с индексом — долгое нажатие на Σ</string>
+    <string name="formula_sumsq_name">Сумма квадратов</string>
+    <string name="formula_sumsq_desc">Складывает квадраты значений: sumsq(1, 2, 3) = 14</string>
+    <string name="formula_percentile_name">Процентиль</string>
+    <string name="formula_percentile_desc">percentile(p, значения…): значение, ниже которого лежат p процентов данных (p от 0 до 100)</string>
+    <string name="formula_quartile_name">Квартиль</string>
+    <string name="formula_quartile_desc">quartile(q, значения…): q = 1, 2 или 3 для квартилей (2 — медиана); 0 и 4 дают минимум и максимум</string>
+    <string name="formula_skew_name">Асимметрия</string>
+    <string name="formula_skew_desc">Насколько данные несимметричны: 0 при симметрии, положительна, если длинный хвост справа. Не менее 3 значений</string>
+    <string name="formula_tmargin_name">Погрешность среднего (t)</string>
+    <string name="formula_tmargin_desc">tmargin(c, значения…): погрешность среднего при доверительной вероятности c (0.95 для 95 процентов); интервал — среднее ± погрешность</string>
+    <string name="formula_tstat_name">t-статистика выборки</string>
+    <string name="formula_tstat_desc">tstat(μ₀, значения…): значение t одновыборочного t-критерия относительно среднего μ₀</string>
+    <string name="formula_multinomial_name">Мультиномиальный коэффициент</string>
+    <string name="formula_multinomial_desc">Число способов разбить k₁ + k₂ + … элементов на группы по k₁, k₂, … элементов: multinomial(2, 1) = 3</string>
+    <string name="formula_fib_name">Число Фибоначчи</string>
+    <string name="formula_fib_desc">fib(n): n-е число Фибоначчи (0, 1, 1, 2, 3, 5, …): fib(10) = 55</string>
+    <string name="formula_nextprime_name">Следующее простое</string>
+    <string name="formula_nextprime_desc">Наименьшее простое число больше n: nextprime(10) = 11</string>
+    <string name="formula_isprime_name">Проверка на простоту</string>
+    <string name="formula_isprime_desc">1, если n простое, иначе 0</string>
+    <string name="formula_totient_name">Функция Эйлера φ(n)</string>
+    <string name="formula_totient_desc">φ(n): сколько чисел от 1 до n не имеют общих делителей с n: totient(9) = 6</string>
+    <string name="formula_factor_name">Разложение на простые множители</string>
+    <string name="formula_factor_desc">Раскладывает целое число на простые множители: factor(360) = 2³ × 3² × 5</string>
+    <string name="formula_expand_name">Раскрыть скобки</string>
+    <string name="formula_expand_desc">Раскрывает произведения и степени: expand((x + 1)²) = x² + 2x + 1</string>
+    <string name="formula_apart_name">Простейшие дроби</string>
+    <string name="formula_apart_desc">Раскладывает дробь из многочленов на более простые дроби: apart(1/(x² − 1)) = 1/(2(x − 1)) − 1/(2(x + 1))</string>
+    <string name="formula_taylor_name">Многочлен Тейлора</string>
+    <string name="formula_taylor_desc">taylor(f, x, a, n): многочлен до xⁿ, приближающий f вблизи x = a</string>
+    <string name="step_ode_problem">Дифференциальное уравнение: нужно найти функцию y(x), для которой y и её производные (y′ = dy/dx, y″ = d²y/dx²) обращают уравнение в верное равенство при любом x. Решение содержит свободные константы C, так как у такого уравнения много решений</string>
+    <string name="step_ode_initial_value_problem">Задача Коши: нужно найти функцию y(x), для которой y и её производные (y′ = dy/dx, y″ = d²y/dx²) обращают уравнение в верное равенство при любом x и которая принимает заданные начальные значения. Сначала общее решение, затем константы для начальных значений</string>
+    <string name="step_ode_type_separable">Тип: первого порядка, с разделяющимися переменными. Правая часть — функция от x, умноженная на функцию от y, поэтому переменные можно разделить</string>
+    <string name="step_ode_type_linear">Тип: первого порядка, линейное. y и y′ входят только в первой степени и не перемножаются; в стандартной форме решается с помощью интегрирующего множителя</string>
+    <string name="step_ode_type_second_order_homogeneous">Тип: второго порядка, линейное с постоянными коэффициентами, однородное (правая часть равна 0). Решается с помощью характеристического уравнения</string>
+    <string name="step_ode_type_second_order_inhomogeneous">Тип: второго порядка, линейное с постоянными коэффициентами, неоднородное (правая часть r(x) не равна 0). Решение = общее решение yₕ однородного уравнения (правая часть 0) + одно частное решение yₚ</string>
+    <string name="step_ode_integrating_factor">Найти интегрирующий множитель μ</string>
+    <string name="step_ode_linear_solution">Умножить на μ: левая часть равна (μ·y)′. Проинтегрировать обе части</string>
+    <string name="step_ode_separate">Разделить переменные: записать y′ как dy/dx, разделить на g(y) и умножить на dx, чтобы y остался только слева, а x только справа</string>
+    <string name="step_ode_integrate_both">Проинтегрировать обе части: левую по y, правую по x</string>
+    <string name="step_ode_integrals">Вычислить оба интеграла. Две константы интегрирования объединяются в одну константу C справа</string>
+    <string name="step_ode_absolute_value">Убрать модуль: знак ± переходит в константу. ±e^C — снова произвольная константа, поэтому её снова обозначают C</string>
+    <string name="step_ode_new_constant">Постоянная часть — снова произвольная константа: её снова обозначают C</string>
+    <string name="step_ode_solve_for_unknown">Выразить y</string>
+    <string name="step_ode_try_exponential">Попробовать y = e^(rx): подставить y, y′ = r·e^(rx) и y″ = r²·e^(rx) в уравнение</string>
+    <string name="step_ode_factor_exponential">Вынести e^(rx) за скобки</string>
+    <string name="step_ode_characteristic">Разделить на e^(rx), которое никогда не равно 0. Остаётся характеристическое уравнение — квадратное уравнение относительно r</string>
+    <string name="step_ode_characteristic_roots">Решить характеристическое уравнение по формуле корней квадратного уравнения</string>
+    <string name="step_ode_homogeneous_distinct">Два различных действительных корня r₁ и r₂: e^(r₁x) и e^(r₂x) — оба решения. Общее решение — их комбинация</string>
+    <string name="step_ode_homogeneous_double">Двойной корень r: e^(rx) и x·e^(rx) — оба решения. Общее решение — их комбинация</string>
+    <string name="step_ode_homogeneous_complex">Комплексные корни α ± βi: e^(αx)·cos(βx) и e^(αx)·sin(βx) — оба действительные решения. Общее решение — их комбинация</string>
+    <string name="step_ode_variation_of_parameters">Найти частное решение методом вариации постоянных (W — определитель Вронского)</string>
+    <string name="step_ode_undetermined_coefficients">Найти частное решение: выражение того же вида, что и правая часть (умноженное на x, если оно решает уравнение без правой части), с найденными коэффициентами</string>
+    <string name="step_ode_constants">Подобрать константы так, чтобы выполнялись начальные условия</string>
+    <string name="step_ode_derivative_of_solution">Продифференцировать общее решение: для условия на y′ нужна y′</string>
+    <string name="step_ode_insert_conditions">Подставить начальные значения в общее решение</string>
+    <string name="step_ode_solve_constants">Найти константы</string>
+    <string name="step_ode_put_constants">Подставить константы в общее решение: это решение задачи Коши</string>
+    <string name="step_power_both_sides">Возвести обе части в степень 1/n</string>
+    <string name="step_inverse_function_both_sides">Применить обратную функцию к обеим частям</string>
+    <string name="formula_dsolve_name">Дифференциальное уравнение</string>
+    <string name="formula_dsolve_desc">dsolve(уравнение): решает y′ = 2x·y и подобные; y′ вводится как d/dx(y) (долгое нажатие на ∫dx)</string>
+    <string name="formula_modpow_name">Степень по модулю</string>
+    <string name="formula_modpow_desc">modpow(b, e, m): bᵉ mod m, в том числе для огромных степеней</string>
+    <string name="formula_hypot_name">Гипотенуза</string>
+    <string name="formula_hypot_desc">√(a² + b² + …), гипотенуза: hypot(3, 4) = 5</string>
+    <string name="formula_trunc_name">Отбросить дробную часть</string>
+    <string name="formula_trunc_desc">Отбрасывает знаки после запятой: trunc(−2.7) = −2. trunc(x, n) оставляет n из них</string>
+    <string name="formula_frac_name">Дробная часть</string>
+    <string name="formula_frac_desc">Только знаки после запятой, со знаком: frac(−2.75) = −0.75</string>
+    <string name="formula_sign_name">Знак</string>
+    <string name="formula_sign_desc">−1, 0 или 1 для отрицательного числа, нуля или положительного числа</string>
+    <string name="formula_re_name">Действительная часть</string>
+    <string name="formula_re_desc">Действительная часть: re(3 + 4i) = 3</string>
+    <string name="formula_im_name">Мнимая часть</string>
+    <string name="formula_im_desc">Мнимая часть: im(3 + 4i) = 4</string>
+    <string name="formula_arg_name">Аргумент (угол)</string>
+    <string name="formula_arg_desc">Угол с положительной действительной осью, в радианах от −π до π: arg(i) = π/2</string>
+    <string name="formula_conj_name">Комплексное сопряжение</string>
+    <string name="formula_conj_desc">Меняет знак мнимой части: conj(3 + 4i) = 3 − 4i</string>
+    <string name="formula_gamma_name">Гамма-функция Γ</string>
+    <string name="formula_gamma_desc">Факториал для любого числа: Γ(n + 1) = n!, Γ(0.5) = √π</string>
+    <string name="formula_lngamma_name">Логарифм гамма-функции ln Γ</string>
+    <string name="formula_lngamma_desc">ln Γ(x) для x &gt; 0, когда сама Γ(x) слишком велика</string>
+    <string name="formula_digamma_name">Дигамма-функция ψ</string>
+    <string name="formula_digamma_desc">ψ(x) = Γ′(x)/Γ(x), производная ln Γ(x)</string>
+    <string name="formula_beta_name">Бета-функция</string>
+    <string name="formula_beta_desc">B(a, b) = Γ(a)·Γ(b)/Γ(a + b)</string>
+    <string name="formula_erf_name">Функция ошибок erf</string>
+    <string name="formula_erf_desc">2/√π · ∫₀ˣ e^(−t²) dt, основа нормального распределения</string>
+    <string name="formula_erfc_name">Дополнительная функция ошибок erfc</string>
+    <string name="formula_erfc_desc">1 − erf(x), точна и для больших x</string>
+    <string name="formula_gammainc_name">Неполная гамма-функция</string>
+    <string name="formula_gammainc_desc">gammainc(a, x): регуляризованная нижняя неполная гамма-функция P(a, x), для a &gt; 0 и x ≥ 0</string>
+    <string name="formula_betainc_name">Неполная бета-функция</string>
+    <string name="formula_betainc_desc">betainc(x, a, b): регуляризованная неполная бета-функция Iₓ(a, b), для 0 ≤ x ≤ 1 и a, b &gt; 0</string>
+    <string name="formula_lambertw_name">W-функция Ламберта</string>
+    <string name="formula_lambertw_desc">Такое w, что w·eʷ = x, для x ≥ −1/e. Решает x·eˣ = 5: x = lambertw(5)</string>
+    <string name="formula_sinint_name">Интегральный синус Si</string>
+    <string name="formula_sinint_desc">Si(x) = ∫₀ˣ sin(t)/t dt, первообразная sin(x)/x</string>
+    <string name="formula_cosint_name">Интегральный косинус Ci</string>
+    <string name="formula_cosint_desc">Ci(x), первообразная cos(x)/x, для x ≠ 0</string>
+    <string name="formula_expint_name">Интегральная показательная функция Ei</string>
+    <string name="formula_expint_desc">Ei(x), первообразная eˣ/x, для x ≠ 0</string>
+    <string name="formula_normalpdf_name">Нормальная плотность</string>
+    <string name="formula_normalpdf_desc">normalpdf(x, μ, σ): высота колоколообразной кривой в точке x. Без μ и σ — стандартное нормальное распределение</string>
+    <string name="formula_normalcdf_name">Нормальная вероятность (до x)</string>
+    <string name="formula_normalcdf_desc">normalcdf(x, μ, σ): вероятность значения не больше x. Без μ и σ — стандартное нормальное распределение</string>
+    <string name="formula_normalinv_name">Нормальный квантиль</string>
+    <string name="formula_normalinv_desc">normalinv(p, μ, σ): такое x, что значение остаётся ниже него с вероятностью p (0 &lt; p &lt; 1)</string>
+    <string name="formula_binompdf_name">Биномиальная вероятность (ровно k)</string>
+    <string name="formula_binompdf_desc">binompdf(n, p, k): вероятность ровно k успехов в n испытаниях, каждое с вероятностью p</string>
+    <string name="formula_binomcdf_name">Биномиальная вероятность (не более k)</string>
+    <string name="formula_binomcdf_desc">binomcdf(n, p, k): вероятность не более k успехов в n испытаниях, каждое с вероятностью p</string>
+    <string name="formula_poissonpdf_name">Вероятность Пуассона (ровно k)</string>
+    <string name="formula_poissonpdf_desc">poissonpdf(λ, k): вероятность ровно k событий, когда ожидается λ</string>
+    <string name="formula_poissoncdf_name">Вероятность Пуассона (не более k)</string>
+    <string name="formula_poissoncdf_desc">poissoncdf(λ, k): вероятность не более k событий, когда ожидается λ</string>
+    <string name="formula_tpdf_name">Плотность распределения Стьюдента</string>
+    <string name="formula_tpdf_desc">tpdf(x, df): плотность t-распределения с df степенями свободы</string>
+    <string name="formula_tcdf_name">Вероятность Стьюдента (до x)</string>
+    <string name="formula_tcdf_desc">tcdf(x, df): вероятность значения не больше x в t-распределении</string>
+    <string name="formula_tinv_name">Квантиль Стьюдента</string>
+    <string name="formula_tinv_desc">tinv(p, df): такое x, что значение остаётся ниже него с вероятностью p; критическое значение t-критерия</string>
+    <string name="formula_chisqpdf_name">Плотность хи-квадрат</string>
+    <string name="formula_chisqpdf_desc">chisqpdf(x, df): плотность распределения хи-квадрат с df степенями свободы</string>
+    <string name="formula_chisqcdf_name">Вероятность хи-квадрат (до x)</string>
+    <string name="formula_chisqcdf_desc">chisqcdf(x, df): вероятность значения не больше x в распределении хи-квадрат</string>
+    <string name="formula_chisqinv_name">Квантиль хи-квадрат</string>
+    <string name="formula_chisqinv_desc">chisqinv(p, df): такое x, что значение остаётся ниже него с вероятностью p; критическое значение критерия хи-квадрат</string>
+    <string name="formula_rand_name">Случайное число</string>
+    <string name="formula_rand_desc">Случайное число от 0 до 1 (не включая 1). Не меняется, пока вы редактируете строку</string>
+    <string name="formula_randint_name">Случайное целое число</string>
+    <string name="formula_randint_desc">randint(a, b): случайное целое число от a до b. Не меняется, пока вы редактируете строку</string>
+    <string name="formula_randnorm_name">Случайное число (нормальное распределение)</string>
+    <string name="formula_randnorm_desc">randnorm(μ, σ): случайное число из нормального распределения; без μ и σ — из стандартного</string>
+    <string name="formula_dot_name">Скалярное произведение</string>
+    <string name="formula_dot_desc">dot(a, b): скалярное произведение двух векторов, a₁b₁ + a₂b₂ + …</string>
+    <string name="formula_cross_name">Векторное произведение</string>
+    <string name="formula_cross_desc">cross(a, b): вектор, перпендикулярный трёхмерным векторам a и b</string>
+    <string name="formula_norm_name">Длина вектора (норма)</string>
+    <string name="formula_norm_desc">Длина вектора, √(a₁² + a₂² + …); то же, что |a|</string>
+    <string name="formula_angle_name">Угол между двумя векторами</string>
+    <string name="formula_angle_desc">angle(a, b): угол между двумя векторами в единице угла, выбранной над клавиатурой</string>
+    <string name="formula_proj_name">Проекция вектора</string>
+    <string name="formula_proj_desc">proj(a, b): часть a, направленная вдоль b</string>
+    <string name="formula_unitvec_name">Единичный вектор</string>
+    <string name="formula_unitvec_desc">unitvec(a): вектор длины 1 в направлении a</string>
+    <string name="category_statistics">Статистика</string>
+    <string name="category_combinatorics">Комбинаторика</string>
+    <string name="category_numbers">Числа</string>
+    <string name="category_complex">Комплексные числа</string>
+    <string name="category_special">Специальные функции</string>
+    <string name="category_distributions">Распределения</string>
+    <string name="category_random">Случайные числа</string>
+    <string name="category_vectors">Векторы</string>
+    <string name="category_bitwise">Побитовые операции</string>
+    <string name="category_algebra">Алгебра</string>
+    <string name="category_calculus">Анализ</string>
+    <string name="formula_and_name">И (AND)</string>
+    <string name="formula_and_desc">Биты, установленные в обоих числах: and(12, 10) = 8</string>
+    <string name="formula_or_name">ИЛИ (OR)</string>
+    <string name="formula_or_desc">Биты, установленные хотя бы в одном числе: or(12, 10) = 14</string>
+    <string name="formula_xor_name">Исключающее ИЛИ (XOR)</string>
+    <string name="formula_xor_desc">Биты, установленные ровно в одном: xor(12, 10) = 6</string>
+    <string name="formula_not_name">НЕ (NOT)</string>
+    <string name="formula_not_desc">Инвертирует все биты: not(5) = −6</string>
+    <string name="formula_shl_name">Сдвиг влево</string>
+    <string name="formula_shl_desc">shl(n, k): сдвигает биты на k позиций влево, n·2ᵏ: shl(1, 4) = 16 (также n &lt;&lt; k)</string>
+    <string name="formula_shr_name">Сдвиг вправо</string>
+    <string name="formula_shr_desc">shr(n, k): сдвигает биты на k позиций вправо: shr(16, 2) = 4 (также n &gt;&gt; k)</string>
+    <string name="keypad_matrix">Матрица или вектор</string>
+    <string name="formulas_title">Функции</string>
+    <string name="formulas_hint">Несколько значений разделяются знаком «%1$s»: для него — долгое нажатие на десятичную клавишу</string>
+    <string name="undo_history_cleared">История очищена</string>
+    <string name="undo_entry_deleted">Запись удалена</string>
+    <string name="undo_action">Отменить</string>
+    <string name="formulas_search">Поиск (отклонение, округлить, nCr)…</string>
+    <string name="constant_category_math">Математические</string>
+    <string name="constant_category_physics">Физические</string>
+    <string name="constant_category_em">Электромагнетизм</string>
+    <string name="constant_category_thermo">Термодинамика</string>
+    <string name="constant_category_chemistry">Химия</string>
+    <string name="constant_category_atomic">Атомные</string>
+    <string name="constant_pi">Пи (постоянная Архимеда)</string>
+    <string name="constant_e">Число Эйлера</string>
+    <string name="constant_phi">Золотое сечение</string>
+    <string name="constant_sqrt2">Постоянная Пифагора</string>
+    <string name="constant_c">Скорость света в вакууме</string>
+    <string name="constant_h">Постоянная Планка</string>
+    <string name="constant_hbar">Приведённая постоянная Планка</string>
+    <string name="constant_gravitation">Гравитационная постоянная</string>
+    <string name="constant_g">Стандартное ускорение свободного падения</string>
+    <string name="constant_qe">Элементарный заряд</string>
+    <string name="constant_eps0">Электрическая постоянная</string>
+    <string name="constant_mu0">Магнитная постоянная</string>
+    <string name="constant_ke">Постоянная Кулона</string>
+    <string name="constant_kb">Постоянная Больцмана</string>
+    <string name="constant_gasconstant">Универсальная газовая постоянная</string>
+    <string name="constant_sigma">Постоянная Стефана — Больцмана</string>
+    <string name="constant_wien">Постоянная Вина</string>
+    <string name="constant_na">Постоянная Авогадро</string>
+    <string name="constant_faraday">Постоянная Фарадея</string>
+    <string name="constant_vm">Молярный объём идеального газа (0 °C, 1 атм)</string>
+    <string name="constant_mu">Атомная единица массы</string>
+    <string name="constant_me">Масса электрона</string>
+    <string name="constant_mp">Масса протона</string>
+    <string name="constant_mn">Масса нейтрона</string>
+    <string name="constant_alpha">Постоянная тонкой структуры</string>
+    <string name="constant_a0">Боровский радиус</string>
+    <string name="constant_rinf">Постоянная Ридберга</string>
+    <string name="constant_mub">Магнетон Бора</string>
+    <string name="constants_title">Математические и физические константы</string>
+    <string name="constants_search">Поиск констант (c, h, π, G)…</string>
+    <string name="units_insert_title">Вставить единицу</string>
+    <string name="units_search">Поиск, например km, давление, галлон</string>
+    <string name="units_clear_search">Очистить поиск</string>
+    <string name="units_none">Единицы не найдены</string>
+    <string name="matrix_vector_2d">2D-вектор</string>
+    <string name="matrix_vector_3d">3D-вектор</string>
+    <string name="matrix_kind_matrix">Матрица</string>
+    <string name="matrix_kind_column_vector">Вектор-столбец</string>
+    <string name="matrix_kind_row_vector">Вектор-строка</string>
+    <string name="matrix_title">Матрица или вектор</string>
+    <string name="matrix_drag_hint">Проведите, чтобы выбрать размер, и отпустите, чтобы вставить. Вектор — это матрица из одного столбца (или одной строки)</string>
+    <string name="matrix_insert">Вставить</string>
+    <string name="common_cancel">Отмена</string>
+    <string name="variable_title">Переменная</string>
+    <string name="variable_prompt">Введите букву</string>
+    <string name="variable_is_constant">%1$s — константа</string>
+    <string name="variable_is_transpose">T обозначает транспонирование матрицы</string>
+    <string name="variable_hint_derivative">Дифференцировать по %1$s</string>
+    <string name="variable_hint_integral">Интегрировать по %1$s</string>
+    <string name="keypad_variable">Буква</string>
+    <string name="typing_hint">Буквы — это переменные: ab означает a · b. Имя функции со скобкой (, например sin( или mean(, начинает эту функцию.</string>
+    <string name="notice_complex_on">Комплексные числа включены. Их можно отключить в настройках.</string>
+    <string name="message_copied">Скопировано</string>
+    <string name="message_cant_paste">Не удаётся вставить «%1$s» как математическое выражение</string>
+    <string name="message_cant_paste_lines">Несколько строк нельзя вставить в дробь, корень, …</string>
+    <string name="result_form_exact">Точно</string>
+    <string name="result_form_decimal">Десят.</string>
+    <string name="result_form_scientific">Эксп.</string>
+    <string name="result_form_mixed">Смеш.</string>
+    <string name="result_form_polar">Поляр.</string>
+    <string name="history_delete">Удалить</string>
+    <string name="keypad_backspace">Стереть</string>
+    <string name="keypad_units">Единицы</string>
+    <string name="keypad_formulas">Функции</string>
+    <string name="keypad_formulas_short">Функ</string>
+    <string name="keypad_constants">Константы</string>
+    <string name="keypad_constants_short">Конст</string>
+    <string name="keypad_graph">График</string>
+    <string name="keypad_graph_2d">2D-график</string>
+    <string name="keypad_enter">Ввод</string>
+    <string name="keypad_new_line">новая строка</string>
+    <string name="keypad_settings">Настройки</string>
+    <string name="keypad_number_base">Система счисления</string>
+    <string name="result_form_hex">HEX</string>
+    <string name="result_form_oct">OCT</string>
+    <string name="result_form_bin">BIN</string>
+    <string name="settings_session">Сеанс</string>
+    <string name="settings_session_desc">Сохранить или открыть строку и историю</string>
+    <string name="settings_session_save">Сохранить…</string>
+    <string name="settings_session_open">Открыть…</string>
+    <string name="session_file_name">calculator-%1$s.txt</string>
+    <string name="session_import_title">Открыть сеанс</string>
+    <string name="session_import_text">История уже есть. Заменить её историей из файла или добавить записи файла ниже?</string>
+    <string name="session_import_replace">Заменить</string>
+    <string name="session_import_add">Добавить ниже</string>
+    <string name="session_cancel">Отмена</string>
+    <string name="session_saved">Сеанс сохранён</string>
+    <string name="session_save_failed">Не удалось сохранить сеанс</string>
+    <string name="session_not_a_session">Этот файл не является сохранённым сеансом</string>
+    <string name="session_read_failed">Не удалось прочитать файл</string>
+    <plurals name="graph_summary_curves">
+        <item quantity="one">%d кривая</item>
+        <item quantity="few">%d кривые</item>
+        <item quantity="many">%d кривых</item>
+        <item quantity="other">%d кривой</item>
+    </plurals>
+    <plurals name="graph_summary_crossings">
+        <item quantity="one">%d пересечение</item>
+        <item quantity="few">%d пересечения</item>
+        <item quantity="many">%d пересечений</item>
+        <item quantity="other">%d пересечения</item>
+    </plurals>
+    <plurals name="session_opened">
+        <item quantity="one">Открыта %1$d запись</item>
+        <item quantity="few">Открыто %1$d записи</item>
+        <item quantity="many">Открыто %1$d записей</item>
+        <item quantity="other">Открыто %1$d записи</item>
+    </plurals>
+    <plurals name="session_opened_skipped">
+        <item quantity="one">, %1$d не удалось вычислить, она пропущена</item>
+        <item quantity="few">, %1$d не удалось вычислить, они пропущены</item>
+        <item quantity="many">, %1$d не удалось вычислить, они пропущены</item>
+        <item quantity="other">, %1$d не удалось вычислить, они пропущены</item>
+    </plurals>
+    <string name="keypad_infinity">бесконечность</string>
+    <string name="keypad_mixed_number">смешанное число</string>
+    <string name="graph_tool_trace">Трассировка</string>
+    <string name="graph_tool_tangent">Касательная</string>
+    <string name="graph_tool_integral">Интеграл</string>
+    <string name="graph_point_zero">Нуль</string>
+    <string name="graph_point_maximum">Максимум</string>
+    <string name="graph_point_minimum">Минимум</string>
+    <string name="graph_point_inflection">Точка перегиба</string>
+    <string name="graph_point_y_intercept">Пересечение с осью y</string>
+    <string name="graph_cannot_plot">Это выражение нельзя построить</string>
+    <string name="graph_tap_hint">Нажмите на кривую, чтобы поставить курсор</string>
+    <string name="graph_recenter">По центру</string>
+    <string name="graph_close">Закрыть график</string>
+    <string name="graph_toggle_curve">Показать или скрыть кривую</string>
+    <string name="graph_curve_shown">показана</string>
+    <string name="graph_curve_hidden">скрыта</string>
+    <string name="graph_add_line">Добавить уравнение</string>
+    <string name="graph_intersection">Пересечение</string>
+    <string name="graph_line_cannot_plot">нельзя построить</string>
+    <string name="graph_surface_alone">Рисуется только поверхность: 3D-график нельзя совместить с другими строками</string>
+    <string name="graph_axes">Оси</string>
+    <string name="graph_log_x">Логарифмическая ось x</string>
+    <string name="graph_log_y">Логарифмическая ось y</string>
+    <string name="graph_polar">Полярные координаты</string>
+    <string name="graph_drag_curve">Ведите точку вдоль кривой; она притягивается к отмеченным точкам</string>
+    <string name="graph_drag_graph">Ведите вдоль графика; точка притягивается к отмеченным точкам</string>
+    <string name="graph_vertical_tangent">вертикальная касательная</string>
+    <string name="graph_slope">наклон = %1$s</string>
+    <string name="graph_integral_hint">Перетаскивайте a или b; они притягиваются к нулям и пересечениям</string>
+    <string name="graph_surface_hint">Один палец вращает · два пальца перемещают и масштабируют</string>
+
+    <!-- In-app help (Settings → Help): the help screen, its topics and their pages -->
+    <string name="help_open">Как пользоваться приложением</string>
+    <string name="help_title">Справка</string>
+    <string name="help_back">Назад</string>
+    <string name="help_search">Поиск по справке (taylor, матрица, единицы)…</string>
+    <string name="help_no_results">Ничего не найдено</string>
+    <string name="help_intro">Впервые здесь? Начните с тем вверху. У каждой функции ниже есть синтаксис и примеры.</string>
+    <string name="help_example">Пример</string>
+    <string name="help_section_basics">Начало работы</string>
+    <string name="help_section_functions">Функции подробно</string>
+    <string name="help_heading_where">Где найти</string>
+    <string name="help_heading_syntax">Синтаксис</string>
+    <string name="help_heading_examples">Примеры</string>
+    <string name="help_heading_good_to_know">Полезно знать</string>
+
+    <string name="help_screen_title">Экран</string>
+    <string name="help_screen_summary">История, строка ввода, результат на лету и клавиатура</string>
+    <string name="help_screen_1">Сверху вниз: история ваших вычислений, строка ввода с результатом и клавиатура.</string>
+    <string name="help_screen_2">Результат вычисляется прямо во время ввода, так что ничего нажимать не нужно. Так же решаются уравнения и вычисляются производные и интегралы.</string>
+    <string name="help_screen_3">Нажмите клавишу Ввод (↵), чтобы перенести строку и её результат в историю и начать новую строку.</string>
+    <string name="help_screen_4">Если строку нельзя вычислить, причина показывается красным вместо результата.</string>
+
+    <string name="help_keypad_title">Клавиатура и её страницы</string>
+    <string name="help_keypad_summary">Проведите в сторону для научных клавиш и инструментов</string>
+    <string name="help_keypad_1">У клавиатуры три страницы. Сначала открыта средняя, с цифрами. Научные клавиши — на странице слева (проведите вправо, чтобы перейти туда), инструменты — на странице справа (проведите влево). Точки над клавишами показывают текущую страницу; нажатие на точку открывает её. На планшете или раскрытом складном устройстве все три страницы показаны рядом.</string>
+    <string name="help_keypad_main">Средняя страница: числа</string>
+    <string name="help_keypad_digits">Цифры, десятичная точка и ×10ⁿ для числа в экспоненциальной записи (5×10³)</string>
+    <string name="help_keypad_operators">Основные действия. ÷ создаёт дробь, число перед ним становится числителем</string>
+    <string name="help_keypad_parentheses">Пара скобок с курсором внутри</string>
+    <string name="help_keypad_backspace">Удаляет то, что стоит перед курсором</string>
+    <string name="help_keypad_enter">Переносит строку и её результат в историю</string>
+    <string name="help_keypad_left">Левая страница: научные клавиши</string>
+    <string name="help_keypad_row1">Факториал, квадрат, квадратный корень и десятичный логарифм</string>
+    <string name="help_keypad_row2">Матрица или вектор (открывает выбор размера) и тригонометрические функции</string>
+    <string name="help_keypad_row3">Интеграл, сумма, мнимая единица i и π</string>
+    <string name="help_keypad_row4">Знак равенства для уравнений, переменная x, abc для любой другой буквы (открывает системную клавиатуру) и число Эйлера e</string>
+    <string name="help_keypad_right">Правая страница: инструменты</string>
+    <string name="help_keypad_clear">C очищает строку. На пустой строке она становится AC и очищает также историю (это можно отменить)</string>
+    <string name="help_keypad_units">Открывает список единиц (km, psi, kWh, …), чтобы вставить одну в строку</string>
+    <string name="help_keypad_functions">Открывает выбор функций: статистика, комбинаторика, округление, распределения, многочлены Тейлора, дифференциальные уравнения и другое</string>
+    <string name="help_keypad_constants">Открывает математические и физические константы (c, h, G, …)</string>
+    <string name="help_keypad_graph">Строит график строки</string>
+    <string name="help_keypad_settings">Настройки и эта справка</string>
+    <string name="help_keypad_top">Над клавишами</string>
+    <string name="help_keypad_angle">Единица угла для sin, cos и tan: радианы или градусы. Нажмите, чтобы переключить</string>
+    <string name="help_keypad_base">Система счисления: DEC для обычных чисел, или HEX, OCT и BIN, которые превращают левую страницу в клавиши программиста (A–F, AND, OR, сдвиги)</string>
+
+    <string name="help_long_press_title">Долгое нажатие — больше функций</string>
+    <string name="help_long_press_summary">Где находятся ln, asin, d/dx, lim, ≤, := и остальное</string>
+    <string name="help_long_press_1">У многих клавиш больше функций, чем видно на подписи. Удерживайте клавишу: откроется окно с другими её функциями. Проведите пальцем к нужной и отпустите. Если отпустить, не проводя, выбирается основная функция.</string>
+    <string name="help_long_press_2">Маленькие подписи в нижних углах клавиши показывают, что есть в её окне; «…» означает, что там есть ещё. В некоторых окнах над первым рядом есть второй, например гиперболические функции над sin.</string>
+    <string name="help_long_press_factorial">%, mod и Γ; над ними побитовые AND, OR, XOR и NOT</string>
+    <string name="help_long_press_square">Любая степень □ⁿ и обратная величина □⁻¹ (также обратная матрица)</string>
+    <string name="help_long_press_root">Корень n-й степени ⁿ√□</string>
+    <string name="help_long_press_log">Натуральный логарифм ln и логарифм по любому основанию logₙ</string>
+    <string name="help_long_press_matrix">Транспонирование Aᵀ, det, rref и eig; над ними векторные функции dot, cross, norm, angle, proj и unitvec</string>
+    <string name="help_long_press_trig">Обратные функции (asin), функции секанса, косеканса и котангенса (csc, sec, cot) и обратные к ним; над ними гиперболические функции (sinh, asinh, …)</string>
+    <string name="help_long_press_integral">Определённый интеграл с пределами, производная d/dx и производная в точке</string>
+    <string name="help_long_press_sum">Произведение ∏ и предел lim</string>
+    <string name="help_long_press_i">Комплексное число в полярной форме r∠θ</string>
+    <string name="help_long_press_pi">Бесконечность ∞ для пределов, сумм и интегралов</string>
+    <string name="help_long_press_equals">:= для определения переменной и &lt; &gt; ≤ ≥ для неравенств</string>
+    <string name="help_long_press_x">Переменные y и z</string>
+    <string name="help_long_press_plus_minus">Верхний индекс + или − для одностороннего предела (x → 0⁺)</string>
+    <string name="help_long_press_divide">Смешанное число (3½) и ÷ как знак вместо дроби</string>
+    <string name="help_long_press_point">Разделитель между значениями функции, mean(2, 4, 9)</string>
+    <string name="help_long_press_enter">Новая строка (для системы уравнений или нескольких кривых на графике) и Ans, последний результат</string>
+    <string name="help_long_press_units">Стрелка → для перевода в другую единицу</string>
+
+    <string name="help_editing_title">Редактирование ввода</string>
+    <string name="help_editing_summary">Курсор, выделение, копирование и вставка</string>
+    <string name="help_editing_1">Нажмите в любом месте строки, чтобы поставить туда курсор. У дробей, степеней и корней есть поля (□) для их частей; нажмите на поле или переместите в него курсор, чтобы заполнить его.</string>
+    <string name="help_editing_2">Удерживайте палец, чтобы выделить часть строки, и продолжайте вести, чтобы выделить больше. Маркеры под выделением позволяют его изменить. Когда вы отпустите палец, меню предложит Вырезать, Копировать, Вставить и Выбрать все.</string>
+    <string name="help_editing_3">Если что-то выделено, клавиша функции обрамляет это: выделите 2x + 1 и нажмите √□, чтобы получить √(2x + 1).</string>
+    <string name="help_editing_4">Чтобы вставить, нажмите на курсор (или удерживайте пустое место) и выберите Вставить. Можно вставлять числа, скопированные из других приложений.</string>
+    <string name="help_editing_5">Система уравнений или несколько графиков записываются в несколько строк: долгое нажатие на Ввод и выберите «новая строка».</string>
+
+    <string name="help_history_title">История</string>
+    <string name="help_history_summary">Повторное использование, копирование и удаление прежних вычислений</string>
+    <string name="help_history_1">Нажмите на вычисление в записи, чтобы вернуть его в строку и изменить.</string>
+    <string name="help_history_2">Нажмите на результат записи, чтобы начать с него новую строку.</string>
+    <string name="help_history_3">Удерживайте вычисление или результат, чтобы скопировать его. Проведите запись в сторону, чтобы удалить её; сообщение позволит это отменить.</string>
+    <string name="help_history_4">Ans (долгое нажатие на Ввод) обозначает последний результат, так что 2·Ans удваивает его.</string>
+
+    <string name="help_results_title">Формы результата и шаги</string>
+    <string name="help_results_summary">Точно или десятичной дробью, и решение по шагам</string>
+    <string name="help_results_1">Результаты по возможности точные: дроби, корни и π остаются как есть. Кнопки рядом с результатом переключают подходящие для него формы: Точно, Десят. (десятичная дробь), Эксп. (экспоненциальная запись), Смеш. (смешанные числа), Поляр. (комплексные числа) и HEX, OCT, BIN.</string>
+    <string name="help_results_forms_example">Точно; нажмите Десят. для 0.5833333333</string>
+    <string name="help_results_2">Шаги открывает решение по шагам: каждый шаг с использованным правилом. Шаги есть для уравнений, систем, неравенств, производных, интегралов, пределов, матриц, многочленов Тейлора, дифференциальных уравнений и другого.</string>
+    <string name="help_results_3">Удерживайте результат, чтобы скопировать его.</string>
+
+    <string name="help_variables_title">Переменные и буквы</string>
+    <string name="help_variables_summary">x, y, z, любая буква и сохранение значений через :=</string>
+    <string name="help_variables_1">Клавиша x вводит x; долгое нажатие — y и z. Для любой другой буквы нажмите abc: откроется системная клавиатура, которая вводит текст в строку. Буквы рядом друг с другом перемножаются, так что ab означает a·b. Имя функции с «(» начинает эту функцию, например sin( или mean(.</string>
+    <string name="help_variables_2">Переменные — строчные буквы. e, π и i — константы, а не переменные.</string>
+    <string name="help_variables_define">Сохранение значения</string>
+    <string name="help_variables_3">Введите букву, := (долгое нажатие на =) и значение, затем нажмите Ввод. С этого момента буква имеет это значение во всех строках.</string>
+    <string name="help_variables_4">Так же сохраняются матрицы и векторы, например m := матрица, чтобы использовать m в следующих строках. Удалите строку из истории, чтобы забыть значение.</string>
+
+
+    <string name="help_functions_title">Выбор функций</string>
+    <string name="help_functions_summary">Статистика, комбинаторика, округление и другое</string>
+    <string name="help_functions_1">Клавиша Функ на правой странице открывает все функции, у которых нет своей клавиши, по темам. Ищите по имени или слову из описания. В каждой записи сказано, что делает функция и как её записать.</string>
+    <string name="help_functions_2">Нажатие на функцию вставляет её в строку с курсором внутри. Значения разделяются разделителем: для него — долгое нажатие на клавишу десятичной точки.</string>
+    <string name="help_functions_3">Если сначала выделить значения (2, 4, 9), а потом выбрать функцию, она возьмёт их.</string>
+
+    <string name="help_equations_title">Уравнения и неравенства</string>
+    <string name="help_equations_summary">Решение относительно x, системы уравнений, неравенства</string>
+    <string name="help_equations_1">Введите уравнение с клавишей = (левая страница). Оно решается относительно своей переменной прямо во время ввода.</string>
+    <string name="help_equations_systems">Системы уравнений</string>
+    <string name="help_equations_2">Запишите каждое уравнение в отдельной строке: между ними — долгое нажатие на Ввод и «новая строка». Решаются линейные и многие нелинейные системы.</string>
+    <string name="help_equations_inequalities">Неравенства</string>
+    <string name="help_equations_3">Долгое нажатие на = даёт &lt;, &gt;, ≤ и ≥. В шагах решение также дано в виде интервалов и на числовой прямой.</string>
+
+    <string name="help_derivatives_title">Производные</string>
+    <string name="help_derivatives_summary">d/dx, производная в точке, частные производные</string>
+    <string name="help_derivatives_1">Долгое нажатие на ∫dx (левая страница), выберите d/dx и введите функцию внутрь.</string>
+    <string name="help_derivatives_2">Для значения производной в точке выберите третий пункт окна, d/dx с x = a, и заполните точку.</string>
+    <string name="help_derivatives_3">Чтобы дифференцировать по другой переменной, нажмите на x в dx и введите букву. Если в функции есть вторая переменная, производная частная и записывается как ∂/∂x.</string>
+    <string name="help_derivatives_partial_note">y здесь — константа</string>
+
+    <string name="help_integrals_title">Интегралы</string>
+    <string name="help_integrals_summary">Первообразные и определённые интегралы</string>
+    <string name="help_integrals_1">Нажмите ∫dx (левая страница) для первообразной и введите функцию внутрь.</string>
+    <string name="help_integrals_2">Для определённого интеграла — долгое нажатие на ∫dx и выберите вариант с пределами; заполните нижний и верхний предел. ∞ (долгое нажатие на π) тоже может быть пределом.</string>
+    <string name="help_integrals_3">Нажмите на x в dx, чтобы интегрировать по другой переменной. Определённый интеграл без формулы вычисляется численно.</string>
+
+    <string name="help_limits_title">Суммы, произведения и пределы</string>
+    <string name="help_limits_summary">Σ, ∏, lim и sum или prod для списка</string>
+    <string name="help_limits_1">Нажмите Σ (левая страница) для суммы: заполните индекс с началом (n = 1), конец и член. Долгое нажатие на Σ — произведение ∏.</string>
+    <string name="help_limits_2">Долгое нажатие на Σ и выберите lim для предела: заполните точку после стрелки и функцию.</string>
+    <string name="help_limits_side_note">Верхний индекс + (долгое нажатие на +) делает предел правосторонним</string>
+
+    <string name="help_taylor_title">Многочлены Тейлора</string>
+    <string name="help_taylor_summary">taylor(f, x, a, n): функция в виде многочлена в окрестности точки</string>
+    <string name="help_taylor_1">taylor даёт многочлен Тейлора функции: многочлен, у которого в точке a то же значение и те же первые n производных, что и у функции. Вблизи a он хорошо приближает функцию.</string>
+    <string name="help_taylor_where">Функ (правая страница) → Анализ → Многочлен Тейлора. Или нажмите abc и введите taylor( .</string>
+    <string name="help_taylor_syntax_1">В окрестности 0, по единственной переменной f, до степени n</string>
+    <string name="help_taylor_syntax_2">По переменной x, в окрестности 0, до степени n. Нужно, когда у f несколько переменных</string>
+    <string name="help_taylor_syntax_3">По x в окрестности точки a, до степени n. a — число или константа, например π</string>
+    <string name="help_taylor_example_point">В окрестности a = 1 он записывается по степеням (x − 1)</string>
+    <string name="help_taylor_notes_1">n — целое число от 0 до 12.</string>
+    <string name="help_taylor_notes_2">f и её производные должны быть определены в a: taylor(ln(x), x, 0, 3) или taylor(sin(x)/x, x, 0, 4) дают ошибку. Выберите другую точку или сначала упростите f.</string>
+    <string name="help_taylor_notes_3">Результат — многочлен, с которым можно работать: дифференцировать, интегрировать или построить вместе с f на графике (каждый в своей строке), чтобы увидеть, где они близки. Шаги показывают весь путь: формулу Тейлора для n, производные, их значения в a, подстановку значений и упрощённый многочлен.</string>
+
+    <string name="help_dsolve_title">Дифференциальные уравнения</string>
+    <string name="help_dsolve_summary">dsolve: обыкновенные дифференциальные уравнения первого и второго порядка</string>
+    <string name="help_dsolve_1">dsolve решает обыкновенное дифференциальное уравнение относительно неизвестной функции y(x): даёт общее решение с константами C (C₁, C₂) или, при начальных условиях, единственное решение, которое им удовлетворяет.</string>
+    <string name="help_dsolve_where">Функ (правая страница) → Анализ → Дифференциальное уравнение. Или нажмите abc и введите dsolve( .</string>
+    <string name="help_dsolve_typing">y′ вводится клавишей производной: долгое нажатие на ∫dx, выберите d/dx и введите y (долгое нажатие на x). Для y″ поместите d/dx внутрь d/dx. Знак = — клавиша на левой странице, а запятые перед условиями — долгое нажатие на клавишу десятичной точки.</string>
+    <string name="help_dsolve_syntax_1">Общее решение</string>
+    <string name="help_dsolve_syntax_2">Первый порядок, с начальным условием y(x₀) = y₀</string>
+    <string name="help_dsolve_syntax_3">Второй порядок, с условиями y(x₀) = y₀ и y′(x₀) = y′₀</string>
+    <string name="help_dsolve_kinds">Что решается</string>
+    <string name="help_dsolve_kinds_1">Первый порядок: линейные уравнения a·y′ + b·y = c, где a, b и c могут зависеть от x, и уравнения с разделяющимися переменными y′ = f(x)·g(y). Если такое уравнение нельзя разрешить относительно y, решение даётся как уравнение от x и y. Уравнение, относящееся к обоим типам, например y′ = 3x·y, решается разделением переменных, как в большинстве учебников.</string>
+    <string name="help_dsolve_kinds_2">Второй порядок: a·y″ + b·y′ + c·y = r(x) с числами a, b, c. Правая часть r(x) может быть 0 или состоять из многочленов, eᵏˣ, sin и cos.</string>
+    <string name="help_dsolve_example_separable">С разделяющимися переменными</string>
+    <string name="help_dsolve_example_linear">Линейное, первого порядка</string>
+    <string name="help_dsolve_example_condition">С y(0) = 3</string>
+    <string name="help_dsolve_example_second">Второй порядок, y″ + y = 0</string>
+    <string name="help_dsolve_example_second_condition">С y(0) = 0 и y′(0) = 1</string>
+    <string name="help_dsolve_notes_1">Каждое решение проверяется подстановкой в уравнение. Уравнения других видов (y′ = y² + x, y″ с непостоянными коэффициентами, третий порядок) не решаются, выводится сообщение.</string>
+    <string name="help_dsolve_notes_2">Неизвестная функция может обозначаться другой буквой, а переменная — x, если не нажать на x в dx, чтобы её изменить. Шаги показывают метод: разделение переменных, интегрирующий множитель или характеристическое уравнение.</string>
+
+    <string name="help_matrices_title">Матрицы и векторы</string>
+    <string name="help_matrices_summary">Выбор размера, det, обратная матрица, собственные значения, векторные функции</string>
+    <string name="help_matrices_1">Нажмите клавишу матрицы (левая страница, сетка в скобках). Проведите по сетке, чтобы выбрать размер, и отпустите палец, чтобы вставить, или выберите 2D- или 3D-вектор. Вектор — это матрица из одного столбца (или одной строки).</string>
+    <string name="help_matrices_2">Матрицы складываются, вычитаются и умножаются обычными клавишами. Долгое нажатие на клавишу матрицы даёт транспонирование, det, rref (приведение к ступенчатому виду) и eig (собственные значения и векторы). Обратная матрица — □⁻¹ (долгое нажатие на □²).</string>
+    <string name="help_matrices_3">В верхнем ряду окна — векторные функции: скалярное и векторное произведение, норма, угол между двумя векторами, проекция и единичный вектор.</string>
+    <string name="help_matrices_4">Чтобы использовать матрицу снова, сохраните её через := (см. Переменные). Прямые с параметром, (1, 2) + r·(2, 1), можно построить на графике.</string>
+
+    <string name="help_complex_title">Комплексные числа</string>
+    <string name="help_complex_summary">i, полярная форма r∠θ</string>
+    <string name="help_complex_1">Нажмите i (левая страница), чтобы ввести мнимую единицу; это включает комплексные числа в настройках. Долгое нажатие на i — полярная форма r∠θ.</string>
+    <string name="help_complex_2">Кнопка Поляр. рядом с комплексным результатом показывает его как r∠θ. В выборе функций в разделе Комплексные числа есть re, im, arg и conj.</string>
+
+    <string name="help_units_title">Единицы и константы</string>
+    <string name="help_units_summary">Вычисления с единицами, перевод, физические константы</string>
+    <string name="help_units_1">Нажмите Единицы (правая страница) и найдите единицу, чтобы поставить её после числа. Вычисления с единицами учитывают их, а результаты показываются в системе единиц из настроек.</string>
+    <string name="help_units_2">Для перевода — долгое нажатие на Единицы для стрелки →, затем поставьте после неё целевую единицу.</string>
+    <string name="help_units_3">Конст (правая страница) содержит математические и физические константы с их единицами, например скорость света c или постоянную Планка h. Ищите по названию или символу и нажмите, чтобы вставить.</string>
+
+    <string name="help_graph_title">Графики</string>
+    <string name="help_graph_summary">Кривые, пересечения, касательные, площади, 3D-поверхности</string>
+    <string name="help_graph_1">Введите функцию и нажмите График (правая страница). Несколько строк дают несколько кривых, а их пересечения отмечаются.</string>
+    <string name="help_graph_example_function">Функция от x</string>
+    <string name="help_graph_example_implicit">Уравнение от x и y: окружность</string>
+    <string name="help_graph_example_surface">Функция от x и y рисуется как 3D-поверхность</string>
+    <string name="help_graph_2">Сведите пальцы для масштаба и ведите для перемещения. Нажмите на кривую, чтобы поставить на ней точку; она притягивается к нулям, максимумам, минимумам, точкам перегиба и пересечениям.</string>
+    <string name="help_graph_3">Инструменты графика: Трассировка ведёт по кривой, Касательная показывает наклон в точке, Интеграл показывает площадь между пределами a и b. В меню осей есть логарифмические оси и полярные координаты.</string>
+    <string name="help_graph_4">Чтобы добавить кривую, используйте «Добавить уравнение»; каждую кривую можно скрыть и снова показать. 3D-поверхность вращается одним пальцем, перемещается и масштабируется двумя.</string>
+
+    <string name="help_bases_title">Шестнадцатеричная, восьмеричная и двоичная системы</string>
+    <string name="help_bases_summary">Клавиши программиста и побитовые операции</string>
+    <string name="help_bases_1">Нажмите DEC над клавиатурой и выберите HEX, OCT или BIN. Цифровые клавиши тогда вводят в этой системе, а на левой странице появляются цифры A–F и побитовые клавиши AND, OR, XOR, NOT и сдвиги &lt;&lt; и &gt;&gt;. Числа получают префикс автоматически (0x, 0o, 0b), а результаты показываются в выбранной системе.</string>
+    <string name="help_bases_2">После возврата к DEC кнопки результата HEX, OCT и BIN по-прежнему показывают целое число в других системах.</string>
+    <string name="help_bases_example_note">Введено в режиме HEX</string>
+    <string name="help_dsolve_equation">уравнение</string>
+    <string name="help_history_sessions">Сохранение и открытие</string>
+    <string name="help_history_5">Настройки → Сеанс → Сохранить… записывает строку и всю историю в текстовый файл, например чтобы сохранить набор вычислений или перенести его на другое устройство. Открыть… читает такой файл: заменяет им историю или добавляет его записи ниже.</string>
+    <string name="help_limits_lists">Для списка чисел индекс не нужен: sum и prod в выборе функций (Функ → Статистика) складывают или перемножают перечисленные значения.</string>
+    <string name="help_try">Попробовать</string>
+    <string name="help_try_description">Вставить %1$s в строку</string>
+    <string name="help_hint_title">Впервые здесь?</string>
+    <string name="help_hint_text">Узнайте, где находится каждая функция и как ею пользоваться. Справка есть также в настройках.</string>
+    <string name="help_hint_open">Показать</string>
+    <string name="help_hint_dismiss">Закрыть</string>
+    <string name="formulas_help">Справка: %1$s</string>
+</resources>

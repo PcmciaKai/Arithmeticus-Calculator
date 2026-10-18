@@ -5,7 +5,7 @@ import java.util.Locale
 
 /**
  * Every text the math engine shows to the user, in each language. A text with parts that vary (a row number, a name) has them as
- * %s or %d: [Texts.format].
+ * %s or %d: [Texts.format]. English and German are given here, the other languages each in a file of their own (TextsFr.kt …).
  */
 enum class Text(val en: String, val de: String) {
     // ----- what went wrong -----
@@ -89,8 +89,14 @@ enum class Text(val en: String, val de: String) {
 
 object Texts {
     /** [text] in [language], the one of the context the engine is running in by default. */
-    fun get(text: Text, language: Language = MathContext.current().language): String =
-        if (language == Language.GERMAN) text.de else text.en
+    fun get(text: Text, language: Language = MathContext.current().language): String = when (language) {
+        Language.ENGLISH -> text.en
+        Language.GERMAN -> text.de
+        Language.FRENCH -> text.fr
+        Language.SPANISH -> text.es
+        Language.RUSSIAN -> text.ru
+        Language.CHINESE -> text.zh
+    }
 
     fun format(text: Text, vararg arguments: Any?, language: Language = MathContext.current().language): String =
         String.format(Locale.ROOT, get(text, language), *arguments)

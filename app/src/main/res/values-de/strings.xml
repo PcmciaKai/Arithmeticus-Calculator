@@ -27,8 +27,6 @@
     <string name="settings_theme_dark">Dunkel</string>
     <string name="settings_language">Sprache</string>
     <string name="settings_language_system">System</string>
-    <string name="settings_language_english">English</string>
-    <string name="settings_language_german">Deutsch</string>
     <string name="settings_support">♥︎ Diese App unterstützen</string>
     <string name="settings_done">Fertig</string>
     <string name="settings_auto">Auto</string>
