@@ -175,24 +175,74 @@ class DifferentialEquationsTest {
     @Test
     fun theStepsFollowTheMethod() {
         assertEquals(
-            listOf(StepRule.ODE_STANDARD_FORM, StepRule.ODE_INTEGRATING_FACTOR, StepRule.ODE_LINEAR_SOLUTION, StepRule.ODE_SOLVE_FOR_UNKNOWN, StepRule.ODE_CONSTANTS),
+            listOf(
+                StepRule.ODE_INITIAL_VALUE_PROBLEM, StepRule.ODE_TYPE_LINEAR, StepRule.ODE_INTEGRATING_FACTOR, StepRule.ODE_LINEAR_SOLUTION, StepRule.ODE_SOLVE_FOR_UNKNOWN,
+                StepRule.ODE_INSERT_CONDITIONS, StepRule.SIMPLIFY, StepRule.ODE_SOLVE_CONSTANTS, StepRule.ODE_PUT_CONSTANTS
+            ),
             rules("dsolve(D{y}+y=x,0,1)")
         )
-        assertEquals(listOf(StepRule.ODE_SEPARATE, StepRule.ODE_INTEGRATE_BOTH, StepRule.ODE_SOLVE_FOR_UNKNOWN), rules("dsolve(D{y}=x/y)"))
-        // An equation that stays implicit has no step for solving
-        assertEquals(listOf(StepRule.ODE_SEPARATE, StepRule.ODE_INTEGRATE_BOTH), rules("dsolve(D{y}=y(1-y))"))
-        assertEquals(listOf(StepRule.ODE_CHARACTERISTIC, StepRule.ODE_HOMOGENEOUS), rules("dsolve(D{D{y}}+2D{y}+5y=0)"))
         assertEquals(
-            listOf(StepRule.ODE_CHARACTERISTIC, StepRule.ODE_HOMOGENEOUS, StepRule.ODE_UNDETERMINED_COEFFICIENTS, StepRule.ODE_CONSTANTS),
+            listOf(StepRule.ODE_PROBLEM, StepRule.ODE_TYPE_SEPARABLE, StepRule.ODE_SEPARATE, StepRule.ODE_INTEGRATE_BOTH, StepRule.ODE_INTEGRALS, StepRule.MULTIPLY_BOTH_SIDES, StepRule.SQUARE_ROOT_BOTH_SIDES),
+            rules("dsolve(D{y}=x/y)")
+        )
+        // An equation that stays implicit has no step for solving
+        assertEquals(listOf(StepRule.ODE_PROBLEM, StepRule.ODE_TYPE_SEPARABLE, StepRule.ODE_SEPARATE, StepRule.ODE_INTEGRATE_BOTH, StepRule.ODE_INTEGRALS), rules("dsolve(D{y}=y(1-y))"))
+        assertEquals(listOf(StepRule.ODE_PROBLEM, StepRule.ODE_TYPE_SECOND_ORDER_HOMOGENEOUS, StepRule.ODE_TRY_EXPONENTIAL, StepRule.ODE_FACTOR_EXPONENTIAL, StepRule.ODE_CHARACTERISTIC, StepRule.ODE_CHARACTERISTIC_ROOTS, StepRule.SIMPLIFY, StepRule.ODE_HOMOGENEOUS_COMPLEX), rules("dsolve(D{D{y}}+2D{y}+5y=0)"))
+        assertEquals(
+            listOf(
+                StepRule.ODE_INITIAL_VALUE_PROBLEM, StepRule.ODE_TYPE_SECOND_ORDER_INHOMOGENEOUS, StepRule.ODE_TRY_EXPONENTIAL, StepRule.ODE_FACTOR_EXPONENTIAL, StepRule.ODE_CHARACTERISTIC, StepRule.ODE_CHARACTERISTIC_ROOTS, StepRule.SIMPLIFY, StepRule.ODE_HOMOGENEOUS_COMPLEX, StepRule.ODE_UNDETERMINED_COEFFICIENTS,
+                StepRule.ODE_DERIVATIVE_OF_SOLUTION, StepRule.ODE_INSERT_CONDITIONS, StepRule.SIMPLIFY, StepRule.ODE_SOLVE_CONSTANTS, StepRule.ODE_PUT_CONSTANTS
+            ),
             rules("dsolve(D{D{y}}+y=sin(x),0,0,1)")
         )
-        // What is worked out is shown with the stage: the roots, the integral
-        val steps = runBlocking { MathEngine.steps(TestInput.parse("dsolve(D{D{y}}-3D{y}+2y=0)"), MathContext()) }!!
-        val notes = steps.steps[1].notes.map { it.toString() }
-        assertEquals(listOf("D = 1", "r₁ = 2", "r₂ = 1"), notes)
-        assertEquals("y = C₁(e)^(2x) + C₂(e)^(x)", steps.result.toString())
+        // The characteristic equation step by step: y = eʳˣ put in, eʳˣ factored out and divided by, the formula, the roots
+        val steps = runBlocking { MathEngine.steps(TestInput.parse("dsolve(D{D{y}}-8D{y}+15y=0)"), MathContext()) }!!.steps
+        fun line(rule: StepRule) = steps.first { it.rule == rule }
+        fun shownLine(rule: StepRule) = line(rule).expression.toString().trim('{', '}')
+        assertEquals(listOf("y = (e)^(rx)", "y′ = r(e)^(rx)", "y″ = (r)^(2)(e)^(rx)"), line(StepRule.ODE_TRY_EXPONENTIAL).notes.map { it.toString() })
+        assertEquals("[(r)^(2)(e)^(rx) − 8r(e)^(rx) + 15(e)^(rx) = 0]", shownLine(StepRule.ODE_TRY_EXPONENTIAL))
+        assertEquals("[(e)^(rx)((r)^(2) − 8r + 15) = 0]", shownLine(StepRule.ODE_FACTOR_EXPONENTIAL))
+        assertEquals("[(r)^(2) − 8r + 15 = 0]", shownLine(StepRule.ODE_CHARACTERISTIC))
+        assertEquals("[r₁ = (8 + sqrt(4))/(2), r₂ = (8 − sqrt(4))/(2)]", shownLine(StepRule.ODE_CHARACTERISTIC_ROOTS))
+        assertEquals(1, line(StepRule.ODE_CHARACTERISTIC_ROOTS).notes.size)
+        assertEquals("[r₁ = 5, r₂ = 3]", shownLine(StepRule.SIMPLIFY))
+        assertEquals("[y = C₁(e)^(5x) + C₂(e)^(3x)]", shownLine(StepRule.ODE_HOMOGENEOUS_DISTINCT).trim('{', '}'))
+        // The kind of roots decides the form of the solution
+        assertEquals(StepRule.ODE_HOMOGENEOUS_DOUBLE, rules("dsolve(D{D{y}}+4D{y}+4y=0)")!!.last())
+        assertEquals(StepRule.ODE_HOMOGENEOUS_COMPLEX, rules("dsolve(D{D{y}}+y=0)")!!.last())
         // Nothing to show for what is not solved
         assertNull(rules("dsolve(D{y}=y^2+x)"))
+    }
+
+    /** dy/dx = 3xy as in a textbook: separated (not with an integrating factor), integrated, solved for y, then the initial value. */
+    @Test
+    fun aSeparableEquationIsSolvedAsInATextbook() {
+        val steps = runBlocking { MathEngine.steps(TestInput.parse("dsolve(D{y}=3xy,0,2)"), MathContext()) }!!.steps
+        assertEquals(
+            listOf(
+                StepRule.ODE_INITIAL_VALUE_PROBLEM, StepRule.ODE_TYPE_SEPARABLE, StepRule.ODE_SEPARATE, StepRule.ODE_INTEGRATE_BOTH, StepRule.ODE_INTEGRALS,
+                StepRule.EXPONENTIATE_BOTH_SIDES, StepRule.ODE_ABSOLUTE_VALUE, StepRule.ODE_INSERT_CONDITIONS, StepRule.SIMPLIFY, StepRule.ODE_SOLVE_CONSTANTS, StepRule.ODE_PUT_CONSTANTS
+            ),
+            steps.mapNotNull { it.rule }
+        )
+        fun line(rule: StepRule) = steps.first { it.rule == rule }
+        assertEquals(listOf("y(0) = 2"), line(StepRule.ODE_INITIAL_VALUE_PROBLEM).notes.map { it.toString() })
+        assertEquals(listOf("f(x) = 3x", "g(y) = y"), line(StepRule.ODE_TYPE_SEPARABLE).notes.map { it.toString() })
+        // The differential after what it goes with
+        assertEquals("[(dy)/(y) = 3xdx]", line(StepRule.ODE_SEPARATE).expression.toString().trim('{', '}'))
+        assertEquals("[int ((1)/(y)) dy = int (3x) dx]", line(StepRule.ODE_INTEGRATE_BOTH).expression.toString().trim('{', '}'))
+        assertEquals("[ln(abs(y)) = (3(x)^(2))/(2) + C]", line(StepRule.ODE_INTEGRALS).expression.toString().trim('{', '}'))
+        // e^ is done to both sides of the line before
+        assertEquals("e^", line(StepRule.ODE_INTEGRALS).operation.toString())
+        assertEquals("[y = C(e)^((3(x)^(2))/(2))]", line(StepRule.ODE_ABSOLUTE_VALUE).expression.toString().trim('{', '}'))
+        assertEquals("[C = 2]", line(StepRule.ODE_SOLVE_CONSTANTS).expression.toString().trim('{', '}'))
+        assertEquals("y = 2(e)^((3(x)^(2))/(2))", shown("dsolve(D{y}=3xy,0,2)"))
+        // Both a linear and a separable equation: separated where that gives y
+        assertEquals(StepRule.ODE_TYPE_SEPARABLE, rules("dsolve(D{y}=2xy)")!![1])
+        assertEquals(StepRule.ODE_TYPE_LINEAR, rules("dsolve(D{y}+y=x)")!![1])
+        // y⁻² = c: to the power −1/2, with both signs
+        assertEquals(StepRule.POWER_BOTH_SIDES, rules("dsolve(D{y}=x y^3)")!!.last())
+        assertNotNull(rules("dsolve(D{y}=x y^3,0,1)"))
     }
 
     @Test

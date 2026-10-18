@@ -109,17 +109,36 @@
     <string name="formula_apart_desc">Zerlegt einen Bruch aus Polynomen in einfachere Brüche: apart(1/(x² − 1)) = 1/(2(x − 1)) − 1/(2(x + 1))</string>
     <string name="formula_taylor_name">Taylor-Polynom</string>
     <string name="formula_taylor_desc">taylor(f, x, a, n): ein Polynom bis xⁿ, das f nahe x = a annähert</string>
-    <string name="step_ode_standard_form">Schreibe die Gleichung in Normalform</string>
+    <string name="step_ode_problem">Eine Differentialgleichung: gesucht ist eine Funktion y(x), für die y und ihre Ableitungen (y′ = dy/dx, y″ = d²y/dx²) die Gleichung für jedes x erfüllen. Die Lösung enthält freie Konstanten C, denn eine solche Gleichung hat viele Lösungen</string>
+    <string name="step_ode_initial_value_problem">Ein Anfangswertproblem: gesucht ist eine Funktion y(x), für die y und ihre Ableitungen (y′ = dy/dx, y″ = d²y/dx²) die Gleichung für jedes x erfüllen und die die gegebenen Anfangswerte annimmt. Zuerst die allgemeine Lösung, dann die Konstanten für die Anfangswerte</string>
+    <string name="step_ode_type_separable">Typ: erster Ordnung, separierbar. Die rechte Seite ist eine Funktion von x mal eine Funktion von y, also lassen sich die Variablen trennen</string>
+    <string name="step_ode_type_linear">Typ: erster Ordnung, linear. y und y′ kommen nur in der ersten Potenz vor und werden nicht miteinander multipliziert; in Normalform wird sie mit einem integrierenden Faktor gelöst</string>
+    <string name="step_ode_type_second_order_homogeneous">Typ: zweiter Ordnung, linear mit konstanten Koeffizienten, homogen (die rechte Seite ist 0). Sie wird mit der charakteristischen Gleichung gelöst</string>
+    <string name="step_ode_type_second_order_inhomogeneous">Typ: zweiter Ordnung, linear mit konstanten Koeffizienten, inhomogen (die rechte Seite r(x) ist nicht 0). Lösung = allgemeine Lösung yₕ der homogenen Gleichung (rechte Seite 0) + eine partikuläre Lösung yₚ</string>
     <string name="step_ode_integrating_factor">Bestimme den integrierenden Faktor μ</string>
     <string name="step_ode_linear_solution">Multipliziere mit μ: die linke Seite ist (μ·y)′. Integriere beide Seiten</string>
-    <string name="step_ode_separate">Trenne die Variablen: alles mit y nach links, alles mit x nach rechts</string>
-    <string name="step_ode_integrate_both">Integriere beide Seiten</string>
+    <string name="step_ode_separate">Trenne die Variablen: schreibe y′ als dy/dx, teile durch g(y) und multipliziere mit dx, sodass y nur links und x nur rechts steht</string>
+    <string name="step_ode_integrate_both">Integriere beide Seiten: die linke nach y, die rechte nach x</string>
+    <string name="step_ode_integrals">Berechne beide Integrale. Die beiden Integrationskonstanten werden rechts zu einer Konstanten C zusammengefasst</string>
+    <string name="step_ode_absolute_value">Lasse den Betrag weg: das Vorzeichen ± geht in die Konstante ein. ±e^C ist wieder eine beliebige Konstante und heißt wieder C</string>
+    <string name="step_ode_new_constant">Der konstante Teil ist wieder eine beliebige Konstante: er heißt wieder C</string>
     <string name="step_ode_solve_for_unknown">Löse nach y auf</string>
-    <string name="step_ode_characteristic">Ansatz y = eʳˣ: das ergibt die charakteristische Gleichung</string>
-    <string name="step_ode_homogeneous">Allgemeine Lösung der Gleichung ohne rechte Seite: bei zwei reellen Nullstellen C₁·eʳ¹ˣ + C₂·eʳ²ˣ, bei einer doppelten (C₁ + C₂·x)·eʳˣ, bei komplexen α ± βi: eᵃˣ·(C₁·cos(βx) + C₂·sin(βx))</string>
+    <string name="step_ode_try_exponential">Ansatz y = e^(rx): setze y, y′ = r·e^(rx) und y″ = r²·e^(rx) in die Gleichung ein</string>
+    <string name="step_ode_factor_exponential">Klammere e^(rx) aus</string>
+    <string name="step_ode_characteristic">Teile durch e^(rx), das nie 0 ist. Übrig bleibt die charakteristische Gleichung, eine quadratische Gleichung in r</string>
+    <string name="step_ode_characteristic_roots">Löse die charakteristische Gleichung mit der Lösungsformel für quadratische Gleichungen</string>
+    <string name="step_ode_homogeneous_distinct">Zwei verschiedene reelle Nullstellen r₁ und r₂: e^(r₁x) und e^(r₂x) sind beide Lösungen. Die allgemeine Lösung kombiniert sie</string>
+    <string name="step_ode_homogeneous_double">Eine doppelte Nullstelle r: e^(rx) und x·e^(rx) sind beide Lösungen. Die allgemeine Lösung kombiniert sie</string>
+    <string name="step_ode_homogeneous_complex">Komplexe Nullstellen α ± βi: e^(αx)·cos(βx) und e^(αx)·sin(βx) sind beide reelle Lösungen. Die allgemeine Lösung kombiniert sie</string>
     <string name="step_ode_variation_of_parameters">Bestimme eine partikuläre Lösung durch Variation der Konstanten (W ist die Wronski-Determinante)</string>
     <string name="step_ode_undetermined_coefficients">Bestimme eine partikuläre Lösung: ein Ansatz von der Art der rechten Seite (mal x, wenn sie die Gleichung ohne rechte Seite löst), mit berechneten Koeffizienten</string>
     <string name="step_ode_constants">Wähle die Konstanten so, dass die Anfangsbedingungen gelten</string>
+    <string name="step_ode_derivative_of_solution">Leite die allgemeine Lösung ab: die Bedingung für y′ braucht y′</string>
+    <string name="step_ode_insert_conditions">Setze die Anfangswerte in die allgemeine Lösung ein</string>
+    <string name="step_ode_solve_constants">Löse nach den Konstanten auf</string>
+    <string name="step_ode_put_constants">Setze die Konstanten in die allgemeine Lösung ein: das ist die Lösung des Anfangswertproblems</string>
+    <string name="step_power_both_sides">Erhebe beide Seiten in die Potenz 1/n</string>
+    <string name="step_inverse_function_both_sides">Wende auf beide Seiten die Umkehrfunktion an</string>
     <string name="formula_dsolve_name">Differentialgleichung</string>
     <string name="formula_dsolve_desc">dsolve(Gleichung): löst y′ = 2x·y und Ähnliches; y′ schreibst du als d/dx(y) (∫dx lange drücken)</string>
     <string name="formula_modpow_name">Modulare Potenz</string>
@@ -818,7 +837,7 @@
     <string name="help_dsolve_syntax_2">Erste Ordnung, mit der Anfangsbedingung y(x₀) = y₀</string>
     <string name="help_dsolve_syntax_3">Zweite Ordnung, mit den Bedingungen y(x₀) = y₀ und y′(x₀) = y′₀</string>
     <string name="help_dsolve_kinds">Was gelöst wird</string>
-    <string name="help_dsolve_kinds_1">Erste Ordnung: lineare Gleichungen a·y′ + b·y = c, wobei a, b und c von x abhängen dürfen, und separierbare Gleichungen y′ = f(x)·g(y). Lässt sich eine separierbare Gleichung nicht nach y auflösen, wird die Lösung als Gleichung in x und y angegeben.</string>
+    <string name="help_dsolve_kinds_1">Erste Ordnung: lineare Gleichungen a·y′ + b·y = c, wobei a, b und c von x abhängen dürfen, und separierbare Gleichungen y′ = f(x)·g(y). Lässt sich eine separierbare Gleichung nicht nach y auflösen, wird die Lösung als Gleichung in x und y angegeben. Eine Gleichung, die beides ist, etwa y′ = 3x·y, wird wie in den meisten Lehrbüchern durch Trennung der Variablen gelöst.</string>
     <string name="help_dsolve_kinds_2">Zweite Ordnung: a·y″ + b·y′ + c·y = r(x) mit Zahlen a, b, c. Die rechte Seite r(x) kann 0 sein oder aus Polynomen, eᵏˣ, sin und cos bestehen.</string>
     <string name="help_dsolve_example_separable">Separierbar</string>
     <string name="help_dsolve_example_linear">Linear, erste Ordnung</string>

@@ -396,17 +396,36 @@
     <string name="formula_apart_desc">Splits a fraction of polynomials into simpler fractions: apart(1/(x² − 1)) = 1/(2(x − 1)) − 1/(2(x + 1))</string>
     <string name="formula_taylor_name">Taylor polynomial</string>
     <string name="formula_taylor_desc">taylor(f, x, a, n): a polynomial up to xⁿ that approximates f near x = a</string>
-    <string name="step_ode_standard_form">Write the equation in standard form</string>
+    <string name="step_ode_problem">A differential equation: wanted is a function y(x) for which y and its derivatives (y′ = dy/dx, y″ = d²y/dx²) make the equation true for every x. The solution has free constants C, since such an equation has many solutions</string>
+    <string name="step_ode_initial_value_problem">An initial value problem: wanted is a function y(x) for which y and its derivatives (y′ = dy/dx, y″ = d²y/dx²) make the equation true for every x, and which takes the given initial values. First the general solution, then the constants for the initial values</string>
+    <string name="step_ode_type_separable">Type: first-order, separable. The right side is a function of x times a function of y, so the variables can be separated</string>
+    <string name="step_ode_type_linear">Type: first-order, linear. y and y′ appear only to the first power and are not multiplied together; in standard form it is solved with an integrating factor</string>
+    <string name="step_ode_type_second_order_homogeneous">Type: second-order, linear with constant coefficients, homogeneous (the right side is 0). It is solved with the characteristic equation</string>
+    <string name="step_ode_type_second_order_inhomogeneous">Type: second-order, linear with constant coefficients, inhomogeneous (the right side r(x) is not 0). Solution = general solution yₕ of the homogeneous equation (right side 0) + one particular solution yₚ</string>
     <string name="step_ode_integrating_factor">Find the integrating factor μ</string>
     <string name="step_ode_linear_solution">Multiply by μ: the left side is (μ·y)′. Integrate both sides</string>
-    <string name="step_ode_separate">Separate the variables: everything with y on the left, everything with x on the right</string>
-    <string name="step_ode_integrate_both">Integrate both sides</string>
+    <string name="step_ode_separate">Separate the variables: write y′ as dy/dx, divide by g(y) and multiply by dx, so that y is only on the left and x only on the right</string>
+    <string name="step_ode_integrate_both">Integrate both sides: the left side with respect to y, the right side with respect to x</string>
+    <string name="step_ode_integrals">Work out both integrals. The two constants of integration are combined into one constant C on the right</string>
+    <string name="step_ode_absolute_value">Drop the absolute value: the sign ± goes into the constant. ±e^C is again an arbitrary constant, so it is called C again</string>
+    <string name="step_ode_new_constant">The constant part is again an arbitrary constant: it is called C again</string>
     <string name="step_ode_solve_for_unknown">Solve for y</string>
-    <string name="step_ode_characteristic">Try y = eʳˣ: this gives the characteristic equation</string>
-    <string name="step_ode_homogeneous">General solution of the equation without the right side: for two real roots C₁·eʳ¹ˣ + C₂·eʳ²ˣ, for a double root (C₁ + C₂·x)·eʳˣ, for complex roots α ± βi: eᵃˣ·(C₁·cos(βx) + C₂·sin(βx))</string>
+    <string name="step_ode_try_exponential">Try y = e^(rx): put y, y′ = r·e^(rx) and y″ = r²·e^(rx) into the equation</string>
+    <string name="step_ode_factor_exponential">Factor out e^(rx)</string>
+    <string name="step_ode_characteristic">Divide by e^(rx), which is never 0. What is left is the characteristic equation, a quadratic equation in r</string>
+    <string name="step_ode_characteristic_roots">Solve the characteristic equation with the quadratic formula</string>
+    <string name="step_ode_homogeneous_distinct">Two different real roots r₁ and r₂: e^(r₁x) and e^(r₂x) are both solutions. The general solution combines them</string>
+    <string name="step_ode_homogeneous_double">A double root r: e^(rx) and x·e^(rx) are both solutions. The general solution combines them</string>
+    <string name="step_ode_homogeneous_complex">Complex roots α ± βi: e^(αx)·cos(βx) and e^(αx)·sin(βx) are both real solutions. The general solution combines them</string>
     <string name="step_ode_variation_of_parameters">Find a particular solution by variation of parameters (W is the Wronskian)</string>
     <string name="step_ode_undetermined_coefficients">Find a particular solution: a guess of the same kind as the right side (times x if it solves the equation without the right side), with the coefficients worked out</string>
     <string name="step_ode_constants">Choose the constants so that the initial conditions hold</string>
+    <string name="step_ode_derivative_of_solution">Differentiate the general solution: the condition on y′ needs y′</string>
+    <string name="step_ode_insert_conditions">Insert the initial values into the general solution</string>
+    <string name="step_ode_solve_constants">Solve for the constants</string>
+    <string name="step_ode_put_constants">Put the constants into the general solution: this is the solution of the initial value problem</string>
+    <string name="step_power_both_sides">Raise both sides to the power 1/n</string>
+    <string name="step_inverse_function_both_sides">Apply the inverse function to both sides</string>
     <string name="formula_dsolve_name">Differential equation</string>
     <string name="formula_dsolve_desc">dsolve(equation): solves y′ = 2x·y and the like; type y′ as d/dx(y) (long press ∫dx)</string>
     <string name="formula_modpow_name">Modular power</string>
@@ -823,7 +842,7 @@
     <string name="help_dsolve_syntax_2">First order, with the initial condition y(x₀) = y₀</string>
     <string name="help_dsolve_syntax_3">Second order, with the conditions y(x₀) = y₀ and y′(x₀) = y′₀</string>
     <string name="help_dsolve_kinds">What it solves</string>
-    <string name="help_dsolve_kinds_1">First order: linear equations a·y′ + b·y = c, where a, b and c may depend on x, and separable equations y′ = f(x)·g(y). When a separable equation cannot be solved for y, the solution is given as an equation in x and y.</string>
+    <string name="help_dsolve_kinds_1">First order: linear equations a·y′ + b·y = c, where a, b and c may depend on x, and separable equations y′ = f(x)·g(y). When a separable equation cannot be solved for y, the solution is given as an equation in x and y. An equation that is both, such as y′ = 3x·y, is solved by separating the variables, as in most textbooks.</string>
     <string name="help_dsolve_kinds_2">Second order: a·y″ + b·y′ + c·y = r(x) with numbers a, b, c. The right side r(x) can be 0, or made of polynomials, eᵏˣ, sin and cos.</string>
     <string name="help_dsolve_example_separable">Separable</string>
     <string name="help_dsolve_example_linear">Linear, first order</string>

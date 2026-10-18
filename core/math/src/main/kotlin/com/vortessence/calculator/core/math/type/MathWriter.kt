@@ -562,6 +562,8 @@ class MathWriter(
         // A highlighted product goes where its first factor would: [2x]·cos(x), not cos(x)·[2x]
         factor is Marked -> (factor.inner as? Multiplications)?.operands?.minOf { factorRank(it) } ?: factorRank(factor.inner)
         factor is LiteralPower -> factorRank(factor.inner)
+        // dx after what it goes with, in a separated differential equation: 3x dx, eˣ dx
+        factor is Variable && isDifferential(factor) -> 7
         factor is Derivative -> 6
         factor is Value || factor is Percent || factor is MixedNumber -> 0
         // Powers of numbers in solution steps: 2³x³
@@ -572,6 +574,9 @@ class MathWriter(
         factor is Additions || (factor is Power && factor.base is Additions) -> 5
         else -> 4
     }
+
+    /** dx, dy: the letters of the differentials of a separated equation (variables are single letters, perhaps with an index). */
+    private fun isDifferential(v: Variable): Boolean = v.identifier.length == 2 && v.identifier[0] == 'd' && v.identifier[1].isLetter()
 
     /** The variable of a factor x or xⁿ, which orders such factors alphabetically. */
     private fun variableName(factor: Expression): String? =

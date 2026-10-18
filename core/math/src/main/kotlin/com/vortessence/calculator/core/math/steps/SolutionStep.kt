@@ -224,28 +224,66 @@ enum class StepRule {
     PARTIAL_FRACTIONS,
     /** f(x) = f(a) + f′(a)(x − a) + f″(a)/2!·(x − a)² + … */
     TAYLOR_SERIES,
+    /** the equation as typed: a function y(x) is asked for */
+    ODE_PROBLEM,
+    /** the same, with y(x₀) = y₀ (and y′(x₀) = y₁) */
+    ODE_INITIAL_VALUE_PROBLEM,
+    /** y′ = f(x)·g(y) */
+    ODE_TYPE_SEPARABLE,
     /** y′ + p(x)·y = q(x) */
-    ODE_STANDARD_FORM,
+    ODE_TYPE_LINEAR,
+    /** a·y″ + b·y′ + c·y = 0 */
+    ODE_TYPE_SECOND_ORDER_HOMOGENEOUS,
+    /** a·y″ + b·y′ + c·y = r(x) */
+    ODE_TYPE_SECOND_ORDER_INHOMOGENEOUS,
     /** μ(x) = e^(∫p dx) */
     ODE_INTEGRATING_FACTOR,
     /** (μ·y)′ = μ·q, integrated */
     ODE_LINEAR_SOLUTION,
     /** y′ = f(x)·g(y) becomes dy/g(y) = f(x) dx */
     ODE_SEPARATE,
-    /** ∫ dy/g(y) = ∫ f(x) dx + C */
+    /** ∫ dy/g(y) = ∫ f(x) dx */
     ODE_INTEGRATE_BOTH,
+    /** G(y) = F(x) + C, the two constants of integration as one */
+    ODE_INTEGRALS,
+    /** |u| = e^(v + C) gives u = ±e^C·e^v = C·e^v */
+    ODE_ABSOLUTE_VALUE,
+    /** e^(v + C) = C·e^v: the constant renamed */
+    ODE_NEW_CONSTANT,
     /** y alone on one side */
     ODE_SOLVE_FOR_UNKNOWN,
-    /** a·r² + b·r + c = 0 for y = eʳˣ */
+    /** y = eʳˣ, y′ = r·eʳˣ, y″ = r²·eʳˣ put into the equation */
+    ODE_TRY_EXPONENTIAL,
+    /** eʳˣ·(a·r² + b·r + c) = 0 */
+    ODE_FACTOR_EXPONENTIAL,
+    /** divided by eʳˣ: a·r² + b·r + c = 0 */
     ODE_CHARACTERISTIC,
-    /** C₁·y₁ + C₂·y₂ for the roots of the characteristic equation */
-    ODE_HOMOGENEOUS,
+    /** r = (−b ± √D)/(2a) with D = b² − 4ac */
+    ODE_CHARACTERISTIC_ROOTS,
+    /** y = C₁·e^(r₁x) + C₂·e^(r₂x) */
+    ODE_HOMOGENEOUS_DISTINCT,
+    /** y = (C₁ + C₂·x)·eʳˣ */
+    ODE_HOMOGENEOUS_DOUBLE,
+    /** y = e^(αx)·(C₁·cos(βx) + C₂·sin(βx)) */
+    ODE_HOMOGENEOUS_COMPLEX,
     /** yₚ = −y₁∫y₂r/(aW) + y₂∫y₁r/(aW) */
     ODE_VARIATION_OF_PARAMETERS,
     /** a guess of the kind of the right side, with the coefficients worked out */
     ODE_UNDETERMINED_COEFFICIENTS,
+    /** y′ of the general solution, for the condition on y′(x₀) */
+    ODE_DERIVATIVE_OF_SOLUTION,
+    /** x₀ and y₀ put into the general solution */
+    ODE_INSERT_CONDITIONS,
+    /** the equations for the constants solved */
+    ODE_SOLVE_CONSTANTS,
+    /** the constants put into the general solution */
+    ODE_PUT_CONSTANTS,
     /** the constants that fit the initial conditions */
     ODE_CONSTANTS,
+    /** u^n = c ⇔ u = c^(1/n) */
+    POWER_BOTH_SIDES,
+    /** f(u) = c ⇔ u = f⁻¹(c) */
+    INVERSE_FUNCTION_BOTH_SIDES,
     /** (px + q)/D = (p/2a)·D′/D + (q − pb/2a)/D */
     SPLIT_NUMERATOR,
     /** ax² + bx + c = a((x + h)² + k) */

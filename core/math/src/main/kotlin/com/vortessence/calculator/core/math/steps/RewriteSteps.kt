@@ -36,7 +36,10 @@ internal object RewriteSteps {
 
     private const val MAX_STEPS = 80
 
-    /** The stages of the derivation of the solution of an ordinary differential equation, each with what it works out. */
+    /**
+     * The stages of the derivation of the solution of an ordinary differential equation, each with what it works out: what is
+     * asked for, the type, the method, the constants.
+     */
     private fun dsolve(call: NamedFunction, context: MathContext): ExpressionSolution? {
         val scratch = context.copy()
         val derivation = DifferentialEquations.solve(call.arguments, scratch) ?: return null
@@ -45,22 +48,51 @@ internal object RewriteSteps {
         solution.start(call)
         for (stage in derivation.stages) {
             val rule = when (stage.kind) {
-                DifferentialEquations.Kind.STANDARD_FORM -> StepRule.ODE_STANDARD_FORM
+                DifferentialEquations.Kind.PROBLEM -> StepRule.ODE_PROBLEM
+                DifferentialEquations.Kind.INITIAL_VALUE_PROBLEM -> StepRule.ODE_INITIAL_VALUE_PROBLEM
+                DifferentialEquations.Kind.TYPE_SEPARABLE -> StepRule.ODE_TYPE_SEPARABLE
+                DifferentialEquations.Kind.TYPE_LINEAR -> StepRule.ODE_TYPE_LINEAR
+                DifferentialEquations.Kind.TYPE_SECOND_ORDER_HOMOGENEOUS -> StepRule.ODE_TYPE_SECOND_ORDER_HOMOGENEOUS
+                DifferentialEquations.Kind.TYPE_SECOND_ORDER_INHOMOGENEOUS -> StepRule.ODE_TYPE_SECOND_ORDER_INHOMOGENEOUS
                 DifferentialEquations.Kind.INTEGRATING_FACTOR -> StepRule.ODE_INTEGRATING_FACTOR
                 DifferentialEquations.Kind.LINEAR_SOLUTION -> StepRule.ODE_LINEAR_SOLUTION
                 DifferentialEquations.Kind.SEPARATE -> StepRule.ODE_SEPARATE
                 DifferentialEquations.Kind.INTEGRATE_BOTH -> StepRule.ODE_INTEGRATE_BOTH
+                DifferentialEquations.Kind.INTEGRALS -> StepRule.ODE_INTEGRALS
+                DifferentialEquations.Kind.ADD -> StepRule.ADD_TO_BOTH_SIDES
+                DifferentialEquations.Kind.SUBTRACT -> StepRule.SUBTRACT_FROM_BOTH_SIDES
+                DifferentialEquations.Kind.MULTIPLY -> StepRule.MULTIPLY_BOTH_SIDES
+                DifferentialEquations.Kind.DIVIDE -> StepRule.DIVIDE_BOTH_SIDES
+                DifferentialEquations.Kind.EXPONENTIATE -> StepRule.EXPONENTIATE_BOTH_SIDES
+                DifferentialEquations.Kind.LOGARITHM -> StepRule.LOGARITHM_BOTH_SIDES
+                DifferentialEquations.Kind.SQUARE_ROOT -> StepRule.SQUARE_ROOT_BOTH_SIDES
+                DifferentialEquations.Kind.ROOT -> StepRule.NTH_ROOT_BOTH_SIDES
+                DifferentialEquations.Kind.SQUARE -> StepRule.SQUARE_BOTH_SIDES
+                DifferentialEquations.Kind.POWER -> StepRule.POWER_BOTH_SIDES
+                DifferentialEquations.Kind.INVERSE_FUNCTION -> StepRule.INVERSE_FUNCTION_BOTH_SIDES
+                DifferentialEquations.Kind.ABSOLUTE_VALUE -> StepRule.ODE_ABSOLUTE_VALUE
+                DifferentialEquations.Kind.NEW_CONSTANT -> StepRule.ODE_NEW_CONSTANT
                 DifferentialEquations.Kind.SOLVE_FOR_UNKNOWN -> StepRule.ODE_SOLVE_FOR_UNKNOWN
+                DifferentialEquations.Kind.TRY_EXPONENTIAL -> StepRule.ODE_TRY_EXPONENTIAL
+                DifferentialEquations.Kind.FACTOR_EXPONENTIAL -> StepRule.ODE_FACTOR_EXPONENTIAL
                 DifferentialEquations.Kind.CHARACTERISTIC -> StepRule.ODE_CHARACTERISTIC
-                DifferentialEquations.Kind.HOMOGENEOUS -> StepRule.ODE_HOMOGENEOUS
+                DifferentialEquations.Kind.CHARACTERISTIC_ROOTS -> StepRule.ODE_CHARACTERISTIC_ROOTS
+                DifferentialEquations.Kind.HOMOGENEOUS_DISTINCT -> StepRule.ODE_HOMOGENEOUS_DISTINCT
+                DifferentialEquations.Kind.HOMOGENEOUS_DOUBLE -> StepRule.ODE_HOMOGENEOUS_DOUBLE
+                DifferentialEquations.Kind.HOMOGENEOUS_COMPLEX -> StepRule.ODE_HOMOGENEOUS_COMPLEX
                 DifferentialEquations.Kind.VARIATION_OF_PARAMETERS -> StepRule.ODE_VARIATION_OF_PARAMETERS
                 DifferentialEquations.Kind.UNDETERMINED_COEFFICIENTS -> StepRule.ODE_UNDETERMINED_COEFFICIENTS
+                DifferentialEquations.Kind.DERIVATIVE_OF_SOLUTION -> StepRule.ODE_DERIVATIVE_OF_SOLUTION
+                DifferentialEquations.Kind.INSERT_CONDITIONS -> StepRule.ODE_INSERT_CONDITIONS
+                DifferentialEquations.Kind.SIMPLIFY -> StepRule.SIMPLIFY
+                DifferentialEquations.Kind.SOLVE_CONSTANTS -> StepRule.ODE_SOLVE_CONSTANTS
+                DifferentialEquations.Kind.PUT_CONSTANTS -> StepRule.ODE_PUT_CONSTANTS
                 DifferentialEquations.Kind.CONSTANTS -> StepRule.ODE_CONSTANTS
             }
             val notes = stage.notes.map { (left, right) -> Note(left, right) }
             // Shown as the result is: 1/(1/b − 2kt) as b/(1 − 2kbt)
-            val line = tidyForDisplay(stage.line, context)
-            solution.apply(Match(rule, mapOf(emptyList<Int>() to line), unmarked(solution.current), line, notes = notes, showChange = false))
+            val line = if (stage.tidy) tidyForDisplay(stage.line, context) else stage.line
+            solution.apply(Match(rule, mapOf(emptyList<Int>() to line), unmarked(solution.current), line, notes = notes, operation = stage.operation, showChange = false))
         }
         return solution.finish(tidyForDisplay(derivation.solution, context))
     }
