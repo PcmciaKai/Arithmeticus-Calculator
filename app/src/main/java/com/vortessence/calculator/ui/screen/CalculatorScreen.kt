@@ -13,6 +13,9 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.onLongClick
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import kotlin.math.roundToInt
 import android.app.Activity
 import android.app.Application
@@ -569,6 +572,7 @@ private fun LiveResultView(
         val shownForm = if (form in forms) form else ResultForm.EXACT
 
         val shownResult = ResultFormatter.format(result, shownForm)
+        val copyLabel = stringResource(R.string.a11y_copy)
         // The buttons stay on the left and the result on the right. When both do not fit on one
         // line, the result moves to its own line below, so no part of the answer is hidden.
         // A layout may measure each child only once, so the result is composed twice: the first
@@ -605,7 +609,9 @@ private fun LiveResultView(
                 Row(
                     modifier = Modifier
                         .horizontalScroll(rememberScrollState())
-                        .pointerInput(shownResult) { detectTapGestures(onLongPress = { onCopy(shownResult) }) },
+                        .pointerInput(shownResult) { detectTapGestures(onLongPress = { onCopy(shownResult) }) }
+                        // A screen reader has no long press of its own: copying is an action of the result
+                        .semantics(mergeDescendants = true) { onLongClick(copyLabel) { onCopy(shownResult); true } },
                     verticalAlignment = Alignment.CenterVertically
                 ) { resultContent() }
             }
@@ -701,7 +707,9 @@ private val ResultForm.label: Int
 @Composable
 private fun AnswerPill(text: String, selected: Boolean, onClick: () -> Unit) {
     Surface(
-        modifier = Modifier.clickable(onClick = onClick),
+        modifier = Modifier
+            .clickable(onClick = onClick)
+            .semantics { this.selected = selected },
         shape = RoundedCornerShape(8.dp),
         color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
     ) {
@@ -814,6 +822,8 @@ private fun HistoryItemCard(
 ) {
     // Shown as chosen when committed; tapping it still reuses the exact value
     val shownResult = ResultFormatter.format(item, form)
+    val insertLabel = stringResource(R.string.a11y_insert)
+    val copyLabel = stringResource(R.string.a11y_copy)
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -828,7 +838,12 @@ private fun HistoryItemCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .combinedClickable(onLongClick = { onCopy(item.input) }, onClick = onInputClick)
+                    .combinedClickable(
+                        onClickLabel = insertLabel,
+                        onLongClickLabel = copyLabel,
+                        onLongClick = { onCopy(item.input) },
+                        onClick = onInputClick
+                    )
             ) {
                 ShrinkToFitWidth {
                     MathExpressionView(
@@ -843,7 +858,12 @@ private fun HistoryItemCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .combinedClickable(onLongClick = { onCopy(shownResult) }, onClick = onResultClick),
+                    .combinedClickable(
+                        onClickLabel = insertLabel,
+                        onLongClickLabel = copyLabel,
+                        onLongClick = { onCopy(shownResult) },
+                        onClick = onResultClick
+                    ),
                 contentAlignment = Alignment.CenterEnd
             ) {
                 ShrinkToFitWidth {

@@ -15,6 +15,7 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeRight
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
 import androidx.test.platform.app.InstrumentationRegistry
@@ -40,7 +41,8 @@ class CalculatorScreenTest {
     @get:Rule
     val chain: RuleChain = RuleChain.outerRule(freshStart).around(compose)
 
-    private fun key(label: String) = compose.onAllNodesWithText(label)[0].performClick()
+    /** A key by what a screen reader says for it (the digits and + by their label), or a button by its text. */
+    private fun key(label: String) = compose.onAllNodes(hasText(label) or hasContentDescription(label))[0].performClick()
 
     private fun baseSwitch(label: String) =
         compose.onNodeWithContentDescription("${compose.activity.getString(R.string.keypad_number_base)}: $label")
@@ -58,7 +60,7 @@ class CalculatorScreenTest {
 
     @Test
     fun aFractionCanBeShownAsADecimal() {
-        key("1"); key("÷"); key("4")
+        key("1"); key(compose.activity.getString(R.string.a11y_fraction)); key("4")
         compose.waitUntil(5_000) { compose.onAllNodes(described("1/4")).fetchSemanticsNodes().isNotEmpty() }
         compose.waitUntil(5_000) { compose.onAllNodesWithText("Decimal").fetchSemanticsNodes().isNotEmpty() }
         key("Decimal")

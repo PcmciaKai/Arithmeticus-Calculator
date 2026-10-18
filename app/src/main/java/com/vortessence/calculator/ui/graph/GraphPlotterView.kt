@@ -1176,7 +1176,7 @@ private fun GraphToolButton(
     Surface(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier,
+        modifier = modifier.semantics { this.selected = selected },
         shape = RoundedCornerShape(16.dp),
         color = if (selected) OrangePrimary.copy(alpha = 0.18f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
         contentColor = when {

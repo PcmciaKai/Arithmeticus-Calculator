@@ -20,6 +20,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -81,6 +85,14 @@ fun MatrixDialog(
                     val cellSize = ((maxWidth - spacing * (MAX_MATRIX_SIZE - 1)) / MAX_MATRIX_SIZE).coerceAtMost(48.dp)
                     var gridSize by remember { mutableStateOf(IntSize.Zero) }
 
+                    val sizeDescription = stringResource(R.string.a11y_matrix_size, rows, cols)
+                    val sizeActions = listOf(
+                        stringResource(R.string.a11y_add_row) to { if (rows < MAX_MATRIX_SIZE) rows++ },
+                        stringResource(R.string.a11y_remove_row) to { if (rows > 1) rows-- },
+                        stringResource(R.string.a11y_add_column) to { if (cols < MAX_MATRIX_SIZE) cols++ },
+                        stringResource(R.string.a11y_remove_column) to { if (cols > 1) cols-- }
+                    ).map { (label, change) -> CustomAccessibilityAction(label) { change(); true } }
+
                     /** The cell under [position], as (rows, cols) counted from 1. */
                     fun sizeAt(position: Offset): Pair<Int, Int> {
                         val r = (position.y / gridSize.height * MAX_MATRIX_SIZE).toInt().coerceIn(0, MAX_MATRIX_SIZE - 1)
@@ -92,6 +104,11 @@ fun MatrixDialog(
                         verticalArrangement = Arrangement.spacedBy(spacing),
                         modifier = Modifier
                             .onSizeChanged { gridSize = it }
+                            // A screen reader cannot drag over the grid: it changes the size by actions instead
+                            .clearAndSetSemantics {
+                                contentDescription = sizeDescription
+                                customActions = sizeActions
+                            }
                             .pointerInput(Unit) {
                                 awaitEachGesture {
                                     val down = awaitFirstDown()
