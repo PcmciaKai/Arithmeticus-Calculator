@@ -636,7 +636,7 @@
     <string name="result_form_bin">BIN</string>
     <string name="settings_session">Session</string>
     <string name="settings_session_desc">Enregistrer ou ouvrir la ligne et l’historique</string>
-    <string name="settings_session_save">Enregistrer…</string>
+    <string name="settings_session_save">Sauver…</string>
     <string name="settings_session_open">Ouvrir…</string>
     <string name="session_file_name">calculatrice-%1$s.txt</string>
     <string name="session_import_title">Ouvrir une session</string>

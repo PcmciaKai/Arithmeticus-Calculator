@@ -311,7 +311,7 @@
     <string name="settings_complex_on">Разрешает √−4 = 2i</string>
     <string name="settings_complex_off">√−4 — ошибка</string>
     <string name="settings_units_for_results">Единицы результатов</string>
-    <string name="settings_metric">Метрические</string>
+    <string name="settings_metric">СИ</string>
     <string name="settings_imperial">Британские</string>
     <string name="settings_us">США</string>
     <string name="settings_number_display">Отображение чисел</string>
