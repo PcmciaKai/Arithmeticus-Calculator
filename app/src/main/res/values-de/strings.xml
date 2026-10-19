@@ -438,7 +438,7 @@
     <string name="graph_slope">Steigung = %1$s</string>
     <string name="graph_integral_hint">a oder b ziehen; sie rasten an Nullstellen und Schnittpunkten ein</string>
     <string name="graph_surface_hint">Ein Finger dreht · zwei Finger verschieben und zoomen</string>
-    <string name="app_name">Calculator</string>
+    <string name="app_name">Arithmeticus</string>
     <string name="step_constant">Die Ableitung einer Konstanten ist null</string>
     <string name="step_variable">Die Ableitung der Variablen ist eins</string>
     <string name="step_sum">Summand für Summand ableiten</string>

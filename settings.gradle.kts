@@ -22,7 +22,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Calculator"
+rootProject.name = "Arithmeticus Calculator"
 include(":app")
 include(":core:math")
  

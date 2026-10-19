@@ -1,0 +1,329 @@
+package com.vortessence.arithmeticus.ui.dialogs
+
+import androidx.annotation.StringRes
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.vortessence.arithmeticus.core.math.context.UnitSystem
+import com.vortessence.arithmeticus.R
+import com.vortessence.arithmeticus.i18n.LanguageChoice
+import com.vortessence.arithmeticus.ui.theme.ThemeMode
+import java.util.Locale
+
+@Composable
+fun SettingsDialog(
+    unitSystem: UnitSystem,
+    decimalPlaces: Int?,
+    digitGrouping: Boolean,
+    decimalComma: Boolean,
+    complexNumbers: Boolean,
+    themeMode: ThemeMode,
+    languageChoice: LanguageChoice,
+    onUnitSystemChange: (UnitSystem) -> Unit,
+    onDecimalPlacesChange: (Int?) -> Unit,
+    onDigitGroupingChange: (Boolean) -> Unit,
+    onDecimalCommaChange: (Boolean) -> Unit,
+    onComplexNumbersChange: (Boolean) -> Unit,
+    onThemeModeChange: (ThemeMode) -> Unit,
+    onLanguageChange: (LanguageChoice) -> Unit,
+    onSaveSession: () -> Unit,
+    onOpenSession: () -> Unit,
+    onOpenHelp: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    var showSupport by remember { mutableStateOf(false) }
+    if (showSupport) {
+        SupportDialog(onDismiss = { showSupport = false })
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(stringResource(R.string.settings_title), fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // First, for whoever opens the settings to find out how the app works
+                FilledTonalButton(onClick = onOpenHelp, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.help_open))
+                }
+
+                HorizontalDivider()
+
+                // Complex numbers
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.settings_complex), fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                        Text(
+                            stringResource(if (complexNumbers) R.string.settings_complex_on else R.string.settings_complex_off),
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(checked = complexNumbers, onCheckedChange = onComplexNumbersChange)
+                }
+
+                HorizontalDivider()
+
+                // Unit system for results
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column {
+                        Text(stringResource(R.string.settings_units_for_results), fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                        Text(
+                            stringResource(unitSystemDescription(unitSystem)),
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    val options = listOf(
+                        UnitSystem.METRIC to stringResource(R.string.settings_metric),
+                        UnitSystem.IMPERIAL to stringResource(R.string.settings_imperial),
+                        UnitSystem.US_CUSTOMARY to stringResource(R.string.settings_us)
+                    )
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        options.forEachIndexed { index, (system, label) ->
+                            SegmentedButton(
+                                selected = unitSystem == system,
+                                onClick = { onUnitSystemChange(system) },
+                                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size)
+                            ) {
+                                Text(label, fontSize = 13.sp)
+                            }
+                        }
+                    }
+                }
+
+                HorizontalDivider()
+
+                // Number display
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.settings_number_display), fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.settings_decimal_places), fontWeight = FontWeight.Medium, fontSize = 15.sp)
+                            Text(
+                                if (decimalPlaces == null) stringResource(R.string.settings_decimal_auto)
+                                else stringResource(R.string.settings_decimal_fixed, decimalPlaces, "%.${decimalPlaces}f".format(Locale.US, 2.5)),
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        DecimalPlacesPicker(decimalPlaces, onDecimalPlacesChange)
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.settings_digit_grouping), fontWeight = FontWeight.Medium, fontSize = 15.sp)
+                            Text(
+                                stringResource(R.string.settings_digit_grouping_desc),
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(checked = digitGrouping, onCheckedChange = onDigitGroupingChange)
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.settings_decimal_comma), fontWeight = FontWeight.Medium, fontSize = 15.sp)
+                            Text(
+                                stringResource(R.string.settings_decimal_comma_desc),
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(checked = decimalComma, onCheckedChange = onDecimalCommaChange)
+                    }
+                }
+
+                HorizontalDivider()
+
+                // Appearance
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.settings_appearance), fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                    val options = listOf(
+                        ThemeMode.SYSTEM to stringResource(R.string.settings_theme_system),
+                        ThemeMode.LIGHT to stringResource(R.string.settings_theme_light),
+                        ThemeMode.DARK to stringResource(R.string.settings_theme_dark)
+                    )
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        options.forEachIndexed { index, (mode, label) ->
+                            SegmentedButton(
+                                selected = themeMode == mode,
+                                onClick = { onThemeModeChange(mode) },
+                                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size)
+                            ) {
+                                Text(label, fontSize = 13.sp)
+                            }
+                        }
+                    }
+                }
+
+                HorizontalDivider()
+
+                // Language
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(stringResource(R.string.settings_language), fontWeight = FontWeight.SemiBold, fontSize = 16.sp, modifier = Modifier.weight(1f))
+                    LanguagePicker(languageChoice, onLanguageChange)
+                }
+
+                HorizontalDivider()
+
+                // Session file
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.settings_session), fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                    Text(
+                        stringResource(R.string.settings_session_desc),
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = onSaveSession, modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.settings_session_save))
+                        }
+                        OutlinedButton(onClick = onOpenSession, modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.settings_session_open))
+                        }
+                    }
+                }
+
+                HorizontalDivider()
+
+                OutlinedButton(
+                    onClick = { showSupport = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.settings_support))
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.settings_done))
+            }
+        },
+        shape = RoundedCornerShape(20.dp)
+    )
+}
+
+@Composable
+private fun SupportDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(stringResource(R.string.settings_support), fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Text(stringResource(R.string.support_text))
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.common_close))
+            }
+        },
+        shape = RoundedCornerShape(20.dp)
+    )
+}
+
+@StringRes
+private fun unitSystemDescription(system: UnitSystem): Int = when (system) {
+    UnitSystem.METRIC -> R.string.settings_units_si
+    UnitSystem.IMPERIAL -> R.string.settings_units_imperial
+    UnitSystem.US_CUSTOMARY -> R.string.settings_units_us
+}
+
+/** "Auto" or a fixed number of decimal places from 0 to [MAX_DECIMAL_PLACES]. */
+@Composable
+private fun DecimalPlacesPicker(value: Int?, onChange: (Int?) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        OutlinedButton(onClick = { expanded = true }) {
+            Text(value?.toString() ?: stringResource(R.string.settings_auto))
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            (listOf<Int?>(null) + (0..MAX_DECIMAL_PLACES)).forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option?.toString() ?: stringResource(R.string.settings_auto)) },
+                    onClick = {
+                        onChange(option)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+/** The languages of the app in a drop-down: a new [LanguageChoice] shows up here once [languageName] knows its name. */
+@Composable
+private fun LanguagePicker(value: LanguageChoice, onChange: (LanguageChoice) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        OutlinedButton(onClick = { expanded = true }) {
+            Text(stringResource(languageName(value)), maxLines = 1)
+            Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            LanguageChoice.entries.forEach { choice ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(languageName(choice)), fontWeight = if (choice == value) FontWeight.Bold else null) },
+                    onClick = {
+                        onChange(choice)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+@StringRes
+private fun languageName(choice: LanguageChoice): Int = when (choice) {
+    LanguageChoice.SYSTEM -> R.string.settings_language_system
+    LanguageChoice.ENGLISH -> R.string.settings_language_english
+    LanguageChoice.GERMAN -> R.string.settings_language_german
+    LanguageChoice.FRENCH -> R.string.settings_language_french
+    LanguageChoice.SPANISH -> R.string.settings_language_spanish
+    LanguageChoice.RUSSIAN -> R.string.settings_language_russian
+    LanguageChoice.CHINESE -> R.string.settings_language_chinese
+}
+
+private const val MAX_DECIMAL_PLACES = 12

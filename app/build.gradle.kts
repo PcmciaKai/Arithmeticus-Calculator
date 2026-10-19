@@ -4,13 +4,13 @@ plugins {
 }
 
 android {
-    namespace = "com.vortessence.calculator"
+    namespace = "com.vortessence.arithmeticus"
     compileSdk {
         version = release(37)
     }
 
     defaultConfig {
-        applicationId = "com.vortessence.calculator"
+        applicationId = "com.vortessence.arithmeticus"
         minSdk = 30
         targetSdk = 37
         versionCode = 1

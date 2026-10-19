@@ -12,7 +12,7 @@
         android:localeConfig="@xml/locales_config"
         tools:targetApi="tiramisu"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Calculator">
+        android:theme="@style/Theme.Arithmeticus">
 
         <activity
             android:name=".MainActivity"
