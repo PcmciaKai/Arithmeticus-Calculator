@@ -1,0 +1,31 @@
+Ein kostenloser Open-Source-Taschenrechner mit natürlicher Eingabe, exakten Ergebnissen und Schritt-für-Schritt-Rechenweg. Er löst Gleichungen, leitet ab und integriert, rechnet mit Matrizen, Einheiten und komplexen Zahlen und zeichnet 2D- und 3D-Graphen.
+
+<b>Funktionsumfang</b>
+
+<ul>
+<li><b>Natürliche Darstellung:</b> Brüche, Exponenten, Wurzeln, Integrale und Matrizen in richtiger mathematischer Schreibweise schon beim Tippen, mit Cursor per Antippen, Auswahl, Kopieren und Einfügen</li>
+<li><b>Live-Ergebnis:</b> Das Ergebnis wird beim Tippen berechnet; exakt wo möglich (Brüche, Wurzeln, π) und umschaltbar auf Dezimal, wissenschaftliche Schreibweise, gemischte Zahl, Polarform oder HEX/OCT/BIN</li>
+<li><b>Rechenweg:</b> Jeder Schritt mit der verwendeten Regel, für Gleichungen, Gleichungssysteme, Ungleichungen, Ableitungen, Integrale, Grenzwerte, Matrizen, Taylor-Polynome, Differentialgleichungen und mehr</li>
+<li><b>Gleichungen und Ungleichungen:</b> Einzelne Gleichungen, lineare und viele nichtlineare Systeme, Ungleichungen mit Intervallschreibweise und Zahlenstrahl</li>
+<li><b>Analysis:</b> Ableitungen (auch an einer Stelle und partiell), Stammfunktionen und bestimmte Integrale (numerisch, wenn es keine Formel gibt), Summen, Produkte, Grenzwerte (auch einseitig), Taylor-Polynome</li>
+<li><b>Differentialgleichungen:</b> Lineare und separierbare Gleichungen erster Ordnung sowie lineare Gleichungen zweiter Ordnung mit konstanten Koeffizienten, mit oder ohne Anfangsbedingungen</li>
+<li><b>Matrizen und Vektoren:</b> Determinante, Inverse, Transponierte, Zeilenstufenform (rref), Eigenwerte und Eigenvektoren; Skalar- und Kreuzprodukt, Norm, Winkel, Projektion und Einheitsvektor</li>
+<li><b>Komplexe Zahlen:</b> Algebraische Form und Polarform (r∠θ), re, im, arg und conj</li>
+<li><b>Wissenschaftliche Funktionen:</b> Trigonometrische Funktionen mit ihren Kehrwerten, Hyperbelfunktionen, alle Umkehrfunktionen, Logarithmen zu jeder Basis, Fakultät, Γ, n-te Wurzeln, Modulo</li>
+<li><b>Funktionsauswahl:</b> Durchsuchbare Liste weiterer Funktionen für Statistik, Kombinatorik, Wahrscheinlichkeitsverteilungen, Runden und Zahlentheorie, Zufallszahlen und spezielle Funktionen</li>
+<li><b>Variablen:</b> x, y, z und jeder andere Kleinbuchstabe; Werte, Matrizen und Vektoren mit := speichern und das letzte Ergebnis mit Ans weiterverwenden</li>
+<li><b>Einheiten:</b> Rechnen und Umrechnen in 18 Kategorien (Länge, Masse, Energie, Druck, Temperatur, Elektrizität, …) mit metrischen, imperialen oder US-Ergebnissen nach Wahl</li>
+<li><b>Konstanten:</b> Durchsuchbare Sammlung mathematischer und physikalischer Konstanten mit ihren Einheiten</li>
+<li><b>Graphen:</b> Funktionen, implizite Kurven, Parametergeraden und 3D-Flächen; Punkte rasten an Nullstellen, Extrema, Wendepunkten und Schnittpunkten ein; Spurverfolgung, Tangente und Flächeninhalt; logarithmische Achsen und Polarkoordinaten</li>
+<li><b>Programmierer-Modus:</b> Hexadezimale, oktale und binäre Eingabe mit Bitoperationen und Verschiebungen</li>
+<li><b>Verlauf und Sitzungen:</b> Frühere Rechnungen wiederverwenden, kopieren oder löschen, mit Rückgängig; eine Sitzung als Textdatei speichern und wieder öffnen</li>
+<li><b>Hilfe in der App:</b> Durchsuchbare Anleitung zu jeder Taste und Funktion, mit Beispielen, die du direkt in die Zeile übernehmen kannst</li>
+<li><b>Sprachen:</b> Deutsch, Englisch, Französisch, Spanisch, Russisch und vereinfachtes Chinesisch</li>
+<li><b>Anzeigeoptionen:</b> Feste oder automatische Nachkommastellen, Zifferngruppierung, Punkt oder Komma als Dezimaltrennzeichen, helles/dunkles/System-Design, dreiseitige Tastatur, die auf Tablets und Foldables nebeneinander angezeigt wird</li>
+</ul>
+
+<b>Datenschutz</b>
+
+Keine Werbung, kein Tracking, kein Netzwerkzugriff. Alles wird auf deinem Gerät berechnet.
+
+Arithmeticus Rechner steht unter der GNU General Public License v3.0.
