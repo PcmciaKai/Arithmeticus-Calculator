@@ -25,6 +25,10 @@ android {
             optimization {
                 enable = true
             }
+            // Keep the git revision out of the APK so builds are reproducible (F-Droid)
+            vcsInfo {
+                include = false
+            }
         }
     }
     compileOptions {
@@ -36,6 +40,11 @@ android {
     }
     testOptions {
         unitTests.isReturnDefaultValues = true
+    }
+    dependenciesInfo {
+        // F-Droid rejects the encrypted dependency block in APKs; Play reads it from the bundle
+        includeInApk = false
+        includeInBundle = true
     }
     bundle {
         // The language can be changed in the app, so every device needs all translations

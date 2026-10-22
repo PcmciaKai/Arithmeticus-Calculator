@@ -28,7 +28,7 @@ A free and open-source scientific calculator for Android with natural math input
 - **Languages:** English, German, French, Spanish, Russian and Simplified Chinese
 - **Display options:** Fixed or automatic decimal places, digit grouping, point or comma as decimal separator, light/dark/system theme, three-page keypad that is shown side by side on tablets and foldables
 
-No ads, no tracking, no network access.
+No ads, no tracking, no network access. See the [privacy policy](PRIVACY.md).
 
 ## Inspiration
 
