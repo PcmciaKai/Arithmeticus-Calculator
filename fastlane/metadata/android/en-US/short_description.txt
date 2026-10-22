@@ -1,1 +1,1 @@
-Visually optimised scientific calculator with units, constants, matrices, equations and graphs.
+Scientific calculator with step-by-step solutions, exact results and 3D graphs
