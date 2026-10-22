@@ -705,7 +705,17 @@
     <string name="a11y_keypad_page">Page %1$d sur %2$d du clavier</string>
     <string name="a11y_copy">copier</string>
     <string name="a11y_insert">insérer</string>
-    <string name="a11y_matrix_size">%1$d lignes, %2$d colonnes</string>
+    <string name="a11y_matrix_size">%1$s, %2$s</string>
+    <plurals name="a11y_matrix_rows">
+        <item quantity="one">%1$d ligne</item>
+        <item quantity="many">%1$d lignes</item>
+        <item quantity="other">%1$d lignes</item>
+    </plurals>
+    <plurals name="a11y_matrix_columns">
+        <item quantity="one">%1$d colonne</item>
+        <item quantity="many">%1$d colonnes</item>
+        <item quantity="other">%1$d colonnes</item>
+    </plurals>
     <string name="a11y_add_row">ajouter une ligne</string>
     <string name="a11y_remove_row">retirer une ligne</string>
     <string name="a11y_add_column">ajouter une colonne</string>
@@ -747,7 +757,6 @@
     <string name="help_search">Rechercher dans l’aide (taylor, matrice, unités)…</string>
     <string name="help_no_results">Aucun résultat</string>
     <string name="help_intro">Nouveau ici ? Commence par les sujets du haut. Les fonctions plus bas ont chacune leur syntaxe et des exemples.</string>
-    <string name="help_example">Exemple</string>
     <string name="help_section_basics">Premiers pas</string>
     <string name="help_section_functions">Les fonctions en détail</string>
     <string name="help_heading_where">Où la trouver</string>

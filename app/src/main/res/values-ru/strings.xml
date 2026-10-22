@@ -713,7 +713,19 @@
     <string name="a11y_keypad_page">Страница клавиатуры %1$d из %2$d</string>
     <string name="a11y_copy">копировать</string>
     <string name="a11y_insert">вставить</string>
-    <string name="a11y_matrix_size">Строк: %1$d, столбцов: %2$d</string>
+    <string name="a11y_matrix_size">%1$s, %2$s</string>
+    <plurals name="a11y_matrix_rows">
+        <item quantity="one">%1$d строка</item>
+        <item quantity="few">%1$d строки</item>
+        <item quantity="many">%1$d строк</item>
+        <item quantity="other">%1$d строки</item>
+    </plurals>
+    <plurals name="a11y_matrix_columns">
+        <item quantity="one">%1$d столбец</item>
+        <item quantity="few">%1$d столбца</item>
+        <item quantity="many">%1$d столбцов</item>
+        <item quantity="other">%1$d столбца</item>
+    </plurals>
     <string name="a11y_add_row">добавить строку</string>
     <string name="a11y_remove_row">убрать строку</string>
     <string name="a11y_add_column">добавить столбец</string>
@@ -755,7 +767,6 @@
     <string name="help_search">Поиск по справке (taylor, матрица, единицы)…</string>
     <string name="help_no_results">Ничего не найдено</string>
     <string name="help_intro">Впервые здесь? Начните с тем вверху. У каждой функции ниже есть синтаксис и примеры.</string>
-    <string name="help_example">Пример</string>
     <string name="help_section_basics">Начало работы</string>
     <string name="help_section_functions">Функции подробно</string>
     <string name="help_heading_where">Где найти</string>

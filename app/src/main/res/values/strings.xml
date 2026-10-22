@@ -703,7 +703,15 @@
     <string name="a11y_keypad_page">Keypad page %1$d of %2$d</string>
     <string name="a11y_copy">copy</string>
     <string name="a11y_insert">insert</string>
-    <string name="a11y_matrix_size">%1$d rows, %2$d columns</string>
+    <string name="a11y_matrix_size">%1$s, %2$s</string>
+    <plurals name="a11y_matrix_rows">
+        <item quantity="one">%1$d row</item>
+        <item quantity="other">%1$d rows</item>
+    </plurals>
+    <plurals name="a11y_matrix_columns">
+        <item quantity="one">%1$d column</item>
+        <item quantity="other">%1$d columns</item>
+    </plurals>
     <string name="a11y_add_row">add a row</string>
     <string name="a11y_remove_row">remove a row</string>
     <string name="a11y_add_column">add a column</string>
@@ -745,7 +753,6 @@
     <string name="help_search">Search the help (taylor, matrix, units)…</string>
     <string name="help_no_results">Nothing found</string>
     <string name="help_intro">New here? Start with the topics at the top. The functions further down each have their syntax and examples.</string>
-    <string name="help_example">Example</string>
     <string name="help_section_basics">Getting started</string>
     <string name="help_section_functions">Functions in detail</string>
     <string name="help_heading_where">Where to find it</string>

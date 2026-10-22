@@ -404,7 +404,15 @@
     <string name="a11y_keypad_page">Tastenseite %1$d von %2$d</string>
     <string name="a11y_copy">kopieren</string>
     <string name="a11y_insert">einfügen</string>
-    <string name="a11y_matrix_size">%1$d Zeilen, %2$d Spalten</string>
+    <string name="a11y_matrix_size">%1$s, %2$s</string>
+    <plurals name="a11y_matrix_rows">
+        <item quantity="one">%1$d Zeile</item>
+        <item quantity="other">%1$d Zeilen</item>
+    </plurals>
+    <plurals name="a11y_matrix_columns">
+        <item quantity="one">%1$d Spalte</item>
+        <item quantity="other">%1$d Spalten</item>
+    </plurals>
     <string name="a11y_add_row">Zeile hinzufügen</string>
     <string name="a11y_remove_row">Zeile entfernen</string>
     <string name="a11y_add_column">Spalte hinzufügen</string>
@@ -733,7 +741,6 @@
     <string name="help_search">Hilfe durchsuchen (taylor, Matrix, Einheiten)…</string>
     <string name="help_no_results">Nichts gefunden</string>
     <string name="help_intro">Neu hier? Fang mit den Themen oben an. Weiter unten stehen die Funktionen, jeweils mit Schreibweise und Beispielen.</string>
-    <string name="help_example">Beispiel</string>
     <string name="help_section_basics">Erste Schritte</string>
     <string name="help_section_functions">Funktionen im Detail</string>
     <string name="help_heading_where">Wo du sie findest</string>

@@ -689,7 +689,13 @@
     <string name="a11y_keypad_page">键盘第 %1$d 页，共 %2$d 页</string>
     <string name="a11y_copy">复制</string>
     <string name="a11y_insert">插入</string>
-    <string name="a11y_matrix_size">%1$d 行，%2$d 列</string>
+    <string name="a11y_matrix_size">%1$s，%2$s</string>
+    <plurals name="a11y_matrix_rows">
+        <item quantity="other">%1$d 行</item>
+    </plurals>
+    <plurals name="a11y_matrix_columns">
+        <item quantity="other">%1$d 列</item>
+    </plurals>
     <string name="a11y_add_row">添加一行</string>
     <string name="a11y_remove_row">删除一行</string>
     <string name="a11y_add_column">添加一列</string>
@@ -731,7 +737,6 @@
     <string name="help_search">搜索帮助（taylor、矩阵、单位）…</string>
     <string name="help_no_results">未找到内容</string>
     <string name="help_intro">第一次使用？先看上面的主题。下面的每个函数都有语法和示例。</string>
-    <string name="help_example">示例</string>
     <string name="help_section_basics">入门</string>
     <string name="help_section_functions">函数详解</string>
     <string name="help_heading_where">在哪里找到</string>

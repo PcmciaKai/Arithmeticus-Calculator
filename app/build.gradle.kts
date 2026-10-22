@@ -46,6 +46,13 @@ android {
         includeInApk = false
         includeInBundle = true
     }
+    packaging {
+        jniLibs {
+            // Ship the prebuilt library from androidx.graphics unchanged, so the APK does not
+            // depend on whether an NDK is installed for stripping (reproducible builds)
+            keepDebugSymbols += "**/libandroidx.graphics.path.so"
+        }
+    }
     bundle {
         // The language can be changed in the app, so every device needs all translations
         language {

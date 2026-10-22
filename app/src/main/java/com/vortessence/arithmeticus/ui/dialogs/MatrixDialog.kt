@@ -10,6 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import com.vortessence.arithmeticus.R
@@ -85,7 +86,11 @@ fun MatrixDialog(
                     val cellSize = ((maxWidth - spacing * (MAX_MATRIX_SIZE - 1)) / MAX_MATRIX_SIZE).coerceAtMost(48.dp)
                     var gridSize by remember { mutableStateOf(IntSize.Zero) }
 
-                    val sizeDescription = stringResource(R.string.a11y_matrix_size, rows, cols)
+                    val sizeDescription = stringResource(
+                        R.string.a11y_matrix_size,
+                        pluralStringResource(R.plurals.a11y_matrix_rows, rows, rows),
+                        pluralStringResource(R.plurals.a11y_matrix_columns, cols, cols)
+                    )
                     val sizeActions = listOf(
                         stringResource(R.string.a11y_add_row) to { if (rows < MAX_MATRIX_SIZE) rows++ },
                         stringResource(R.string.a11y_remove_row) to { if (rows > 1) rows-- },
