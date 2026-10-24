@@ -2,27 +2,25 @@ Una calculadora científica gratuita y de código abierto con entrada matemátic
 
 <b>Funciones</b>
 
-<ul>
-<li><b>Visualización natural:</b> Fracciones, exponentes, raíces, integrales y matrices en notación matemática real mientras escribes, con cursor colocado con un toque, selección, copiar y pegar</li>
-<li><b>Resultado en directo:</b> El resultado se calcula mientras escribes; exacto cuando es posible (fracciones, raíces, π) y convertible a decimal, notación científica, número mixto, forma polar o HEX/OCT/BIN</li>
-<li><b>Soluciones paso a paso:</b> Cada paso con la regla utilizada, para ecuaciones, sistemas, desigualdades, derivadas, integrales, límites, matrices, polinomios de Taylor, ecuaciones diferenciales y más</li>
-<li><b>Ecuaciones y desigualdades:</b> Ecuaciones simples, sistemas lineales y muchos no lineales, desigualdades con notación de intervalos y recta numérica</li>
-<li><b>Cálculo:</b> Derivadas (también en un punto y parciales), primitivas e integrales definidas (numéricas cuando no hay fórmula), sumas, productos, límites (también laterales), polinomios de Taylor</li>
-<li><b>Ecuaciones diferenciales:</b> Ecuaciones lineales y separables de primer orden, y ecuaciones lineales de segundo orden con coeficientes constantes, con o sin condiciones iniciales</li>
-<li><b>Matrices y vectores:</b> Determinante, inversa, traspuesta, forma escalonada reducida (rref), valores y vectores propios; producto escalar y vectorial, norma, ángulo, proyección y vector unitario</li>
-<li><b>Números complejos:</b> Forma binómica y forma polar (r∠θ), re, im, arg y conj</li>
-<li><b>Funciones científicas:</b> Funciones trigonométricas con sus recíprocas, funciones hiperbólicas, todas sus inversas, logaritmos en cualquier base, factorial, Γ, raíces n-ésimas, módulo</li>
-<li><b>Selector de funciones:</b> Lista con búsqueda de más funciones de estadística, combinatoria, distribuciones de probabilidad, redondeo y teoría de números, números aleatorios y funciones especiales</li>
-<li><b>Variables:</b> x, y, z y cualquier otra letra minúscula; guarda valores, matrices y vectores con := y reutiliza el último resultado con Ans</li>
-<li><b>Unidades:</b> Calcula y convierte en 18 categorías (longitud, masa, energía, presión, temperatura, electricidad, …) con resultados en sistema métrico, imperial o estadounidense a elegir</li>
-<li><b>Constantes:</b> Biblioteca con búsqueda de constantes matemáticas y físicas con sus unidades</li>
-<li><b>Gráficas:</b> Funciones, curvas implícitas, rectas paramétricas y superficies 3D; los puntos se ajustan a ceros, extremos, puntos de inflexión e intersecciones; seguimiento, tangente y área; ejes logarítmicos y coordenadas polares</li>
-<li><b>Modo programador:</b> Entrada hexadecimal, octal y binaria con operaciones bit a bit y desplazamientos</li>
-<li><b>Historial y sesiones:</b> Reutiliza, copia o borra cálculos anteriores, con opción de deshacer; guarda una sesión en un archivo de texto y vuelve a abrirla</li>
-<li><b>Ayuda integrada:</b> Guía con búsqueda de cada tecla y función, con ejemplos que puedes poner directamente en la línea</li>
-<li><b>Idiomas:</b> Español, inglés, alemán, francés, ruso y chino simplificado</li>
-<li><b>Opciones de visualización:</b> Decimales fijos o automáticos, agrupación de dígitos, punto o coma como separador decimal, tema claro/oscuro/del sistema, teclado de tres páginas que se muestran una al lado de otra en tabletas y plegables</li>
-</ul>
+• <b>Visualización natural:</b> Fracciones, exponentes, raíces, integrales y matrices en notación matemática real mientras escribes, con cursor colocado con un toque, selección, copiar y pegar
+• <b>Resultado en directo:</b> El resultado se calcula mientras escribes; exacto cuando es posible (fracciones, raíces, π) y convertible a decimal, notación científica, número mixto, forma polar o HEX/OCT/BIN
+• <b>Soluciones paso a paso:</b> Cada paso con la regla utilizada, para ecuaciones, sistemas, desigualdades, derivadas, integrales, límites, matrices, polinomios de Taylor, ecuaciones diferenciales y más
+• <b>Ecuaciones y desigualdades:</b> Ecuaciones simples, sistemas lineales y muchos no lineales, desigualdades con notación de intervalos y recta numérica
+• <b>Cálculo:</b> Derivadas (también en un punto y parciales), primitivas e integrales definidas (numéricas cuando no hay fórmula), sumas, productos, límites (también laterales), polinomios de Taylor
+• <b>Ecuaciones diferenciales:</b> Ecuaciones lineales y separables de primer orden, y ecuaciones lineales de segundo orden con coeficientes constantes, con o sin condiciones iniciales
+• <b>Matrices y vectores:</b> Determinante, inversa, traspuesta, forma escalonada reducida (rref), valores y vectores propios; producto escalar y vectorial, norma, ángulo, proyección y vector unitario
+• <b>Números complejos:</b> Forma binómica y forma polar (r∠θ), re, im, arg y conj
+• <b>Funciones científicas:</b> Funciones trigonométricas con sus recíprocas, funciones hiperbólicas, todas sus inversas, logaritmos en cualquier base, factorial, Γ, raíces n-ésimas, módulo
+• <b>Selector de funciones:</b> Lista con búsqueda de más funciones de estadística, combinatoria, distribuciones de probabilidad, redondeo y teoría de números, números aleatorios y funciones especiales
+• <b>Variables:</b> x, y, z y cualquier otra letra minúscula; guarda valores, matrices y vectores con := y reutiliza el último resultado con Ans
+• <b>Unidades:</b> Calcula y convierte en 18 categorías (longitud, masa, energía, presión, temperatura, electricidad, …) con resultados en sistema métrico, imperial o estadounidense a elegir
+• <b>Constantes:</b> Biblioteca con búsqueda de constantes matemáticas y físicas con sus unidades
+• <b>Gráficas:</b> Funciones, curvas implícitas, rectas paramétricas y superficies 3D; los puntos se ajustan a ceros, extremos, puntos de inflexión e intersecciones; seguimiento, tangente y área; ejes logarítmicos y coordenadas polares
+• <b>Modo programador:</b> Entrada hexadecimal, octal y binaria con operaciones bit a bit y desplazamientos
+• <b>Historial y sesiones:</b> Reutiliza, copia o borra cálculos anteriores, con opción de deshacer; guarda una sesión en un archivo de texto y vuelve a abrirla
+• <b>Ayuda integrada:</b> Guía con búsqueda de cada tecla y función, con ejemplos que puedes poner directamente en la línea
+• <b>Idiomas:</b> Español, inglés, alemán, francés, ruso y chino simplificado
+• <b>Opciones de visualización:</b> Decimales fijos o automáticos, agrupación de dígitos, punto o coma como separador decimal, tema claro/oscuro/del sistema, teclado de tres páginas que se muestran una al lado de otra en tabletas y plegables
 
 <b>Privacidad</b>
 

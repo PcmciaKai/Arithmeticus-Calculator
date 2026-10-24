@@ -2,27 +2,25 @@ Une calculatrice scientifique gratuite et open source avec saisie mathématique 
 
 <b>Fonctionnalités</b>
 
-<ul>
-<li><b>Affichage naturel :</b> Fractions, exposants, racines, intégrales et matrices en vraie notation mathématique pendant la saisie, avec curseur placé d’un toucher, sélection, copier et coller</li>
-<li><b>Résultat en direct :</b> Le résultat est calculé pendant la saisie ; exact si possible (fractions, racines, π) et convertible en décimal, notation scientifique, nombre mixte, forme polaire ou HEX/OCT/BIN</li>
-<li><b>Solutions étape par étape :</b> Chaque étape avec la règle utilisée, pour les équations, systèmes, inégalités, dérivées, intégrales, limites, matrices, polynômes de Taylor, équations différentielles et plus</li>
-<li><b>Équations et inégalités :</b> Équations simples, systèmes linéaires et de nombreux systèmes non linéaires, inégalités avec notation d’intervalle et droite numérique</li>
-<li><b>Analyse :</b> Dérivées (aussi en un point et partielles), primitives et intégrales définies (numériques s’il n’y a pas de formule), sommes, produits, limites (aussi à gauche ou à droite), polynômes de Taylor</li>
-<li><b>Équations différentielles :</b> Équations linéaires et à variables séparables du premier ordre, et équations linéaires du second ordre à coefficients constants, avec ou sans conditions initiales</li>
-<li><b>Matrices et vecteurs :</b> Déterminant, inverse, transposée, réduction échelonnée (rref), valeurs propres et vecteurs propres ; produit scalaire et vectoriel, norme, angle, projection et vecteur unitaire</li>
-<li><b>Nombres complexes :</b> Forme algébrique et forme polaire (r∠θ), re, im, arg et conj</li>
-<li><b>Fonctions scientifiques :</b> Fonctions trigonométriques (aussi sec, csc, cot), hyperboliques et toutes leurs réciproques, logarithmes dans toute base, factorielle, Γ, racines n-ièmes, modulo</li>
-<li><b>Sélecteur de fonctions :</b> Autres fonctions, avec recherche, pour les statistiques, la combinatoire, les lois de probabilité, l’arrondi et la théorie des nombres, les nombres aléatoires et les fonctions spéciales</li>
-<li><b>Variables :</b> x, y, z et toute autre lettre minuscule ; enregistrez valeurs, matrices et vecteurs avec := et réutilisez le dernier résultat avec Ans</li>
-<li><b>Unités :</b> Calculez et convertissez dans 18 catégories (longueur, masse, énergie, pression, température, électricité, …) en unités métriques, impériales ou américaines au choix</li>
-<li><b>Constantes :</b> Bibliothèque consultable de constantes mathématiques et physiques avec leurs unités</li>
-<li><b>Graphes :</b> Fonctions, courbes implicites, droites paramétriques et surfaces 3D ; les points s’accrochent aux zéros, extrema, points d’inflexion et intersections ; suivi de courbe, tangente et aire ; axes logarithmiques et coordonnées polaires</li>
-<li><b>Mode programmeur :</b> Saisie hexadécimale, octale et binaire avec opérations bit à bit et décalages</li>
-<li><b>Historique et sessions :</b> Réutilisez, copiez ou supprimez les calculs précédents (annulable) ; enregistrez une session dans un fichier texte et rouvrez-la</li>
-<li><b>Aide intégrée :</b> Guide consultable de chaque touche et fonction, avec des exemples à insérer directement dans la ligne</li>
-<li><b>Langues :</b> Français, anglais, allemand, espagnol, russe et chinois simplifié</li>
-<li><b>Options d’affichage :</b> Décimales fixes ou automatiques, regroupement des chiffres, point ou virgule comme séparateur décimal, thème clair/sombre/système, clavier de trois pages, côte à côte sur tablettes et pliables</li>
-</ul>
+• <b>Affichage naturel :</b> Fractions, exposants, racines, intégrales et matrices en vraie notation mathématique pendant la saisie, avec curseur placé d’un toucher, sélection, copier et coller
+• <b>Résultat en direct :</b> Le résultat est calculé pendant la saisie ; exact si possible (fractions, racines, π) et convertible en décimal, notation scientifique, nombre mixte, forme polaire ou HEX/OCT/BIN
+• <b>Solutions étape par étape :</b> Chaque étape avec la règle utilisée, pour les équations, systèmes, inégalités, dérivées, intégrales, limites, matrices, polynômes de Taylor, équations différentielles et plus
+• <b>Équations et inégalités :</b> Équations simples, systèmes linéaires et de nombreux systèmes non linéaires, inégalités avec notation d’intervalle et droite numérique
+• <b>Analyse :</b> Dérivées (aussi en un point et partielles), primitives et intégrales définies (numériques s’il n’y a pas de formule), sommes, produits, limites (aussi à gauche ou à droite), polynômes de Taylor
+• <b>Équations différentielles :</b> Équations linéaires et à variables séparables du premier ordre, et équations linéaires du second ordre à coefficients constants, avec ou sans conditions initiales
+• <b>Matrices et vecteurs :</b> Déterminant, inverse, transposée, réduction échelonnée (rref), valeurs propres et vecteurs propres ; produit scalaire et vectoriel, norme, angle, projection et vecteur unitaire
+• <b>Nombres complexes :</b> Forme algébrique et forme polaire (r∠θ), re, im, arg et conj
+• <b>Fonctions scientifiques :</b> Fonctions trigonométriques (aussi sec, csc, cot), hyperboliques et toutes leurs réciproques, logarithmes dans toute base, factorielle, Γ, racines n-ièmes, modulo
+• <b>Sélecteur de fonctions :</b> Autres fonctions, avec recherche, pour les statistiques, la combinatoire, les lois de probabilité, l’arrondi et la théorie des nombres, les nombres aléatoires et les fonctions spéciales
+• <b>Variables :</b> x, y, z et toute autre lettre minuscule ; enregistrez valeurs, matrices et vecteurs avec := et réutilisez le dernier résultat avec Ans
+• <b>Unités :</b> Calculez et convertissez dans 18 catégories (longueur, masse, énergie, pression, température, électricité, …) en unités métriques, impériales ou américaines au choix
+• <b>Constantes :</b> Bibliothèque consultable de constantes mathématiques et physiques avec leurs unités
+• <b>Graphes :</b> Fonctions, courbes implicites, droites paramétriques et surfaces 3D ; les points s’accrochent aux zéros, extrema, points d’inflexion et intersections ; suivi de courbe, tangente et aire ; axes logarithmiques et coordonnées polaires
+• <b>Mode programmeur :</b> Saisie hexadécimale, octale et binaire avec opérations bit à bit et décalages
+• <b>Historique et sessions :</b> Réutilisez, copiez ou supprimez les calculs précédents (annulable) ; enregistrez une session dans un fichier texte et rouvrez-la
+• <b>Aide intégrée :</b> Guide consultable de chaque touche et fonction, avec des exemples à insérer directement dans la ligne
+• <b>Langues :</b> Français, anglais, allemand, espagnol, russe et chinois simplifié
+• <b>Options d’affichage :</b> Décimales fixes ou automatiques, regroupement des chiffres, point ou virgule comme séparateur décimal, thème clair/sombre/système, clavier de trois pages, côte à côte sur tablettes et pliables
 
 <b>Confidentialité</b>
 

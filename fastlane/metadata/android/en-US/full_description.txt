@@ -2,27 +2,25 @@ A free and open-source scientific calculator with natural math input, exact resu
 
 <b>Features</b>
 
-<ul>
-<li><b>Natural display:</b> Fractions, exponents, roots, integrals and matrices rendered as proper math notation while you type, with tap-to-place cursor, selection, copy and paste</li>
-<li><b>Live results:</b> The result is worked out while you type; exact where possible (fractions, roots, π) and switchable to decimal, scientific, mixed number, polar or HEX/OCT/BIN form</li>
-<li><b>Step-by-step solutions:</b> Each step with the rule that was used, for equations, systems, inequalities, derivatives, integrals, limits, matrices, Taylor polynomials, differential equations and more</li>
-<li><b>Equations and inequalities:</b> Single equations, linear and many non-linear systems, inequalities with interval notation and number line</li>
-<li><b>Calculus:</b> Derivatives (also at a point and partial), antiderivatives and definite integrals (numeric when there is no formula), sums, products, limits (also one-sided), Taylor polynomials</li>
-<li><b>Differential equations:</b> First-order linear and separable, and second-order linear equations with constant coefficients, with or without initial conditions</li>
-<li><b>Matrices and vectors:</b> Determinant, inverse, transpose, row reduction (rref), eigenvalues and eigenvectors; dot and cross product, norm, angle, projection and unit vector</li>
-<li><b>Complex numbers:</b> Rectangular and polar form (r∠θ), re, im, arg and conj</li>
-<li><b>Scientific functions:</b> Trigonometric functions with their reciprocals, hyperbolic functions, all their inverses, logarithms to any base, factorials, Γ, n-th roots, modulo</li>
-<li><b>Function picker:</b> Searchable list of further functions for statistics, combinatorics, probability distributions, rounding and number theory, random numbers and special functions</li>
-<li><b>Variables:</b> x, y, z and any other lower-case letter; store values, matrices and vectors with := and reuse the last result with Ans</li>
-<li><b>Units:</b> Calculate and convert across 18 categories (length, mass, energy, pressure, temperature, electricity, …) with metric, imperial or US customary result preferences</li>
-<li><b>Constants:</b> Searchable library of mathematical and physical constants with their units</li>
-<li><b>Graph plotter:</b> Functions, implicit curves, parametric lines and 3D surfaces; points snap to zeros, extrema, inflection points and intersections; trace, tangent and area tools; logarithmic axes and polar coordinates</li>
-<li><b>Programmer mode:</b> Hexadecimal, octal and binary input with bitwise operations and shifts</li>
-<li><b>History and sessions:</b> Reuse, copy or delete earlier calculations, with undo; save a session to a text file and open it again</li>
-<li><b>In-app help:</b> Searchable guide to every key and function, with examples you can put straight into the line</li>
-<li><b>Languages:</b> English, German, French, Spanish, Russian and Simplified Chinese</li>
-<li><b>Display options:</b> Fixed or automatic decimal places, digit grouping, point or comma as decimal separator, light/dark/system theme, three-page keypad that is shown side by side on tablets and foldables</li>
-</ul>
+• <b>Natural display:</b> Fractions, exponents, roots, integrals and matrices rendered as proper math notation while you type, with tap-to-place cursor, selection, copy and paste
+• <b>Live results:</b> The result is worked out while you type; exact where possible (fractions, roots, π) and switchable to decimal, scientific, mixed number, polar or HEX/OCT/BIN form
+• <b>Step-by-step solutions:</b> Each step with the rule that was used, for equations, systems, inequalities, derivatives, integrals, limits, matrices, Taylor polynomials, differential equations and more
+• <b>Equations and inequalities:</b> Single equations, linear and many non-linear systems, inequalities with interval notation and number line
+• <b>Calculus:</b> Derivatives (also at a point and partial), antiderivatives and definite integrals (numeric when there is no formula), sums, products, limits (also one-sided), Taylor polynomials
+• <b>Differential equations:</b> First-order linear and separable, and second-order linear equations with constant coefficients, with or without initial conditions
+• <b>Matrices and vectors:</b> Determinant, inverse, transpose, row reduction (rref), eigenvalues and eigenvectors; dot and cross product, norm, angle, projection and unit vector
+• <b>Complex numbers:</b> Rectangular and polar form (r∠θ), re, im, arg and conj
+• <b>Scientific functions:</b> Trigonometric functions with their reciprocals, hyperbolic functions, all their inverses, logarithms to any base, factorials, Γ, n-th roots, modulo
+• <b>Function picker:</b> Searchable list of further functions for statistics, combinatorics, probability distributions, rounding and number theory, random numbers and special functions
+• <b>Variables:</b> x, y, z and any other lower-case letter; store values, matrices and vectors with := and reuse the last result with Ans
+• <b>Units:</b> Calculate and convert across 18 categories (length, mass, energy, pressure, temperature, electricity, …) with metric, imperial or US customary result preferences
+• <b>Constants:</b> Searchable library of mathematical and physical constants with their units
+• <b>Graph plotter:</b> Functions, implicit curves, parametric lines and 3D surfaces; points snap to zeros, extrema, inflection points and intersections; trace, tangent and area tools; logarithmic axes and polar coordinates
+• <b>Programmer mode:</b> Hexadecimal, octal and binary input with bitwise operations and shifts
+• <b>History and sessions:</b> Reuse, copy or delete earlier calculations, with undo; save a session to a text file and open it again
+• <b>In-app help:</b> Searchable guide to every key and function, with examples you can put straight into the line
+• <b>Languages:</b> English, German, French, Spanish, Russian and Simplified Chinese
+• <b>Display options:</b> Fixed or automatic decimal places, digit grouping, point or comma as decimal separator, light/dark/system theme, three-page keypad that is shown side by side on tablets and foldables
 
 <b>Privacy</b>
 
