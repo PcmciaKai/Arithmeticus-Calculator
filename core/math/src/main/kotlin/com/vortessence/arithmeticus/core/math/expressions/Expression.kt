@@ -77,7 +77,8 @@ abstract class Expression {
             context.stopWithError(MathIssue.INVALID_UNIT)
             return null
         }
-        if (!containsUnit()) {
+        // A plain number is a plain ratio for a unit without dimension: 1 → ppm is 1000000 ppm, 1 + 5 ppm is 1.000005
+        if (!containsUnit() && !targetDimension.isNone) {
             return if (includeUnitInResult) Multiplications.of(this, targetUnit).canonicalize(context) else this
         }
         if (dimensionOf(this) != targetDimension) {

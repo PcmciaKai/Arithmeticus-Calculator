@@ -55,6 +55,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.BaselineShift
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
@@ -202,6 +203,16 @@ private val WIDE_MAX_KEY_SIZE = 80.dp
 private val WIDE_MIN_KEY_SIZE = 48.dp
 /** The share of the window height the wide keypad takes at most; the rest is for the history and the line. */
 private const val WIDE_MAX_KEYPAD_FRACTION = 0.5f
+/**
+ * A phone held sideways is too low for square keys of a usable size: its keys are flat, at least this high, and at most
+ * [FLAT_MAX_KEY_WIDTH] wide, with less room between the rows.
+ */
+private val FLAT_MIN_KEY_HEIGHT = 36.dp
+private val FLAT_MAX_KEY_WIDTH = 104.dp
+private val FLAT_ROW_SPACING = 6.dp
+
+/** The height of the keys, where it is not their width (the flat keys of a phone held sideways). */
+private val LocalKeyHeight = staticCompositionLocalOf<Dp?> { null }
 
 /** Where the long-press functions of a key are hinted, in order. */
 private val HINT_POSITIONS = listOf(Alignment.BottomStart, Alignment.BottomCenter, Alignment.BottomEnd)
@@ -233,17 +244,24 @@ fun CalculatorKeypad(
         val rowWidthPx = constraints.maxWidth - with(density) { 8.dp.roundToPx() } * 2
         // Eleven columns and two gaps between the pages (each a spacer between two spacings)
         val wideFixedPx = spacingPx * (ALL_COLUMNS + 1)
+        val windowHeight = with(density) { LocalWindowInfo.current.containerSize.height.toDp() }
+        val heightForKeys = (windowHeight * WIDE_MAX_KEYPAD_FRACTION - INDICATOR_ROW_HEIGHT - 8.dp - spacing * 3) / 4
+        // A phone held sideways: square keys as low as that would be too small, flat ones as wide as the window allows are not
+        val flat = wide && heightForKeys < WIDE_MIN_KEY_SIZE
+        val rowSpacing = if (flat) FLAT_ROW_SPACING else spacing
         val buttonWidthPx = if (wide) {
             // Square keys, as large as the width allows, but no larger than on a phone and leaving the history about
             // half the window
-            val windowHeight = with(density) { LocalWindowInfo.current.containerSize.height.toDp() }
-            val heightForKeys = (windowHeight * WIDE_MAX_KEYPAD_FRACTION - INDICATOR_ROW_HEIGHT - 8.dp - spacing * 3) / 4
-            val maxKeyPx = with(density) { minOf(WIDE_MAX_KEY_SIZE, heightForKeys).coerceAtLeast(WIDE_MIN_KEY_SIZE).roundToPx() }
+            val maxKeyPx = with(density) {
+                if (flat) FLAT_MAX_KEY_WIDTH.roundToPx() else minOf(WIDE_MAX_KEY_SIZE, heightForKeys).coerceAtLeast(WIDE_MIN_KEY_SIZE).roundToPx()
+            }
             ((rowWidthPx - wideFixedPx - with(density) { WIDE_MIN_PAGE_GAP.roundToPx() } * 2) / ALL_COLUMNS).coerceAtMost(maxKeyPx)
         } else {
             (rowWidthPx - spacingPx * (VISIBLE_COLUMNS - 1)) / VISIBLE_COLUMNS
         }
         val buttonWidth = with(density) { buttonWidthPx.toDp() }
+        val keyHeight = if (flat) ((windowHeight * WIDE_MAX_KEYPAD_FRACTION - INDICATOR_ROW_HEIGHT - 8.dp - rowSpacing * 3) / 4)
+            .coerceIn(FLAT_MIN_KEY_HEIGHT, buttonWidth) else null
         // The room the keys leave goes to the two gaps between the pages, each at most a key wide; the keypad is
         // centred in what is still left
         val pageGapPx = ((rowWidthPx - wideFixedPx - buttonWidthPx * ALL_COLUMNS) / 2).coerceAtMost(buttonWidthPx)
@@ -416,11 +434,12 @@ fun CalculatorKeypad(
             }
 
             // Continuous horizontal scroll container containing all 11 columns across 4 rows; a wide keypad shows them all
+            CompositionLocalProvider(LocalKeyHeight provides keyHeight) {
             Column(
                 modifier = if (wide) Modifier else Modifier
                     .fillMaxWidth()
                     .horizontalScroll(scrollState, flingBehavior = flingBehavior),
-                verticalArrangement = Arrangement.spacedBy(spacing)
+                verticalArrangement = Arrangement.spacedBy(rowSpacing)
             ) {
                 // Row 1
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing)) {
@@ -795,6 +814,7 @@ fun CalculatorKeypad(
                     ) { onKeyAction(KeyAction.OpenSettings) }
                 }
             }
+            }
         }
     }
 }
@@ -925,6 +945,7 @@ private fun KeyButton(
     }
 
     val finalWidth = if (colSpan == 1) buttonWidth else buttonWidth * colSpan + spacing * (colSpan - 1)
+    val keyHeight = LocalKeyHeight.current ?: buttonWidth
 
     // Like a keyboard, every key gives feedback as soon as it is touched; the system's
     // touch feedback setting decides whether it vibrates
@@ -1020,7 +1041,7 @@ private fun KeyButton(
 
     Box(
         modifier = Modifier
-            .size(width = finalWidth, height = buttonWidth)
+            .size(width = finalWidth, height = keyHeight)
             .onGloballyPositioned { keyLeftInWindow = it.positionInWindow().x }
             // Before the background, so that the whole key (not only its label) is dimmed; always in the chain, so that
             // a key that gets enabled again keeps its shading
@@ -1044,17 +1065,26 @@ private fun KeyButton(
             .then(if (enabled) touchFeedback.then(gestureModifier) else Modifier),
         contentAlignment = Alignment.Center
     ) {
-        if (content != null) {
-            content()
-        } else if (text != null) {
-            Text(
-                text = text,
-                fontSize = textSize ?: if (text.length > 3) 14.sp else if (text.length > 2) 16.sp else 24.sp,
-                fontWeight = if (isOp || bgColor != null) FontWeight.Bold else FontWeight.Medium,
-                color = defaultText
-            )
-        } else if (icon != null) {
-            icon()
+        // A flat key (a phone held sideways) has no room for hints below a label of full size: there both are smaller, and
+        // the label is higher
+        val flatWithHints = keyHeight < buttonWidth && hints.isNotEmpty()
+        val density = LocalDensity.current
+        CompositionLocalProvider(
+            LocalDensity provides if (flatWithHints) Density(density.density, density.fontScale * FLAT_TEXT_SCALE) else density
+        ) {
+        Box(modifier = Modifier.padding(bottom = if (flatWithHints) FLAT_LABEL_LIFT else 0.dp), contentAlignment = Alignment.Center) {
+            if (content != null) {
+                content()
+            } else if (text != null) {
+                Text(
+                    text = text,
+                    fontSize = textSize ?: if (text.length > 3) 14.sp else if (text.length > 2) 16.sp else 24.sp,
+                    fontWeight = if (isOp || bgColor != null) FontWeight.Bold else FontWeight.Medium,
+                    color = defaultText
+                )
+            } else if (icon != null) {
+                icon()
+            }
         }
 
         // Second function bottom left, third bottom centre, a fourth would go bottom right.
@@ -1062,11 +1092,11 @@ private fun KeyButton(
         val hintColor = if (bgColor == MaterialTheme.colorScheme.primary) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onPrimaryContainer
         // In the line height of the theme a hint stands well above the edge of the key; on a small key (a tablet
         // held upright, a narrow phone) that brings it up against the label, so there it gets a line of its size
-        val compactHints = buttonWidth < COMPACT_HINTS_KEY_SIZE
+        val compactHints = minOf(buttonWidth, keyHeight) < COMPACT_HINTS_KEY_SIZE
         hints.take(HINT_POSITIONS.size).forEachIndexed { index, alternate ->
             val hintModifier = Modifier
                 .align(HINT_POSITIONS[index])
-                .padding(start = 8.dp, end = 8.dp, bottom = if (compactHints) 6.dp else 4.dp)
+                .padding(start = 8.dp, end = 8.dp, bottom = if (flatWithHints) 2.dp else if (compactHints) 6.dp else 4.dp)
             if (alternate.icon != null) {
                 // Lifted so its centre is level with the middle of the lowercase letters of the
                 // text hints beside it (a text box has its descender space below the letters)
@@ -1087,6 +1117,7 @@ private fun KeyButton(
                 )
             }
         }
+        }
 
         popupSelection?.let { selected ->
             AlternatesPopup(
@@ -1100,6 +1131,10 @@ private fun KeyButton(
         }
     }
 }
+
+/** How much smaller the label and the hints of a flat key are, and how much higher its label is (see [KeyButton]). */
+private const val FLAT_TEXT_SCALE = 0.8f
+private val FLAT_LABEL_LIFT = 10.dp
 
 /** Keys smaller than this have their hints closer to the bottom edge (see [KeyButton]). */
 private val COMPACT_HINTS_KEY_SIZE = 72.dp
@@ -1295,17 +1330,14 @@ private fun AlternatesRow(
                 if (alternate.icon != null) {
                     Icon(alternate.icon, contentDescription = alternate.spoken, tint = color, modifier = Modifier.size(26.dp))
                 } else {
-                    // The cells have a fixed size: a larger system font only grows the labels a little, and they never wrap
-                    val fontScale = LocalDensity.current.fontScale
-                    val compensation = minOf(fontScale, 1.15f) / fontScale
                     val size = when (sharedLength ?: alternate.label.length) {
-                        in 6..Int.MAX_VALUE -> 13f
-                        4, 5 -> 16f
-                        else -> 22f
+                        in 6..Int.MAX_VALUE -> 13.sp
+                        4, 5 -> 16.sp
+                        else -> 22.sp
                     }
                     Text(
                         text = alternate.label,
-                        fontSize = (size * compensation).sp,
+                        fontSize = size,
                         fontWeight = FontWeight.Medium,
                         color = color,
                         maxLines = 1,

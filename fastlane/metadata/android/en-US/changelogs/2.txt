@@ -1,0 +1,6 @@
+- First-time tip on how to convert units, plus a Convert button in the unit list
+- New units: data (bit, byte, kB, GiB, …), ppm/ppb, cm⁻¹ (wavenumber)
+- Fixed: the Paste/Select all menu appeared when swiping or tapping the input line
+- Landscape mode on phones (full keypad, no history)
+- The system font size no longer breaks the layout
+- Starting with + − × ÷ continues from the last result (Ans)

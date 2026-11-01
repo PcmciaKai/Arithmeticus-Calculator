@@ -592,6 +592,12 @@
     <string name="units_search">Buscar, p. ej. km, presión, galón</string>
     <string name="units_clear_search">Borrar búsqueda</string>
     <string name="units_none">No se encontraron unidades</string>
+    <string name="units_convert">Convertir</string>
+    <string name="units_tip_title">Convertir unidades</string>
+    <string name="units_tip_text">Escribe un valor con su unidad, pon la flecha → detrás y elige la unidad a la que convertir. La flecha aparece al mantener pulsada la tecla Unidades, y como «Convertir» arriba en la lista de unidades.</string>
+    <string name="units_tip_example">Por ejemplo:</string>
+    <string name="units_tip_try">Probar</string>
+    <string name="units_tip_ok">Entendido</string>
     <string name="matrix_vector_2d">Vector 2D</string>
     <string name="matrix_vector_3d">Vector 3D</string>
     <string name="matrix_kind_matrix">Matriz</string>

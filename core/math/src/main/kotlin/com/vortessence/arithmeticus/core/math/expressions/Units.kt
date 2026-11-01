@@ -11,7 +11,8 @@ import java.math.BigInteger
 
 /**
  * Exponents of the SI base dimensions. Plane angle is tracked as its own dimension (SI treats
- * it as dimensionless) so that angles convert between radians and degrees.
+ * it as dimensionless) so that angles convert between radians and degrees; so is information
+ * (bit, byte), which is not an SI quantity at all.
  */
 data class Dimension(
     val length: Int = 0,
@@ -21,24 +22,26 @@ data class Dimension(
     val temperature: Int = 0,
     val amount: Int = 0,
     val luminosity: Int = 0,
-    val angle: Int = 0
+    val angle: Int = 0,
+    val information: Int = 0
 ) {
-    private val exponents get() = intArrayOf(length, mass, time, current, temperature, amount, luminosity, angle)
+    internal val exponents get() = intArrayOf(length, mass, time, current, temperature, amount, luminosity, angle, information)
 
     operator fun plus(other: Dimension) = Dimension(
         length + other.length, mass + other.mass, time + other.time, current + other.current,
-        temperature + other.temperature, amount + other.amount, luminosity + other.luminosity, angle + other.angle
+        temperature + other.temperature, amount + other.amount, luminosity + other.luminosity, angle + other.angle,
+        information + other.information
     )
 
     operator fun times(n: Int) = Dimension(
-        length * n, mass * n, time * n, current * n, temperature * n, amount * n, luminosity * n, angle * n
+        length * n, mass * n, time * n, current * n, temperature * n, amount * n, luminosity * n, angle * n, information * n
     )
 
     /** This dimension divided by [n], or null if an exponent is not divisible (e.g. sqrt(m)). */
     fun dividedBy(n: Int): Dimension? {
         if (exponents.any { it % n != 0 }) return null
         return Dimension(
-            length / n, mass / n, time / n, current / n, temperature / n, amount / n, luminosity / n, angle / n
+            length / n, mass / n, time / n, current / n, temperature / n, amount / n, luminosity / n, angle / n, information / n
         )
     }
 
@@ -54,6 +57,7 @@ data class Dimension(
         val AMOUNT = Dimension(amount = 1)
         val LUMINOSITY = Dimension(luminosity = 1)
         val ANGLE = Dimension(angle = 1)
+        val INFORMATION = Dimension(information = 1)
 
         val AREA = LENGTH * 2
         val VOLUME = LENGTH * 3
@@ -76,6 +80,8 @@ data class Dimension(
         val MOLAR_MASS = MASS + AMOUNT * -1
         val DENSITY = MASS + VOLUME * -1
         val ILLUMINANCE = LUMINOSITY + AREA * -1
+        val WAVENUMBER = LENGTH * -1
+        val DATA_RATE = INFORMATION + TIME * -1
     }
 }
 
@@ -329,7 +335,7 @@ object UnitRegistry {
         Prefix("p", "pico", -12), Prefix("n", "nano", -9), Prefix("µ", "micro", -6),
         Prefix("m", "milli", -3), Prefix("c", "centi", -2), Prefix("d", "deci", -1),
         Prefix("", "", 0), Prefix("h", "hecto", 2), Prefix("k", "kilo", 3),
-        Prefix("M", "mega", 6), Prefix("G", "giga", 9)
+        Prefix("M", "mega", 6), Prefix("G", "giga", 9), Prefix("T", "tera", 12), Prefix("P", "peta", 15)
     ).associateBy { it.symbol }
 
     private fun superscript(power: Int) = when (power) {
@@ -370,6 +376,15 @@ object UnitRegistry {
 
     private fun family(name: String, vararg units: UnitExpression) = UnitFamily(name, units.toList())
 
+    /** Bytes with binary prefixes (KiB = 1024 B, MiB = 1024² B, ...), in bits. */
+    private fun binaryBytes(): UnitFamily {
+        val prefixes = listOf("Ki" to "kibi", "Mi" to "mebi", "Gi" to "gibi", "Ti" to "tebi", "Pi" to "pebi")
+        val units = prefixes.mapIndexed { index, (symbol, name) ->
+            unit("${symbol}B", "${name}byte", Dimension.INFORMATION, Rational.of(BigInt(BigInteger.valueOf(1024).pow(index + 1) * BigInteger.valueOf(8))))
+        }
+        return UnitFamily("Binary byte", units)
+    }
+
     // Exact definitions of customary units in SI
     private val INCH = exact("0.0254")
     private val FOOT = exact("0.3048")
@@ -395,7 +410,11 @@ object UnitRegistry {
                 unit("Å", "ångström", Dimension.LENGTH, "1e-10"),
                 unit("au", "astronomical unit", Dimension.LENGTH, "149597870700"),
                 unit("ly", "light-year", Dimension.LENGTH, "9460730472580800"),
-                unit("pc", "parsec", Dimension.LENGTH, "30856775814913673"))
+                unit("pc", "parsec", Dimension.LENGTH, "30856775814913673")),
+            // Spectroscopy: a length converts to a wavenumber and back (500 nm → cm⁻¹ = 20000 cm⁻¹)
+            family("Wavenumber",
+                unit("cm⁻¹", "reciprocal centimetre", Dimension.WAVENUMBER, "100"),
+                unit("m⁻¹", "reciprocal metre", Dimension.WAVENUMBER))
         )),
         UnitCategory("Area", listOf(
             metric("Square metre", "m", "metre", Dimension.LENGTH, "m c _ k", power = 2),
@@ -546,7 +565,12 @@ object UnitRegistry {
                 unit("µM", "micromolar", Dimension.CONCENTRATION, "0.001")),
             family("Molar mass",
                 unit("g/mol", "gram per mole", Dimension.MOLAR_MASS, "0.001"),
-                unit("kg/mol", "kilogram per mole", Dimension.MOLAR_MASS))
+                unit("kg/mol", "kilogram per mole", Dimension.MOLAR_MASS)),
+            // Plain ratios (a mole or mass fraction): 5 ppm is 0.000005, and 0.000005 → ppm is 5 ppm
+            family("Ratio",
+                unit("‰", "per mille", Dimension.NONE, "0.001"),
+                unit("ppm", "part per million", Dimension.NONE, "1e-6"),
+                unit("ppb", "part per billion", Dimension.NONE, "1e-9"))
         )),
         UnitCategory("Density", listOf(
             family("Metric",
@@ -561,6 +585,21 @@ object UnitRegistry {
                 unit("cd", "candela", Dimension.LUMINOSITY),
                 unit("lm", "lumen", Dimension.LUMINOSITY),
                 unit("lx", "lux", Dimension.ILLUMINANCE))
+        )),
+        // In bits: a byte is 8 bits; kB, MB, ... are powers of 1000, KiB, MiB, ... powers of 1024
+        UnitCategory("Data", listOf(
+            metric("Byte", "B", "byte", Dimension.INFORMATION, "_ k M G T P", baseFactor = Rational.of(8L)),
+            binaryBytes(),
+            metric("Bit", "bit", "bit", Dimension.INFORMATION, "_ k M G T"),
+            family("Data rate",
+                unit("bit/s", "bit per second", Dimension.DATA_RATE),
+                unit("kbit/s", "kilobit per second", Dimension.DATA_RATE, "1000"),
+                unit("Mbit/s", "megabit per second", Dimension.DATA_RATE, "1000000"),
+                unit("Gbit/s", "gigabit per second", Dimension.DATA_RATE, "1000000000"),
+                unit("B/s", "byte per second", Dimension.DATA_RATE, "8"),
+                unit("kB/s", "kilobyte per second", Dimension.DATA_RATE, "8000"),
+                unit("MB/s", "megabyte per second", Dimension.DATA_RATE, "8000000"),
+                unit("GB/s", "gigabyte per second", Dimension.DATA_RATE, "8000000000"))
         ))
     )
 
@@ -610,7 +649,7 @@ object UnitRegistry {
     // concentration in chemistry (nobody uses mol/m³). Temperatures stay in K in every system.
     private val metricPreferred = preferred(
         "m", "m²", "m³", "kg", "s", "m/s", "m/s²", "N", "Pa", "J", "W", "K", "Hz",
-        "A", "C", "V", "Ω", "S", "F", "H", "T", "Wb", "mol", "mol/L", "g/mol", "kg/m³", "cd", "lx"
+        "A", "C", "V", "Ω", "S", "F", "H", "T", "Wb", "mol", "mol/L", "g/mol", "kg/m³", "cd", "lx", "B", "bit/s"
     )
 
     private val imperialPreferred = metricPreferred + preferred(
@@ -656,8 +695,7 @@ object UnitRegistry {
         return baseUnitProduct(dimension, system, angleBase)
     }
 
-    private fun complexity(d: Dimension): Int =
-        listOf(d.length, d.mass, d.time, d.current, d.temperature, d.amount, d.luminosity, d.angle).sumOf { kotlin.math.abs(it) }
+    private fun complexity(d: Dimension): Int = d.exponents.sumOf { kotlin.math.abs(it) }
 
     private fun baseUnitProduct(dimension: Dimension, system: UnitSystem, angleBase: UnitExpression): Expression {
         val isMetric = system == UnitSystem.METRIC
@@ -670,7 +708,8 @@ object UnitRegistry {
             dimension.temperature to K,
             dimension.amount to get("mol"),
             dimension.luminosity to get("cd"),
-            dimension.angle to angleBase
+            dimension.angle to angleBase,
+            dimension.information to get("B")
         ).filter { it.first != 0 }.sortedByDescending { it.first > 0 }
         val factors = bases.map { (exponent, unit) -> if (exponent == 1) unit else Power(unit, Value(exponent.toLong())) }
         return Multiplications.of(*factors.toTypedArray())

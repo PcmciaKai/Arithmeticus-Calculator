@@ -295,6 +295,12 @@
     <string name="units_search">Suchen, z. B. km, Druck, Gallone</string>
     <string name="units_clear_search">Suche löschen</string>
     <string name="units_none">Keine Einheiten gefunden</string>
+    <string name="units_convert">Umrechnen</string>
+    <string name="units_tip_title">Einheiten umrechnen</string>
+    <string name="units_tip_text">Gib einen Wert mit seiner Einheit ein, setze den Pfeil → dahinter und wähle die Einheit, in die umgerechnet werden soll. Den Pfeil gibt es, wenn du die Taste Einheiten lange drückst, und als „Umrechnen“ oben in der Liste der Einheiten.</string>
+    <string name="units_tip_example">Zum Beispiel:</string>
+    <string name="units_tip_try">Ausprobieren</string>
+    <string name="units_tip_ok">Verstanden</string>
     <string name="matrix_vector_2d">2D-Vektor</string>
     <string name="matrix_vector_3d">3D-Vektor</string>
     <string name="matrix_kind_matrix">Matrix</string>

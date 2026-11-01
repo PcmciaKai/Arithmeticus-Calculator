@@ -4,7 +4,6 @@ import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.horizontalScroll
@@ -43,8 +42,8 @@ import kotlin.math.roundToInt
  * - while something is selected, two handles below its ends can be dragged to adjust it,
  * - a tap on the variable of an integral or derivative (the x of dx) calls [onEditVariable],
  * - with [actions], Android's floating Cut/Copy/Paste/Select all menu appears over a selection
- *   once the finger is lifted, and with Paste over the caret after a long press on empty space
- *   or a tap on the caret.
+ *   once the finger is lifted, and with Paste over the caret after a long press on an empty input
+ *   or a tap on the caret. A swipe over the input does neither.
  *
  * All hit testing uses the node positions reported by [MathExpressionView] to [CaretGeometry].
  * Positions are caret paths (see CaretPaths), selections are applied by the caller.
@@ -69,6 +68,7 @@ fun MathEditor(
     val haptics = LocalHapticFeedback.current
     val density = LocalDensity.current
     val autoScrollEdge = with(density) { 32.dp.toPx() }
+    val caretTapSlop = with(density) { CARET_TAP_SLOP.toPx() }
 
     val currentOnPlaceCursor by rememberUpdatedState(onPlaceCursor)
     val currentOnSelectToken by rememberUpdatedState(onSelectToken)
@@ -148,31 +148,47 @@ fun MathEditor(
                     val hadMenu = isMenuShown
                     dismissMenu()
 
-                    val longPress = awaitLongPressOrCancellation(down.id)
-                    if (longPress == null) {
-                        // A tap, unless the gesture was a scroll (consumed by horizontalScroll)
-                        val up = currentEvent.changes.firstOrNull { it.id == down.id }
-                        if (up != null && !up.pressed && !up.isConsumed) {
-                            geometry.hitTestVariableLabel(down.position)?.let { (stringPath, nodeIndex) ->
-                                currentOnEditVariable(stringPath, nodeIndex)
-                                return@awaitEachGesture
+                    // A finger that moves further than the touch slop swipes (the scroll may take it, or there is nothing to
+                    // scroll): that is neither a tap nor a long press. Otherwise lifting it is a tap, holding it a long press
+                    var isSwipe = false
+                    val isLongPress = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                        while (true) {
+                            val change = awaitPointerEvent().changes.firstOrNull { it.id == down.id }
+                            if (change == null || change.isConsumed ||
+                                (change.position - down.position).getDistance() > viewConfiguration.touchSlop
+                            ) {
+                                isSwipe = true
+                                break
                             }
-                            val caret = geometry.hitTestCaret(down.position) ?: return@awaitEachGesture
-                            // Tapping the caret itself toggles the Paste menu, like in a text field
-                            if (caret == currentCursorPath && currentSelectionRange == null) {
-                                if (!hadMenu) requestMenu()
-                            } else {
-                                currentOnPlaceCursor(caret)
-                            }
+                            if (!change.pressed) break
+                        }
+                        false
+                    } ?: true
+                    if (isSwipe) return@awaitEachGesture
+                    if (!isLongPress) {
+                        geometry.hitTestVariableLabel(down.position)?.let { (stringPath, nodeIndex) ->
+                            currentOnEditVariable(stringPath, nodeIndex)
+                            return@awaitEachGesture
+                        }
+                        val caret = geometry.hitTestCaret(down.position) ?: return@awaitEachGesture
+                        // Tapping the caret itself toggles the Paste menu, like in a text field. Only on it: a tap in the empty
+                        // space after the text also lands on the caret at the end of the line, but just places it there
+                        val onCaret = geometry.caretX(caret)?.let { abs(it - down.position.x) <= caretTapSlop } == true
+                        if (caret == currentCursorPath && currentSelectionRange == null) {
+                            if (!hadMenu && onCaret) requestMenu()
+                        } else {
+                            currentOnPlaceCursor(caret)
                         }
                         return@awaitEachGesture
                     }
 
-                    val hit = geometry.hitTestNode(longPress.position)
+                    val hit = geometry.hitTestNode(down.position)
                     if (hit == null) {
-                        // Nothing to select (e.g. an empty input): offer to paste at the caret
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        requestMenu()
+                        // An empty input has nothing to select: offer to paste. Beside the text of a line there is no menu
+                        if (currentExpression.isEmpty) {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            requestMenu()
+                        }
                         return@awaitEachGesture
                     }
                     val (stringPath, nodeIndex) = hit
@@ -312,6 +328,9 @@ private fun TextMenu(
         }
     }
 }
+
+/** How far beside the caret a tap still counts as on it (half a finger's width). */
+private val CARET_TAP_SLOP = 24.dp
 
 /** How far beside a variable label (px) a touch still counts as on it. */
 private const val LABEL_SLOP = 12f

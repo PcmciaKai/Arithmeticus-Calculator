@@ -182,7 +182,37 @@ internal object UnitNamesFr {
         "weber" to "Weber",
         "week" to "Semaine",
         "yard" to "Yard",
-        "year (365.25 days)" to "Année (365,25 jours)"
+        "year (365.25 days)" to "Année (365,25 jours)",
+        // Data, ratios and wavenumbers
+        "bit" to "Bit",
+        "kilobit" to "Kilobit",
+        "megabit" to "Mégabit",
+        "gigabit" to "Gigabit",
+        "terabit" to "Térabit",
+        "byte" to "Octet",
+        "kilobyte" to "Kilooctet",
+        "megabyte" to "Mégaoctet",
+        "gigabyte" to "Gigaoctet",
+        "terabyte" to "Téraoctet",
+        "petabyte" to "Pétaoctet",
+        "kibibyte" to "Kibioctet",
+        "mebibyte" to "Mébioctet",
+        "gibibyte" to "Gibioctet",
+        "tebibyte" to "Tébioctet",
+        "pebibyte" to "Pébioctet",
+        "bit per second" to "Bit par seconde",
+        "kilobit per second" to "Kilobit par seconde",
+        "megabit per second" to "Mégabit par seconde",
+        "gigabit per second" to "Gigabit par seconde",
+        "byte per second" to "Octet par seconde",
+        "kilobyte per second" to "Kilooctet par seconde",
+        "megabyte per second" to "Mégaoctet par seconde",
+        "gigabyte per second" to "Gigaoctet par seconde",
+        "per mille" to "Pour mille",
+        "part per million" to "Partie par million",
+        "part per billion" to "Partie par milliard",
+        "reciprocal centimetre" to "Centimètre réciproque (nombre d’onde)",
+        "reciprocal metre" to "Mètre réciproque"
     )
 
     val families = mapOf(
@@ -230,7 +260,13 @@ internal object UnitNamesFr {
         "US customary" to "Unités US",
         "Voltage" to "Tension",
         "Watt" to "Watt",
-        "Watt-hour" to "Wattheure"
+        "Watt-hour" to "Wattheure",
+        "Wavenumber" to "Nombre d’onde",
+        "Ratio" to "Proportion",
+        "Byte" to "Octet",
+        "Binary byte" to "Octet (binaire)",
+        "Bit" to "Bit",
+        "Data rate" to "Débit"
     )
 
     val categories = mapOf(
@@ -251,6 +287,7 @@ internal object UnitNamesFr {
         "Speed" to "Vitesse",
         "Temperature" to "Température",
         "Time" to "Temps",
-        "Volume" to "Volume"
+        "Volume" to "Volume",
+        "Data" to "Données"
     )
 }

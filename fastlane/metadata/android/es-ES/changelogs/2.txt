@@ -1,0 +1,6 @@
+- Consejo inicial sobre cómo convertir unidades y botón «Convertir» en la lista de unidades
+- Nuevas unidades: datos (bit, byte, kB, GiB, …), ppm/ppb, cm⁻¹ (número de onda)
+- Corregido: el menú «Pegar/Seleccionar todo» aparecía al deslizar o tocar la línea de entrada
+- Modo horizontal en teléfonos (teclado completo, sin historial)
+- El tamaño de fuente del sistema ya no rompe el diseño
+- Empezar con + − × ÷ continúa desde el último resultado (Ans)

@@ -186,7 +186,37 @@ object UnitNames {
         "weber" to "Weber",
         "week" to "Woche",
         "yard" to "Yard",
-        "year (365.25 days)" to "Jahr (365,25 Tage)"
+        "year (365.25 days)" to "Jahr (365,25 Tage)",
+        // Data, ratios and wavenumbers
+        "bit" to "Bit",
+        "kilobit" to "Kilobit",
+        "megabit" to "Megabit",
+        "gigabit" to "Gigabit",
+        "terabit" to "Terabit",
+        "byte" to "Byte",
+        "kilobyte" to "Kilobyte",
+        "megabyte" to "Megabyte",
+        "gigabyte" to "Gigabyte",
+        "terabyte" to "Terabyte",
+        "petabyte" to "Petabyte",
+        "kibibyte" to "Kibibyte",
+        "mebibyte" to "Mebibyte",
+        "gibibyte" to "Gibibyte",
+        "tebibyte" to "Tebibyte",
+        "pebibyte" to "Pebibyte",
+        "bit per second" to "Bit pro Sekunde",
+        "kilobit per second" to "Kilobit pro Sekunde",
+        "megabit per second" to "Megabit pro Sekunde",
+        "gigabit per second" to "Gigabit pro Sekunde",
+        "byte per second" to "Byte pro Sekunde",
+        "kilobyte per second" to "Kilobyte pro Sekunde",
+        "megabyte per second" to "Megabyte pro Sekunde",
+        "gigabyte per second" to "Gigabyte pro Sekunde",
+        "per mille" to "Promille",
+        "part per million" to "Millionstel (ppm)",
+        "part per billion" to "Milliardstel (ppb)",
+        "reciprocal centimetre" to "Reziproker Zentimeter (Wellenzahl)",
+        "reciprocal metre" to "Reziproker Meter"
     )
 
     private val familiesDe = mapOf(
@@ -234,7 +264,13 @@ object UnitNames {
         "US customary" to "US-amerikanisch",
         "Voltage" to "Spannung",
         "Watt" to "Watt",
-        "Watt-hour" to "Wattstunde"
+        "Watt-hour" to "Wattstunde",
+        "Wavenumber" to "Wellenzahl",
+        "Ratio" to "Anteil",
+        "Byte" to "Byte",
+        "Binary byte" to "Byte (binär)",
+        "Bit" to "Bit",
+        "Data rate" to "Datenrate"
     )
 
     private val categoriesDe = mapOf(
@@ -255,7 +291,8 @@ object UnitNames {
         "Speed" to "Geschwindigkeit",
         "Temperature" to "Temperatur",
         "Time" to "Zeit",
-        "Volume" to "Volumen"
+        "Volume" to "Volumen",
+        "Data" to "Daten"
     )
 
     fun unit(name: String, language: Language): String = units(language)?.get(name) ?: name

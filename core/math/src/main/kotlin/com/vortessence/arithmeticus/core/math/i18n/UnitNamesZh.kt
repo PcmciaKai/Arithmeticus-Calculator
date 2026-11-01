@@ -182,7 +182,37 @@ internal object UnitNamesZh {
         "weber" to "韦伯",
         "week" to "周",
         "yard" to "码",
-        "year (365.25 days)" to "年（365.25 天）"
+        "year (365.25 days)" to "年（365.25 天）",
+        // Data, ratios and wavenumbers
+        "bit" to "比特",
+        "kilobit" to "千比特",
+        "megabit" to "兆比特",
+        "gigabit" to "吉比特",
+        "terabit" to "太比特",
+        "byte" to "字节",
+        "kilobyte" to "千字节",
+        "megabyte" to "兆字节",
+        "gigabyte" to "吉字节",
+        "terabyte" to "太字节",
+        "petabyte" to "拍字节",
+        "kibibyte" to "基比字节",
+        "mebibyte" to "梅比字节",
+        "gibibyte" to "吉比字节",
+        "tebibyte" to "太比字节",
+        "pebibyte" to "拍比字节",
+        "bit per second" to "比特每秒",
+        "kilobit per second" to "千比特每秒",
+        "megabit per second" to "兆比特每秒",
+        "gigabit per second" to "吉比特每秒",
+        "byte per second" to "字节每秒",
+        "kilobyte per second" to "千字节每秒",
+        "megabyte per second" to "兆字节每秒",
+        "gigabyte per second" to "吉字节每秒",
+        "per mille" to "千分率",
+        "part per million" to "百万分率",
+        "part per billion" to "十亿分率",
+        "reciprocal centimetre" to "每厘米（波数）",
+        "reciprocal metre" to "每米"
     )
 
     val families = mapOf(
@@ -230,7 +260,13 @@ internal object UnitNamesZh {
         "US customary" to "美制",
         "Voltage" to "电压",
         "Watt" to "瓦特",
-        "Watt-hour" to "瓦时"
+        "Watt-hour" to "瓦时",
+        "Wavenumber" to "波数",
+        "Ratio" to "比率",
+        "Byte" to "字节",
+        "Binary byte" to "字节（二进制）",
+        "Bit" to "比特",
+        "Data rate" to "数据速率"
     )
 
     val categories = mapOf(
@@ -251,6 +287,7 @@ internal object UnitNamesZh {
         "Speed" to "速度",
         "Temperature" to "温度",
         "Time" to "时间",
-        "Volume" to "体积"
+        "Volume" to "体积",
+        "Data" to "数据"
     )
 }

@@ -182,7 +182,37 @@ internal object UnitNamesEs {
         "weber" to "Weber",
         "week" to "Semana",
         "yard" to "Yarda",
-        "year (365.25 days)" to "Año (365,25 días)"
+        "year (365.25 days)" to "Año (365,25 días)",
+        // Data, ratios and wavenumbers
+        "bit" to "Bit",
+        "kilobit" to "Kilobit",
+        "megabit" to "Megabit",
+        "gigabit" to "Gigabit",
+        "terabit" to "Terabit",
+        "byte" to "Byte",
+        "kilobyte" to "Kilobyte",
+        "megabyte" to "Megabyte",
+        "gigabyte" to "Gigabyte",
+        "terabyte" to "Terabyte",
+        "petabyte" to "Petabyte",
+        "kibibyte" to "Kibibyte",
+        "mebibyte" to "Mebibyte",
+        "gibibyte" to "Gibibyte",
+        "tebibyte" to "Tebibyte",
+        "pebibyte" to "Pebibyte",
+        "bit per second" to "Bit por segundo",
+        "kilobit per second" to "Kilobit por segundo",
+        "megabit per second" to "Megabit por segundo",
+        "gigabit per second" to "Gigabit por segundo",
+        "byte per second" to "Byte por segundo",
+        "kilobyte per second" to "Kilobyte por segundo",
+        "megabyte per second" to "Megabyte por segundo",
+        "gigabyte per second" to "Gigabyte por segundo",
+        "per mille" to "Por mil",
+        "part per million" to "Parte por millón",
+        "part per billion" to "Parte por mil millones",
+        "reciprocal centimetre" to "Centímetro recíproco (número de onda)",
+        "reciprocal metre" to "Metro recíproco"
     )
 
     val families = mapOf(
@@ -230,7 +260,13 @@ internal object UnitNamesEs {
         "US customary" to "Unidades US",
         "Voltage" to "Tensión",
         "Watt" to "Vatio",
-        "Watt-hour" to "Vatio-hora"
+        "Watt-hour" to "Vatio-hora",
+        "Wavenumber" to "Número de onda",
+        "Ratio" to "Proporción",
+        "Byte" to "Byte",
+        "Binary byte" to "Byte (binario)",
+        "Bit" to "Bit",
+        "Data rate" to "Tasa de datos"
     )
 
     val categories = mapOf(
@@ -251,6 +287,7 @@ internal object UnitNamesEs {
         "Speed" to "Velocidad",
         "Temperature" to "Temperatura",
         "Time" to "Tiempo",
-        "Volume" to "Volumen"
+        "Volume" to "Volumen",
+        "Data" to "Datos"
     )
 }

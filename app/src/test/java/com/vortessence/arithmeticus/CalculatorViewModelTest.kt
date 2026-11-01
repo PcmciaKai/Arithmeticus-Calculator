@@ -1188,6 +1188,53 @@ class CalculatorViewModelTest {
         assertEquals(listOf(MathIssue.NO_ANS), vm.uiState.value.result!!.issues)
     }
 
+    @Test
+    fun testOperatorOnEmptyLineGoesOnFromAns() = runBlocking {
+        val vm = newViewModel()
+        vm.type("7")
+        vm.onKeyAction(KeyAction.Enter)
+        vm.awaitCommit()
+
+        // + − × typed first work on the last result
+        for ((op, expected) in listOf("+" to "10", "−" to "4", "×" to "21")) {
+            vm.type(op, "3")
+            assertEquals(AnsNode, vm.uiState.value.expression.nodeAt(0))
+            vm.awaitLiveResult()
+            assertEquals(expected, vm.uiState.value.result!!.result.toString())
+            vm.onKeyAction(KeyAction.Clear)
+        }
+        // ÷ makes Ans the numerator, the cursor waits in the denominator
+        vm.type("÷", "2")
+        val fraction = vm.uiState.value.expression.nodeAt(0) as FractionNode
+        assertEquals(AnsNode, fraction.numerator.nodeAt(0))
+        vm.awaitLiveResult()
+        assertEquals(3.5, vm.uiState.value.result!!.numericValue, 1e-12)
+        vm.onKeyAction(KeyAction.Clear)
+        // The same for the keyboard's operators and the inline ÷
+        vm.typeText("*")
+        assertEquals(AnsNode, vm.uiState.value.expression.nodeAt(0))
+        vm.onKeyAction(KeyAction.Clear)
+        vm.onKeyAction(KeyAction.InlineDivide)
+        assertEquals("Ans ÷ ", vm.uiState.value.expression.toString())
+    }
+
+    @Test
+    fun testOperatorGoesOnFromAnsOnlyOnAnEmptyLineWithAResult() = runBlocking {
+        val vm = newViewModel()
+        // No result yet: − starts a negative number
+        vm.type("−", "5")
+        assertEquals(OperatorNode(MathOp.MINUS), vm.uiState.value.expression.nodeAt(0))
+        vm.onKeyAction(KeyAction.Enter)
+        vm.awaitCommit()
+
+        // Not after something typed, and not for other operators
+        vm.type("2", "+")
+        assertEquals("2 + ", vm.uiState.value.expression.toString())
+        vm.onKeyAction(KeyAction.Clear)
+        vm.onKeyAction(KeyAction.Operator("="))
+        assertEquals(OperatorNode(MathOp.EQUALS), vm.uiState.value.expression.nodeAt(0))
+    }
+
     /** Types "name := value" and commits it. */
     private suspend fun CalculatorViewModel.defineVariable(name: String, vararg value: String) {
         onKeyAction(KeyAction.Variable(name))

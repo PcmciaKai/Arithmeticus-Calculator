@@ -33,6 +33,7 @@ import com.vortessence.arithmeticus.core.math.expressions.TrigInequalitySolver
 import com.vortessence.arithmeticus.core.math.expressions.Variable
 import com.vortessence.arithmeticus.core.math.expressions.UnitConversion
 import com.vortessence.arithmeticus.core.math.expressions.Dimension
+import com.vortessence.arithmeticus.core.math.expressions.containsUnit
 import com.vortessence.arithmeticus.core.math.expressions.dimensionOf
 import com.vortessence.arithmeticus.core.math.expressions.substituteVariables
 import com.vortessence.arithmeticus.core.math.expressions.toPreferredUnits
@@ -1081,14 +1082,15 @@ object MathEngine {
 
     /**
      * The physical dimension of [input], e.g. volume for "2 m³" or for an Ans that has a volume,
-     * or null if it has no (consistent) unit. Only parses, so it is fast enough to call directly.
+     * or null if it has no (consistent) unit. Units without a dimension (5 ppm, or m/km) give [Dimension.NONE]. Only parses,
+     * so it is fast enough to call directly.
      */
     fun unitDimension(input: MathString, context: MathContext = MathContext()): Dimension? {
         val execContext = context.copy()
         return try {
             MathContext.withContext(execContext) {
                 val parsed = parse(input, execContext)
-                if (execContext.shouldStop) null else dimensionOf(parsed)?.takeUnless { it.isNone }
+                if (execContext.shouldStop) null else dimensionOf(parsed)?.takeUnless { it.isNone && !parsed.containsUnit() }
             }
         } catch (e: ArithmeticException) {
             null

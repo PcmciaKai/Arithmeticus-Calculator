@@ -66,6 +66,7 @@ import com.vortessence.arithmeticus.ui.dialogs.HelpDialog
 import com.vortessence.arithmeticus.ui.dialogs.StepsSheet
 import com.vortessence.arithmeticus.ui.dialogs.MatrixDialog
 import com.vortessence.arithmeticus.ui.dialogs.UnitsDialog
+import com.vortessence.arithmeticus.ui.dialogs.UnitsTipDialog
 import com.vortessence.arithmeticus.ui.dialogs.VariableDialog
 import com.vortessence.arithmeticus.ui.graph.GraphPlotterView
 import com.vortessence.arithmeticus.ui.keypad.CalculatorKeypad
@@ -321,8 +322,10 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
                 .focusable()
         ) {
             // History of committed calculations (scrollable, newest at the bottom)
-            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                LazyColumn(
+            BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                // A phone held sideways has room for the keys and the line, hardly for the history: rather none than a sliver
+                val hasRoom = maxHeight >= MIN_HISTORY_HEIGHT
+                if (hasRoom) LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = 16.dp),
@@ -351,7 +354,7 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
                     }
                 }
                 // Once, for a new user: where the help is. Over the oldest part of the history, which is empty on a new install
-                if (uiState.showHelpHint) {
+                if (uiState.showHelpHint && hasRoom) {
                     HelpHintCard(
                         onOpen = { viewModel.openHelp() },
                         onDismiss = { viewModel.dismissHelpHint() },
@@ -452,7 +455,17 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
             selectedCategory = uiState.unitCategory,
             onCategorySelected = { viewModel.selectUnitCategory(it) },
             scrollToFamily = uiState.unitFamilyToShow,
-            language = uiState.language
+            language = uiState.language,
+            onConvert = if (viewModel.canInsertConversion()) ({ viewModel.onKeyAction(KeyAction.Convert) }) else null
+        )
+    }
+
+    if (uiState.showUnitsTip) {
+        UnitsTipDialog(
+            example = remember { viewModel.unitsTipExample },
+            exampleResult = UNITS_TIP_EXAMPLE_RESULT,
+            onTry = { viewModel.tryUnitsExample() },
+            onDismiss = { viewModel.dismissUnitsTip(openUnits = true) }
         )
     }
 
@@ -693,6 +706,12 @@ private fun TypingHint(notice: TypingNotice?) {
 
 /** How long the keypad and the system keyboard take to trade places (about as long as the keyboard slides). */
 private const val KEYBOARD_SWAP_MILLIS = 280
+
+/** The result of the example of the note on converting units, 5 km → mi. */
+private const val UNITS_TIP_EXAMPLE_RESULT = "3.107 mi"
+
+/** The history is shown only from this height on: below it, at most a sliver of an entry would be in sight. */
+private val MIN_HISTORY_HEIGHT = 56.dp
 
 /** How many variables a hint offers; more would not fit beside each other. */
 private const val MAX_VARIABLE_HINTS = 2

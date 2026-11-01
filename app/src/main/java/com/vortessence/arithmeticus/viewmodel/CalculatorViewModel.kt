@@ -80,6 +80,8 @@ data class CalculatorUiState(
     val plotScene: PlotScene? = null,
     val isPlotLoading: Boolean = false,
     val showUnitsDialog: Boolean = false,
+    /** The one-time note on how to convert units, shown the first time the Units key is tapped (before the unit picker). */
+    val showUnitsTip: Boolean = false,
     /** Category shown in the unit picker; it reopens on the category used last. */
     val unitCategory: Int = 0,
     /** Family of [unitCategory] the unit picker scrolls to when it opens, e.g. for a conversion. */
@@ -594,6 +596,7 @@ class CalculatorViewModel @JvmOverloads constructor(
         when (action) {
             is KeyAction.Number -> typeDigits(action.digit)
             is KeyAction.Operator -> {
+                if (action.opSymbol in ARITHMETIC_OPERATORS) insertAnsBeforeOperator()
                 if (action.opSymbol == "÷" || action.opSymbol == "/") {
                     insertDivision()
                 } else {
@@ -620,7 +623,10 @@ class CalculatorViewModel @JvmOverloads constructor(
                     insertNode(OperatorNode(op))
                 }
             }
-            is KeyAction.InlineDivide -> insertNode(OperatorNode(MathOp.DIVIDE))
+            is KeyAction.InlineDivide -> {
+                insertAnsBeforeOperator()
+                insertNode(OperatorNode(MathOp.DIVIDE))
+            }
             is KeyAction.MixedFraction -> insertMixedFraction()
             is KeyAction.Variable -> insertNode(VariableNode(action.name))
             // Opens the system keyboard, which the screen does; what is typed arrives in typeText
@@ -649,7 +655,7 @@ class CalculatorViewModel @JvmOverloads constructor(
             is KeyAction.ToggleAngleUnit -> toggleAngleUnit()
             is KeyAction.MoveLeft -> moveCursorLeft()
             is KeyAction.MoveRight -> moveCursorRight()
-            is KeyAction.OpenUnits -> _uiState.update { it.copy(showUnitsDialog = true) }
+            is KeyAction.OpenUnits -> openUnits()
             is KeyAction.OpenConstants -> _uiState.update { it.copy(showConstantsDialog = true) }
             is KeyAction.OpenFormulas -> _uiState.update { it.copy(showFormulasDialog = true) }
             is KeyAction.Separator -> insertNode(SeparatorNode)
@@ -1079,6 +1085,45 @@ class CalculatorViewModel @JvmOverloads constructor(
         _uiState.update { it.copy(showUnitsDialog = false, unitFamilyToShow = null) }
     }
 
+    /** The unit picker; the first time, the note on converting comes first (the arrow is behind a long press of the key). */
+    private fun openUnits() {
+        val tipSeen = prefs?.getBoolean(KEY_UNITS_TIP_SEEN, false) ?: true
+        _uiState.update { if (tipSeen) it.copy(showUnitsDialog = true) else it.copy(showUnitsTip = true) }
+    }
+
+    private fun markUnitsTipSeen() {
+        if (prefs?.getBoolean(KEY_UNITS_TIP_SEEN, false) == false) prefs.edit { putBoolean(KEY_UNITS_TIP_SEEN, true) }
+    }
+
+    /** Closes the note on converting units for good, and goes on to the unit picker if [openUnits]. */
+    fun dismissUnitsTip(openUnits: Boolean) {
+        markUnitsTipSeen()
+        _uiState.update { it.copy(showUnitsTip = false, showUnitsDialog = openUnits) }
+    }
+
+    /** The example of the note on converting units: 5 km → mi. */
+    val unitsTipExample: MathString get() = MathNotation.parse(UNITS_TIP_EXAMPLE)
+
+    /** The example of the note on converting units, in place of the line. */
+    fun tryUnitsExample() {
+        dismissUnitsTip(openUnits = false)
+        tryExample(unitsTipExample)
+    }
+
+    /**
+     * Whether an arrow → at the cursor would convert something: there is a value before it, and it is not already the
+     * target of an arrow (5 km → mi → would be wrong).
+     */
+    fun canInsertConversion(): Boolean {
+        val state = _uiState.value
+        val target = getTargetString(state.expression, state.cursorPath)
+        val end = (state.selectionRange?.first ?: state.cursorPath.last()).coerceIn(0, target.length)
+        val delimiter = target.nodes.subList(0, end).lastOrNull {
+            it is LineBreakNode || (it is OperatorNode && it.op in SOURCE_DELIMITERS)
+        }
+        return (delimiter as? OperatorNode)?.op != MathOp.CONVERT && conversionSource(state).isNotEmpty
+    }
+
     fun selectUnitCategory(index: Int) {
         _uiState.update { it.copy(unitCategory = index, unitFamilyToShow = null) }
     }
@@ -1088,6 +1133,8 @@ class CalculatorViewModel @JvmOverloads constructor(
      * value before the arrow can be converted to (e.g. volumes for "Ans →" if Ans is 2 m³).
      */
     private fun insertConversion() {
+        // Whoever found the arrow knows how to convert
+        markUnitsTipSeen()
         val state = _uiState.value
         val dimension = MathEngine.unitDimension(conversionSource(state), state.snapshot().toMathContext())
         val location = dimension?.let { UnitRegistry.locate(it) }
@@ -1321,6 +1368,15 @@ class CalculatorViewModel @JvmOverloads constructor(
 
     /** Inserts "Ans", which stands for the most recently committed result when calculated. */
     fun insertAns() = insertNode(AnsNode)
+
+    /**
+     * As on a pocket calculator, + − × ÷ typed first on an empty line go on from the last result: "+ 5" is "Ans + 5". Only
+     * when there is a last result; otherwise the operator stands alone (− then starts a negative number).
+     */
+    private fun insertAnsBeforeOperator() {
+        val state = _uiState.value
+        if (state.expression.isEmpty && state.ans() != null) insertAns()
+    }
 
     private fun getTargetString(root: MathString, path: List<Int>): MathString {
         var current = root
@@ -2080,6 +2136,13 @@ class CalculatorViewModel @JvmOverloads constructor(
         const val MAX_SESSION_FILE_BYTES = 16 * 1024 * 1024
 
         const val KEY_HELP_HINT_SEEN = "help_hint_seen"
+
+        /** The operators that go on from the last result when typed first on an empty line (see insertAnsBeforeOperator). */
+        val ARITHMETIC_OPERATORS = setOf("+", "−", "-", "×", "*", "÷", "/")
+        const val KEY_UNITS_TIP_SEEN = "units_tip_seen"
+
+        /** 5 km → mi, the example of the note on converting units. */
+        const val UNITS_TIP_EXAMPLE = "5#u{km}->#u{mi}"
 
         val SOURCE_DELIMITERS = setOf(MathOp.EQUALS, MathOp.DEFINE, MathOp.CONVERT, MathOp.LESS, MathOp.GREATER, MathOp.LESS_EQUAL, MathOp.GREATER_EQUAL)
     }

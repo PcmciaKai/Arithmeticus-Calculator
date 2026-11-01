@@ -594,6 +594,12 @@
     <string name="units_search">Search, e.g. km, pressure, gallon</string>
     <string name="units_clear_search">Clear search</string>
     <string name="units_none">No units found</string>
+    <string name="units_convert">Convert</string>
+    <string name="units_tip_title">Converting units</string>
+    <string name="units_tip_text">Type a value with its unit, then put the arrow → after it and pick the unit to convert to. You find the arrow by long pressing the Units key, and as “Convert” at the top of the unit list.</string>
+    <string name="units_tip_example">For example:</string>
+    <string name="units_tip_try">Try it</string>
+    <string name="units_tip_ok">Got it</string>
     <string name="matrix_vector_2d">2D vector</string>
     <string name="matrix_vector_3d">3D vector</string>
     <string name="matrix_kind_matrix">Matrix</string>

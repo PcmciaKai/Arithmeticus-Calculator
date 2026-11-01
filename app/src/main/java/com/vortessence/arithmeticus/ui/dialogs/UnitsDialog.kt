@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -26,6 +27,9 @@ import androidx.compose.ui.res.stringResource
 import com.vortessence.arithmeticus.R
 import com.vortessence.arithmeticus.core.math.i18n.Language
 import com.vortessence.arithmeticus.core.math.i18n.UnitNames
+import com.vortessence.arithmeticus.core.math.type.MathString
+import com.vortessence.arithmeticus.ui.math.DecimalMark
+import com.vortessence.arithmeticus.ui.math.MathExpressionView
 
 /**
  * Unit picker: categories (Length, Pressure, ...) are chosen with chips; each category shows
@@ -34,6 +38,8 @@ import com.vortessence.arithmeticus.core.math.i18n.UnitNames
  *
  * @param scrollToFamily Family of the selected category to scroll to when the picker opens,
  * e.g. the units a value can be converted to.
+ * @param onConvert Puts the arrow → after the value at the cursor (the picker then shows the units it converts to); null
+ * where there is nothing to convert.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,7 +49,8 @@ fun UnitsDialog(
     selectedCategory: Int = 0,
     onCategorySelected: (Int) -> Unit = {},
     scrollToFamily: Int? = null,
-    language: Language = Language.ENGLISH
+    language: Language = Language.ENGLISH,
+    onConvert: (() -> Unit)? = null
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val hideKeyboard = rememberHideKeyboard()
@@ -63,10 +70,14 @@ fun UnitsDialog(
 
     val chipListState = rememberLazyListState()
     val unitListState = rememberLazyListState()
-    // Show the selected category's chip and the requested family, even if far down the lists
-    LaunchedEffect(Unit) {
+    // Show the selected category's chip and the requested family, even if far down the lists; again after Convert
+    var initialScrollDone by remember { mutableStateOf(false) }
+    LaunchedEffect(scrollToFamily) {
+        // Choosing a category clears the family; the chips stay where they are then
+        if (scrollToFamily == null && initialScrollDone) return@LaunchedEffect
         chipListState.scrollToItem(categoryIndex)
         if (scrollToFamily != null) unitListState.scrollToItem(scrollToFamily)
+        initialScrollDone = true
     }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
@@ -77,7 +88,20 @@ fun UnitsDialog(
                 .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(stringResource(R.string.units_insert_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    stringResource(R.string.units_insert_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+                // The arrow is otherwise only in the long press of the Units key, which few find
+                if (onConvert != null) {
+                    FilledTonalButton(onClick = onConvert, contentPadding = PaddingValues(horizontal = 14.dp)) {
+                        Text("→ " + stringResource(R.string.units_convert))
+                    }
+                }
+            }
 
             OutlinedTextField(
                 value = query,
@@ -142,6 +166,43 @@ fun UnitsDialog(
             }
         }
     }
+}
+
+/**
+ * Shown once, the first time the Units key is tapped: how to convert, with [example] (5 km → mi), which [onTry] puts into
+ * the line. [onDismiss] goes on to the unit picker.
+ */
+@Composable
+fun UnitsTipDialog(example: MathString, exampleResult: String, onTry: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.units_tip_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(stringResource(R.string.units_tip_text))
+                Text(stringResource(R.string.units_tip_example), fontWeight = FontWeight.SemiBold)
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                    ) {
+                        MathExpressionView(mathString = example, fontSize = 22.sp, textColor = MaterialTheme.colorScheme.onSurface)
+                        Text(
+                            "  ≈ " + DecimalMark.display(exampleResult),
+                            fontSize = 20.sp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.units_tip_ok)) } },
+        dismissButton = { TextButton(onClick = onTry) { Text(stringResource(R.string.units_tip_try)) } }
+    )
 }
 
 /** Families of [category] matching [query], reduced to their matching units; null if none match. */

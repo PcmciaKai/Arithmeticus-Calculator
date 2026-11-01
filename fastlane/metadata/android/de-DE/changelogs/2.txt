@@ -1,0 +1,6 @@
+- Hinweis beim ersten Mal, wie man Einheiten umrechnet, und „Umrechnen“ in der Einheitenliste
+- Neue Einheiten: Daten (Bit, Byte, kB, GiB, …), ppm/ppb, cm⁻¹ (Wellenzahl)
+- Behoben: Das Menü „Einfügen/Alles auswählen“ erschien beim Wischen oder Tippen auf die Eingabezeile
+- Querformat auf Smartphones (alle Tasten, kein Verlauf)
+- Die Schriftgröße des Systems zerstört das Layout nicht mehr
+- Beginnt man mit + − × ÷, wird mit dem letzten Ergebnis (Ans) weitergerechnet

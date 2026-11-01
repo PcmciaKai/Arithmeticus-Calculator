@@ -596,6 +596,12 @@
     <string name="units_search">Поиск, например km, давление, галлон</string>
     <string name="units_clear_search">Очистить поиск</string>
     <string name="units_none">Единицы не найдены</string>
+    <string name="units_convert">Перевести</string>
+    <string name="units_tip_title">Перевод единиц</string>
+    <string name="units_tip_text">Введите значение с единицей, поставьте после него стрелку → и выберите единицу, в которую нужно перевести. Стрелка открывается долгим нажатием на клавишу «Единицы», а также кнопкой «Перевести» вверху списка единиц.</string>
+    <string name="units_tip_example">Например:</string>
+    <string name="units_tip_try">Попробовать</string>
+    <string name="units_tip_ok">Понятно</string>
     <string name="matrix_vector_2d">2D-вектор</string>
     <string name="matrix_vector_3d">3D-вектор</string>
     <string name="matrix_kind_matrix">Матрица</string>

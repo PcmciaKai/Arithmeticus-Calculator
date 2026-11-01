@@ -1,0 +1,6 @@
+- Astuce au premier usage pour convertir des unités, et bouton « Convertir » dans la liste
+- Nouvelles unités : données (bit, octet, ko, Gio, …), ppm/ppb, cm⁻¹ (nombre d’onde)
+- Corrigé : le menu « Coller/Tout sélectionner » apparaissait en glissant ou en touchant la ligne de saisie
+- Mode paysage sur téléphone (clavier complet, sans historique)
+- La taille de police du système ne casse plus l’affichage
+- Commencer par + − × ÷ continue avec le dernier résultat (Ans)

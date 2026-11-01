@@ -182,7 +182,37 @@ internal object UnitNamesRu {
         "weber" to "Вебер",
         "week" to "Неделя",
         "yard" to "Ярд",
-        "year (365.25 days)" to "Год (365,25 суток)"
+        "year (365.25 days)" to "Год (365,25 суток)",
+        // Data, ratios and wavenumbers
+        "bit" to "Бит",
+        "kilobit" to "Килобит",
+        "megabit" to "Мегабит",
+        "gigabit" to "Гигабит",
+        "terabit" to "Терабит",
+        "byte" to "Байт",
+        "kilobyte" to "Килобайт",
+        "megabyte" to "Мегабайт",
+        "gigabyte" to "Гигабайт",
+        "terabyte" to "Терабайт",
+        "petabyte" to "Петабайт",
+        "kibibyte" to "Кибибайт",
+        "mebibyte" to "Мебибайт",
+        "gibibyte" to "Гибибайт",
+        "tebibyte" to "Тебибайт",
+        "pebibyte" to "Пебибайт",
+        "bit per second" to "Бит в секунду",
+        "kilobit per second" to "Килобит в секунду",
+        "megabit per second" to "Мегабит в секунду",
+        "gigabit per second" to "Гигабит в секунду",
+        "byte per second" to "Байт в секунду",
+        "kilobyte per second" to "Килобайт в секунду",
+        "megabyte per second" to "Мегабайт в секунду",
+        "gigabyte per second" to "Гигабайт в секунду",
+        "per mille" to "Промилле",
+        "part per million" to "Миллионная доля",
+        "part per billion" to "Миллиардная доля",
+        "reciprocal centimetre" to "Обратный сантиметр (волновое число)",
+        "reciprocal metre" to "Обратный метр"
     )
 
     val families = mapOf(
@@ -230,7 +260,13 @@ internal object UnitNamesRu {
         "US customary" to "Американские",
         "Voltage" to "Напряжение",
         "Watt" to "Ватт",
-        "Watt-hour" to "Ватт-час"
+        "Watt-hour" to "Ватт-час",
+        "Wavenumber" to "Волновое число",
+        "Ratio" to "Доля",
+        "Byte" to "Байт",
+        "Binary byte" to "Байт (двоичный)",
+        "Bit" to "Бит",
+        "Data rate" to "Скорость передачи данных"
     )
 
     val categories = mapOf(
@@ -251,6 +287,7 @@ internal object UnitNamesRu {
         "Speed" to "Скорость",
         "Temperature" to "Температура",
         "Time" to "Время",
-        "Volume" to "Объём"
+        "Volume" to "Объём",
+        "Data" to "Данные"
     )
 }

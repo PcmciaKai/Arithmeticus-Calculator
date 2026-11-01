@@ -584,6 +584,12 @@
     <string name="units_search">搜索，例如 km、压强、加仑</string>
     <string name="units_clear_search">清除搜索</string>
     <string name="units_none">未找到单位</string>
+    <string name="units_convert">换算</string>
+    <string name="units_tip_title">单位换算</string>
+    <string name="units_tip_text">输入带单位的数值，在其后加上箭头 →，再选择要换算成的单位。长按“单位”键即可找到箭头，单位列表顶部的“换算”按钮也可以。</string>
+    <string name="units_tip_example">例如：</string>
+    <string name="units_tip_try">试一试</string>
+    <string name="units_tip_ok">知道了</string>
     <string name="matrix_vector_2d">二维向量</string>
     <string name="matrix_vector_3d">三维向量</string>
     <string name="matrix_kind_matrix">矩阵</string>

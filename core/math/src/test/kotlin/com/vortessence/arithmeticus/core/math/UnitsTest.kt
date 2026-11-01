@@ -265,5 +265,53 @@ class UnitsTest {
         // No unit, or units that do not fit together
         assertNull(locate(ms(n("5"))))
         assertNull(locate(ms(n("5"), u("m"), op(MathOp.PLUS), n("2"), u("s"))))
+
+        // Units without a dimension are found with the ratios, a wavelength with the lengths, a wavenumber too
+        val ratio = locate(ms(n("5"), u("ppm")))!!
+        assertEquals("Ratio", UnitRegistry.categories[ratio.category].families[ratio.family].name)
+        val wavenumber = locate(ms(n("2000"), u("cm⁻¹")))!!
+        assertEquals("Wavenumber", UnitRegistry.categories[wavenumber.category].families[wavenumber.family].name)
+        assertEquals("Data", categories[locate(ms(n("4"), u("GiB")))!!.category])
+    }
+
+    @Test
+    fun dataUnitsConvertInPowersOfTenAndOfTwo() {
+        assertResult("1024B", calc(ms(n("1"), u("KiB"))))
+        assertEquals(1.073741824, calc(ms(n("1"), u("GiB"), to, u("GB"))).numericValue, 1e-12)
+        assertResult("8Mbit", calc(ms(n("1"), u("MB"), to, u("Mbit"))))
+        // 100 Mbit/s for 8 s is 100 MB
+        val download = calc(ms(n("100"), u("Mbit/s"), op(MathOp.MULTIPLY), n("8"), u("s"), to, u("MB")))
+        assertResult("100MB", download)
+        // How long 1 GB takes at 50 Mbit/s: 160 s
+        assertResult("160s", calc(ms(frac(ms(n("1"), u("GB")), ms(n("50"), u("Mbit/s"))))))
+        assertResult("1000bit/s", calc(ms(n("1"), u("kbit/s"))))
+        // Bytes are no length, even though both are in the catalog
+        assertTrue(calc(ms(n("1"), u("B"), to, u("m"))).issues.contains(MathIssue.INVALID_UNIT))
+    }
+
+    @Test
+    fun ratiosArePlainNumbers() {
+        assertResult("5000ppb", calc(ms(n("5"), u("ppm"), to, u("ppb"))))
+        assertResult("250ppm", calc(ms(n("0.00025"), to, u("ppm"))))
+        assertResult("2.5‰", calc(ms(n("2500"), u("ppm"), to, u("‰"))))
+        // A plain number next to a ratio is a ratio as well: 1 + 5 ppm is 1.000005, not 6 ppm
+        val sum = calc(ms(n("1"), op(MathOp.PLUS), n("5"), u("ppm")))
+        assertTrue(sum.issues.toString(), sum.isSuccess)
+        assertEquals(1.000005, sum.numericValue, 1e-15)
+        assertNull(sum.unit)
+        // 20 ppm of 3 kg
+        val mass = calc(ms(n("20"), u("ppm"), op(MathOp.MULTIPLY), n("3"), u("kg"), to, u("mg")))
+        assertEquals(60.0, mass.numericValue, 1e-12)
+        // A ratio is not a concentration in mol/L
+        assertTrue(calc(ms(n("5"), u("ppm"), to, u("mol/L"))).issues.contains(MathIssue.INVALID_UNIT))
+    }
+
+    @Test
+    fun wavenumbersAndWavelengthsConvertBothWays() {
+        assertResult("20000cm⁻¹", calc(ms(n("500"), u("nm"), to, u("cm⁻¹"))))
+        assertResult("500nm", calc(ms(n("20000"), u("cm⁻¹"), to, u("nm"))))
+        assertResult("100000m⁻¹", calc(ms(n("1000"), u("cm⁻¹"), to, u("m⁻¹"))))
+        // Without a conversion a wavenumber is in m⁻¹ (base units)
+        assertEquals(200000.0, calc(ms(n("2000"), u("cm⁻¹"))).numericValue, 1e-9)
     }
 }
