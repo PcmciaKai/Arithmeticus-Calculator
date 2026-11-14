@@ -40,6 +40,18 @@ class SessionCodecTest {
     }
 
     @Test
+    fun theTemperatureSettingRoundTripsBesideComplexNumbers() {
+        for ((complex, physical) in listOf(false to false, true to false, false to true, true to true)) {
+            val snapshot = plain.copy(complexNumbers = complex, physicalTemperatures = physical)
+            val session = SavedSession(MathString(), listOf(SavedEntry(1, ms(NumberNode("1")), ResultForm.EXACT, snapshot)))
+            assertEquals(session, SessionCodec.decode(SessionCodec.encode(session)))
+        }
+        // A file of before the setting, with "1" for complex numbers, reads as it did
+        val old = SessionCodec.encode(SavedSession(MathString(), listOf(SavedEntry(1, ms(NumberNode("1")), ResultForm.EXACT, plain.copy(complexNumbers = true)))))
+        assertTrue(old.lines().any { it.startsWith("entry") && it.split('\t')[6] == "1" })
+    }
+
+    @Test
     fun emptySessionRoundTrips() {
         val session = SavedSession(MathString(), emptyList())
         assertEquals(session, SessionCodec.decode(SessionCodec.encode(session)))
@@ -93,6 +105,19 @@ class SessionCodecTest {
         assertEquals(-1234567890123456789L, decoded.entries[0].snapshot.randomSeed)
         assertEquals(99L, decoded.entries[1].snapshot.randomSeed)
         assertEquals(listOf("a", "b"), decoded.entries[1].snapshot.variables.keys.toList())
+    }
+
+    @Test
+    fun aLineKeepsTheFunctionsItUses() {
+        // f(x) := x·a, kept as "f(x)"; f(2) uses f, and through it a, but not b
+        val snapshot = plain.copy(variables = linkedMapOf(
+            "a" to ms(NumberNode("3")), "b" to ms(NumberNode("4")), "f(x)" to ms(VariableNode("x"), VariableNode("a"))
+        ))
+        val call = ms(VariableNode("f"), com.vortessence.arithmeticus.core.math.type.ParenthesesNode(ms(NumberNode("2"))))
+        val relevant = snapshot.relevantTo(call)
+        assertEquals(setOf("f(x)", "a"), relevant.variables.keys)
+        val decoded = SessionCodec.decode(SessionCodec.encode(SavedSession(ms(), listOf(SavedEntry(1, call, ResultForm.EXACT, relevant)))))!!
+        assertEquals(relevant.variables, decoded.entries.single().snapshot.variables)
     }
 
     @Test

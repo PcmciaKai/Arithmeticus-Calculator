@@ -18,10 +18,14 @@ object MathText {
     }
 
     /**
-     * [text] as a [MathString], or null if it cannot be read. So far only plain numbers are
-     * understood, e.g. "-12.5", "1 234" or "3.2e-4".
+     * [text] as a [MathString], or null if it cannot be read: a number ("-12.5", "1 234", "3.2e-4"), or math as [toPlainText]
+     * writes it and as other apps do (see [PlainTextReader]). With [decimalComma], "1,5" in an expression is 1.5 and arguments
+     * are separated by ";" or ", ".
      */
-    fun fromPlainText(text: String): MathString? {
+    fun fromPlainText(text: String, decimalComma: Boolean = false): MathString? =
+        numberFromPlainText(text) ?: PlainTextReader(text.trim(), decimalComma).read()
+
+    private fun numberFromPlainText(text: String): MathString? {
         BASE_NUMBER.matchEntire(text.trim())?.let { match ->
             val (sign, prefix, digits) = match.destructured
             val base = NumberBase.of(prefix)

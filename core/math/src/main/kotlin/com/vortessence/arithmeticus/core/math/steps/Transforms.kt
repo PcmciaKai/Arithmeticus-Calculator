@@ -15,6 +15,7 @@ import com.vortessence.arithmeticus.core.math.expressions.Limit
 import com.vortessence.arithmeticus.core.math.expressions.MatrixExpression
 import com.vortessence.arithmeticus.core.math.expressions.Multiplications
 import com.vortessence.arithmeticus.core.math.expressions.PartialFractions
+import com.vortessence.arithmeticus.core.math.expressions.PolynomialSplitting
 import com.vortessence.arithmeticus.core.math.expressions.Power
 import com.vortessence.arithmeticus.core.math.expressions.Series
 import com.vortessence.arithmeticus.core.math.expressions.UnitExpression
@@ -109,7 +110,9 @@ internal object Transforms {
             roots.add(root to multiplicity)
         }
         roots.sortBy { it.first }
-        if (roots.isEmpty()) return commonFactor(typed, coefficients, variable, context)
+        // What has no rational root may still have factors of a higher degree: x⁴ + 4 = (x² − 2x + 2)(x² + 2x + 2)
+        val split = if (rest.size > 4) PolynomialSplitting.split(rest) { context.shouldStop } else null
+        if (roots.isEmpty() && split == null) return commonFactor(typed, coefficients, variable, context)
 
         // (x − 1/2) with the 2 in front of it: (2x − 1), the constant c collects what is left
         var constant = rest.last().takeIf { rest.size == 1 } ?: Rational.ONE
@@ -126,7 +129,15 @@ internal object Transforms {
             }
             factors.add(power(linear, m))
         }
-        if (rest.size > 1) {
+        val splitNotes = mutableListOf<Note>()
+        if (split != null) {
+            // Equal factors as a power: (x² + 1)²
+            constant = constant * split.constant
+            val parts = split.polynomials.groupBy { it }.map { (polynomial, same) -> power(PartialFractions.toExpression(polynomial, variable), same.size) }
+            factors.addAll(parts)
+            // Multiplied out, they give what was left: that is the check
+            splitNotes.add(Note(Multiplications.of(*parts.toTypedArray()), PartialFractions.toExpression(rest.map { it / split.constant }, variable)))
+        } else if (rest.size > 1) {
             // What is left of degree 2 or more has no rational root: x² − 2 or x² + 1
             val scale = rest.last()
             constant = constant * scale
@@ -137,7 +148,7 @@ internal object Transforms {
         val notes = roots.map { (root, _) ->
             val atRoot = canonical.transformVariable(variable, Value(root))
             Note(atRoot, Value.ZERO)
-        }
+        } + splitNotes
         val solution = Solver(context)
         solution.start(typed)
         solution.apply(Match(StepRule.FACTOR_POLYNOMIAL, mapOf(emptyList<Int>() to factored), typed, factored, notes = notes, showChange = false, boxReplacements = false))

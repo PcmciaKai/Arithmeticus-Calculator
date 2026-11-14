@@ -9,8 +9,10 @@ import com.vortessence.arithmeticus.core.math.type.AnsNode
 import com.vortessence.arithmeticus.core.math.type.AntiderivativeNode
 import com.vortessence.arithmeticus.core.math.type.DerivativeNode
 import com.vortessence.arithmeticus.core.math.type.EvaluationNode
+import com.vortessence.arithmeticus.core.math.type.FunctionDefinitions
 import com.vortessence.arithmeticus.core.math.type.IntegralNode
 import com.vortessence.arithmeticus.core.math.type.MathString
+import com.vortessence.arithmeticus.core.math.type.UnitNode
 import com.vortessence.arithmeticus.core.math.type.VariableNode
 
 /**
@@ -31,7 +33,9 @@ data class CalculationSnapshot(
      * The seed of the line: its random numbers are a function of it, so a history entry that is calculated again (after the
      * app was closed, or after a setting changed) has the numbers it had.
      */
-    val randomSeed: Long = 0L
+    val randomSeed: Long = 0L,
+    /** Temperatures in °C and °F as points on their scale instead of in kelvin (see MathContext.physicalTemperatures). */
+    val physicalTemperatures: Boolean = false
 ) {
     // Always exact; decimal display is a matter of the result form
     fun toMathContext() = MathContext(
@@ -43,7 +47,8 @@ data class CalculationSnapshot(
         variables = variables,
         complexNumbers = complexNumbers,
         language = language,
-        randomSeed = randomSeed
+        randomSeed = randomSeed,
+        physicalTemperatures = physicalTemperatures
     )
 
     /**
@@ -54,10 +59,12 @@ data class CalculationSnapshot(
     fun relevantTo(input: MathString): CalculationSnapshot {
         val names = mutableSetOf<String>()
         var usesAns = false
+        var usesShiftedScale = false
         fun collect(string: MathString) {
             for (node in string.nodes) {
                 when (node) {
                     is AnsNode -> usesAns = true
+                    is UnitNode -> if (node.symbol in SHIFTED_TEMPERATURE_SCALES) usesShiftedScale = true
                     is VariableNode -> names.add(node.name)
                     // The variable of an integral, ... is a name too: a defined variable of that name would change it
                     is IntegralNode -> names.add(node.variable)
@@ -71,17 +78,26 @@ data class CalculationSnapshot(
         }
         collect(input)
         if (usesAns) ans?.let(::collect)
-        // A variable's value can use other variables
+        // A variable's value can use other variables; a function f is kept as "f(x)"
+        val keys = variables.keys.associateBy { FunctionDefinitions.nameOf(it) }
         val used = mutableSetOf<String>()
         val pending = ArrayDeque(names)
         while (pending.isNotEmpty()) {
-            val name = pending.removeFirst()
-            val value = variables[name] ?: continue
-            if (!used.add(name)) continue
+            val key = keys[pending.removeFirst()] ?: continue
+            val value = variables[key] ?: continue
+            if (!used.add(key)) continue
             names.clear()
             collect(value)
             pending.addAll(names)
         }
-        return copy(ans = ans.takeIf { usesAns }, variables = variables.filterKeys { it in used })
+        return copy(
+            ans = ans.takeIf { usesAns }, variables = variables.filterKeys { it in used },
+            // Only where there is a °C or °F that it is about
+            physicalTemperatures = physicalTemperatures && usesShiftedScale
+        )
+    }
+
+    private companion object {
+        val SHIFTED_TEMPERATURE_SCALES = setOf("°C", "°F")
     }
 }

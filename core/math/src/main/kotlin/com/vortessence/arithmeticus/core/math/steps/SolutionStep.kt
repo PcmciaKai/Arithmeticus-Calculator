@@ -509,6 +509,8 @@ enum class StepRule {
     EXPONENTIATE_BOTH_SIDES,
     /** The solutions tried in the original equation */
     CHECK_SOLUTIONS,
+    /** The solutions put into the conditions on the lines after the equation: x = −2 is crossed out by x > 0 */
+    CHECK_CONDITIONS,
     /** Only even powers: u = x² */
     SUBSTITUTE_POWER,
     /** u = x² written back */

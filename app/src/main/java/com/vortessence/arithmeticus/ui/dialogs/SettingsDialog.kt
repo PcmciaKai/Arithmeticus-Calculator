@@ -29,6 +29,7 @@ fun SettingsDialog(
     digitGrouping: Boolean,
     decimalComma: Boolean,
     complexNumbers: Boolean,
+    physicalTemperatures: Boolean,
     themeMode: ThemeMode,
     languageChoice: LanguageChoice,
     onUnitSystemChange: (UnitSystem) -> Unit,
@@ -36,6 +37,7 @@ fun SettingsDialog(
     onDigitGroupingChange: (Boolean) -> Unit,
     onDecimalCommaChange: (Boolean) -> Unit,
     onComplexNumbersChange: (Boolean) -> Unit,
+    onPhysicalTemperaturesChange: (Boolean) -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit,
     onLanguageChange: (LanguageChoice) -> Unit,
     onSaveSession: () -> Unit,
@@ -85,6 +87,25 @@ fun SettingsDialog(
                         )
                     }
                     Switch(checked = complexNumbers, onCheckedChange = onComplexNumbersChange)
+                }
+
+                HorizontalDivider()
+
+                // Temperatures in °C and °F: in kelvin for any arithmetic, or as points on their scale
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.settings_temperatures), fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                        Text(
+                            stringResource(if (physicalTemperatures) R.string.settings_temperatures_on else R.string.settings_temperatures_off),
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(checked = physicalTemperatures, onCheckedChange = onPhysicalTemperaturesChange)
                 }
 
                 HorizontalDivider()

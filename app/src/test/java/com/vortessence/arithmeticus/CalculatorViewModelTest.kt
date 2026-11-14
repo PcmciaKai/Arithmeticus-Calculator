@@ -258,6 +258,26 @@ class CalculatorViewModelTest {
     }
 
     @Test
+    fun testEnterRightAfterASettingChangedDoesNotCommitTheResultFromBefore() = runBlocking {
+        val vm = newViewModel()
+        if (vm.uiState.value.angleUnit != AngleUnit.RADIANS) vm.toggleAngleUnit()
+        vm.onKeyAction(KeyAction.Function("sin"))
+        vm.type("3")
+        vm.type("0")
+        var attempts = 0
+        while (vm.uiState.value.result == null && attempts++ < 200) delay(10)
+        assertNotNull(vm.uiState.value.result)
+
+        // The result shown is still sin(30 rad) when Enter comes
+        vm.toggleAngleUnit()
+        vm.onKeyAction(KeyAction.Enter)
+        vm.awaitCommit()
+        val entry = vm.uiState.value.history.single()
+        assertEquals(AngleUnit.DEGREES, entry.snapshot.angleUnit)
+        assertEquals(0.5, entry.calculation.numericValue, 1e-12)
+    }
+
+    @Test
     fun testDeletedEntryCanBeBroughtBackWhereItWas() = runBlocking {
         val vm = newViewModel()
         for (digit in listOf("1", "2", "3")) {
@@ -596,12 +616,72 @@ class CalculatorViewModelTest {
     }
 
     @Test
+    fun aLogarithmToABaseIsTypedWithAComma() = runBlocking {
+        val vm = newViewModel()
+        vm.typeText("log(8,2)")
+        vm.awaitLiveResult()
+        assertEquals("3", vm.uiState.value.result!!.result.toString())
+    }
+
+    @Test
+    fun aFunctionIsDefinedByTypingAndUsedInTheNextLines() = runBlocking {
+        val vm = newViewModel()
+        // ":=" typed as two keys is the definition, not an equation
+        vm.typeText("f(x):")
+        vm.typeText("=x^2+1")
+        assertEquals(OperatorNode(MathOp.DEFINE), vm.uiState.value.expression.nodeAt(2))
+        vm.onKeyAction(KeyAction.Enter)
+        vm.awaitCommit()
+        assertEquals(setOf("f(x)"), vm.uiState.value.variables().keys)
+        vm.typeText("f(3)")
+        vm.awaitLiveResult()
+        assertEquals("10", vm.uiState.value.result!!.result.toString())
+        // A variable f takes the place of the function
+        vm.onKeyAction(KeyAction.Clear)
+        vm.typeText("f:=2")
+        vm.onKeyAction(KeyAction.Enter)
+        vm.awaitCommit()
+        assertEquals(setOf("f"), vm.uiState.value.variables().keys)
+    }
+
+    @Test
+    fun cyrillicLettersThatLookLatinAreTheLatinOnes() = runBlocking {
+        val vm = newViewModel()
+        // х + у typed on a Russian keyboard: x + y, and е is Euler's e
+        vm.typeText("х+уе")
+        assertEquals(listOf(VariableNode("x"), OperatorNode(MathOp.PLUS), VariableNode("y"), ConstantNode("e")), vm.uiState.value.expression.nodes)
+        // сос and the like are still words of a function: сос( is not cos(, but sіn( is sin(
+        vm.onKeyAction(KeyAction.Clear)
+        vm.typeText("sіn(")
+        assertEquals("sin", (vm.uiState.value.expression.nodes.single() as FunctionNode).name)
+    }
+
+    @Test
     fun typedNamesOfSpecialFunctionsAreWrittenAsTheirSymbols() = runBlocking {
         val vm = newViewModel()
         vm.typeText("gamma(5)")
         vm.awaitLiveResult()
         assertEquals("Γ", (vm.uiState.value.expression.nodes.single() as FunctionNode).name)
         assertEquals("24", vm.uiState.value.result!!.result.toString())
+    }
+
+    @Test
+    fun aTypedExponentEndsAtTheNextOperator() = runBlocking {
+        val vm = newViewModel()
+        suspend fun typed(text: String): String {
+            vm.onKeyAction(KeyAction.Clear)
+            vm.typeText(text)
+            vm.awaitLiveResult()
+            return vm.uiState.value.result!!.result.toString().replace(" ", "")
+        }
+        // Everything after ^ went into the exponent: 2^(10 + 4), x^(2 − 1 = 0)
+        assertEquals("1028", typed("2^10+4"))
+        assertEquals("x=1,x=−1", typed("x^2-1=0"))
+        // A sign right after ^ and parentheses stay in it
+        assertEquals(1.5, vm.run { typed("2^-1+1"); uiState.value.result!!.numericValue }, 1e-12)
+        assertEquals("9", typed("2^(1+2)+1"))
+        // A letter after a number in the exponent ends it
+        assertEquals("4x", typed("2^2x"))
     }
 
     @Test
@@ -1488,6 +1568,20 @@ class CalculatorViewModelTest {
     }
 
     @Test
+    fun theTemperatureSettingWorksOutTheLineAgain() = runBlocking {
+        val vm = newViewModel()
+        vm.type("0")
+        vm.insertUnit("°C")
+        vm.awaitLiveResult()
+        assertEquals("273.15K", vm.uiState.value.result!!.result.toString())
+        // As a point on its scale it stays 0 °C, and in kelvin again once the switch is off
+        vm.setPhysicalTemperatures(true)
+        vm.awaitLiveResultText("0°C")
+        vm.setPhysicalTemperatures(false)
+        vm.awaitLiveResultText("273.15K")
+    }
+
+    @Test
     fun testDivisionTakesWholeQuantityWithUnitAsNumerator() = runBlocking {
         val vm = newViewModel()
         // 2 + 5 mmol ÷ 100 µL
@@ -2272,6 +2366,12 @@ class CalculatorViewModelTest {
         val other = newViewModel()
         other.offerSession(file)
         other.awaitHistory(2)
+        // The message comes once all entries are in, a moment after the history is complete
+        var attempts = 0
+        while (other.uiState.value.sessionMessage == null && attempts < 100) {
+            delay(20)
+            attempts++
+        }
         assertNull(other.uiState.value.pendingImport)
         assertEquals(listOf("2 + 3", "5"), other.uiState.value.history.map { it.calculation.input.toString() })
         assertEquals("5", other.uiState.value.history[0].calculation.result.toString())

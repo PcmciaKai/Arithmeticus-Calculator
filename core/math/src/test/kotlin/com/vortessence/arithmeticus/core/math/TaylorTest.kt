@@ -92,7 +92,7 @@ class TaylorTest {
     fun whatHasNoSeriesIsAnError() {
         // Not defined at the point, or a derivative is not
         assertEquals(listOf(MathIssue.DIVISION_BY_ZERO), issues("taylor(1/x,x,0,2)"))
-        assertEquals(listOf(MathIssue.UNDEFINED), issues("taylor(ln(x),x,0,3)"))
+        assertEquals(listOf(MathIssue.LOGARITHMIC_DOMAIN), issues("taylor(ln(x),x,0,3)"))
         assertEquals(listOf(MathIssue.DIVISION_BY_ZERO), issues("taylor(sqrt(x),x,0,2)"))
         // A removable singularity is not worked out: the limits of the derivatives would only be found in floating point
         assertEquals(listOf(MathIssue.DIVISION_BY_ZERO), issues("taylor(sin(x)/x,x,0,4)"))

@@ -245,6 +245,7 @@
     <string name="step_absolute_value_cases">分成绝对值的两种情况</string>
     <string name="step_exponentiate_both_sides">以底数为底，对两边取幂</string>
     <string name="step_check_solutions">在原方程中检验解</string>
+    <string name="step_check_conditions">保留满足条件的解</string>
     <string name="step_substitute_power">换元</string>
     <string name="step_back_substitute_power">回代</string>
     <string name="step_one_side">没有规则能精确求解：全部移到一边，f(x) = 0</string>
@@ -298,6 +299,9 @@
     <string name="settings_complex">复数</string>
     <string name="settings_complex_on">允许 √−4 = 2i</string>
     <string name="settings_complex_off">√−4 视为错误</string>
+    <string name="settings_temperatures">°C 和 °F 温度</string>
+    <string name="settings_temperatures_on">视为刻度上的点：20 °C + 5 K = 25 °C</string>
+    <string name="settings_temperatures_off">按开尔文计算，如同公式中</string>
     <string name="settings_units_for_results">结果的单位</string>
     <string name="settings_metric">公制</string>
     <string name="settings_imperial">英制</string>
@@ -590,6 +594,13 @@
     <string name="units_tip_example">例如：</string>
     <string name="units_tip_try">试一试</string>
     <string name="units_tip_ok">知道了</string>
+    <string name="clear_tip_title">无需清除</string>
+    <string name="clear_tip_text">算完后按“确认”键 ⏎：算式会进入历史记录，输入行空出来供下一次计算。点按历史记录中的结果可再次使用它，或在下一行以 + − × ÷ 开头，接着用它继续算。</string>
+    <string name="clear_tip_history">在空行上按 AC 会清除全部历史记录。</string>
+    <string name="clear_tip_enter">按确认键</string>
+    <string name="clear_tip_clear_line">仍然清除</string>
+    <string name="clear_tip_clear_history">清除历史记录</string>
+    <string name="clear_tip_ok">知道了</string>
     <string name="matrix_vector_2d">二维向量</string>
     <string name="matrix_vector_3d">三维向量</string>
     <string name="matrix_kind_matrix">矩阵</string>
@@ -724,6 +735,11 @@
     <string name="graph_add_line">添加方程</string>
     <string name="graph_intersection">交点</string>
     <string name="graph_line_cannot_plot">无法绘制</string>
+    <string name="graph_show_table">表格</string>
+    <string name="graph_show_graph">图形</string>
+    <string name="graph_table_start">起始值</string>
+    <string name="graph_table_step">步长</string>
+    <string name="graph_table_no_function">没有可以列成表格的 x 的函数</string>
     <string name="graph_surface_alone">只绘制曲面：三维图形不能与其他行组合</string>
     <string name="graph_axes">坐标轴</string>
     <string name="graph_log_x">对数 x 轴</string>
@@ -827,12 +843,15 @@
     <string name="help_results_3">按住结果可复制它。</string>
 
     <string name="help_variables_title">变量与字母</string>
-    <string name="help_variables_summary">x、y、z、任意字母，以及用 := 保存值</string>
+    <string name="help_variables_summary">x、y、z、任意字母，以及用 := 保存值和函数</string>
     <string name="help_variables_1">x 键输入 x；长按可输入 y 和 z。其他字母请点按 abc：系统键盘会打开并输入到当前行。相邻的字母表示相乘，所以 ab 表示 a·b。函数名后接“(”即开始该函数，例如 sin( 或 mean(。</string>
     <string name="help_variables_2">变量是小写字母。e、π 和 i 是常数，不是变量。</string>
     <string name="help_variables_define">保存一个值</string>
     <string name="help_variables_3">输入一个字母、:=（长按 =）和一个值，然后按确认键。此后该字母在每一行中都具有这个值。</string>
     <string name="help_variables_4">这样也可以保存矩阵和向量，例如 m := 一个矩阵，之后的行中就能使用 m。从历史记录中删除该行即可让它忘记这个值。</string>
+    <string name="help_variables_functions">定义函数</string>
+    <string name="help_variables_5">写一个字母、括号中的自变量、:= 和公式，例如 f(x) := x² + 1。之后每一行都可以使用 f(3)、f(a + 1) 或 f(x)²。函数可以有多个变量，如 g(x, y) := x·y，也可以使用之前定义的函数。</string>
+    <string name="help_variables_6">绘制 f(x) 即可看到它。图形下方的“表格”按钮会从你选择的起始值开始，按步长列出它的值。</string>
 
 
     <string name="help_functions_title">函数选择器</string>
@@ -848,6 +867,7 @@
     <string name="help_equations_2">每个方程各写一行：在它们之间长按确认键并选择“换行”。可以求解线性方程组和许多非线性方程组。</string>
     <string name="help_equations_inequalities">不等式</string>
     <string name="help_equations_3">长按 = 可输入 &lt;、&gt;、≤ 和 ≥。步骤中还会以区间表示和数轴给出解。</string>
+    <string name="help_equations_condition_note">单独一行的条件只保留满足它的解</string>
 
     <string name="help_derivatives_title">导数</string>
     <string name="help_derivatives_summary">d/dx、某点处的导数、偏导数</string>

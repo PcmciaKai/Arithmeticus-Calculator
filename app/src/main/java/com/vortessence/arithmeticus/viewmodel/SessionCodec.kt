@@ -37,7 +37,8 @@ object SessionCodec {
             val s = entry.snapshot
             val fields = mutableListOf(
                 "entry", entry.id.toString(), entry.form.name, s.angleUnit.name, s.unitSystem.name,
-                s.decimalPlaces?.toString() ?: NONE, if (s.complexNumbers) "1" else "0",
+                // Flags: 1 complex numbers, 2 temperatures as points on their scale ("0" and "1" as written before there were two)
+                s.decimalPlaces?.toString() ?: NONE, ((if (s.complexNumbers) 1 else 0) or (if (s.physicalTemperatures) 2 else 0)).toString(),
                 MathStringCodec.encode(entry.input), s.ans?.let { MathStringCodec.encode(it) } ?: NONE,
                 // The seed of the line, before the variables (an entry from before it has none, and an even number of fields after the ninth)
                 s.randomSeed.toString()
@@ -82,6 +83,7 @@ object SessionCodec {
                 variables[MathStringCodec.unquote(fields[i]) ?: return null] = MathStringCodec.decode(fields[i + 1]) ?: return null
             }
             val ans = if (fields[8] == NONE) null else MathStringCodec.decode(fields[8]) ?: return null
+            val flags = fields[6].toInt()
             SavedEntry(
                 id = fields[1].toLong(),
                 input = MathStringCodec.decode(fields[7]) ?: return null,
@@ -92,8 +94,9 @@ object SessionCodec {
                     decimalPlaces = if (fields[5] == NONE) null else fields[5].toInt(),
                     ans = ans,
                     variables = variables,
-                    complexNumbers = fields[6] == "1",
-                    randomSeed = if (hasSeed) fields[9].toLong() else 0L
+                    complexNumbers = flags and 1 != 0,
+                    randomSeed = if (hasSeed) fields[9].toLong() else 0L,
+                    physicalTemperatures = flags and 2 != 0
                 )
             )
         } catch (e: IllegalArgumentException) {

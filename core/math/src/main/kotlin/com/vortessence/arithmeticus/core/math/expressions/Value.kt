@@ -19,8 +19,9 @@ class Value(
     constructor(num: Long, den: Long) : this(Rational.of(num, den))
     constructor(num: BigInt, den: BigInt) : this(Rational.of(num, den))
 
-    override val isNegative: Boolean get() = real.isNegative
-    override val isZero: Boolean get() = real.isZero
+    // From the exact value where there is one: 10⁻⁶⁰⁰ is no zero, even though it is 0.0 as a double
+    override val isNegative: Boolean get() = rational?.isNegative ?: real.isNegative
+    override val isZero: Boolean get() = rational?.isZero ?: real.isZero
 
     override fun coefficient(): Value = this
     override fun partWithoutCoefficient(): Expression? = null

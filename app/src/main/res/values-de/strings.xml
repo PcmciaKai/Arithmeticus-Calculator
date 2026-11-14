@@ -9,6 +9,9 @@
     <string name="settings_complex">Komplexe Zahlen</string>
     <string name="settings_complex_on">Erlaubt √−4 = 2i</string>
     <string name="settings_complex_off">√−4 ist ein Fehler</string>
+    <string name="settings_temperatures">Temperaturen in °C und °F</string>
+    <string name="settings_temperatures_on">Punkte auf ihrer Skala: 20 °C + 5 K = 25 °C</string>
+    <string name="settings_temperatures_off">In Kelvin gerechnet, wie in Formeln</string>
     <string name="settings_units_for_results">Einheiten für Ergebnisse</string>
     <string name="settings_metric">Metrisch</string>
     <string name="settings_imperial">Imperial</string>
@@ -301,6 +304,13 @@
     <string name="units_tip_example">Zum Beispiel:</string>
     <string name="units_tip_try">Ausprobieren</string>
     <string name="units_tip_ok">Verstanden</string>
+    <string name="clear_tip_title">Löschen ist nicht nötig</string>
+    <string name="clear_tip_text">Ist eine Rechnung fertig, drücke Eingabe ⏎: Sie kommt in den Verlauf, und die Zeile ist frei für die nächste. Tippe auf ein Ergebnis im Verlauf, um es wieder zu verwenden, oder beginne die nächste Zeile mit + − × ÷, um damit weiterzurechnen.</string>
+    <string name="clear_tip_history">Auf einer leeren Zeile löscht AC den ganzen Verlauf.</string>
+    <string name="clear_tip_enter">Eingabe drücken</string>
+    <string name="clear_tip_clear_line">Trotzdem löschen</string>
+    <string name="clear_tip_clear_history">Verlauf löschen</string>
+    <string name="clear_tip_ok">Verstanden</string>
     <string name="matrix_vector_2d">2D-Vektor</string>
     <string name="matrix_vector_3d">3D-Vektor</string>
     <string name="matrix_kind_matrix">Matrix</string>
@@ -441,6 +451,11 @@
     <string name="graph_add_line">Weitere Gleichung hinzufügen</string>
     <string name="graph_intersection">Schnittpunkt</string>
     <string name="graph_line_cannot_plot">nicht darstellbar</string>
+    <string name="graph_show_table">Tabelle</string>
+    <string name="graph_show_graph">Graph</string>
+    <string name="graph_table_start">Start</string>
+    <string name="graph_table_step">Schritt</string>
+    <string name="graph_table_no_function">Es gibt keine Funktion von x für eine Tabelle</string>
     <string name="graph_surface_alone">Nur die Fläche wird gezeichnet: ein 3D-Graph lässt sich nicht mit anderen Zeilen kombinieren</string>
     <string name="graph_axes">Achsen</string>
     <string name="graph_log_x">Logarithmische x-Achse</string>
@@ -694,6 +709,7 @@
     <string name="step_absolute_value_cases">Unterscheide die beiden Fälle des Betrags</string>
     <string name="step_exponentiate_both_sides">Erhebe die Basis in die Potenz beider Seiten</string>
     <string name="step_check_solutions">Prüfe die Lösungen in der ursprünglichen Gleichung</string>
+    <string name="step_check_conditions">Behalte die Lösungen, die die Bedingungen erfüllen</string>
     <string name="step_substitute_power">Substituiere</string>
     <string name="step_back_substitute_power">Resubstituiere</string>
     <string name="step_one_side">Keine Regel löst das exakt: alles auf eine Seite, f(x) = 0</string>
@@ -831,12 +847,15 @@
     <string name="help_results_3">Halte das Ergebnis gedrückt, um es zu kopieren.</string>
 
     <string name="help_variables_title">Variablen und Buchstaben</string>
-    <string name="help_variables_summary">x, y, z, jeder Buchstabe, und Werte speichern mit :=</string>
+    <string name="help_variables_summary">x, y, z, jeder Buchstabe, und Werte und Funktionen speichern mit :=</string>
     <string name="help_variables_1">Die x-Taste tippt x; lange drücken für y und z. Für jeden anderen Buchstaben tipp auf abc: Die Systemtastatur öffnet sich und schreibt in die Zeile. Nebeneinanderstehende Buchstaben werden multipliziert, ab heißt also a·b. Ein Funktionsname mit „(“ dahinter beginnt diese Funktion, zum Beispiel sin( oder mean(.</string>
     <string name="help_variables_2">Variablen sind Kleinbuchstaben. e, π und i sind Konstanten, keine Variablen.</string>
     <string name="help_variables_define">Einen Wert speichern</string>
     <string name="help_variables_3">Schreib einen Buchstaben, := (= lange drücken) und einen Wert, und drück die Eingabetaste. Ab dann hat der Buchstabe in jeder Zeile diesen Wert.</string>
     <string name="help_variables_4">So speicherst du auch Matrizen und Vektoren, zum Beispiel m := eine Matrix, damit du m in den nächsten Zeilen benutzen kannst. Lösch die Zeile aus dem Verlauf, um den Wert zu vergessen.</string>
+    <string name="help_variables_functions">Eine Funktion festlegen</string>
+    <string name="help_variables_5">Schreib einen Buchstaben, seine Variable in Klammern, := und die Formel, zum Beispiel f(x) := x² + 1. Ab dann benutzen f(3), f(a + 1) oder f(x)² sie in jeder Zeile. Eine Funktion kann mehrere Variablen haben, g(x, y) := x·y, und die vorher festgelegten Funktionen benutzen.</string>
+    <string name="help_variables_6">Zeichne f(x), um sie zu sehen. Der Knopf Tabelle unter dem Graphen listet ihre Werte auf, von einem Startwert an in Schritten, die du wählst.</string>
 
 
     <string name="help_functions_title">Die Funktionsauswahl</string>
@@ -852,6 +871,7 @@
     <string name="help_equations_2">Schreib jede Gleichung in eine eigene Zeile: Eingabetaste lange drücken und dazwischen „neue Zeile“ wählen. Lineare und viele nichtlineare Systeme werden gelöst.</string>
     <string name="help_equations_inequalities">Ungleichungen</string>
     <string name="help_equations_3">= lange drücken für &lt;, &gt;, ≤ und ≥. Im Rechenweg steht die Lösung auch in Intervallschreibweise und auf dem Zahlenstrahl.</string>
+    <string name="help_equations_condition_note">Eine Bedingung in einer eigenen Zeile behält nur die Lösungen, die sie erfüllen</string>
 
     <string name="help_derivatives_title">Ableitungen</string>
     <string name="help_derivatives_summary">d/dx, die Ableitung an einer Stelle, partielle Ableitungen</string>

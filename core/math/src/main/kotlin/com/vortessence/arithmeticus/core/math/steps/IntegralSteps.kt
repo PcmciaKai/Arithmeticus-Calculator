@@ -267,6 +267,8 @@ internal object IntegralSteps {
                     chainRule = false
                 )
             }
+            // xⁿ·|x| = xⁿ⁺¹·|x|/(n + 2), from the calculator's table
+            ((f as? Multiplications)?.let { integrator.powerTimesAbsolute(it, v) })?.let { canonical(it) }?.let { return rewrite(StepRule.INTEGRAL_TABLE, it) }
             rewriteAsPower()?.let { return it }
             halfAngle()?.let { return it }
             oddTrigonometricPower()?.let { return it }
@@ -395,6 +397,8 @@ internal object IntegralSteps {
                     })
                 }
                 g is SpecialFunction -> return fromTable(g)
+                // |u| = u·|u|/(2a), from the calculator's table
+                g is AbsoluteValue -> return fromTable(g)
                 g is Logarithm && !g.base.containsVariable(v) -> {
                     val u = g.operand
                     val a = integrator.linearSlope(u, v) ?: return null
@@ -649,11 +653,18 @@ internal object IntegralSteps {
             val factors = if (f is Multiplications) f.operands else listOf(f)
             for ((index, g) in factors.withIndex()) {
                 val p = Multiplications.of(*factors.filterIndexed { i, _ -> i != index }.toTypedArray())
-                if (!integrator.isPolynomial(p, v)) continue
-                val (u, dv, du, vOfDv) = if (integrator.isRepeatedlyIntegrable(g, v) && p.containsVariable(v)) {
+                // ln²x, √x·ln x: a power of a logarithm (u), with a power of x (dv) besides it
+                val logarithmic = g is Logarithm || integrator.isPowerOfLogarithm(g)
+                val polynomial = integrator.isPolynomial(p, v)
+                // eˣ/x², cos(x)/x²: the function is u, 1/xⁿ is dv
+                val reciprocalPower = ((canonical(p) as? Power)?.takeIf { it.base == v }?.exponent as? Value)?.rational
+                    ?.let { !it.isFractional && it.isNegative && it.numerator.value <= java.math.BigInteger.valueOf(-2) } == true &&
+                    g.containsVariable(v) && !integrator.isPolynomial(g, v)
+                if (!polynomial && !reciprocalPower && !(logarithmic && integrator.isPowerOfVariable(canonical(p) ?: continue, v))) continue
+                val (u, dv, du, vOfDv) = if (polynomial && integrator.isRepeatedlyIntegrable(g, v) && p.containsVariable(v)) {
                     val integratedG = canonical(tableIntegral(g)?.first ?: continue) ?: continue
                     Parts(p, g, canonical(Differentiator.derivative(p, v) ?: continue) ?: continue, integratedG)
-                } else if (g is Logarithm || (g is TrigonometricFunction && g.type.isInverse) || (g is HyperbolicFunction && g.type.isInverse)) {
+                } else if (reciprocalPower || logarithmic || (g is TrigonometricFunction && g.type.isInverse) || (g is HyperbolicFunction && g.type.isInverse)) {
                     val integratedP = integrator.antiderivative(p, v) ?: continue
                     Parts(g, p, canonical(Differentiator.derivative(g, v) ?: continue) ?: continue, integratedP)
                 } else {

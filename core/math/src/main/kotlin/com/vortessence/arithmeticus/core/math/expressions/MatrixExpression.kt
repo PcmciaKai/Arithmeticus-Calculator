@@ -117,8 +117,21 @@ class MatrixExpression(
             remaining = remaining shr 1
             if (remaining > 0) base = base.times(base, context)!!
             if (context.shouldStop) return null
+            // The entries double in length with every squaring: stop before they are longer than any number may be
+            if (result.hasOversizedEntry() || (remaining > 0 && base.hasOversizedEntry())) {
+                context.stopWithError(MathIssue.VALUES_TOO_LARGE)
+                return null
+            }
         }
         return result
+    }
+
+    /** Whether an entry is a number beyond what a number may be as a result: larger than a decimal can show, or a fraction of too many digits. */
+    private fun hasOversizedEntry(): Boolean = elements.any { element ->
+        val value = element as? Value ?: return@any false
+        val rational = value.rational
+        !value.real.value.isFinite() ||
+            (rational != null && maxOf(rational.numerator.value.bitLength(), rational.denominator.value.bitLength()) > MAX_ENTRY_BITS)
     }
 
     /** The entries if all of them are plain numbers, which allows Gaussian elimination. */
@@ -216,6 +229,9 @@ class MatrixExpression(
     }
 
     companion object {
+        /** The longest fraction an entry of a matrix power may be, about 1200 digits: four times what a whole number may have. */
+        private const val MAX_ENTRY_BITS = 4096
+
         fun identity(n: Int): MatrixExpression =
             MatrixExpression(n, n, List(n * n) { if (it / n == it % n) Value.ONE else Value.ZERO })
 

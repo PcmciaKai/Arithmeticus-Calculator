@@ -271,11 +271,16 @@ class MathEngineRegressionTest {
 
     @Test(timeout = 5_000)
     fun calculationsTimeOut() = runBlocking {
-        // Nested integrals whose inner bounds depend on the outer variable: ~10^9 evaluations
-        val inner = IntegralNode(ms(n("0")), ms(v("y")), ms(v("z")), variable = "z")
-        val middle = IntegralNode(ms(n("0")), ms(v("x")), ms(inner), variable = "y")
-        val outer = IntegralNode(ms(n("0")), ms(n("1")), ms(middle), variable = "x")
-        val res = MathEngine.calculate(ms(outer), MathContext(), timeoutMillis = 200)
+        // Nested integrals whose inner bounds depend on the outer variable: ~10^9 evaluations by numbers. With an integrand that
+        // has an antiderivative they are worked out exactly (z: 1/24); e^(z²) has none, so numbers it is, and the time runs out
+        fun nested(integrand: MathString): MathString {
+            val inner = IntegralNode(ms(n("0")), ms(v("y")), integrand, variable = "z")
+            val middle = IntegralNode(ms(n("0")), ms(v("x")), ms(inner), variable = "y")
+            return ms(IntegralNode(ms(n("0")), ms(n("1")), ms(middle), variable = "x"))
+        }
+        assertEquals("(1)/(24)", MathEngine.calculate(nested(ms(v("z"))), MathContext(), timeoutMillis = 2000).result.toString())
+        val gaussian = ms(ConstantNode("e"), ExponentNode(null, ms(v("z"), ExponentNode(null, ms(n("2"))))))
+        val res = MathEngine.calculate(nested(gaussian), MathContext(), timeoutMillis = 200)
         assertEquals("result '${res.result}'", listOf(MathIssue.TIMEOUT), res.issues)
     }
 

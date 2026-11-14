@@ -20,7 +20,7 @@ internal object Factoring {
      * (a number with only large prime factors takes long) or [n] has more than [MAX_BITS] bits.
      */
     fun factor(n: BigInteger, stop: () -> Boolean): List<Pair<BigInteger, Int>>? {
-        if (n < BigInteger.TWO || n.bitLength() > MAX_BITS) return null
+        if (n < BIG_TWO || n.bitLength() > MAX_BITS) return null
         val exponents = sortedMapOf<BigInteger, Int>()
         var rest = n
         for (p in SMALL_PRIMES) {
@@ -54,7 +54,7 @@ internal object Factoring {
     /** A proper divisor of the composite [n] (Brent's variant of Pollard's rho); throws [Stopped] if [stop] says so. */
     private fun rho(n: BigInteger, stop: () -> Boolean): BigInteger {
         // A perfect square has the root as a divisor, which rho can miss
-        val root = n.sqrt()
+        val root = n.floorSqrt()
         if (root.multiply(root) == n) return root
         var ticks = 0
         var c = BigInteger.ONE
@@ -63,7 +63,7 @@ internal object Factoring {
                 if (++ticks % CHECK_EVERY == 0 && stop()) throw Stopped()
                 return v.multiply(v).add(c).mod(n)
             }
-            var y = BigInteger.TWO
+            var y = BIG_TWO
             var x = y
             var q = BigInteger.ONE
             var g = BigInteger.ONE

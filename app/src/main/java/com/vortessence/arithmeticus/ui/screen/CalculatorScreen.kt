@@ -67,6 +67,7 @@ import com.vortessence.arithmeticus.ui.dialogs.StepsSheet
 import com.vortessence.arithmeticus.ui.dialogs.MatrixDialog
 import com.vortessence.arithmeticus.ui.dialogs.UnitsDialog
 import com.vortessence.arithmeticus.ui.dialogs.UnitsTipDialog
+import com.vortessence.arithmeticus.ui.dialogs.ClearTipDialog
 import com.vortessence.arithmeticus.ui.dialogs.VariableDialog
 import com.vortessence.arithmeticus.ui.graph.GraphPlotterView
 import com.vortessence.arithmeticus.ui.keypad.CalculatorKeypad
@@ -99,10 +100,16 @@ import androidx.compose.foundation.focusable
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isAltPressed
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isMetaPressed
+import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.utf16CodePoint
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import kotlinx.coroutines.launch
@@ -310,13 +317,9 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
                 .consumeWindowInsets(paddingValues)
                 .imePadding()
                 .onPreviewKeyEvent { event ->
-                    val action = when (event.key) {
-                        Key.DirectionLeft -> KeyAction.MoveLeft
-                        Key.DirectionRight -> KeyAction.MoveRight
-                        else -> return@onPreviewKeyEvent false
-                    }
-                    if (event.type == KeyEventType.KeyDown) viewModel.onKeyAction(action)
-                    true
+                    // While the system keyboard types into its field, its keys are that field's (they would arrive twice)
+                    if (isTyping) return@onPreviewKeyEvent false
+                    hardwareKey(event, viewModel, uiState, editorActions)
                 }
                 .focusRequester(screenFocus)
                 .focusable()
@@ -469,6 +472,10 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
         )
     }
 
+    uiState.clearTip?.let { tip ->
+        ClearTipDialog(tip = tip, onAnswer = viewModel::answerClearTip)
+    }
+
     uiState.variableEdit?.let { edit ->
         VariableDialog(
             initial = edit.name,
@@ -523,6 +530,7 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
             digitGrouping = uiState.digitGrouping,
             decimalComma = uiState.decimalComma,
             complexNumbers = uiState.complexNumbers,
+            physicalTemperatures = uiState.physicalTemperatures,
             themeMode = uiState.themeMode,
             languageChoice = remember(uiState.language, uiState.showSettingsDialog) { AppLanguage.choice(context) },
             onUnitSystemChange = { viewModel.setUnitSystem(it) },
@@ -530,6 +538,7 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
             onDigitGroupingChange = { viewModel.setDigitGrouping(it) },
             onDecimalCommaChange = { viewModel.setDecimalComma(it) },
             onComplexNumbersChange = { viewModel.setComplexNumbers(it) },
+            onPhysicalTemperaturesChange = { viewModel.setPhysicalTemperatures(it) },
             onThemeModeChange = { viewModel.setThemeMode(it) },
             onLanguageChange = { choice -> (context as? Activity)?.let { AppLanguage.set(it, choice) } },
             onSaveSession = { viewModel.dismissSettingsDialog(); viewModel.requestSessionFile(SessionFileRequest.SAVE) },
@@ -538,6 +547,45 @@ private fun CalculatorScreenContent(viewModel: CalculatorViewModel, uiState: Cal
             onDismiss = { viewModel.dismissSettingsDialog() }
         )
     }
+}
+
+/**
+ * A key of a physical keyboard (tablet, Chromebook, a phone with a keyboard): the arrows, Home and End move the cursor, Enter
+ * calculates (Shift+Enter starts a new line), Backspace deletes, Ctrl+C, X, V and A copy, cut, paste and select all, and what a key types (digits, operators,
+ * letters, with Shift as the keyboard has it) is typed as with the system keyboard. Whether the key was taken.
+ */
+private fun hardwareKey(event: KeyEvent, viewModel: CalculatorViewModel, uiState: CalculatorUiState, actions: MathEditorActions): Boolean {
+    val down = event.type == KeyEventType.KeyDown
+    if (event.isCtrlPressed || event.isMetaPressed) {
+        val shortcut: (() -> Unit) = when (event.key) {
+            Key.C -> actions.onCopy
+            Key.X -> actions.onCut
+            Key.V -> actions.onPaste
+            Key.A -> actions.onSelectAll
+            else -> return false
+        }
+        if (down) shortcut()
+        return true
+    }
+    val action: (() -> Unit)? = when (event.key) {
+        Key.DirectionLeft -> { { viewModel.onKeyAction(KeyAction.MoveLeft) } }
+        Key.DirectionRight -> { { viewModel.onKeyAction(KeyAction.MoveRight) } }
+        Key.MoveHome -> { { viewModel.setCursorPath(listOf(0)) } }
+        Key.MoveEnd -> { { viewModel.setCursorPath(listOf(uiState.expression.length)) } }
+        // Shift+Enter starts a new line (a system of equations, a condition), as the long press of the Enter key does
+        Key.Enter, Key.NumPadEnter -> if (event.isShiftPressed) { { viewModel.onKeyAction(KeyAction.NewLine) } } else { { viewModel.onKeyAction(KeyAction.Enter) } }
+        Key.Backspace -> { { viewModel.typeBackspace() } }
+        else -> null
+    }
+    if (action != null) {
+        if (down) action()
+        return true
+    }
+    // A character: what typing it on the system keyboard does
+    val character = event.utf16CodePoint.takeIf { it > 0 && !event.isAltPressed }?.toChar() ?: return false
+    if (character.isWhitespace() || character.isISOControl()) return false
+    if (down) viewModel.typeText(character.toString())
+    return true
 }
 
 /** Fraction of an item's width it must be swiped to be deleted. */

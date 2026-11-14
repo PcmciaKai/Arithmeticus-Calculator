@@ -245,6 +245,7 @@
     <string name="step_absolute_value_cases">Séparer les deux cas de la valeur absolue</string>
     <string name="step_exponentiate_both_sides">Élever la base à la puissance des deux membres</string>
     <string name="step_check_solutions">Vérifier les solutions dans l’équation de départ</string>
+    <string name="step_check_conditions">Garder les solutions qui remplissent les conditions</string>
     <string name="step_substitute_power">Poser une nouvelle variable</string>
     <string name="step_back_substitute_power">Revenir à la variable d’origine</string>
     <string name="step_one_side">Aucune règle ne résout ceci exactement : tout d’un côté, f(x) = 0</string>
@@ -306,6 +307,9 @@
     <string name="settings_complex">Nombres complexes</string>
     <string name="settings_complex_on">Permet √−4 = 2i</string>
     <string name="settings_complex_off">√−4 est une erreur</string>
+    <string name="settings_temperatures">Températures en °C et °F</string>
+    <string name="settings_temperatures_on">Points sur leur échelle : 20 °C + 5 K = 25 °C</string>
+    <string name="settings_temperatures_off">Calculées en kelvins, comme dans les formules</string>
     <string name="settings_units_for_results">Unités des résultats</string>
     <string name="settings_metric">Métrique</string>
     <string name="settings_imperial">Impérial</string>
@@ -598,6 +602,13 @@
     <string name="units_tip_example">Par exemple :</string>
     <string name="units_tip_try">Essayer</string>
     <string name="units_tip_ok">Compris</string>
+    <string name="clear_tip_title">Inutile d’effacer</string>
+    <string name="clear_tip_text">Une fois un calcul terminé, appuyez sur Entrée ⏎ : il passe dans l’historique et la ligne est libre pour le suivant. Touchez un résultat dans l’historique pour le réutiliser, ou commencez la ligne suivante par + − × ÷ pour continuer avec.</string>
+    <string name="clear_tip_history">Sur une ligne vide, AC efface tout l’historique.</string>
+    <string name="clear_tip_enter">Appuyer sur Entrée</string>
+    <string name="clear_tip_clear_line">Effacer quand même</string>
+    <string name="clear_tip_clear_history">Effacer l’historique</string>
+    <string name="clear_tip_ok">Compris</string>
     <string name="matrix_vector_2d">Vecteur 2D</string>
     <string name="matrix_vector_3d">Vecteur 3D</string>
     <string name="matrix_kind_matrix">Matrice</string>
@@ -744,6 +755,11 @@
     <string name="graph_add_line">Ajouter une équation</string>
     <string name="graph_intersection">Intersection</string>
     <string name="graph_line_cannot_plot">ne peut pas être tracée</string>
+    <string name="graph_show_table">Tableau</string>
+    <string name="graph_show_graph">Graphe</string>
+    <string name="graph_table_start">Début</string>
+    <string name="graph_table_step">Pas</string>
+    <string name="graph_table_no_function">Aucune fonction de x à présenter dans un tableau</string>
     <string name="graph_surface_alone">Seule la surface est tracée : un graphe 3D ne peut pas être combiné avec d’autres lignes</string>
     <string name="graph_axes">Axes</string>
     <string name="graph_log_x">Axe des x logarithmique</string>
@@ -847,12 +863,15 @@
     <string name="help_results_3">Maintiens appuyé sur le résultat pour le copier.</string>
 
     <string name="help_variables_title">Variables et lettres</string>
-    <string name="help_variables_summary">x, y, z, n’importe quelle lettre, et enregistrer des valeurs avec :=</string>
+    <string name="help_variables_summary">x, y, z, n’importe quelle lettre, et enregistrer des valeurs et des fonctions avec :=</string>
     <string name="help_variables_1">La touche x tape x ; appui long pour y et z. Pour toute autre lettre, touche abc : le clavier du système s’ouvre et tape dans la ligne. Des lettres côte à côte sont multipliées, donc ab signifie a·b. Un nom de fonction suivi de « ( » commence cette fonction, par exemple sin( ou mean(.</string>
     <string name="help_variables_2">Les variables sont des lettres minuscules. e, π et i sont des constantes, pas des variables.</string>
     <string name="help_variables_define">Enregistrer une valeur</string>
     <string name="help_variables_3">Écris une lettre, := (appui long sur =) et une valeur, puis appuie sur Entrée. Dès lors, la lettre a cette valeur dans toutes les lignes.</string>
     <string name="help_variables_4">Cela enregistre aussi des matrices et des vecteurs, par exemple m := une matrice, pour utiliser m dans les lignes suivantes. Supprime la ligne de l’historique pour oublier la valeur.</string>
+    <string name="help_variables_functions">Définir une fonction</string>
+    <string name="help_variables_5">Écris une lettre, sa variable entre parenthèses, := et la formule, par exemple f(x) := x² + 1. Ensuite, f(3), f(a + 1) ou f(x)² l’utilisent dans chaque ligne. Une fonction peut avoir plusieurs variables, g(x, y) := x·y, et utiliser les fonctions définies avant elle.</string>
+    <string name="help_variables_6">Trace f(x) pour la voir. Le bouton Tableau sous le graphe donne ses valeurs, à partir d’une valeur de début, avec le pas que tu choisis.</string>
 
 
     <string name="help_functions_title">Le sélecteur de fonctions</string>
@@ -868,6 +887,7 @@
     <string name="help_equations_2">Écris chaque équation sur sa propre ligne : appui long sur Entrée et choisis « nouvelle ligne » entre elles. Les systèmes linéaires et de nombreux systèmes non linéaires sont résolus.</string>
     <string name="help_equations_inequalities">Inégalités</string>
     <string name="help_equations_3">Appui long sur = pour &lt;, &gt;, ≤ et ≥. La solution est aussi donnée en notation d’intervalles et sur une droite numérique dans les étapes.</string>
+    <string name="help_equations_condition_note">Une condition sur sa propre ligne ne garde que les solutions qui la remplissent</string>
 
     <string name="help_derivatives_title">Dérivées</string>
     <string name="help_derivatives_summary">d/dx, la dérivée en un point, les dérivées partielles</string>

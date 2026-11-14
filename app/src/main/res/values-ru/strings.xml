@@ -245,6 +245,7 @@
     <string name="step_absolute_value_cases">Рассмотреть два случая модуля</string>
     <string name="step_exponentiate_both_sides">Возвести основание в степень обеих частей</string>
     <string name="step_check_solutions">Проверить решения в исходном уравнении</string>
+    <string name="step_check_conditions">Оставить решения, которые удовлетворяют условиям</string>
     <string name="step_substitute_power">Сделать замену</string>
     <string name="step_back_substitute_power">Сделать обратную замену</string>
     <string name="step_one_side">Ни одно правило не решает это точно: всё в одну сторону, f(x) = 0</string>
@@ -310,6 +311,9 @@
     <string name="settings_complex">Комплексные числа</string>
     <string name="settings_complex_on">Разрешает √−4 = 2i</string>
     <string name="settings_complex_off">√−4 — ошибка</string>
+    <string name="settings_temperatures">Температуры в °C и °F</string>
+    <string name="settings_temperatures_on">Точки на своей шкале: 20 °C + 5 K = 25 °C</string>
+    <string name="settings_temperatures_off">Вычисляются в кельвинах, как в формулах</string>
     <string name="settings_units_for_results">Единицы результатов</string>
     <string name="settings_metric">СИ</string>
     <string name="settings_imperial">Британские</string>
@@ -602,6 +606,13 @@
     <string name="units_tip_example">Например:</string>
     <string name="units_tip_try">Попробовать</string>
     <string name="units_tip_ok">Понятно</string>
+    <string name="clear_tip_title">Стирать не нужно</string>
+    <string name="clear_tip_text">Когда вычисление готово, нажмите «Ввод» ⏎: оно попадёт в историю, а строка освободится для следующего. Нажмите на результат в истории, чтобы использовать его снова, или начните следующую строку с + − × ÷, чтобы продолжить с ним.</string>
+    <string name="clear_tip_history">На пустой строке AC стирает всю историю.</string>
+    <string name="clear_tip_enter">Нажать «Ввод»</string>
+    <string name="clear_tip_clear_line">Всё равно стереть</string>
+    <string name="clear_tip_clear_history">Стереть историю</string>
+    <string name="clear_tip_ok">Понятно</string>
     <string name="matrix_vector_2d">2D-вектор</string>
     <string name="matrix_vector_3d">3D-вектор</string>
     <string name="matrix_kind_matrix">Матрица</string>
@@ -754,6 +765,11 @@
     <string name="graph_add_line">Добавить уравнение</string>
     <string name="graph_intersection">Пересечение</string>
     <string name="graph_line_cannot_plot">нельзя построить</string>
+    <string name="graph_show_table">Таблица</string>
+    <string name="graph_show_graph">График</string>
+    <string name="graph_table_start">Начало</string>
+    <string name="graph_table_step">Шаг</string>
+    <string name="graph_table_no_function">Нет функции от x, которую можно показать в таблице</string>
     <string name="graph_surface_alone">Рисуется только поверхность: 3D-график нельзя совместить с другими строками</string>
     <string name="graph_axes">Оси</string>
     <string name="graph_log_x">Логарифмическая ось x</string>
@@ -857,12 +873,15 @@
     <string name="help_results_3">Удерживайте результат, чтобы скопировать его.</string>
 
     <string name="help_variables_title">Переменные и буквы</string>
-    <string name="help_variables_summary">x, y, z, любая буква и сохранение значений через :=</string>
+    <string name="help_variables_summary">x, y, z, любая буква и сохранение значений и функций через :=</string>
     <string name="help_variables_1">Клавиша x вводит x; долгое нажатие — y и z. Для любой другой буквы нажмите abc: откроется системная клавиатура, которая вводит текст в строку. Буквы рядом друг с другом перемножаются, так что ab означает a·b. Имя функции с «(» начинает эту функцию, например sin( или mean(.</string>
     <string name="help_variables_2">Переменные — строчные буквы. e, π и i — константы, а не переменные.</string>
     <string name="help_variables_define">Сохранение значения</string>
     <string name="help_variables_3">Введите букву, := (долгое нажатие на =) и значение, затем нажмите Ввод. С этого момента буква имеет это значение во всех строках.</string>
     <string name="help_variables_4">Так же сохраняются матрицы и векторы, например m := матрица, чтобы использовать m в следующих строках. Удалите строку из истории, чтобы забыть значение.</string>
+    <string name="help_variables_functions">Задание функции</string>
+    <string name="help_variables_5">Напишите букву, её переменную в скобках, := и формулу, например f(x) := x² + 1. После этого f(3), f(a + 1) или f(x)² используют её в каждой строке. У функции может быть несколько переменных, g(x, y) := x·y, и она может использовать функции, заданные до неё.</string>
+    <string name="help_variables_6">Постройте график f(x), чтобы увидеть её. Кнопка «Таблица» под графиком показывает её значения от начального значения с выбранным шагом.</string>
 
 
     <string name="help_functions_title">Выбор функций</string>
@@ -878,6 +897,7 @@
     <string name="help_equations_2">Запишите каждое уравнение в отдельной строке: между ними — долгое нажатие на Ввод и «новая строка». Решаются линейные и многие нелинейные системы.</string>
     <string name="help_equations_inequalities">Неравенства</string>
     <string name="help_equations_3">Долгое нажатие на = даёт &lt;, &gt;, ≤ и ≥. В шагах решение также дано в виде интервалов и на числовой прямой.</string>
+    <string name="help_equations_condition_note">Условие в отдельной строке оставляет только решения, которые ему удовлетворяют</string>
 
     <string name="help_derivatives_title">Производные</string>
     <string name="help_derivatives_summary">d/dx, производная в точке, частные производные</string>

@@ -1,0 +1,10 @@
+- Vos fonctions : f(x) := x² + 1, puis f(3) ou le graphe de f(x)
+- Tableau de valeurs sous le graphe
+- Logarithme dans toute base : log(8, 2)
+- Conditions sur leur propre ligne : x² = 4 et x > 0
+- Équations trigo : toutes les solutions, sin(x) = 0 → x = πk
+- Exact aussi au-delà de 10³⁰⁸ : ln(x) = 1000 → x = e¹⁰⁰⁰
+- Plus d’intégrales, séries et factorisations, avec étapes
+- En option : °C et °F comme points sur leur échelle
+- Coller des formules depuis d’autres applis
+- Nombreuses corrections

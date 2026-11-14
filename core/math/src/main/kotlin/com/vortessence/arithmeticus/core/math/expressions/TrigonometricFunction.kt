@@ -299,6 +299,19 @@ class TrigonometricFunction(
         val twelfths = radians / (PI / 12.0)
         val k = twelfths.roundToLong()
         if (abs(twelfths - k) > 1e-9) return null
+        // The angle is that multiple of π/12 only if it gives the number back: atan(10¹⁰) is close to π/2, but tan(π/2) is no 10¹⁰
+        val x = op.evaluateNumerically()
+        val angle = k * PI / 12.0
+        val back = when (type) {
+            TrigType.ASIN -> kotlin.math.sin(angle)
+            TrigType.ACOS -> kotlin.math.cos(angle)
+            TrigType.ATAN -> kotlin.math.tan(angle)
+            TrigType.ASEC -> 1.0 / kotlin.math.cos(angle)
+            TrigType.ACSC -> 1.0 / kotlin.math.sin(angle)
+            TrigType.ACOT -> kotlin.math.cos(angle) / kotlin.math.sin(angle)
+            else -> x
+        }
+        if (abs(back - x) > 1e-9 * maxOf(1.0, abs(x))) return null
         return if (unit == AngleUnit.DEGREES) {
             Value(k * 15L)
         } else {

@@ -3,6 +3,7 @@ package com.vortessence.arithmeticus.core.math.expressions
 import com.vortessence.arithmeticus.core.math.context.CalculationMode
 import com.vortessence.arithmeticus.core.math.context.MathContext
 import com.vortessence.arithmeticus.core.math.context.MathIssue
+import com.vortessence.arithmeticus.core.math.numbers.BigInt
 import com.vortessence.arithmeticus.core.math.numbers.Rational
 import com.vortessence.arithmeticus.core.math.numbers.Real
 import kotlin.math.E
@@ -32,9 +33,39 @@ class Logarithm(
             return this
         }
 
+        // ln(5 m) has no value (it was ln(5), the unit dropped); ln(1 km/1 m) has, the units cancel
+        if (listOf(cBase, cOperand).any { it.containsUnit() && dimensionOf(it)?.isNone != true }) {
+            context.stopWithError(MathIssue.INVALID_UNIT)
+            return this
+        }
+
         if (context.complexNumbers) {
             val complex = complexLogarithm(cBase, cOperand, context)
             if (complex != null || context.shouldStop) return complex ?: this
+        }
+
+        // A number that is no plain number (e, ln(1/2), √2 − 2) outside of where the logarithm is defined: ln(0), ln(−1), log_e(√2 − 2)
+        // were shown as results, as if they had a value. (Complex numbers have dealt with negative operands above; 0 is left.)
+        if (cBase.variables().isEmpty() && cOperand.variables().isEmpty() && !cBase.containsImaginaryUnit() && !cOperand.containsImaginaryUnit() &&
+            cOperand.partWithUnit() == null
+        ) {
+            val b = cBase.evaluateNumerically()
+            val op = cOperand.evaluateNumerically()
+            if (b <= 0.0 || b == 1.0 || op <= 0.0 || cOperand.isZero) {
+                context.stopWithError(MathIssue.LOGARITHMIC_DOMAIN)
+                return this
+            }
+            // ln(∞) = ∞ (and −∞ for a base below 1); a whole number too large for floating point (10⁵⁰⁰) is no ∞
+            if (cOperand is Value && cOperand.rational == null && cOperand.real.value == Double.POSITIVE_INFINITY) {
+                return Value(if (b > 1.0) Double.POSITIVE_INFINITY else Double.NEGATIVE_INFINITY)
+            }
+            // ln(10⁵⁰⁰) = 500·ln(10): the logarithm of a power, which as a number is too large to take it of
+            val whole = (cOperand as? Value)?.rational?.takeIf { !it.isFractional }?.numerator?.value
+            if (whole != null && whole.bitLength() > LARGE_BITS) {
+                perfectPower(whole)?.let { (root, exponent) ->
+                    return Multiplications.of(Value(exponent.toLong()), Logarithm(cBase, Value(BigInt(root)))).canonicalize(context)
+                }
+            }
         }
 
         if (cOperand == Value.ONE) return Value.ZERO
@@ -143,6 +174,28 @@ class Logarithm(
     }
 
     companion object {
+        /** From this size on, a whole number is no double, and its logarithm is taken of the power it is. */
+        private const val LARGE_BITS = 1000
+
+        /**
+         * [n] as mᵉ with the largest exponent e ≥ 2 (10⁵⁰⁰ is 10⁵⁰⁰, 2¹⁰⁰⁰ is 2¹⁰⁰⁰); null if it is no such power. Each
+         * exponent is tried with the root its size suggests, which is then checked exactly.
+         */
+        private fun perfectPower(n: java.math.BigInteger): Pair<java.math.BigInteger, Int>? {
+            if (n.signum() <= 0) return null
+            // ln(n) from its leading bits, exact enough for the roots below 2⁵²
+            val shift = maxOf(0, n.bitLength() - 60)
+            val lnN = ln(n.shiftRight(shift).toDouble()) + shift * ln(2.0)
+            for (e in n.bitLength() downTo 2) {
+                val root = Math.exp(lnN / e)
+                if (root < 1.5) continue
+                if (root > 4.0e15) break
+                val m = java.math.BigInteger.valueOf(Math.round(root))
+                if (m.pow(e) == n) return m to e
+            }
+            return null
+        }
+
         private const val MAX_EXACT_DENOMINATOR = 12L
         private const val MAX_VERIFY_BITS = 100_000.0
 

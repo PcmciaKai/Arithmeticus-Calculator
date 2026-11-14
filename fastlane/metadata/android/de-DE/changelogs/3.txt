@@ -1,0 +1,10 @@
+- Eigene Funktionen: f(x) := x² + 1, dann f(3) oder ein Graph von f(x)
+- Wertetabelle unter dem Graphen
+- Logarithmus zu jeder Basis: log(8, 2)
+- Bedingungen in einer eigenen Zeile: x² = 4 und x > 0
+- Trigonometrische Gleichungen: alle Lösungen, sin(x) = 0 → x = πk
+- Exakt auch über 10³⁰⁸: ln(x) = 1000 → x = e¹⁰⁰⁰
+- Mehr Integrale, Reihen und Faktorisierungen, mit Lösungsweg
+- Wahlweise: °C und °F als Punkte auf ihrer Skala
+- Formeln aus anderen Apps einfügen
+- Viele Fehler behoben

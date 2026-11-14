@@ -148,6 +148,14 @@ internal object Differentiator {
             // log_b(u) = ln(u) / ln(b)
             return derivative(Multiplications(listOf(Logarithm.ln(e.operand), Power(Logarithm.ln(e.base), Value.MINUS_ONE))), v)
         }
+        // ln|u|' = u'/u, as for ln(u) (by |u|' = u'·u/|u| it would be u·u'/|u|², which does not simplify to it)
+        val operand = e.operand
+        if (operand is AbsoluteValue) {
+            return Multiplications(listOf(
+                derivative(operand.operand, v) ?: return null,
+                Power(Multiplications(listOf(operand.operand, Logarithm.ln(e.base))), Value.MINUS_ONE)
+            ))
+        }
         // log_b(u)' = u' / (u·ln(b))
         return Multiplications(listOf(
             derivative(e.operand, v) ?: return null,

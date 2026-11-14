@@ -244,6 +244,7 @@
     <string name="step_absolute_value_cases">Split into the two cases of the absolute value</string>
     <string name="step_exponentiate_both_sides">Raise the base to the power of both sides</string>
     <string name="step_check_solutions">Check the solutions in the original equation</string>
+    <string name="step_check_conditions">Keep the solutions that meet the conditions</string>
     <string name="step_substitute_power">Substitute</string>
     <string name="step_back_substitute_power">Substitute back</string>
     <string name="step_one_side">No rule solves this exactly: everything to one side, f(x) = 0</string>
@@ -301,6 +302,9 @@
     <string name="settings_complex">Complex numbers</string>
     <string name="settings_complex_on">Allows √−4 = 2i</string>
     <string name="settings_complex_off">√−4 is an error</string>
+    <string name="settings_temperatures">Temperatures in °C and °F</string>
+    <string name="settings_temperatures_on">Points on their scale: 20 °C + 5 K = 25 °C</string>
+    <string name="settings_temperatures_off">Calculated in kelvin, as in formulas</string>
     <string name="settings_units_for_results">Units for results</string>
     <string name="settings_metric">Metric</string>
     <string name="settings_imperial">Imperial</string>
@@ -600,6 +604,13 @@
     <string name="units_tip_example">For example:</string>
     <string name="units_tip_try">Try it</string>
     <string name="units_tip_ok">Got it</string>
+    <string name="clear_tip_title">No need to clear</string>
+    <string name="clear_tip_text">When a calculation is done, press Enter ⏎: it goes into the history and the line is free for the next one. Tap a result in the history to use it again, or start the next line with + − × ÷ to go on from it.</string>
+    <string name="clear_tip_history">On an empty line, AC clears the whole history.</string>
+    <string name="clear_tip_enter">Press Enter</string>
+    <string name="clear_tip_clear_line">Clear anyway</string>
+    <string name="clear_tip_clear_history">Clear history</string>
+    <string name="clear_tip_ok">Got it</string>
     <string name="matrix_vector_2d">2D vector</string>
     <string name="matrix_vector_3d">3D vector</string>
     <string name="matrix_kind_matrix">Matrix</string>
@@ -740,6 +751,11 @@
     <string name="graph_add_line">Add another equation</string>
     <string name="graph_intersection">Intersection</string>
     <string name="graph_line_cannot_plot">cannot be graphed</string>
+    <string name="graph_show_table">Table</string>
+    <string name="graph_show_graph">Graph</string>
+    <string name="graph_table_start">Start</string>
+    <string name="graph_table_step">Step</string>
+    <string name="graph_table_no_function">There is no function of x to list in a table</string>
     <string name="graph_surface_alone">Only the surface is drawn: a 3D graph cannot be combined with other lines</string>
     <string name="graph_axes">Axes</string>
     <string name="graph_log_x">Logarithmic x-axis</string>
@@ -843,12 +859,15 @@
     <string name="help_results_3">Press and hold the result to copy it.</string>
 
     <string name="help_variables_title">Variables and letters</string>
-    <string name="help_variables_summary">x, y, z, any letter, and storing values with :=</string>
+    <string name="help_variables_summary">x, y, z, any letter, and storing values and functions with :=</string>
     <string name="help_variables_1">The x key types x; long press it for y and z. For any other letter tap abc: the system keyboard opens and types into the line. Letters next to each other are multiplied, so ab means a·b. A function name followed by “(” starts that function, for example sin( or mean(.</string>
     <string name="help_variables_2">Variables are lower-case letters. e, π and i are constants, not variables.</string>
     <string name="help_variables_define">Storing a value</string>
     <string name="help_variables_3">Write a letter, := (long press =) and a value, and press Enter. From then on the letter has this value in every line.</string>
     <string name="help_variables_4">This also stores matrices and vectors, for example m := a matrix, so you can use m in the next lines. Delete the line from the history to forget the value.</string>
+    <string name="help_variables_functions">Defining a function</string>
+    <string name="help_variables_5">Write a letter, its variable in brackets, := and the formula, for example f(x) := x² + 1. From then on f(3), f(a + 1) or f(x)² use it in every line. A function can have several variables, g(x, y) := x·y, and can use the functions defined before it.</string>
+    <string name="help_variables_6">Graph f(x) to see it. The Table button below the graph lists its values, from a start value in steps you choose.</string>
 
 
     <string name="help_functions_title">The function picker</string>
@@ -864,6 +883,7 @@
     <string name="help_equations_2">Write each equation on its own line: long press Enter and choose “new line” between them. Linear and many non-linear systems are solved.</string>
     <string name="help_equations_inequalities">Inequalities</string>
     <string name="help_equations_3">Long press = for &lt;, &gt;, ≤ and ≥. The solution is also given in interval notation and on a number line in the steps.</string>
+    <string name="help_equations_condition_note">A condition on a line of its own keeps only the solutions that meet it</string>
 
     <string name="help_derivatives_title">Derivatives</string>
     <string name="help_derivatives_summary">d/dx, the derivative at a point, partial derivatives</string>

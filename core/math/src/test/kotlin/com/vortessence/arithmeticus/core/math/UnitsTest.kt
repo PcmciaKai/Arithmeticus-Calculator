@@ -290,6 +290,31 @@ class UnitsTest {
     }
 
     @Test
+    fun astronomicalUnits() {
+        // Light distances follow from c, the radii are the nominal values of the IAU
+        assertResult("299792458m", calc(ms(n("1"), u("ls"), to, u("m"))))
+        assertResult("60ls", calc(ms(n("1"), u("lmin"), to, u("ls"))))
+        assertEquals(499.004784, calc(ms(n("1"), u("au"), to, u("ls"))).numericValue, 1e-6)
+        assertResult("6.3781Mm", calc(ms(n("1"), u("R⊕"), to, u("Mm"))))
+        assertEquals(109.076, calc(ms(n("1"), u("R☉"), to, u("R⊕"))).numericValue, 1e-3)
+        assertResult("0.6957Gm", calc(ms(n("1"), u("R☉"), to, u("Gm"))))
+        // Parsecs with prefixes; 1 pc is about 3.26 ly
+        assertResult("1000kpc", calc(ms(n("1"), u("Mpc"), to, u("kpc"))))
+        assertEquals(3.2615638, calc(ms(n("1"), u("pc"), to, u("ly"))).numericValue, 1e-7)
+        assertEquals(3.2615638e9, calc(ms(n("1"), u("Gpc"), to, u("ly"))).numericValue, 1e2)
+        // Masses: the Sun is about 333 000 Earths and 1048 Jupiters
+        assertEquals(332946.0, calc(ms(n("1"), u("M☉"), to, u("M⊕"))).numericValue, 1.0)
+        assertEquals(1047.57, calc(ms(n("1"), u("M☉"), to, u("MJup"))).numericValue, 0.01)
+        assertEquals(71492000.0, calc(ms(n("1"), u("RJup"), to, u("m"))).numericValue, 1e-6)
+        assertResult("382800000000000000000000000W", calc(ms(n("1"), u("L☉"), to, u("W"))))
+        // Where they are listed
+        for (symbol in listOf("R⊕", "ls", "M☉", "L☉")) {
+            val unit = UnitRegistry.findBySymbol(symbol)!!
+            assertTrue(symbol, UnitRegistry.categories.any { c -> c.families.any { it.name == "Astronomical" && unit in it.units } })
+        }
+    }
+
+    @Test
     fun ratiosArePlainNumbers() {
         assertResult("5000ppb", calc(ms(n("5"), u("ppm"), to, u("ppb"))))
         assertResult("250ppm", calc(ms(n("0.00025"), to, u("ppm"))))

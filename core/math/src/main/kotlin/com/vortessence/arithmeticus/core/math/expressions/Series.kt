@@ -142,6 +142,11 @@ class Series(
                 context.stopWithError(MathIssue.DIVERGES)
                 this
             }
+            // Not "does not converge": that is not known
+            NumericOutcome.Undecided -> {
+                context.stopWithError(MathIssue.SERIES_UNDECIDED)
+                this
+            }
         }
     }
 
@@ -168,8 +173,79 @@ class Series(
         return result + compensation
     }
 
+    /**
+     * The sum of terms f(n) that are of one sign and get smaller (from some n on) by the integral test: it converges where ∫ f
+     * does up to ∞ (Σ ln(n)/n², Σ 1/(n·ln²n)) and diverges where that is infinite (Σ 1/(n·ln n), like ln(ln n)). The value is
+     * the terms up to N and the rest by Euler–Maclaurin, F(∞) − F(N) + f(N)/2 − f′(N)/12 + f‴(N)/720 with the antiderivative F.
+     * Null where there is no antiderivative, F(∞) has no value, or the terms are not of that kind.
+     */
+    private fun integralTest(cBody: Expression, from: Long, bindings: Map<Variable, Double>, context: MathContext?): NumericOutcome? {
+        if (isProduct || bindings.isNotEmpty() || context == null || context.mode != CalculationMode.EXACT || cBody.variables() != setOf(index)) return null
+        // Of one sign, and smaller and smaller in size, far out
+        val samples = listOf(1e2, 1e3, 1e4, 1e5, 1e6).map { cBody.evaluateNumerically(mapOf(index to it)) }
+        if (samples.any { !it.isFinite() || it == 0.0 } || samples.map { it > 0.0 }.distinct().size != 1) return null
+        if (samples.zipWithNext().any { (a, b) -> abs(b) >= abs(a) }) return null
+        val sign = if (samples.first() > 0.0) 1 else -1
+        val scratch = context.copy()
+        val n = maxOf(from, 0L) + INTEGRAL_TEST_TERMS
+        val at = mapOf(index to n.toDouble())
+        val antiderivative = Integrator(scratch).antiderivative(cBody, index)
+        if (scratch.shouldStop) return null
+        // ∫ from N to ∞ of the terms: F(∞) − F(N), or by numbers where there is no F
+        val tail: Double = if (antiderivative != null) {
+            val limitContext = context.copy()
+            val atInfinity = Limit(antiderivative, index, Value(Double.POSITIVE_INFINITY)).canonicalize(limitContext)
+            val limit = if (!limitContext.shouldStop && !atInfinity.containsExpressionMatching { it is Limit } && atInfinity.variables().isEmpty()) {
+                atInfinity.evaluateNumerically()
+            } else {
+                // −1/ln(n) and ln(ln n) get to their limit too slowly for the numbers to see it; at ∞ itself they are 0 and ∞ (what
+                // is not clear there, such as ∞ − ∞ or ∞/∞, is NaN)
+                antiderivative.evaluateNumerically(mapOf(index to Double.POSITIVE_INFINITY))
+            }
+            if (limit.isNaN()) return null
+            if (limit.isInfinite()) return NumericOutcome.Diverges(sign)
+            limit - antiderivative.evaluateNumerically(at)
+        } else {
+            // Numbers cannot tell a tail that converges from one that does not (1/(n·ln n)): only for terms that fall at least as
+            // fast as 1/(n·ln²n), whose sum converges, i.e. |f(n)|·n·ln²n gets smaller far out (ln(n)/(n² + 1))
+            val bounded = listOf(1e3, 1e4, 1e5, 1e6).map { x -> abs(cBody.evaluateNumerically(mapOf(index to x))) * x * ln(x) * ln(x) }
+            if (bounded.any { !it.isFinite() } || bounded.zipWithNext().any { (a, b) -> b >= a }) return null
+            val numeric = MathContext.withContext(context) {
+                com.vortessence.arithmeticus.core.math.solvers.NumericIntegrator.integrateImproper(
+                    { x -> cBody.evaluateNumerically(mapOf(index to x)) }, n.toDouble(), Double.POSITIVE_INFINITY, context
+                )
+            }
+            if (!numeric.isFinite()) return null
+            numeric
+        }
+
+        val first = Differentiator.derivative(cBody, index)?.canonicalize(scratch) ?: return null
+        val third = Differentiator.derivative(Differentiator.derivative(first, index) ?: return null, index)?.canonicalize(scratch) ?: return null
+        if (scratch.shouldStop) return null
+        val rest = tail + cBody.evaluateNumerically(at) / 2.0 -
+            first.evaluateNumerically(at) / 12.0 + third.evaluateNumerically(at) / 720.0
+        var sum = 0.0
+        var compensation = 0.0
+        for (k in from until n) {
+            if (k % 1024 == 0L && context.shouldStop) return null
+            val t = term(cBody, k, bindings)
+            if (!t.isFinite()) return null
+            val s = sum + t
+            compensation += if (abs(sum) >= abs(t)) (sum - s) + t else (t - s) + sum
+            sum = s
+        }
+        val total = sum + compensation + rest
+        if (!total.isFinite()) return null
+        return NumericOutcome.Converges(total, abs(third.evaluateNumerically(at)) / 720.0 + 1e-14 * abs(total))
+    }
+
     private fun numericInfinite(cBody: Expression, from: Long, bindings: Map<Variable, Double>, context: MathContext?): NumericOutcome {
-        if (!isProduct) return SeriesSummation.sumToInfinity({ term(cBody, it, bindings) }, from, context)
+        if (!isProduct) {
+            val outcome = SeriesSummation.sumToInfinity({ term(cBody, it, bindings) }, from, context)
+            // Too slow for the numbers (a logarithm in the terms): the integral says it
+            if (outcome == NumericOutcome.Undecided) integralTest(cBody, from, bindings, context)?.let { return it }
+            return outcome
+        }
         // ∏ aₙ = e^(Σ ln aₙ); a zero factor makes it 0, negative factors are not supported
         var sawNonPositive = false
         var sawZero = false
@@ -196,7 +272,7 @@ class Series(
             return when (val outcome = numericInfinite(body, from.toLong(), bindings, context)) {
                 is NumericOutcome.Converges -> outcome.value
                 is NumericOutcome.Diverges -> if (isProduct && outcome.sign < 0) 0.0 else outcome.sign * Double.POSITIVE_INFINITY
-                NumericOutcome.Undefined -> Double.NaN
+                NumericOutcome.Undefined, NumericOutcome.Undecided -> Double.NaN
             }
         }
         if (to % 1.0 != 0.0) return Double.NaN
@@ -221,6 +297,8 @@ class Series(
         /** Larger exact results (of irrational terms) are shown as a decimal instead. */
         const val MAX_EXACT_SIZE = 40
         const val EXACT_TOLERANCE = 1e-10
+        /** How many terms the integral test adds up before the rest is worked out from the integral. */
+        const val INTEGRAL_TEST_TERMS = 1000L
 
         /** The whole number [e] stands for, or null (also for ∞). */
         fun wholeNumber(e: Expression): Long? {

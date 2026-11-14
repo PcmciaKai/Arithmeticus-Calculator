@@ -25,6 +25,9 @@ import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Straighten
+import androidx.compose.material.icons.filled.TableChart
+import androidx.compose.material.icons.automirrored.filled.ShowChart
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -261,6 +264,8 @@ fun GraphPlotterView(
     val polar = polarSelected && function != null && visibleEntries.size == 1
 
     var tool by remember { mutableStateOf<GraphTool?>(null) }
+    // The table of values instead of the picture
+    var showTable by rememberSaveable { mutableStateOf(false) }
     // Back leaves the active tool before it closes the graph
     BackHandler(enabled = tool != null) { tool = null }
 
@@ -723,7 +728,13 @@ fun GraphPlotterView(
         // What the picture shows, for screen readers
         val summary = pluralStringResource(R.plurals.graph_summary_curves, visibleEntries.size, visibleEntries.size) + ", " +
             pluralStringResource(R.plurals.graph_summary_crossings, crossings.size, crossings.size)
-        Box(
+        if (showTable) {
+            // The functions that are shown, in the colours of their curves
+            val columns = visibleEntries.mapNotNull { entry ->
+                (entry.value.curve as? Function1D)?.let { TableColumn(entry.value.line, colorOf(entry.index), it) }
+            }
+            ValueTable(columns, Modifier.weight(1f).fillMaxWidth())
+        } else Box(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
@@ -916,9 +927,10 @@ fun GraphPlotterView(
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            for (entry in GraphTool.entries) {
+            if (!showTable) for (entry in GraphTool.entries) {
                 GraphToolButton(
-                    tool = entry,
+                    icon = entry.icon,
+                    label = stringResource(entry.label),
                     selected = tool == entry,
                     // The area under a curve is only defined for functions; polar mode has no tools
                     enabled = !polar && if (entry == GraphTool.INTEGRAL) function != null else base != null,
@@ -926,6 +938,19 @@ fun GraphPlotterView(
                     modifier = Modifier.weight(1f)
                 )
             }
+            // Switches between the picture and the table of values
+            GraphToolButton(
+                icon = if (showTable) Icons.AutoMirrored.Filled.ShowChart else Icons.Default.TableChart,
+                label = stringResource(if (showTable) R.string.graph_show_graph else R.string.graph_show_table),
+                selected = false,
+                enabled = true,
+                onClick = {
+                    tool = null
+                    selectedCrossing = null
+                    showTable = !showTable
+                },
+                modifier = Modifier.weight(1f)
+            )
         }
     }
 }
@@ -1167,7 +1192,8 @@ private fun AxisMenu(options: AxisOptions) {
 
 @Composable
 private fun GraphToolButton(
-    tool: GraphTool,
+    icon: ImageVector,
+    label: String,
     selected: Boolean,
     enabled: Boolean,
     onClick: () -> Unit,
@@ -1191,8 +1217,8 @@ private fun GraphToolButton(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
-            Icon(tool.icon, contentDescription = null)
-            Text(stringResource(tool.label), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+            Icon(icon, contentDescription = null)
+            Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
         }
     }
 }

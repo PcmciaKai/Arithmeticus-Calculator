@@ -40,6 +40,12 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+/** What C was about to clear when the note on Enter came up instead: a finished calculation, or (after Enter) the history. */
+enum class ClearTip { LINE, HISTORY }
+
+/** How the note on Enter was answered: clear all the same, take the line with Enter, or just close the note. */
+enum class ClearTipAnswer { CLEAR, ENTER, NOTHING }
+
 data class CalculatorUiState(
     val expression: MathString = MathString(),
     val cursorPath: List<Int> = listOf(0),
@@ -82,6 +88,8 @@ data class CalculatorUiState(
     val showUnitsDialog: Boolean = false,
     /** The one-time note on how to convert units, shown the first time the Units key is tapped (before the unit picker). */
     val showUnitsTip: Boolean = false,
+    /** The one-time note that a finished calculation needs no clearing (Enter instead of C), shown on the first C that could do without. */
+    val clearTip: ClearTip? = null,
     /** Category shown in the unit picker; it reopens on the category used last. */
     val unitCategory: Int = 0,
     /** Family of [unitCategory] the unit picker scrolls to when it opens, e.g. for a conversion. */
@@ -102,6 +110,8 @@ data class CalculatorUiState(
     val complexNumbers: Boolean = false,
     /** Set when the i key turned complex numbers on, until the message about it was shown. */
     val showComplexNotice: Boolean = false,
+    /** Temperatures in °C and °F as points on their scale (20 °C + 5 K = 25 °C) instead of in kelvin for any arithmetic. */
+    val physicalTemperatures: Boolean = false,
     /** The language of the texts the calculation produces (and the app is shown in). */
     val language: Language = Language.ENGLISH,
     /**
@@ -127,12 +137,17 @@ data class CalculatorUiState(
     /**
      * Variables defined with ":=" by calculations in the history; the newest definition of a
      * name wins. A variable stays defined until its definition is removed from the history.
+     * A function is kept as "f(x)" (see [FunctionDefinitions]); it and a variable f replace each other.
      */
-    fun variables(): Map<String, MathString> =
-        history.asReversed().mapNotNull { entry ->
-            val name = entry.calculation.definedVariable ?: return@mapNotNull null
-            entry.calculation.answer?.let { name to it }
-        }.toMap()
+    fun variables(): Map<String, MathString> {
+        val definitions = LinkedHashMap<String, MathString>()
+        // The history is newest first: the oldest definitions go in first, the newer ones replace them
+        for (entry in history.asReversed()) {
+            val key = entry.calculation.definedVariable ?: continue
+            entry.calculation.answer?.let { FunctionDefinitions.define(definitions, key, it) }
+        }
+        return definitions
+    }
 }
 
 /**
@@ -257,6 +272,9 @@ class CalculatorViewModel @JvmOverloads constructor(
     /** The steps worked out for the live result, to show them at once when the sheet is opened. */
     private var cachedSteps: CachedSteps? = null
 
+    /** What the live result was calculated for: the line and the settings, Ans and variables of that moment. */
+    private var liveResultInput: LiveInput? = null
+
     init {
         loadSettings()
         _uiState.update { it.copy(language = AppLanguage.current(application), randomSeed = seedSource()) }
@@ -282,6 +300,7 @@ class CalculatorViewModel @JvmOverloads constructor(
                     if (liveResultDelayMillis > 0) delay(liveResultDelayMillis)
                     val context = input.snapshot.toMathContext()
                     val res = MathEngine.calculate(input.expression, context)
+                    liveResultInput = input
                     _uiState.update {
                         if (it.isFor(input)) {
                             it.copy(
@@ -548,7 +567,7 @@ class CalculatorViewModel @JvmOverloads constructor(
     private fun CalculatorUiState.isFor(input: LiveInput) = expression == input.expression && randomSeed == input.snapshot.randomSeed
 
     private fun CalculatorUiState.snapshot() =
-        CalculationSnapshot(angleUnit, unitSystem, decimalPlaces, ans(), variables(), complexNumbers, language, randomSeed)
+        CalculationSnapshot(angleUnit, unitSystem, decimalPlaces, ans(), variables(), complexNumbers, language, randomSeed, physicalTemperatures)
 
     /** Ans is the most recently committed result, not the live result of this line. */
     private fun CalculatorUiState.ans(): MathString? =
@@ -570,6 +589,7 @@ class CalculatorViewModel @JvmOverloads constructor(
         val savedTheme = prefs?.getString("theme_mode", null)
         val themeMode = ThemeMode.entries.firstOrNull { it.name == savedTheme } ?: ThemeMode.SYSTEM
         val complexNumbers = prefs?.getBoolean("complex_numbers", false) ?: false
+        val physicalTemperatures = prefs?.getBoolean(KEY_PHYSICAL_TEMPERATURES, false) ?: false
         val helpHintSeen = prefs?.getBoolean(KEY_HELP_HINT_SEEN, false) ?: true
         val savedMode = prefs?.getString("input_mode", null)
         val inputMode = InputMode.entries.firstOrNull { it.name == savedMode } ?: InputMode.DECIMAL
@@ -586,6 +606,7 @@ class CalculatorViewModel @JvmOverloads constructor(
                 matrixRows = matrixRows,
                 matrixCols = matrixCols,
                 complexNumbers = complexNumbers,
+                physicalTemperatures = physicalTemperatures,
                 showHelpHint = !helpHintSeen
             )
         }
@@ -647,7 +668,7 @@ class CalculatorViewModel @JvmOverloads constructor(
             is KeyAction.RightParen -> moveCursorRight()
             is KeyAction.Backspace -> deleteAtCursor()
             // One key: clears the line, or everything once the line is already empty
-            is KeyAction.Clear -> if (_uiState.value.expression.isEmpty) clearAll() else clearLine()
+            is KeyAction.Clear -> clear()
             is KeyAction.Convert -> insertConversion()
             is KeyAction.Enter -> commit()
             is KeyAction.NewLine -> insertLineBreak()
@@ -837,6 +858,11 @@ class CalculatorViewModel @JvmOverloads constructor(
         }
     }
 
+    fun setPhysicalTemperatures(enabled: Boolean) {
+        prefs?.edit { putBoolean(KEY_PHYSICAL_TEMPERATURES, enabled) }
+        _uiState.update { it.copy(physicalTemperatures = enabled) }
+    }
+
     fun dismissComplexNotice() {
         _uiState.update { it.copy(showComplexNotice = false) }
     }
@@ -1005,9 +1031,23 @@ class CalculatorViewModel @JvmOverloads constructor(
      * A letter that cannot be a variable (i, T) is not taken; [CalculatorUiState.typingNotice]
      * says why. Everything else is ignored.
      */
+    /** The last typed character was a colon, which with "=" after it is ":=". */
+    private var colonTyped = false
+
     fun typeText(text: String) {
         _uiState.update { it.copy(typingNotice = null) }
-        for (c in text) {
+        for (typed in text) {
+            // х and у of a Russian keyboard look like x and y, and are meant as them (е as Euler's e): not variables of their own
+            val c = LATIN_LOOKALIKES[typed] ?: typed
+            // ":=" defines a variable or function; a colon on its own means nothing (the keys may come one at a time)
+            val afterColon = colonTyped
+            colonTyped = c == ':'
+            if (c == ':') continue
+            if (afterColon && c == '=') {
+                onKeyAction(KeyAction.Operator(":="))
+                continue
+            }
+            leaveTypedExponent(c)
             when (c) {
                 in '0'..'9' -> onKeyAction(KeyAction.Number(c.toString()))
                 '.' -> onKeyAction(KeyAction.Number("."))
@@ -1021,6 +1061,23 @@ class CalculatorViewModel @JvmOverloads constructor(
                 else -> if (c.isLetter()) typeLetter(c)
             }
         }
+    }
+
+    /**
+     * Typed text has no arrow key to leave an exponent: it ends where an operator comes (x^2 − 1 is x² − 1, not x^(2 − 1)),
+     * and a letter after a number in it (x^2y is x²y). A minus right after ^ is its sign (2^−1); parentheses keep what is in
+     * them (x^(n+1)), as the cursor is in them then and not at the end of the exponent.
+     */
+    private fun leaveTypedExponent(next: Char) {
+        val state = _uiState.value
+        val path = state.cursorPath
+        if (path.size < 3 || state.selectionRange != null) return
+        val container = getTargetString(state.expression, path.dropLast(3) + 0)
+        val node = container.nodes.getOrNull(path[path.size - 3]) as? ExponentNode ?: return
+        val exponentIndex = if (node.base != null) 1 else 0
+        if (path[path.size - 2] != exponentIndex || path.last() != node.exponent.length || node.exponent.isEmpty) return
+        val ends = next in TYPED_EXPONENT_ENDS || (next.isLetter() && node.exponent.nodes.all { it is NumberNode })
+        if (ends) moveCursorRight()
     }
 
     /** Backspace on the system keyboard: takes back the last typed letter, so that the word typed so far stays right. */
@@ -1108,6 +1165,37 @@ class CalculatorViewModel @JvmOverloads constructor(
     fun tryUnitsExample() {
         dismissUnitsTip(openUnits = false)
         tryExample(unitsTipExample)
+    }
+
+    /**
+     * The C key: clears the line, or everything once the line is already empty. The first time it is used the way other
+     * calculators need it (on a finished calculation, or after Enter), the note on Enter comes first instead.
+     */
+    private fun clear() {
+        val state = _uiState.value
+        val tipSeen = prefs?.getBoolean(KEY_CLEAR_TIP_SEEN, false) ?: true
+        val tip = when {
+            tipSeen -> null
+            state.expression.isEmpty -> ClearTip.HISTORY.takeIf { state.history.isNotEmpty() }
+            else -> ClearTip.LINE.takeIf { state.result?.let { it.isSuccess && it.input == state.expression } == true }
+        }
+        if (tip != null) {
+            _uiState.update { it.copy(clearTip = tip) }
+            return
+        }
+        if (state.expression.isEmpty) clearAll() else clearLine()
+    }
+
+    /** Closes the note on Enter for good; [then] is what was chosen in it. */
+    fun answerClearTip(then: ClearTipAnswer) {
+        val tip = _uiState.value.clearTip ?: return
+        prefs?.edit { putBoolean(KEY_CLEAR_TIP_SEEN, true) }
+        _uiState.update { it.copy(clearTip = null) }
+        when (then) {
+            ClearTipAnswer.CLEAR -> if (tip == ClearTip.HISTORY) clearAll() else clearLine()
+            ClearTipAnswer.ENTER -> commit()
+            ClearTipAnswer.NOTHING -> {}
+        }
     }
 
     /**
@@ -2085,8 +2173,9 @@ class CalculatorViewModel @JvmOverloads constructor(
             val current = _uiState.value
             if (current.expression != expr || current.randomSeed != seed) return@launch // edited meanwhile
             val snapshot = current.snapshot()
-            // Reuse the live result if it is up to date, otherwise calculate right away
-            val res = current.result?.takeIf { !wasRestoring && it.input == expr }
+            // Reuse the live result if it is up to date, otherwise calculate right away. Up to date also in what it was
+            // calculated with: right after a setting changed (RAD to DEG) the result shown is still the one from before
+            val res = current.result?.takeIf { !wasRestoring && it.input == expr && liveResultInput == LiveInput(expr, snapshot) }
                 ?: MathEngine.calculate(expr, snapshot.toMathContext())
             if (_uiState.value.expression != expr || _uiState.value.randomSeed != seed) return@launch // edited meanwhile
             if (!res.isSuccess) {
@@ -2136,10 +2225,21 @@ class CalculatorViewModel @JvmOverloads constructor(
         const val MAX_SESSION_FILE_BYTES = 16 * 1024 * 1024
 
         const val KEY_HELP_HINT_SEEN = "help_hint_seen"
+        const val KEY_PHYSICAL_TEMPERATURES = "physical_temperatures"
+
+        /** What ends an exponent when typed after it (see leaveTypedExponent). */
+        val TYPED_EXPONENT_ENDS = setOf('+', '-', '−', '*', '×', '/', '÷', '=', '<', '>', '≤', '≥', ',', ';', '!', '%')
+
+        /** Cyrillic letters that are written like Latin ones, to the Latin letter: a variable x is the same whatever keyboard typed it. */
+        val LATIN_LOOKALIKES = mapOf(
+            'а' to 'a', 'е' to 'e', 'о' to 'o', 'р' to 'p', 'с' to 'c', 'у' to 'y', 'х' to 'x', 'к' to 'k', 'і' to 'i', 'ј' to 'j', 'ѕ' to 's',
+            'А' to 'A', 'В' to 'B', 'Е' to 'E', 'К' to 'K', 'М' to 'M', 'Н' to 'H', 'О' to 'O', 'Р' to 'P', 'С' to 'C', 'Т' to 'T', 'Х' to 'X'
+        )
 
         /** The operators that go on from the last result when typed first on an empty line (see insertAnsBeforeOperator). */
         val ARITHMETIC_OPERATORS = setOf("+", "−", "-", "×", "*", "÷", "/")
         const val KEY_UNITS_TIP_SEEN = "units_tip_seen"
+        const val KEY_CLEAR_TIP_SEEN = "clear_tip_seen"
 
         /** 5 km → mi, the example of the note on converting units. */
         const val UNITS_TIP_EXAMPLE = "5#u{km}->#u{mi}"

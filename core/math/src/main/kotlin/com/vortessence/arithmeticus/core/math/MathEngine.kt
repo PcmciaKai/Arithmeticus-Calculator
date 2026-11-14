@@ -17,11 +17,16 @@ import com.vortessence.arithmeticus.core.math.expressions.Equals
 import com.vortessence.arithmeticus.core.math.expressions.Inequality
 import com.vortessence.arithmeticus.core.math.expressions.InequalityAnalysis
 import com.vortessence.arithmeticus.core.math.expressions.InequalitySolver
+import com.vortessence.arithmeticus.core.math.expressions.HighPrecision
+import com.vortessence.arithmeticus.core.math.expressions.TrigonometricFunction
+import com.vortessence.arithmeticus.core.math.expressions.intervalsExpression
 import com.vortessence.arithmeticus.core.math.expressions.Expression
 import com.vortessence.arithmeticus.core.math.expressions.Limit
 import com.vortessence.arithmeticus.core.math.expressions.Series
 import com.vortessence.arithmeticus.core.math.expressions.containsImaginaryUnit
 import com.vortessence.arithmeticus.core.math.expressions.numericComplex
+import com.vortessence.arithmeticus.core.math.expressions.complexParts
+import com.vortessence.arithmeticus.core.math.expressions.ComplexDouble
 import com.vortessence.arithmeticus.core.math.expressions.polarForm
 import com.vortessence.arithmeticus.core.math.expressions.EigenSystem
 import com.vortessence.arithmeticus.core.math.expressions.MatrixExpression
@@ -42,12 +47,15 @@ import com.vortessence.arithmeticus.core.math.solvers.ImplicitCurve
 import com.vortessence.arithmeticus.core.math.solvers.ImplicitPlotter
 import com.vortessence.arithmeticus.core.math.numbers.BigInt
 import com.vortessence.arithmeticus.core.math.numbers.Factoring
+import com.vortessence.arithmeticus.core.math.numbers.BIG_TWO
 import com.vortessence.arithmeticus.core.math.expressions.Multiplications
 import com.vortessence.arithmeticus.core.math.expressions.NamedFunction
 import com.vortessence.arithmeticus.core.math.expressions.NamedFunctionKind
 import com.vortessence.arithmeticus.core.math.expressions.Power
 import java.math.BigInteger
 import com.vortessence.arithmeticus.core.math.numbers.Rational
+import com.vortessence.arithmeticus.core.math.expressions.PartialFractions
+import com.vortessence.arithmeticus.core.math.expressions.PolynomialSplitting
 import com.vortessence.arithmeticus.core.math.solvers.LinearSystemSolver
 import com.vortessence.arithmeticus.core.math.solvers.NonlinearSystemSolver
 import com.vortessence.arithmeticus.core.math.solvers.NumericIntegrator
@@ -61,7 +69,9 @@ import com.vortessence.arithmeticus.core.math.solvers.VectorEquation
 import com.vortessence.arithmeticus.core.math.solvers.VectorLine
 import com.vortessence.arithmeticus.core.math.steps.ArithmeticSteps
 import com.vortessence.arithmeticus.core.math.steps.BothSides
+import com.vortessence.arithmeticus.core.math.steps.ConditionSteps
 import com.vortessence.arithmeticus.core.math.steps.DerivativeSteps
+import com.vortessence.arithmeticus.core.math.steps.Isolation
 import com.vortessence.arithmeticus.core.math.steps.DistributionSteps
 import com.vortessence.arithmeticus.core.math.steps.VectorLineSteps
 import com.vortessence.arithmeticus.core.math.steps.VectorSteps
@@ -89,6 +99,8 @@ import com.vortessence.arithmeticus.core.math.steps.SolutionStep
 import com.vortessence.arithmeticus.core.math.steps.StepChange
 import com.vortessence.arithmeticus.core.math.type.AntiderivativeNode
 import com.vortessence.arithmeticus.core.math.type.DerivativeNode
+import com.vortessence.arithmeticus.core.math.type.FunctionDefinitions
+import com.vortessence.arithmeticus.core.math.type.SeparatorNode
 import com.vortessence.arithmeticus.core.math.type.IntegralNode
 import com.vortessence.arithmeticus.core.math.type.isValidVariableName
 import com.vortessence.arithmeticus.core.math.type.LineBreakNode
@@ -136,7 +148,12 @@ data class CalculationResult(
     /** What went wrong said for this input, e.g. "m is a matrix. A matrix and a number cannot be added"; null if the issue's own message says it. */
     val issueNote: String? = null,
     /** A complex result in polar form, r·e^(iθ), exact; null if the result is not complex. */
-    val polar: MathString? = null
+    val polar: MathString? = null,
+    /**
+     * The decimal value where a double has no room for it, e¹⁰⁰⁰ (∞ as a double) or e^(−1000) (0 as a double), with its first 17
+     * digits right; null where [numericValue] is the value.
+     */
+    val decimalValue: java.math.BigDecimal? = null
 )
 
 data class PlotPoint(val x: Double, val y: Double)
@@ -179,9 +196,9 @@ object MathEngine {
 
         val result = try {
             MathContext.withContext(execContext) { evaluate(input, execContext) }
-        } catch (e: ArithmeticException) {
-            failure(input, execContext, MathIssue.UNDEFINED)
-        } catch (e: IllegalArgumentException) {
+        } catch (e: RuntimeException) {
+            // Also what no rule foresaw (a cast, an index): an error for this line, not a crash of the app, which would come
+            // back with every start once the line is in the saved history
             failure(input, execContext, MathIssue.UNDEFINED)
         } catch (e: StackOverflowError) {
             failure(input, execContext, MathIssue.VALUES_TOO_LARGE)
@@ -212,16 +229,95 @@ object MathEngine {
      */
     private fun primeProduct(value: Expression, ctx: MathContext): Expression? {
         val n = (value as? Value)?.rational?.takeIf { !it.isFractional }?.numerator?.value ?: return value
-        if (n.abs() < BigInteger.TWO) return value
+        if (n.abs() < BIG_TWO) return value
         val factors = Factoring.factor(n.abs()) { ctx.shouldStop } ?: return null
         val terms = factors.map { (p, e) -> if (e == 1) Value(BigInt(p)) else Power(Value(BigInt(p)), Value(e.toLong())) }
         return Multiplications(if (n.signum() < 0) listOf(Value.MINUS_ONE) + terms else terms)
     }
 
+    /**
+     * The factor all terms of the sum [e] have in common taken out, and what is left factored where it can be: xy − y = y(x − 1),
+     * 6x²y − 6y = 6y(x + 1)(x − 1). The common factor is the lowest power of each letter (or other part) in every term, and the
+     * greatest common divisor of whole coefficients. Null if there is none.
+     */
+    private fun commonFactor(e: Expression, ctx: MathContext): Expression? {
+        val scratch = ctx.copy()
+        val sum = e.canonicalize(scratch) as? Additions ?: return null
+        if (scratch.shouldStop) return null
+        fun factorsOf(t: Expression) = if (t is Multiplications) t.operands else listOf(t)
+        fun powers(t: Expression): Map<Expression, BigInteger> = factorsOf(t).filter { it !is Value }.associate { f ->
+            val n = ((f as? Power)?.exponent as? Value)?.rational?.takeIf { !it.isFractional && !it.isNegative }?.numerator?.value
+            if (f is Power && n != null) f.base to n else f to BigInteger.ONE
+        }
+        val termPowers = sum.operands.map { powers(it) }
+        val common = termPowers.first().keys.filter { base -> termPowers.all { base in it } }.associateWith { base -> termPowers.minOf { it.getValue(base) } }
+        val coefficients = sum.operands.map { it.coefficient().rational?.takeIf { r -> !r.isFractional }?.numerator?.value }
+        var divisor = if (coefficients.all { it != null }) coefficients.fold(BigInteger.ZERO) { g, c -> g.gcd(c!!) } else BigInteger.ONE
+        // −x − y = −(x + y)
+        if (coefficients.all { it != null && it.signum() < 0 }) divisor = divisor.negate()
+        if (common.isEmpty() && divisor == BigInteger.ONE) return null
+        val commonFactors = listOf(Value(BigInt(divisor))) + common.map { (base, n) -> if (n == BigInteger.ONE) base else Power(base, Value(BigInt(n))) }
+        val factor = Multiplications(commonFactors).canonicalize(scratch)
+        val rest = Additions(sum.operands.map { Multiplications.of(it, Power(factor, Value.MINUS_ONE)) }).canonicalize(scratch)
+        if (scratch.shouldStop || rest.variables().isEmpty() && rest == Value.ONE) return null
+        val restFactored = Transforms.steps(rest, Transform.FACTOR, ctx.copy())?.result ?: rest
+        return Multiplications(factorsOf(factor) + factorsOf(restFactored))
+    }
+
+    /**
+     * [factored] with its factors of degree 3 or more in one variable split further where they have factors of a higher degree
+     * than 1 (see [PolynomialSplitting]); null if none has.
+     */
+    private fun splitFurther(factored: Expression, ctx: MathContext): Expression? {
+        val factors = if (factored is Multiplications) factored.operands else listOf(factored)
+        var changed = false
+        val result = factors.flatMap { factor ->
+            val (base, power) = if (factor is Power && (factor.exponent as? Value)?.rational?.let { !it.isFractional && !it.isNegative } == true) factor.base to factor.exponent else factor to null
+            val v = base.variables().singleOrNull() ?: return@flatMap listOf(factor)
+            val coefficients = PartialFractions.polynomial(base, v, ctx.copy())?.takeIf { it.size >= 4 } ?: return@flatMap listOf(factor)
+            val split = PolynomialSplitting.split(coefficients) { ctx.shouldStop } ?: return@flatMap listOf(factor)
+            changed = true
+            val parts = split.polynomials.map { PartialFractions.toExpression(it, v) }
+            val withConstant = if (split.constant == Rational.ONE) parts else listOf(Value(split.constant)) + parts
+            if (power == null) withConstant else withConstant.map { Power(it, power) }
+        }
+        if (!changed || ctx.shouldStop) return null
+        // A number in front, then the factors as they came
+        val (numbers, rest) = result.partition { it is Value }
+        val number = numbers.fold(Rational.ONE) { acc, n -> acc * ((n as Value).rational ?: return null) }
+        // The same factor twice is its square: x⁴ + 2x² + 1 = (x² + 1)²
+        val powers = LinkedHashMap<Expression, Rational>()
+        for (factor in rest) {
+            val exponent = ((factor as? Power)?.exponent as? Value)?.rational
+            val (base, n) = if (factor is Power && exponent != null) factor.base to exponent else factor to Rational.ONE
+            powers[base] = (powers[base] ?: Rational.ZERO) + n
+        }
+        val grouped = powers.map { (base, n) -> if (n == Rational.ONE) base else Power(base, Value(n)) }
+        return Multiplications((if (number == Rational.ONE) emptyList() else listOf(Value(number))) + grouped)
+    }
+
+    /**
+     * The complex number [e] in decimals, its real and imaginary part each with all its digits right where [HighPrecision] can
+     * work it out (i·(√(10²⁰ + 1) − 10¹⁰) is 5·10⁻¹¹ i, not 0), otherwise as doubles.
+     */
+    private fun preciseComplex(e: Expression, ctx: MathContext): ComplexDouble? {
+        val z = numericComplex(e) ?: return null
+        val (re, im) = complexParts(e) ?: return z
+        fun precise(part: Expression, fallback: Double): Double =
+            if (part is Value || part.variables().isNotEmpty() || part.containsUnit()) fallback
+            else HighPrecision.value(part) { ctx.shouldStop }?.takeIf { it.isFinite() } ?: fallback
+        return ComplexDouble(precise(re, z.re), precise(im, z.im))
+    }
+
     private fun evaluate(input: MathString, ctx: MathContext): CalculationResult {
         val definition = splitDefinition(input)
         if (definition != null && definition.value.isEmpty) return failure(input, ctx, MathIssue.SYNTAX_ERROR)
-        val parsed = parse(definition?.value ?: input, ctx)
+        // h(x) := h(x) + 1 defines nothing: the function is not there yet (it would be h·x, then a call when h(1) put 1 for x)
+        if (definition != null && definition.parameters.isNotEmpty() && FunctionDefinitions.uses(definition.value, definition.name)) {
+            return failure(input, ctx, MathIssue.SYNTAX_ERROR)
+        }
+        // The parameters of a function are its own letters: a variable x defined elsewhere is not the x of f(x) := x²
+        val parsed = parse(definition?.value ?: input, ctx, definition?.parameters.orEmpty())
         if (ctx.shouldStop) return failure(input, ctx, expression = parsed)
 
         // The solution of a differential equation is an equation, not a value to calculate with, nor to store
@@ -243,11 +339,19 @@ object MathEngine {
         if (ctx.shouldStop) return failure(input, ctx, expression = parsed)
         // dot(v, w) = 0 is an equation of numbers: the vector functions that give a number are worked out first
         if (parsed is Equals || parsed is Inequality || parsed is EquationSystem) {
-            val reduced = withVectorValues(parsed, ctx)
-            if (ctx.shouldStop) return failure(input, ctx)
-            if (reduced is Equals) return evaluateEquation(input, reduced, ctx)
-            if (reduced is Inequality) return evaluateInequality(input, reduced, ctx)
-            if (reduced is EquationSystem) return evaluateSystem(input, reduced, ctx)
+            // Two sides are compared as they are, temperatures as absolute ones: x °C = 300 K is x = 26.85, whatever the
+            // temperatures are as points on their scale (where the 300 K beside °C would be a step, as in 20 °C + 5 K)
+            val sides = if (ctx.physicalTemperatures && parsed.containsUnit()) ctx.copy().also { it.physicalTemperatures = false } else ctx
+            return MathContext.withContext(sides) {
+                val reduced = withVectorValues(parsed, sides)
+                when {
+                    sides.shouldStop -> failure(input, sides)
+                    reduced is Equals -> evaluateEquation(input, reduced, sides)
+                    reduced is Inequality -> evaluateInequality(input, reduced, sides)
+                    reduced is EquationSystem -> evaluateSystem(input, reduced, sides)
+                    else -> failure(input, sides, MathIssue.SYNTAX_ERROR, reduced)
+                }
+            }
         }
 
         val canonical = parsed.canonicalize(ctx)
@@ -261,13 +365,24 @@ object MathEngine {
         val simplified = if (parsed is UnitConversion) canonical else canonical.toPreferredUnits(ctx)
         if (ctx.shouldStop) return failure(input, ctx, expression = canonical)
 
-        val complex = if (simplified.containsImaginaryUnit()) numericComplex(simplified) else null
-        val numVal = complex?.re ?: simplified.evaluateNumerically()
+        val complex = if (simplified.containsImaginaryUnit()) preciseComplex(simplified, ctx) else null
+        // The decimal of an exact result that is no plain fraction, with all its digits right: √(10²⁰ + 1) − 10¹⁰ is 5·10⁻¹¹
+        // (0 in doubles), sin(10³⁰) needs π to 50 digits
+        val preciseDecimal = if (complex == null && simplified !is Value && simplified.variables().isEmpty() && !simplified.containsUnit()) {
+            HighPrecision.decimal(simplified) { ctx.shouldStop }
+        } else (simplified as? Value)?.rational?.let { r ->
+            // 10⁴⁰⁰/3 is exact, only its double is ∞: its decimal from the fraction
+            java.math.BigDecimal(r.numerator.value).divide(java.math.BigDecimal(r.denominator.value), java.math.MathContext(40))
+        }
+        val precise = preciseDecimal?.toDouble()
+        // e¹⁰⁰⁰ is ∞ as a double, e^(−1000) is 0: the decimal form is written from the digits instead
+        val beyondDouble = preciseDecimal?.takeIf { it.signum() != 0 && (precise!!.isInfinite() || precise == 0.0) }
+        val numVal = complex?.re ?: precise ?: simplified.evaluateNumerically()
         // ∞ is a result only where it is meant, e.g. for a limit or a divergent sum
         val isMeantToBeInfinite = numVal.isInfinite() && parsed.containsExpressionMatching {
             it is Limit || it is Series || (it is Value && it.real.isInfinite)
         }
-        if (simplified is Value && !numVal.isFinite() && !isMeantToBeInfinite) {
+        if (simplified is Value && !numVal.isFinite() && !isMeantToBeInfinite && beyondDouble == null) {
             val issue = if (numVal.isNaN()) MathIssue.UNDEFINED else MathIssue.VALUES_TOO_LARGE
             return failure(input, ctx, issue, simplified)
         }
@@ -275,8 +390,15 @@ object MathEngine {
         val issues = ctx.issues
         // Symbolic results are shown in a compact form; numbers and quantities as they are
         val compact = if (definition == null && parsed is NamedFunction) when (parsed.kind) {
-            NamedFunctionKind.FACTOR ->
+            NamedFunctionKind.FACTOR -> if (simplified is NamedFunction && simplified.kind == NamedFunctionKind.FACTOR) {
+                // factor(x² − 1) of a polynomial: (x − 1)(x + 1), as its steps write it; one that has no factors stays as it is
+                val polynomial = simplified.arguments.single()
+                val factored = Transforms.steps(polynomial, Transform.FACTOR, ctx.copy())?.result ?: commonFactor(polynomial, ctx)
+                // x⁴ + 4 has no rational root, but factors: (x² − 2x + 2)(x² + 2x + 2)
+                splitFurther(factored ?: polynomial, ctx) ?: factored ?: displayForm(polynomial, ctx)
+            } else {
                 primeProduct(simplified, ctx) ?: return failure(input, ctx, if (ctx.shouldStop) MathIssue.TIMEOUT else MathIssue.VALUES_TOO_LARGE, simplified)
+            }
             // Multiplied out as it is, not tidied back into factors
             NamedFunctionKind.EXPAND -> simplified
             NamedFunctionKind.APART -> parsed.partialFractions(simplified, ctx) ?: simplified
@@ -286,9 +408,13 @@ object MathEngine {
         } else {
             displayForm(simplified, ctx)
         }
-        // A definition shows what the variable now stands for: "a = 2x²"
-        val shown = if (definition != null) Equals(Variable(definition.name), compact) else compact
+        // A definition shows what the variable now stands for: "a = 2x²", "f(x) = x² + 1"
+        val shown = if (definition != null && definition.parameters.isEmpty()) Equals(Variable(definition.name), compact) else compact
         val written = display.write(shown)
+        if (definition != null && definition.parameters.isNotEmpty()) {
+            val parameters = definition.parameters.flatMapIndexed { i, p -> if (i == 0) listOf(VariableNode(p)) else listOf(SeparatorNode, VariableNode(p)) }
+            written.insertAll(0, listOf(VariableNode(definition.name), ParenthesesNode(MathString(parameters)), OperatorNode(MathOp.EQUALS)))
+        }
         // An indefinite integral is only determined up to a constant
         if (hasIntegrationConstant(parsed)) {
             written.insert(written.length, TextNode(" + C"))
@@ -304,9 +430,10 @@ object MathEngine {
             answer = if (issues.isEmpty() && compact !is Alternatives) answerWriter(ctx).write(compact) else null,
             unit = simplified.partWithUnit()?.let { display.writeUnit(it) },
             decimalPlaces = ctx.decimalPlaces,
-            definedVariable = definition?.name,
+            definedVariable = definition?.key,
             numericImaginary = complex?.im ?: 0.0,
-            polar = if (complex != null && definition == null) polarResult(simplified, ctx) else null
+            polar = if (complex != null && definition == null) polarResult(simplified, ctx) else null,
+            decimalValue = beyondDouble
         )
     }
 
@@ -340,9 +467,9 @@ object MathEngine {
                     is Derivative -> DerivativeSteps.steps(parsed, execContext)
                     is Antiderivative, is Integral -> IntegralSteps.steps(parsed, execContext)
                     is Limit -> LimitSteps.steps(parsed, execContext)
-                    is EquationSystem -> SystemSteps.steps(parsed, execContext)
+                    is EquationSystem -> ConditionSteps.steps(parsed, execContext) ?: SystemSteps.steps(parsed, execContext)
                     is Inequality -> InequalitySteps.steps(parsed, execContext)
-                    is Equals -> VectorLineSteps.steps(parsed, execContext) ?: parsed.variables().takeIf { it.isNotEmpty() }?.let { vars -> pickVariable(vars).let { v -> EquationSteps.steps(parsed, v, execContext) ?: AbsoluteSplitSteps.steps(parsed, v, execContext) } }
+                    is Equals -> VectorLineSteps.steps(parsed, execContext) ?: parsed.variables().takeIf { it.isNotEmpty() }?.let { vars -> pickVariable(vars).let { v -> equationSteps(parsed, v, execContext) } }
                     else -> VectorSteps.steps(parsed, execContext) ?: MatrixSteps.steps(parsed, execContext) ?: DistributionSteps.steps(parsed, execContext) ?: RewriteSteps.steps(parsed, execContext) ?: ExpressionSteps.steps(parsed, execContext) ?: ArithmeticSteps.steps(asTyped, execContext)
                 }
                 if (solution == null || execContext.shouldStop || execContext.issues.isNotEmpty()) return@steps null
@@ -579,7 +706,7 @@ object MathEngine {
             }
         } catch (e: ArithmeticException) {
             null
-        } catch (e: IllegalArgumentException) {
+        } catch (e: RuntimeException) {
             null
         }
         if (parsed == null || execContext.shouldStop) return false
@@ -593,7 +720,7 @@ object MathEngine {
      * the integral or derivative around it. Null for a body that cannot be parsed yet.
      */
     private fun freeVariables(body: MathString, bound: String, definitions: Map<String, MathString>): Set<String>? = try {
-        val parsed = parser.parse(body)
+        val parsed = parser.parse(FunctionDefinitions.apply(body, definitions))
         val used = parsed.variables().map { it.identifier }
         val values = definitions.filterKeys { it in used && it != bound }.entries.associate { (name, value) -> Variable(name) to parser.parse(value) }
         parsed.substituteVariables(values).variables().map { it.identifier }.toSet()
@@ -646,15 +773,26 @@ object MathEngine {
         else -> e.children.any { hasIntegrationConstant(it) }
     }
 
-    /** "a := 2x²": the variable [name] gets the [value] on the right. */
-    private class Definition(val name: String, val value: MathString)
+    /**
+     * "a := 2x²": the variable [name] gets the [value] on the right; "f(x) := x² + 1": the function [name] with the [parameters]
+     * (not empty) gets it.
+     */
+    private class Definition(val name: String, val value: MathString, val parameters: List<String> = emptyList()) {
+        /** What it is kept under in the definitions: "a", or "f(x)" for a function. */
+        val key: String get() = if (parameters.isEmpty()) name else FunctionDefinitions.key(name, parameters)
+    }
 
     /** The definition in [input], or null if it is none (a misplaced ":=" is left to the parser). */
     private fun splitDefinition(input: MathString): Definition? {
         val nodes = input.nodes
-        if (nodes.size < 2 || (nodes[1] as? OperatorNode)?.op != MathOp.DEFINE) return null
-        val name = (nodes[0] as? VariableNode)?.name ?: return null
-        return Definition(name, MathString(nodes.subList(2, nodes.size)))
+        val name = (nodes.firstOrNull() as? VariableNode)?.name ?: return null
+        if (nodes.size >= 2 && (nodes[1] as? OperatorNode)?.op == MathOp.DEFINE) {
+            return Definition(name, MathString(nodes.subList(2, nodes.size)))
+        }
+        // f(x) := …, g(x, y) := …
+        if (nodes.size < 3 || (nodes[2] as? OperatorNode)?.op != MathOp.DEFINE) return null
+        val parameters = (nodes[1] as? ParenthesesNode)?.let { FunctionDefinitions.parameterList(it) } ?: return null
+        return Definition(name, MathString(nodes.subList(3, nodes.size)), parameters)
     }
 
     /** [e] with the vector functions that give a number (dot, norm, angle) worked out where they stand. */
@@ -668,10 +806,13 @@ object MathEngine {
     private val NUMBER_VECTOR_FUNCTIONS = setOf(VectorKind.DOT, VectorKind.NORM, VectorKind.ANGLE)
 
     /** Parses [input] and replaces the variables defined in [ctx] by their values. */
-    private fun parse(input: MathString, ctx: MathContext): Expression {
-        val parsed = parser.parse(input)
-        if (ctx.variables.isEmpty() || ctx.shouldStop) return parsed
-        val values = ctx.variables.entries.associate { (name, value) -> Variable(name) to parser.parse(value) }
+    private fun parse(input: MathString, ctx: MathContext, unused: Collection<String> = emptyList()): Expression {
+        if (ctx.variables.isEmpty()) return parser.parse(input)
+        // f(3): the body of the function f, with 3 for its parameter
+        val parsed = parser.parse(FunctionDefinitions.apply(input, ctx.variables))
+        if (ctx.shouldStop) return parsed
+        val values = ctx.variables.entries.filter { (name, _) -> !FunctionDefinitions.isFunction(name) && name !in unused }
+            .associate { (name, value) -> Variable(name) to parser.parse(value) }
         return parsed.substituteVariables(values)
     }
 
@@ -686,7 +827,44 @@ object MathEngine {
         }
 
         val targetVar = pickVariable(vars)
-        val solutions = equation.solveForVariable(targetVar, ctx)
+        val solving = ctx.copy()
+        val found = equation.solveForVariable(targetVar, solving)
+        if (solving.issues == listOf(MathIssue.NO_REAL_SOLUTION) && !ctx.shouldStop) {
+            // Beyond the numbers the search tries (ln(x) = 1000, x³ = 10⁴⁰⁰, tan(x) = 10¹⁰): solved exactly where x stands once
+            val isolated = Isolation.solve(equation, targetVar, ctx)
+            if (isolated != null && isolated.solutions.isNotEmpty()) {
+                val first = isolated.solutions.first()
+                return CalculationResult(
+                    input = input,
+                    result = displayWriter(ctx).write(isolated.asExpression(targetVar)),
+                    expression = equation,
+                    numericValue = if (isolated.period != null) Double.NaN else first.evaluateNumerically(),
+                    issues = ctx.issues,
+                    answer = if (isolated.period != null) null else answerWriter(ctx).write(first),
+                    decimalPlaces = ctx.decimalPlaces
+                )
+            }
+        }
+        if (solving.solutionNotFound && solving.issues == listOf(MathIssue.NO_REAL_SOLUTION) && !ctx.shouldStop) {
+            // The search found no number. Where the steps show why there is none (eˣ = 0), that is what is said
+            val proven = try { EquationSteps.steps(equation, targetVar, ctx.copy()) != null } catch (e: RuntimeException) { false }
+            // Otherwise it may hold on a whole stretch (|x| = x for x ≥ 0); if not, none was found, which is all that is known
+            if (!proven && !ctx.shouldStop) equation.solutionIntervals(targetVar, ctx.copy())?.let { pieces ->
+                return CalculationResult(
+                    input = input,
+                    result = displayWriter(ctx).write(intervalsExpression(targetVar, pieces)),
+                    expression = equation,
+                    numericValue = Double.NaN,
+                    issues = ctx.issues,
+                    answer = null,
+                    decimalPlaces = ctx.decimalPlaces
+                )
+            }
+            if (!ctx.shouldStop) ctx.stopWithError(if (proven) MathIssue.NO_REAL_SOLUTION else MathIssue.NO_SOLUTION_FOUND)
+            return failure(input, ctx, MathIssue.CANT_SOLVE_GENERIC, equation)
+        }
+        solving.issues.forEach { ctx.stopWithError(it) }
+        val solutions = found
             .map { if (it == targetVar) it else it.toPreferredUnits(ctx) }
             .toCollection(LinkedHashSet())
         if (ctx.shouldStop || solutions.isEmpty()) {
@@ -698,7 +876,10 @@ object MathEngine {
         }
 
         // sin(x) = 1/2 repeats: x = π/6 + 2πk, … rather than the few solutions that were found
-        val periodic = EquationSteps.periodicSolutions(equation, targetVar, ctx)
+        // x·sin(x) = 0 as well, factor by factor: x = πk
+        val periodic = (EquationSteps.periodicSolutions(equation, targetVar, ctx) ?: EquationSteps.productPeriodicSolutions(equation, targetVar, ctx)
+            ?: EquationSteps.innerPowerPeriodicSolutions(equation, targetVar, ctx))
+            ?.let { EquationSteps.withoutContainedFamilies(it, equation, targetVar) }
         if (periodic != null) {
             val display = displayWriter(ctx)
             return CalculationResult(
@@ -721,6 +902,8 @@ object MathEngine {
             if (idx > 0) combinedResult.insert(combinedResult.length, TextNode(", "))
             combinedResult.insertAll(combinedResult.length, display.write(Equals(targetVar, sol)).nodes)
         }
+        // tan(x) = x: the ones listed are not all, there are more further out
+        if (solving.moreSolutions) combinedResult.insert(combinedResult.length, TextNode(", …"))
         return CalculationResult(
             input = input,
             result = combinedResult,
@@ -803,7 +986,154 @@ object MathEngine {
         )
     }
 
+    /**
+     * An equation with conditions, e.g. x² = 4 and x > 0 on the next line: the solutions of the equation that meet them, x = 2.
+     * Where the conditions keep x in a finite range, a periodic equation is also searched there (sin(x) = 0 for 0 < x < 10 is
+     * π, 2π, 3π, not only the solutions near 0). An identity (x = x) leaves what the conditions say. One variable.
+     */
+    private fun evaluateWithConditions(input: MathString, system: EquationSystem, ctx: MathContext): CalculationResult {
+        val equations = system.lines.filterIsInstance<Equals>()
+        val conditions = system.lines.filterIsInstance<Inequality>()
+        if (equations.size + conditions.size != system.lines.size) return failure(input, ctx, MathIssue.SYNTAX_ERROR, system)
+        if (system.containsExpressionMatching { it is MatrixExpression }) return failure(input, ctx, MathIssue.MATRIX_UNSUPPORTED, system)
+        if (system.variables().size > 1) return evaluateSystemWithConditions(input, system, equations, conditions, ctx)
+        val variable = system.variables().singleOrNull() ?: return failure(input, ctx, MathIssue.CANT_SOLVE_GENERIC, system)
+        val real = ctx.copy().also { it.complexNumbers = false }
+        val range = InequalitySystemSolver.solve(conditions, real)
+        if (ctx.shouldStop) return failure(input, ctx, expression = system)
+        if (range != null && range.pieces.isEmpty()) return failure(input, ctx, MathIssue.NO_REAL_SOLUTION, system)
+        // The first equation gives the candidates, the others and the conditions keep some of them
+        val scratch = ctx.copy()
+        val found = equations.first().solveForVariable(variable, scratch)
+        if (ctx.shouldStop) return failure(input, ctx, expression = system)
+        if (found == setOf(variable) && equations.size == 1) {
+            // True for every x: what the conditions say
+            return evaluateSystem(input, EquationSystem(conditions), ctx)
+        }
+        // 1.609… is ln(5) where the steps of the equation say so
+        val exactFound = EquationSteps.exactSolutions(equations.first(), variable, found.filter { it != variable }, ctx.copy()) ?: found.filter { it != variable }
+        val candidates = exactFound.toMutableList()
+        // A periodic equation in a finite range: all its solutions there, by numbers
+        val bounded = range?.pieces?.takeIf { pieces -> pieces.all { it.lower != null && it.upper != null } }
+        if (bounded != null && equations.first().containsExpressionMatching { it is TrigonometricFunction }) {
+            val difference = Additions(equations.first().left, equations.first().right.negate()).canonicalize(real)
+            val function = com.vortessence.arithmeticus.core.math.solvers.Function1D(difference, variable, ctx.angleUnit)
+            for (piece in bounded) {
+                val from = piece.lower!!.evaluateNumerically()
+                val to = piece.upper!!.evaluateNumerically()
+                val steps = ((to - from) * 200).toInt().coerceIn(2_000, 200_000)
+                for (root in NumericRootFinder.findRoots(function, from, to, steps, ctx)) {
+                    if (candidates.none { abs(it.evaluateNumerically() - root) <= 1e-7 * maxOf(1.0, abs(root)) }) candidates.add(exactIfSimple(root, function))
+                }
+            }
+        }
+        fun holds(relation: Expression, value: Expression): Boolean {
+            val inserted = relation.substituteVariables(mapOf(variable to value))
+            val check = real.copy()
+            return when (inserted) {
+                is Inequality -> inserted.truthValue(check) == true
+                is Equals -> inserted.truthValue(check) == true
+                else -> false
+            }
+        }
+        // Decimals that are a simple multiple of π (or a simple fraction) written as that: π, 2π, π/6
+        if (equations.first().containsExpressionMatching { it is TrigonometricFunction }) {
+            val difference = Additions(equations.first().left, equations.first().right.negate()).canonicalize(real)
+            val function = com.vortessence.arithmeticus.core.math.solvers.Function1D(difference, variable, ctx.angleUnit)
+            for (k in candidates.indices) {
+                val candidate = candidates[k]
+                if (candidate is Value && candidate.rational == null) candidates[k] = exactIfSimple(candidate.real.value, function)
+            }
+        }
+        val solutions = candidates.filter { candidate ->
+            !candidate.containsImaginaryUnit() && conditions.all { holds(it, candidate) } && equations.drop(1).all { holds(it, candidate) }
+        }.sortedBy { it.evaluateNumerically() }
+        if (ctx.shouldStop) return failure(input, ctx, expression = system)
+        if (solutions.isEmpty()) {
+            val issue = if (scratch.issues.isNotEmpty() && scratch.issues.first() != MathIssue.NO_REAL_SOLUTION && scratch.issues.first() != MathIssue.CONTRADICTION) {
+                scratch.issues.first()
+            } else MathIssue.NO_REAL_SOLUTION
+            return failure(input, ctx, issue, system)
+        }
+        val display = displayWriter(ctx)
+        val result = MathString()
+        for ((i, solution) in solutions.withIndex()) {
+            if (i > 0) result.insert(result.length, TextNode(", "))
+            result.insertAll(result.length, display.write(Equals(variable, solution)).nodes)
+        }
+        return CalculationResult(
+            input = input,
+            result = result,
+            expression = system,
+            numericValue = solutions.first().evaluateNumerically(),
+            issues = ctx.issues,
+            answer = answerWriter(ctx).write(solutions.first()),
+            decimalPlaces = ctx.decimalPlaces
+        )
+    }
+
+    /**
+     * Equations in several variables with conditions, e.g. x + y = 3, x − y = 1 and x > 0: the solutions of the equations that
+     * meet every condition, one per line. The equations must settle every variable (x + y = 3 with x > 0 alone does not).
+     */
+    private fun evaluateSystemWithConditions(
+        input: MathString, system: EquationSystem, equations: List<Equals>, conditions: List<Inequality>, ctx: MathContext
+    ): CalculationResult {
+        val variables = orderedVariables(system.variables())
+        // A letter only in a condition is not settled by the equations
+        if (equations.flatMap { it.variables() }.toSet() != variables.toSet()) return failure(input, ctx, MathIssue.CANT_SOLVE_GENERIC, system)
+        val probe = ctx.copy()
+        val linear = LinearSystemSolver.solve(equations, variables, probe)
+        val solutions: List<Map<Variable, Expression>> = when {
+            linear != null && !probe.shouldStop -> if (variables.all { it in linear }) listOf(linear) else return failure(input, ctx, MathIssue.CANT_SOLVE_GENERIC, system)
+            probe.issues.contains(MathIssue.CANT_SOLVE_GENERIC) -> NonlinearSystemSolver.solve(equations, variables, ctx)
+                ?: return failure(input, ctx, if (ctx.shouldStop) MathIssue.TIMEOUT else MathIssue.CANT_SOLVE_GENERIC, system)
+            else -> return failure(input, ctx, probe.issues.firstOrNull() ?: MathIssue.CANT_SOLVE_GENERIC, system)
+        }
+        if (ctx.shouldStop) return failure(input, ctx, expression = system)
+        val real = ctx.copy().also { it.complexNumbers = false }
+        val kept = solutions.filter { solution ->
+            solution.values.none { it.containsImaginaryUnit() } && conditions.all { condition ->
+                (condition.substituteVariables(solution) as? Inequality)?.truthValue(real.copy()) == true
+            }
+        }
+        if (kept.isEmpty()) return failure(input, ctx, MathIssue.NO_REAL_SOLUTION, system)
+        val display = displayWriter(ctx)
+        val result = MathString()
+        for ((i, solution) in kept.withIndex()) {
+            if (i > 0) result.insert(result.length, LineBreakNode)
+            for ((j, v) in variables.withIndex()) {
+                if (j > 0) result.insert(result.length, TextNode(", "))
+                result.insertAll(result.length, display.write(Equals(v, solution.getValue(v).toPreferredUnits(ctx))).nodes)
+            }
+        }
+        return CalculationResult(
+            input = input,
+            result = result,
+            expression = system,
+            numericValue = Double.NaN,
+            issues = ctx.issues,
+            answer = if (kept.size == 1) answerWriter(ctx).write(kept.single().getValue(variables[0])) else null,
+            decimalPlaces = ctx.decimalPlaces
+        )
+    }
+
+    /** A root found by numbers as a simple multiple of π or a simple fraction where it is one (π, 2π, 3/2), else the decimal. */
+    private fun exactIfSimple(root: Double, function: com.vortessence.arithmeticus.core.math.solvers.Function1D): Expression {
+        val fit = { x: Double -> abs(x - root) <= 1e-9 * maxOf(1.0, abs(root)) && abs(function.evaluateAt(x)) <= abs(function.evaluateAt(root)) + 1e-12 }
+        Rational.approximateFromDouble(root / Math.PI, 24L)?.let { r -> if (!r.isZero && fit(r.toDouble() * Math.PI)) return Multiplications.of(Value(r), Constant.PI) }
+        Rational.approximateFromDouble(root, 100L)?.let { r -> if (fit(r.toDouble())) return Value(r) }
+        return Value(root)
+    }
+
     private fun evaluateSystem(input: MathString, system: EquationSystem, ctx: MathContext): CalculationResult {
+        // x² = 4 with x > 0: the solutions of the equation that meet the conditions
+        if (system.lines.any { it is Equals } && system.lines.any { it is Inequality }) return evaluateWithConditions(input, system, ctx)
+        // 1 < 2 < 3: true or false
+        if (system.lines.isNotEmpty() && system.lines.all { it is Inequality } && system.variables().isEmpty()) {
+            val truths = system.lines.map { (it as Inequality).truthValue(ctx) ?: return failure(input, ctx, MathIssue.UNDEFINED, system) }
+            return truthResult(input, system, truths.all { it }, ctx)
+        }
         // x > 1 and x < 5: the solutions of the inequalities have to hold together
         if (system.lines.isNotEmpty() && system.lines.all { it is Inequality }) {
             if (system.containsExpressionMatching { it is MatrixExpression }) return failure(input, ctx, MathIssue.MATRIX_UNSUPPORTED, system)
@@ -894,6 +1224,17 @@ object MathEngine {
         )
 
     /** Solve for x, y, z first (in that order), otherwise for the alphabetically first variable. */
+    /**
+     * The steps of an equation in [v]. Where the general rules only approximate solutions one by one (ln(x)·sin(x) = 0), the steps of
+     * the family the calculator writes come first.
+     */
+    private fun equationSteps(equation: Equals, v: Variable, ctx: MathContext): com.vortessence.arithmeticus.core.math.steps.ExpressionSolution? {
+        val general = EquationSteps.steps(equation, v, ctx)
+        if (general != null && general.steps.none { it.rule == com.vortessence.arithmeticus.core.math.steps.StepRule.NEWTON_METHOD }) return general
+        val family = EquationSteps.productSteps(equation, v, ctx) ?: EquationSteps.innerPowerSteps(equation, v, ctx)
+        return if (general != null) family ?: general else AbsoluteSplitSteps.steps(equation, v, ctx) ?: family
+    }
+
     private fun pickVariable(vars: Set<Variable>): Variable {
         return PREFERRED_VARIABLES.firstOrNull { it in vars } ?: vars.minBy { it.identifier }
     }
@@ -937,7 +1278,7 @@ object MathEngine {
             }
         } catch (e: ArithmeticException) {
             emptyList()
-        } catch (e: IllegalArgumentException) {
+        } catch (e: RuntimeException) {
             emptyList()
         }
     }
@@ -959,7 +1300,7 @@ object MathEngine {
             }
         } catch (e: ArithmeticException) {
             null
-        } catch (e: IllegalArgumentException) {
+        } catch (e: RuntimeException) {
             null
         }
     }
@@ -991,8 +1332,8 @@ object MathEngine {
                 val result = calculate(line, lineContext)
                 val value = result.answer
                 if (result.isSuccess && result.definedVariable != null && value != null) {
-                    definitions[definition.name] = value
-                    entries.add(PlotEntry(line, null, definition.name))
+                    FunctionDefinitions.define(definitions, definition.key, value)
+                    entries.add(PlotEntry(line, null, definition.key))
                 } else {
                     entries.add(PlotEntry(line, null))
                 }
@@ -1003,7 +1344,7 @@ object MathEngine {
                 MathContext.withContext(lineContext) { vectorLineSides(line, lineContext) }
             } catch (e: ArithmeticException) {
                 null
-            } catch (e: IllegalArgumentException) {
+            } catch (e: RuntimeException) {
                 null
             } catch (e: StackOverflowError) {
                 null
@@ -1021,7 +1362,7 @@ object MathEngine {
                 }
             } catch (e: ArithmeticException) {
                 null
-            } catch (e: IllegalArgumentException) {
+            } catch (e: RuntimeException) {
                 null
             } catch (e: StackOverflowError) {
                 null
@@ -1072,7 +1413,7 @@ object MathEngine {
                     CurveIntersections.find(a, b, minX, maxX, minY, maxY, context, contours = contours).forEach { result.add(PlotIntersection(it.x, it.y, i, j)) }
                 } catch (e: ArithmeticException) {
                     // A pair that cannot be worked out has no crossings; the others are still looked at
-                } catch (e: IllegalArgumentException) {
+                } catch (e: RuntimeException) {
                 }
             }
         }
@@ -1094,7 +1435,7 @@ object MathEngine {
             }
         } catch (e: ArithmeticException) {
             null
-        } catch (e: IllegalArgumentException) {
+        } catch (e: RuntimeException) {
             null
         }
     }

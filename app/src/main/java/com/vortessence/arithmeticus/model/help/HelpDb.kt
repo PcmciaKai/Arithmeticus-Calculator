@@ -145,7 +145,12 @@ object HelpDb {
                 p(R.string.help_variables_3),
                 ex("a := 5", "a = 5", notation = "a:=5"),
                 ex("a² + 1", "26"),
-                p(R.string.help_variables_4)
+                p(R.string.help_variables_4),
+                h(R.string.help_variables_functions),
+                p(R.string.help_variables_5),
+                ex("f(x) := x² + 1", "f(x) = x² + 1", notation = "f(x):=x^2+1"),
+                ex("f(3)", "10"),
+                p(R.string.help_variables_6)
             )
         ),
         HelpTopic(
@@ -168,7 +173,9 @@ object HelpDb {
                 ex("−2x + y = −3\n3x + 2y = 8", "x = 2, y = 1", notation = "-2x+y=-3|3x+2y=8"),
                 h(R.string.help_equations_inequalities),
                 p(R.string.help_equations_3),
-                ex("2x − 1 > 5", "x > 3", notation = "2x-1>5")
+                ex("2x − 1 > 5", "x > 3", notation = "2x-1>5"),
+                ex("1 < 2x − 1 < 7", "1 < x < 4", notation = "1<2x-1<7"),
+                ex("x² = 4\nx > 0", "x = 2", R.string.help_equations_condition_note, "x^2=4|x>0")
             )
         ),
         HelpTopic(

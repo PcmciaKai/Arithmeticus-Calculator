@@ -3,6 +3,8 @@ package com.vortessence.arithmeticus.core.math.type
 import com.vortessence.arithmeticus.core.math.CalculationResult
 import com.vortessence.arithmeticus.core.math.expressions.Equals
 import com.vortessence.arithmeticus.core.math.expressions.Value
+import com.vortessence.arithmeticus.core.math.numbers.BigInt
+import com.vortessence.arithmeticus.core.math.numbers.Rational
 import java.math.BigInteger
 import kotlin.math.abs
 
@@ -43,7 +45,7 @@ object ResultFormatter {
             return listOfNotNull(ResultForm.EXACT, ResultForm.DECIMAL, ResultForm.SCIENTIFIC, ResultForm.POLAR.takeIf { result.polar != null })
         }
         // Equations (possibly with several solutions) and true/false are only shown exactly
-        val isSingleValue = result.expression !is Equals && result.numericValue.isFinite()
+        val isSingleValue = result.expression !is Equals && (result.numericValue.isFinite() || outOfDoubleRange(result) != null)
         if (!isSingleValue) return listOf(ResultForm.EXACT)
         return buildList {
             add(ResultForm.EXACT)
@@ -62,13 +64,18 @@ object ResultFormatter {
         val effective = if (form in availableForms(result)) form else ResultForm.EXACT
         if (effective == ResultForm.POLAR) return result.polar!!
         if (effective != ResultForm.EXACT && isComplex(result)) {
+            // With its unit, like the other forms (5i m was 5i)
             return writeComplex(MathWriter(result.decimalPlaces), result.numericValue, result.numericImaginary, effective == ResultForm.SCIENTIFIC)
+                .also { written ->
+                    // Only a unit as such: of a sum with units in its terms ((3 + 4i) m) the "unit" is the whole sum
+                    result.unit?.takeIf { unit -> unit.nodes.none { it is NumberNode || it is ConstantNode } }?.let { written.insertAll(written.length, it.copy().nodes) }
+                }
         }
         effective.numberBase?.let { base -> wholeNumber(result)?.let { return writeInBase(it, base) } }
         val formatted = when (effective) {
             ResultForm.EXACT -> return result.result
-            ResultForm.DECIMAL -> MathWriter(result.decimalPlaces).writeNumber(result.numericValue)
-            ResultForm.SCIENTIFIC -> MathWriter(result.decimalPlaces).writeNumber(result.numericValue, scientific = true)
+            ResultForm.DECIMAL, ResultForm.SCIENTIFIC -> outOfDoubleRange(result)?.let { MathWriter(result.decimalPlaces).writeExactNumber(it) }
+                ?: MathWriter(result.decimalPlaces).writeNumber(result.numericValue, scientific = effective == ResultForm.SCIENTIFIC)
             ResultForm.POLAR, ResultForm.HEX, ResultForm.OCT, ResultForm.BIN -> error("handled above")
             ResultForm.MIXED -> {
                 // The same node as typed with the mixed number key, so it reads back as one value
@@ -83,6 +90,19 @@ object ResultFormatter {
         }
         result.unit?.let { formatted.insertAll(formatted.length, it.copy().nodes) }
         return formatted
+    }
+
+    /** The exact value of [result] where its double is 0 or infinite but the number is not (10⁻⁶⁰⁰), else null. */
+    private fun outOfDoubleRange(result: CalculationResult): Rational? {
+        // e¹⁰⁰⁰: no fraction, but its digits were worked out
+        result.decimalValue?.let { d ->
+            val unscaled = BigInt(d.unscaledValue())
+            val scale = d.scale()
+            return if (scale >= 0) Rational.of(unscaled, BigInt(BigInteger.TEN.pow(scale)))
+            else Rational.of(BigInt(d.unscaledValue().multiply(BigInteger.TEN.pow(-scale))))
+        }
+        val rational = (result.expression as? Value)?.rational ?: return null
+        return rational.takeIf { !it.isZero && (result.numericValue == 0.0 || result.numericValue.isInfinite()) }
     }
 
     /** The whole number [result] is (without a unit), or null: only those can be written in another base. */

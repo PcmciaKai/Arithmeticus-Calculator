@@ -44,12 +44,16 @@ class MathWriter(
     private val degrees: Boolean = false
 ) {
 
-    /** The operand of [f] in degrees: πx/180 is x. Unchanged where it is already in degrees or has no letters. */
+    /**
+     * The operand of [f] in degrees: πx/180 is x, π/10 is 18. Always, also where that brings in π (sin(1 rad) is sin(180/π)): the
+     * radians as they are would read as degrees (sin(1) is sin 1°), also when the result is used again as Ans. Unchanged where it is
+     * already in degrees.
+     */
     private fun inDegrees(f: TrigonometricFunction): Expression {
-        if (f.type.isInverse || f.angleUnit == com.vortessence.arithmeticus.core.math.context.AngleUnit.DEGREES || f.operand.variables().isEmpty()) return f.operand
+        if (f.type.isInverse || f.angleUnit == com.vortessence.arithmeticus.core.math.context.AngleUnit.DEGREES) return f.operand
         val scratch = com.vortessence.arithmeticus.core.math.context.MathContext()
         val scaled = Multiplications.of(f.operand, Value(180L), Power(Constant.PI, Value.MINUS_ONE)).canonicalize(scratch)
-        return if (scratch.shouldStop || scaled.containsExpressionMatching { it == Constant.PI }) f.operand else scaled
+        return if (scratch.shouldStop) f.operand else scaled
     }
 
     /** Writes [expr]; a bare unit is written as a quantity of 1, e.g. "1 psi". */
@@ -324,6 +328,26 @@ class MathWriter(
      */
     fun writeNumber(d: Double, scientific: Boolean = false): MathString =
         MathString().also { writeReal(d, it, scientific) }
+
+    /**
+     * The exact number [r] as a decimal ×10ⁿ, worked out from the fraction itself: for numbers that a double cannot hold
+     * (10⁻⁶⁰⁰ is 0.0 as a double, which [writeNumber] would show as 0).
+     */
+    fun writeExactNumber(r: Rational): MathString {
+        val result = MathString()
+        if (r.isZero) return result.also { it.append(NumberNode("0")) }
+        if (r.isNegative) result.append(OperatorNode(MathOp.MINUS))
+        val places = decimalPlaces
+        val quotient = BigDecimal(r.numerator.value.abs()).divide(BigDecimal(r.denominator.value), DecimalContext(if (places != null) places + 1 else SIGNIFICANT_DIGITS))
+        val exponent = quotient.precision() - quotient.scale() - 1
+        val mantissa = quotient.movePointLeft(exponent).let { if (places != null) it.setScale(places, RoundingMode.HALF_EVEN) else it.stripTrailingZeros() }
+        result.append(NumberNode(mantissa.toPlainString(), approximate = true))
+        val exponentString = MathString()
+        if (exponent < 0) exponentString.append(OperatorNode(MathOp.MINUS))
+        exponentString.append(NumberNode(abs(exponent).toString()))
+        result.append(SciExponentNode(exponentString))
+        return result
+    }
 
     private fun writeReal(d: Double, result: MathString, scientific: Boolean = false) {
         when {

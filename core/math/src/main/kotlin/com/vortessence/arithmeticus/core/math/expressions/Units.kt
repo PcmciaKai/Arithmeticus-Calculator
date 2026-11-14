@@ -200,6 +200,8 @@ internal fun Expression.withUnitsAsSiFactors(): Expression =
  */
 fun Expression.toPreferredUnits(context: MathContext): Expression {
     if (!containsUnit()) return this
+    // As points on their scale, temperatures stay in the scale they are on: 20 °C, not 293.15 K
+    if (context.physicalTemperatures && shiftedTemperatureUnit() != null) return this
     if (this is MatrixExpression) return MatrixExpression(rows, cols, elements.map { it.toPreferredUnits(context) })
     val dimension = dimensionOf(this)
     if (dimension == null) {
@@ -214,6 +216,35 @@ fun Expression.toPreferredUnits(context: MathContext): Expression {
 /** The absolute temperature unit (K, °C, °F, °R) of a temperature like 25 °C, else null. */
 internal fun Expression.absoluteTemperatureUnit(): UnitExpression? =
     (partWithUnit() as? UnitExpression)?.takeIf { it.offset != null }
+
+/** The unit of a temperature on a scale whose zero is not absolute zero (°C, °F), else null (also for K and °R). */
+internal fun Expression.shiftedTemperatureUnit(): UnitExpression? = absoluteTemperatureUnit()?.takeIf { it.offset?.isZero == false }
+
+/** The unit of a step on the scale of [unit]: Δ°F for °F, Δ°C for °C. */
+internal fun differenceUnitOf(unit: UnitExpression): UnitExpression =
+    if (unit.symbol == UnitRegistry.FAHRENHEIT.symbol) UnitRegistry.DELTA_FAHRENHEIT else UnitRegistry.DELTA_CELSIUS
+
+/**
+ * [e] with its temperatures in °C and °F taken as steps on their scale, as in J/°C or 100 J/(10 °C), where a temperature is no
+ * point on its scale but a difference. Only with [MathContext.physicalTemperatures].
+ */
+internal fun asTemperatureDifference(e: Expression): Expression =
+    e.transform { part -> if (part is UnitExpression && part.offset?.isZero == false) differenceUnitOf(part) else part }
+
+/**
+ * The sum in −(20 °C + 30 °C), a sum with a temperature on a shifted scale (°C, °F) times plain numbers that make −1; else null.
+ * Taken apart, its terms count with the others of a sum around it (see [combineTemperatureTerms]).
+ */
+internal fun negatedTemperatureSum(e: Expression, context: MathContext): Additions? {
+    if (e !is Multiplications) return null
+    val sum = e.operands.singleOrNull { it is Additions } as? Additions ?: return null
+    fun hasShifted(x: Expression): Boolean = if (x is Additions) x.operands.any { hasShifted(it) } else x.shiftedTemperatureUnit() != null
+    if (!hasShifted(sum)) return null
+    val others = e.operands.filter { it !== sum }
+    if (others.isEmpty() || others.any { it.containsUnit() || it.variables().isNotEmpty() }) return null
+    val factor = Multiplications(others).canonicalize(context.copy()) as? Value ?: return null
+    return sum.takeIf { factor.rational == Rational.MINUS_ONE }
+}
 
 /**
  * Adds terms of which at least one is an absolute temperature, following the usual physics
@@ -250,6 +281,22 @@ internal fun combineTemperatureTerms(terms: List<Expression>, context: MathConte
     }
     if (context.shouldStop) return null
     val magnitude = Additions(kelvinMagnitudes).canonicalize(context)
+    if (context.physicalTemperatures && onShiftedScale.isNotEmpty()) {
+        when (netCount) {
+            // A temperature and steps (or temperatures that weigh 1 in all): a temperature, on the scale of the first one
+            1 -> {
+                val scale = onShiftedScale.first { !it.coefficient().isNegative }.shiftedTemperatureUnit() ?: return null
+                return Multiplications.of(magnitude, UnitRegistry.K).convertToUnit(scale, includeUnitInResult = true, context = context)
+            }
+            // 80 °C − 20 °C: a difference, as always
+            0 -> {}
+            // 20 °C + 30 °C: no point on the scale
+            else -> {
+                context.stopWithError(MathIssue.TEMPERATURE_ARITHMETIC)
+                return null
+            }
+        }
+    }
     val unit = if (netCount == 0) UnitRegistry.DELTA_CELSIUS else UnitRegistry.K
     return Multiplications.of(magnitude, unit).canonicalize(context)
 }
@@ -399,18 +446,26 @@ object UnitRegistry {
 
     val categories: List<UnitCategory> = listOf(
         UnitCategory("Length", listOf(
-            metric("Metre", "m", "metre", Dimension.LENGTH, "p n µ m c d _ k"),
+            metric("Metre", "m", "metre", Dimension.LENGTH, "p n µ m c d _ k M G"),
             family("Imperial / US",
                 unit("in", "inch", Dimension.LENGTH, INCH),
                 unit("ft", "foot", Dimension.LENGTH, FOOT),
                 unit("yd", "yard", Dimension.LENGTH, "0.9144"),
                 unit("mi", "mile", Dimension.LENGTH, "1609.344")),
             family("Nautical", unit("nmi", "nautical mile", Dimension.LENGTH, "1852")),
-            family("Atomic & astronomical",
-                unit("Å", "ångström", Dimension.LENGTH, "1e-10"),
+            family("Atomic", unit("Å", "ångström", Dimension.LENGTH, "1e-10")),
+            // The radii are the nominal values of the IAU (2015 B3), the light distances follow from c. Jupiter is RJup and MJup as
+            // in papers on exoplanets: the sign ♃ looks like a letter in many fonts, and MJ is a megajoule
+            family("Astronomical",
+                unit("R⊕", "Earth radius", Dimension.LENGTH, "6378100"),
+                unit("RJup", "Jupiter radius", Dimension.LENGTH, "71492000"),
+                unit("R☉", "solar radius", Dimension.LENGTH, "695700000"),
+                unit("ls", "light-second", Dimension.LENGTH, "299792458"),
+                unit("lmin", "light-minute", Dimension.LENGTH, "17987547480"),
                 unit("au", "astronomical unit", Dimension.LENGTH, "149597870700"),
-                unit("ly", "light-year", Dimension.LENGTH, "9460730472580800"),
-                unit("pc", "parsec", Dimension.LENGTH, "30856775814913673")),
+                unit("ly", "light-year", Dimension.LENGTH, "9460730472580800")),
+            // 648000/π au, to the metre
+            metric("Parsec", "pc", "parsec", Dimension.LENGTH, "_ k M G", baseFactor = exact("30856775814913673")),
             // Spectroscopy: a length converts to a wavenumber and back (500 nm → cm⁻¹ = 20000 cm⁻¹)
             family("Wavenumber",
                 unit("cm⁻¹", "reciprocal centimetre", Dimension.WAVENUMBER, "100"),
@@ -457,7 +512,12 @@ object UnitRegistry {
                 unit("st", "stone", Dimension.MASS, "6.35029318"),
                 unit("ton", "US short ton", Dimension.MASS, "907.18474"),
                 unit("long ton", "imperial long ton", Dimension.MASS, "1016.0469088")),
-            family("Atomic", unit("Da", "dalton", Dimension.MASS, "1.66053906660e-27"))
+            family("Atomic", unit("Da", "dalton", Dimension.MASS, "1.66053906660e-27")),
+            // The nominal GM of the IAU (2015 B3) divided by G (CODATA 2018): G is known to five digits, the masses to six
+            family("Astronomical",
+                unit("M⊕", "Earth mass", Dimension.MASS, "5.97217e24"),
+                unit("MJup", "Jupiter mass", Dimension.MASS, "1.89812e27"),
+                unit("M☉", "solar mass", Dimension.MASS, "1.98841e30"))
         )),
         UnitCategory("Time", listOf(
             metric("Second", "s", "second", Dimension.TIME, "n µ m _"),
@@ -516,7 +576,9 @@ object UnitRegistry {
             metric("Watt", "W", "watt", Dimension.POWER, "m _ k M G"),
             family("Imperial / US",
                 unit("hp", "horsepower", Dimension.POWER, FOOT_POUND_FORCE * 550L),
-                unit("BTU/h", "BTU per hour", Dimension.POWER, exact("1055.05585262") / 3600L))
+                unit("BTU/h", "BTU per hour", Dimension.POWER, exact("1055.05585262") / 3600L)),
+            // The nominal value of the IAU (2015 B3)
+            family("Astronomical", unit("L☉", "solar luminosity", Dimension.POWER, "3.828e26"))
         )),
         UnitCategory("Temperature", listOf(
             family("Temperature",
@@ -626,6 +688,9 @@ object UnitRegistry {
     /** Exact, case-sensitive lookup (mm and Mm, t and T are different units). */
     fun findBySymbol(symbol: String): UnitExpression? = bySymbol[symbol]
 
+    /** The symbols of all units, longest first: for reading text, where km/h is to be found before km. */
+    val symbolsLongestFirst: List<String> by lazy { bySymbol.keys.sortedByDescending { it.length } }
+
     private fun get(symbol: String) = bySymbol.getValue(symbol)
 
     val RAD = get("rad")
@@ -639,6 +704,7 @@ object UnitRegistry {
     val CELSIUS = get("°C")
     val FAHRENHEIT = get("°F")
     val DELTA_CELSIUS = get("Δ°C")
+    val DELTA_FAHRENHEIT = get("Δ°F")
 
     // --- Output units per unit system -------------------------------------------------------
 

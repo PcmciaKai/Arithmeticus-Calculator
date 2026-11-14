@@ -5,6 +5,7 @@ import com.vortessence.arithmeticus.core.math.context.CalculationMode
 import com.vortessence.arithmeticus.core.math.context.MathContext
 import com.vortessence.arithmeticus.core.math.context.MathIssue
 import com.vortessence.arithmeticus.core.math.numbers.Rational
+import com.vortessence.arithmeticus.core.math.numbers.BIG_TWO
 import com.vortessence.arithmeticus.core.math.steps.Alternatives
 import com.vortessence.arithmeticus.core.math.steps.BothSides
 import com.vortessence.arithmeticus.core.math.steps.TextExpression
@@ -320,7 +321,7 @@ internal object DifferentialEquations {
                 if (n == null || n.isZero) null
                 else {
                     val root = Power(rhs, Value(Rational.ONE / n))
-                    val even = !n.isFractional && n.numerator.value.mod(java.math.BigInteger.TWO).signum() == 0
+                    val even = !n.isFractional && n.numerator.value.mod(BIG_TWO).signum() == 0
                     val roots = if (even) listOf(root, root.negate()) else listOf(root)
                     val inverted = roots.map { invert(phi.base, y, it) }
                     if (inverted.any { it == null }) null else inverted.flatMap { it!! }
@@ -379,7 +380,7 @@ internal object DifferentialEquations {
                 val n = (phi.exponent as? Value)?.rational
                 if (n == null || n.isZero) return null
                 val root = canonical(Power(rhs, Value(Rational.ONE / n)), context) ?: return null
-                val even = !n.isFractional && n.numerator.value.mod(java.math.BigInteger.TWO).signum() == 0
+                val even = !n.isFractional && n.numerator.value.mod(BIG_TWO).signum() == 0
                 if (even) {
                     // u = √c or u = −√c: each solved on, without stages
                     val roots = listOf(root, canonical(root.negate(), context) ?: return null)

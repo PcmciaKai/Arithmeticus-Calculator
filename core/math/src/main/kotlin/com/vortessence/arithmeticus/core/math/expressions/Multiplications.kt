@@ -1,6 +1,7 @@
 package com.vortessence.arithmeticus.core.math.expressions
 
 import com.vortessence.arithmeticus.core.math.context.MathContext
+import com.vortessence.arithmeticus.core.math.context.MathIssue
 import com.vortessence.arithmeticus.core.math.numbers.BigInt
 import com.vortessence.arithmeticus.core.math.numbers.Rational
 
@@ -42,6 +43,8 @@ class Multiplications(val operands: List<Expression>) : Expression() {
         get() = operands.count { it.isNegative } % 2 != 0
 
     override fun canonicalize(context: MathContext): Expression {
+        // (20 °C + 30 °C)/2: the sum is no temperature on its own, but with the weights ½ + ½ it is one
+        if (context.physicalTemperatures) weightedTemperatures(context)?.let { return it }
         val canonicalOperands = operands.map { op ->
             op.canonicalize(context).also { if (context.shouldStop) return this }
         }
@@ -63,6 +66,11 @@ class Multiplications(val operands: List<Expression>) : Expression() {
             }
         }
         if (hasZeroFactor) {
+            // 0·∞ has no value; nor has ∞/∞, where 1/∞ has become 0
+            if (canonicalOperands.any { it is Value && it.real.isInfinite }) {
+                context.stopWithError(MathIssue.UNDEFINED)
+                return this
+            }
             // 0 * anything = 0, but keep units: "0 °C" is a meaningful quantity
             val unitFactors = flattened.filter { it is UnitExpression || (it is Power && it.base is UnitExpression) }
             return if (unitFactors.isEmpty()) Value.ZERO else Multiplications(listOf(Value.ZERO) + unitFactors)
@@ -236,6 +244,39 @@ class Multiplications(val operands: List<Expression>) : Expression() {
      * temperature in kelvin, e.g. n·R·(25 °C) uses 298.15 K. The only exception is the
      * quantity itself, "25 × °C" (a number times the bare unit), which stays in °C.
      */
+    /**
+     * A number times a sum of temperatures on a shifted scale (°C, °F), with temperatures as points on their scale: where the
+     * weights (the number, with the sign of each temperature) add up to 1, a temperature, (20 °C + 30 °C)/2 = 25 °C, worked out
+     * in kelvin and written on the scale of the first one. Null for other products, and where the weights add up to anything
+     * else (then the sum on its own says what it is, or is an error).
+     */
+    private fun weightedTemperatures(context: MathContext): Expression? {
+        fun terms(e: Expression): List<Expression> = if (e is Additions) e.operands.flatMap { terms(it) } else listOf(e)
+        // 2·(20 °C + 30 °C)/4 is (2·(…))·¼: the factors of the product inside count too
+        fun factors(e: Expression): List<Expression> = if (e is Multiplications) e.operands.flatMap { factors(it) } else listOf(e)
+        val operands = factors(this)
+        val sum = operands.singleOrNull { it is Additions && terms(it).any { term -> term.shiftedTemperatureUnit() != null } } ?: return null
+        val others = operands.filter { it !== sum }
+        if (others.isEmpty() || others.any { it.containsUnit() || it.variables().isNotEmpty() }) return null
+        val scratch = context.copy()
+        val factor = (Multiplications(others).canonicalize(scratch) as? Value)?.rational ?: return null
+        val parts = terms(sum).map { it.canonicalize(scratch) }
+        if (scratch.shouldStop) return null
+        val shifted = parts.filter { it.shiftedTemperatureUnit() != null }
+        val count = shifted.sumOf { if (it.coefficient().isNegative) -1L else 1L }
+        if (factor * count != Rational.ONE) {
+            // −(20 °C + 30 °C − 40 °C): the sum is 10 °C, but minus a point on the scale is none (unlike −10 °C as typed)
+            if (factor == Rational.MINUS_ONE && count != 0L) context.stopWithError(MathIssue.TEMPERATURE_ARITHMETIC)
+            return null
+        }
+        // In kelvin, as temperatures are added up without the physical rules, then weighted
+        val inKelvin = context.copy().also { it.physicalTemperatures = false }
+        val kelvin = Multiplications.of(Value(factor), Additions(parts)).canonicalize(inKelvin)
+        if (inKelvin.shouldStop) return null
+        val scale = shifted.first { !it.coefficient().isNegative }.shiftedTemperatureUnit() ?: return null
+        return kelvin.convertToUnit(scale, includeUnitInResult = true, context = context)
+    }
+
     private fun absoluteTemperaturesInKelvin(ops: List<Expression>, context: MathContext): List<Expression>? {
         return ops.mapIndexed { index, op ->
             val unit = op.absoluteTemperatureUnit()
@@ -243,6 +284,19 @@ class Multiplications(val operands: List<Expression>) : Expression() {
                 ops.withIndex().none { (i, other) -> i != index && other.containsUnit() }
             if (unit == null || unit == UnitRegistry.K || isBareUnitOfQuantity) {
                 op
+            } else if (context.physicalTemperatures && op.shiftedTemperatureUnit() != null) {
+                val others = ops.filterIndexed { i, _ -> i != index }
+                when {
+                    // With other units it is a step on the scale: 20 °C·m, the °C of J/°C
+                    others.any { it.containsUnit() } -> asTemperatureDifference(op)
+                    // −(20 °C) is still a temperature
+                    others.all { it == Value.ONE || it == Value.MINUS_ONE } -> op
+                    // 20 °C × 2 is no point on the scale
+                    else -> {
+                        context.stopWithError(MathIssue.TEMPERATURE_ARITHMETIC)
+                        return null
+                    }
+                }
             } else {
                 op.convertToUnit(UnitRegistry.K, includeUnitInResult = true, context = context) ?: return null
             }

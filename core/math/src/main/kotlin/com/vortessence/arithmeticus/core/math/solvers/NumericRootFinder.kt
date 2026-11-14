@@ -46,7 +46,9 @@ object NumericRootFinder {
                 val touch = minimizeAbs(function, xBefore, x1)?.let { refineByDerivative(function, xBefore, x1, it) }
                 val scale = max(1.0, max(abs(yBefore), abs(y1)))
                 // At a touching root the slope is 0: the values on both sides are alike (not so for rounding noise)
-                if (touch != null && abs(function.evaluateAt(touch)) <= 1e-12 * scale && isSmoothAt(function, touch, 0.0, yBefore, y1)) addRoot(touch)
+                // and far smaller than next to it: eˣ − 10⁻¹⁰⁰ is 10⁻¹⁰⁰ wherever eˣ is too small to count, which is no root
+                if (touch != null && abs(function.evaluateAt(touch)) <= 1e-12 * scale && abs(function.evaluateAt(touch)) <= 1e-3 * min(abs(yBefore), abs(y1)) &&
+                    isSmoothAt(function, touch, 0.0, yBefore, y1)) addRoot(touch)
             }
             val yPrevious = yBefore
             xBefore = x0
@@ -60,7 +62,8 @@ object NumericRootFinder {
                 } else if (y0 * y1 < 0.0) {
                     val root = bisection(function, x0, x1)
                     // A true root makes |f| small; at a pole |f| grows instead of shrinking
-                    if (root != null && abs(function.evaluateAt(root)) <= 1e-6 * max(1.0, min(abs(y0), abs(y1))) &&
+                    // (small beside the larger of the two as well: 1/x² − 10¹⁰ is only exact to 10⁻⁶ at its root)
+                    if (root != null && abs(function.evaluateAt(root)).let { it <= 1e-6 * max(1.0, min(abs(y0), abs(y1))) || it <= 1e-9 * max(abs(y0), abs(y1)) } &&
                         crossesOnce(function, x0, x1, y0, y1) && isSmoothAt(function, root, (y1 - y0) / (x1 - x0), y0, y1)
                     ) {
                         addRoot(root)
@@ -75,6 +78,54 @@ object NumericRootFinder {
         }
         return roots
     }
+
+    /**
+     * The roots of f far from 0, where [findRoots] with its even steps does not get: x³ = 10⁶⁰ or ln(x) = 100. The samples are
+     * spread evenly over the magnitudes from 10³ to 10³⁰⁰ and from 10⁻³⁰⁰ to 10⁻³ (1/x = 10²⁰), on both sides of 0, and a sign
+     * change is narrowed down in the magnitude, so the root is as exact as a number of that size can be.
+     */
+    fun findRootsByMagnitude(function: Function1D, context: MathContext? = null): List<Double> {
+        val roots = mutableListOf<Double>()
+        for (sign in listOf(1.0, -1.0)) for ((from, to) in listOf(MAGNITUDE_START to MAGNITUDE_END, -MAGNITUDE_END to -MAGNITUDE_START)) {
+            fun x(t: Double) = sign * Math.pow(10.0, t)
+            // Not on the powers of ten themselves: a root there (x = 10²⁰) would be a sample that is 0, not a sign change
+            var t0 = from + 0.37 / MAGNITUDE_STEPS
+            var y0 = function.evaluateAt(x(t0))
+            var i = 0
+            while (t0 < to) {
+                if (++i % 100 == 0 && context?.shouldStop == true) return roots
+                val t1 = t0 + 1.0 / MAGNITUDE_STEPS
+                val y1 = function.evaluateAt(x(t1))
+                if (y0.isFinite() && y1.isFinite() && ((y0 < 0.0 && y1 > 0.0) || (y0 > 0.0 && y1 < 0.0))) {
+                    var a = t0
+                    var b = t1
+                    var defined = true
+                    repeat(70) {
+                        val mid = (a + b) / 2.0
+                        val yMid = function.evaluateAt(x(mid))
+                        if (!yMid.isFinite()) defined = false
+                        if ((yMid < 0.0) == (y0 < 0.0) && yMid != 0.0) a = mid else b = mid
+                    }
+                    val root = x((a + b) / 2.0)
+                    val low = minOf(x(t0), x(t1))
+                    val high = maxOf(x(t0), x(t1))
+                    val yLow = if (sign > 0) y0 else y1
+                    val yHigh = if (sign > 0) y1 else y0
+                    // As in findRoots: no pole, and no rounding noise that only looks like a change of sign
+                    if (defined && abs(function.evaluateAt(root)).let { it <= 1e-6 * max(1.0, min(abs(y0), abs(y1))) || it <= 1e-9 * max(abs(y0), abs(y1)) } &&
+                        crossesOnce(function, low, high, yLow, yHigh) && isSmoothAt(function, root, (yHigh - yLow) / (high - low), yLow, yHigh)
+                    ) roots.add(root)
+                }
+                t0 = t1
+                y0 = y1
+            }
+        }
+        return roots
+    }
+
+    private const val MAGNITUDE_START = 3.0
+    private const val MAGNITUDE_END = 300.0
+    private const val MAGNITUDE_STEPS = 8
 
     /**
      * Whether a sample [y] that is nearly 0 is a zero of the function and not just a value on the way to 0, or a stretch of 0

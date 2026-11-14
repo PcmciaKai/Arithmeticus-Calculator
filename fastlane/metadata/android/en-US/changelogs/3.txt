@@ -1,0 +1,10 @@
+- Your own functions: f(x) := x² + 1, then f(3) or a graph of f(x)
+- Value table under the graph
+- Logarithm to any base: log(8, 2)
+- Conditions on their own line: x² = 4 and x > 0
+- Trig equations give all solutions: sin(x) = 0 → x = πk
+- Exact results beyond 10³⁰⁸: ln(x) = 1000 → x = e¹⁰⁰⁰
+- More integrals, series and factorizations, with steps
+- Optional: °C and °F as points on their scale
+- Pasting formulas from other apps
+- Many fixes

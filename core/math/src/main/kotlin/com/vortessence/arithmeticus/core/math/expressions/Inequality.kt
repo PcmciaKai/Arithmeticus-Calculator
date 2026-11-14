@@ -68,6 +68,8 @@ class Inequality(
         val numeric = diff.evaluateNumerically()
         if (numeric.isNaN()) return null
         if (diff.isZero) return !relation.strict
+        // An exact difference decides by its sign, also where it is too small for a double (10⁻⁶⁰⁰ > 0)
+        (diff as? Value)?.rational?.let { exact -> return relation.holds(if (exact.isNegative) -1.0 else 1.0, 0.0) }
         val scale = maxOf(1.0, kotlin.math.abs(left.evaluateNumerically()), kotlin.math.abs(right.evaluateNumerically()))
         return relation.holds(numeric, 1e-12 * scale)
     }

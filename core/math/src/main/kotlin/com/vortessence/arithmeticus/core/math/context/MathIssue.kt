@@ -16,8 +16,12 @@ enum class MathIssue(private val text: Text) {
     UNDEFINED(Text.UNDEFINED),
     CONTRADICTION(Text.CONTRADICTION),
     NO_REAL_SOLUTION(Text.NO_REAL_SOLUTION),
+    /** The search by numbers found no solution; whether there is one is not known (unlike [NO_REAL_SOLUTION]). */
+    NO_SOLUTION_FOUND(Text.NO_SOLUTION_FOUND),
     CANT_SOLVE_GENERIC(Text.CANT_SOLVE_GENERIC),
     INVALID_UNIT(Text.INVALID_UNIT),
+    /** 20 °C + 30 °C or 20 °C × 2, with temperatures as points on their scale (see MathContext.physicalTemperatures). */
+    TEMPERATURE_ARITHMETIC(Text.TEMPERATURE_ARITHMETIC),
     COMPLEX_RESULT(Text.COMPLEX_RESULT),
     SYNTAX_ERROR(Text.SYNTAX_ERROR),
     UNKNOWN_FUNCTION(Text.UNKNOWN_FUNCTION),
@@ -36,6 +40,8 @@ enum class MathIssue(private val text: Text) {
     MATRIX_AND_SCALAR(Text.MATRIX_AND_SCALAR),
     NO_ANS(Text.NO_ANS),
     DIVERGES(Text.DIVERGES),
+    /** An infinite series whose value could not be found, and whether it converges is not known either (unlike [DIVERGES]). */
+    SERIES_UNDECIDED(Text.SERIES_UNDECIDED),
     INVALID_BOUNDS(Text.INVALID_BOUNDS),
     ARGUMENT_COUNT(Text.ARGUMENT_COUNT),
     WHOLE_NUMBERS_ONLY(Text.WHOLE_NUMBERS_ONLY),

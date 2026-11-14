@@ -91,7 +91,7 @@ internal class Integrator(private val context: MathContext) {
                     val rest = integrate(Multiplications.of(*factors.toTypedArray()), v, depth + 1) ?: return null
                     Multiplications(constants + rest)
                 } else {
-                    integralOverVariable(e, v) ?: expanded(e, v, depth) ?: bySubstitution(e, v, depth) ?: partialFractions(e, v, depth) ?: irreducibleQuadratic(e, v, depth) ?: dividedPolynomial(e, v, depth) ?: byParts(e, v, depth) ?: cyclicByParts(e, v)
+                    integralOverVariable(e, v) ?: powerTimesAbsolute(e, v) ?: expanded(e, v, depth) ?: bySubstitution(e, v, depth) ?: partialFractions(e, v, depth) ?: irreducibleQuadratic(e, v, depth) ?: dividedPolynomial(e, v, depth) ?: byParts(e, v, depth) ?: cyclicByParts(e, v)
                 }
             }
             else -> basic(e, v) ?: oddTrigonometricPower(e, v, depth) ?: expanded(e, v, depth) ?: bySubstitution(e, v, depth) ?: partialFractions(e, v, depth) ?: irreducibleQuadratic(e, v, depth) ?: dividedPolynomial(e, v, depth) ?: byParts(e, v, depth)
@@ -119,6 +119,12 @@ internal class Integrator(private val context: MathContext) {
                 if (!exponent.containsVariable(v)) {
                     squaredSineOrCosine(base, exponent, v)?.let { return it }
                     squaredHyperbolic(base, exponent, v)?.let { return it }
+                    // |u|ʳ = u·|u|ʳ/((r + 1)·a) for r ≠ −1: 1/√|x| is 2x/√|x|
+                    if (base is AbsoluteValue && exponent != Value.MINUS_ONE) {
+                        val a = linearSlope(base.operand, v) ?: return null
+                        val next = Additions(listOf(exponent, Value.ONE))
+                        return Multiplications(listOf(base.operand, f, inverse(Multiplications(listOf(next, a)))))
+                    }
                     val a = linearSlope(base, v) ?: return quadratic(base, exponent, v)
                     if (exponent == Value.MINUS_ONE) {
                         Multiplications(listOf(lnAbs(base), inverse(a)))
@@ -175,6 +181,12 @@ internal class Integrator(private val context: MathContext) {
                 val sign = if (f.type == SpecialType.ERF) Value.ONE else Value.MINUS_ONE
                 Multiplications(listOf(Additions(listOf(Multiplications(listOf(u, f)), Multiplications(listOf(sign, gauss)))), inverse(a)))
             }
+            is AbsoluteValue -> {
+                // ∫|u| = u·|u|/(2a): |u| = u·sgn(u), and sgn is constant on each side of 0
+                val u = f.operand
+                val a = linearSlope(u, v) ?: return null
+                Multiplications(listOf(u, f, inverse(Multiplications(listOf(Value.TWO, a)))))
+            }
             is Logarithm -> {
                 if (f.base.containsVariable(v)) return null
                 // ∫ log_b(u) = (u·ln u − u) / (a·ln b)
@@ -187,6 +199,19 @@ internal class Integrator(private val context: MathContext) {
             }
             else -> null
         }
+    }
+
+    /** ∫ vⁿ·|v| dv = vⁿ⁺¹·|v|/(n + 2) for a whole n ≥ 1: vⁿ·|v| is sgn(v)·vⁿ⁺¹. Null for other products. */
+    internal fun powerTimesAbsolute(e: Multiplications, v: Variable): Expression? {
+        if (e.operands.size != 2) return null
+        val absolute = e.operands.firstOrNull { it is AbsoluteValue && it.operand == v } ?: return null
+        val other = e.operands.first { it !== absolute }
+        val n = when {
+            other == v -> 1L
+            other is Power && other.base == v -> (other.exponent as? Value)?.rational?.takeIf { !it.isFractional && !it.isNegative }?.numerator?.value?.toLong() ?: return null
+            else -> return null
+        }
+        return Multiplications(listOf(Power(v, Value(n + 1)), absolute, Value(1L, n + 2)))
     }
 
     /** ∫ sin(a·v)/v dv = Si(a·v), ∫ cos(a·v)/v dv = Ci(a·v) and ∫ e^(a·v)/v dv = Ei(a·v). */
@@ -664,15 +689,38 @@ internal class Integrator(private val context: MathContext) {
         for ((index, g) in factors.withIndex()) {
             val rest = factors.filterIndexed { i, _ -> i != index }
             val p = Multiplications.of(*rest.toTypedArray())
-            if (!isPolynomial(p, v)) continue
+            // f/xⁿ (n ≥ 2): ∫ f·x⁻ⁿ = −f·x¹⁻ⁿ/(n − 1) + ∫ f′·x¹⁻ⁿ/(n − 1), where that is integrable: sin²(x)/x² is
+            // −sin²(x)/x + Si(2x), eˣ/x² is −eˣ/x + Ei(x)
+            val reciprocalPower = ((p as? Power)?.takeIf { it.base == v }?.exponent as? Value)?.rational
+                ?.takeIf { !it.isFractional && it.isNegative && it.numerator.value <= java.math.BigInteger.valueOf(-2) }
+            if (reciprocalPower != null && g.containsVariable(v) && !isPolynomial(g, v)) {
+                // sin²(u) = (1 − cos 2u)/2 and cos²(u) = (1 + cos 2u)/2 first: by parts, 2·sin·cos/x would be left, which is no sin(2x)/x
+                val trig = (g as? Power)?.takeIf { it.exponent == Value.TWO }?.base as? TrigonometricFunction
+                if (trig != null && (trig.type == TrigType.SIN || trig.type == TrigType.COS) && trig.angleUnit == AngleUnit.RADIANS) {
+                    val sign = if (trig.type == TrigType.SIN) Value.MINUS_ONE else Value.ONE
+                    val doubled = trig(TrigType.COS, Multiplications(listOf(Value.TWO, trig.operand)))
+                    val rewritten = Multiplications(listOf(Value.HALF, Additions(listOf(Value.ONE, Multiplications(listOf(sign, doubled))))))
+                    val expanded = canonical(expandProducts(Multiplications(listOf(p, rewritten)))) ?: continue
+                    return integrate(expanded, v, depth + 1) ?: continue
+                }
+                val n = -reciprocalPower.numerator.value.toLong()
+                val integratedP = Multiplications(listOf(Value(-1L, n - 1), Power(v, Value(1 - n))))
+                val dg = Differentiator.derivative(g, v) ?: continue
+                val remainder = integrate(canonical(Multiplications(listOf(integratedP, dg))) ?: continue, v, depth + 1) ?: continue
+                return Additions(listOf(Multiplications(listOf(integratedP, g)), Multiplications(listOf(Value.MINUS_ONE, remainder))))
+            }
+            // ln²x and √x·ln x, 1/√x·ln x: a power of a logarithm, with a power of x besides it
+            val logarithmic = g is Logarithm || isPowerOfLogarithm(g)
+            val polynomial = isPolynomial(p, v)
+            if (!polynomial && !(logarithmic && isPowerOfVariable(canonical(p) ?: continue, v))) continue
             val dp = canonical(Differentiator.derivative(p, v) ?: continue) ?: continue
-            val integratedG = if (isRepeatedlyIntegrable(g, v)) basic(g, v) else null
+            val integratedG = if (polynomial && isRepeatedlyIntegrable(g, v)) basic(g, v) else null
             if (integratedG != null && p.containsVariable(v)) {
                 // ∫ p·g = p·G − ∫ p'·G
                 val remainder = integrate(canonical(Multiplications(listOf(dp, integratedG))) ?: continue, v, depth + 1) ?: continue
                 return Additions(listOf(Multiplications(listOf(p, integratedG)), Multiplications(listOf(Value.MINUS_ONE, remainder))))
             }
-            if (g is Logarithm || (g is TrigonometricFunction && g.type.isInverse) || (g is HyperbolicFunction && g.type.isInverse)) {
+            if (logarithmic || (g is TrigonometricFunction && g.type.isInverse) || (g is HyperbolicFunction && g.type.isInverse)) {
                 // ∫ p·g = P·g − ∫ P·g'
                 val integratedP = canonical(integrate(p, v, depth + 1) ?: continue) ?: continue
                 val dg = Differentiator.derivative(g, v) ?: continue
@@ -681,6 +729,20 @@ internal class Integrator(private val context: MathContext) {
             }
         }
         return null
+    }
+
+    /** ln(u)ⁿ for a whole n from 2 to [MAX_LOGARITHM_POWER]: by parts it becomes ln(u)ⁿ⁻¹, down to ln(u). */
+    internal fun isPowerOfLogarithm(g: Expression): Boolean =
+        g is Power && g.base is Logarithm && (g.exponent as? Value)?.rational?.let { !it.isFractional && !it.isNegative && it.numerator.value.toInt() in 2..MAX_LOGARITHM_POWER } == true
+
+    /** c·xʳ with a number r other than −1 (whose integral would be a logarithm again): √x, 1/√x, x³. */
+    internal fun isPowerOfVariable(p: Expression, v: Variable): Boolean {
+        val factors = if (p is Multiplications) p.operands else listOf(p)
+        val withVariable = factors.filter { it.containsVariable(v) }
+        val single = withVariable.singleOrNull() ?: return withVariable.isEmpty()
+        if (single == v) return true
+        val exponent = (single as? Power)?.takeIf { it.base == v }?.exponent as? Value ?: return false
+        return exponent != Value.MINUS_ONE
     }
 
     /** eˣ, sin and cos of a linear argument stay of the same kind when integrated. */
@@ -719,6 +781,7 @@ internal class Integrator(private val context: MathContext) {
     companion object {
         private const val MAX_DEPTH = 12
         private const val MAX_POLYNOMIAL_DEGREE = 8
+        private const val MAX_LOGARITHM_POWER = 6
         private const val TOLERANCE = 1e-7
         private const val MIN_CHECKED_POINTS = 3
         // Some well outside of (−2, 2): 1/√(x² − 4) and the like are only defined there

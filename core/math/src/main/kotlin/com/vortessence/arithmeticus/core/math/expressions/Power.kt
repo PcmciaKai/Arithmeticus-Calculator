@@ -35,10 +35,23 @@ class Power(
         }
         if (cBase is MatrixExpression) return matrixPower(cBase, cExp, context) ?: this
 
+        // e^(2 s) and 2^(3 m) have no value (the unit was dropped); an exponent of units that cancel is a number
+        if (cExp.containsUnit() && dimensionOf(cExp)?.isNone != true) {
+            context.stopWithError(MathIssue.INVALID_UNIT)
+            return this
+        }
         if (cExp.isZero) return Value.ONE
         if (cExp == Value.ONE) return cBase
         // Powers of an absolute temperature use kelvin: 1/(25 °C) is 1/(298.15 K)
         val baseTemperatureUnit = cBase.absoluteTemperatureUnit()
+        // As points on their scale, °C and °F divide as a step (1/(10 °C) as in J/(10 °C)), and have no powers otherwise
+        if (context.physicalTemperatures && cBase.shiftedTemperatureUnit() != null) {
+            if (!cExp.isNegative) {
+                context.stopWithError(MathIssue.TEMPERATURE_ARITHMETIC)
+                return this
+            }
+            return Power(asTemperatureDifference(cBase), cExp).canonicalize(context)
+        }
         if (baseTemperatureUnit != null && baseTemperatureUnit != UnitRegistry.K) {
             val inKelvin = cBase.convertToUnit(UnitRegistry.K, includeUnitInResult = true, context = context) ?: return this
             return Power(inKelvin, cExp).canonicalize(context)
@@ -52,7 +65,37 @@ class Power(
         if (context.complexNumbers) {
             val complex = complexPower(cBase, cExp, context)
             if (complex != null || context.shouldStop) return complex ?: this
+            // √(ln ½) = i·√(ln 2): a negative number that is no plain one, to a fraction, is (−b)^r·(−1)^r
+            if (cBase !is Value && cBase.variables().isEmpty() && !cBase.containsImaginaryUnit() && cBase.partWithUnit() == null &&
+                (cExp as? Value)?.rational?.isFractional == true && cBase.evaluateNumerically() < 0.0
+            ) {
+                // −ln(½) is ln(2)
+                val logarithm = cBase as? Logarithm
+                val operand = (logarithm?.operand as? Value)?.rational
+                val positive = if (logarithm != null && operand != null && !operand.isZero && !operand.isNegative) {
+                    Logarithm(logarithm.base, Value(Rational.ONE / operand))
+                } else {
+                    Multiplications.of(Value.MINUS_ONE, cBase)
+                }.canonicalize(context)
+                if (context.shouldStop) return this
+                val r = cExp.rational!!
+                // An odd root is the real one, as for (−8)^(1/3) = −2: (−1)^p·b^(p/q)
+                if (!r.denominator.isEven) {
+                    val sign = if (r.numerator.isOdd) Value.MINUS_ONE else Value.ONE
+                    return Multiplications.of(sign, Power(positive, cExp)).canonicalize(context)
+                }
+                return Multiplications.of(Power(positive, cExp), Power(Value.MINUS_ONE, cExp)).canonicalize(context)
+            }
+        } else if (cBase !is Value && cBase.variables().isEmpty() && !cBase.containsImaginaryUnit() && cBase.partWithUnit() == null &&
+            (cExp as? Value)?.rational?.let { it.isFractional && it.denominator.isEven } == true && cBase.evaluateNumerically() < 0.0
+        ) {
+            // √(ln(1/2)) is the root of a negative number as much as √(−1) is
+            context.stopWithError(MathIssue.NEGATIVE_ROOT)
+            return this
         }
+
+        // e^(ln 5) = 5 and e^(2·ln 3) = 3²: the base of the logarithm raised to it (for a number, where that is defined)
+        powerOfLogarithm(cBase, cExp)?.let { return it.canonicalize(context) }
 
         if (cBase is Value && cExp is Value) {
             return canonicalizeValues(cBase, cExp, context)
@@ -97,6 +140,20 @@ class Power(
         }
 
         return Power(cBase, cExp)
+    }
+
+    /**
+     * b^(c·log_b(a)) = a^c for a number a > 0 and numbers c, e.g. e^(ln 5) = 5; null for anything else. With letters it stays as
+     * it is: e^(ln x) is x only for x > 0.
+     */
+    private fun powerOfLogarithm(base: Expression, exponent: Expression): Expression? {
+        val factors = if (exponent is Multiplications) exponent.operands else listOf(exponent)
+        val logarithm = factors.singleOrNull { it is Logarithm } as? Logarithm ?: return null
+        if (logarithm.base != base || logarithm.operand.variables().isNotEmpty() || logarithm.operand.containsImaginaryUnit()) return null
+        if (!(logarithm.operand.evaluateNumerically() > 0.0)) return null
+        val rest = factors.filter { it !== logarithm }
+        if (rest.any { it.variables().isNotEmpty() }) return null
+        return if (rest.isEmpty()) logarithm.operand else Power(logarithm.operand, Multiplications(rest))
     }
 
     private fun canonicalizeValues(baseVal: Value, expVal: Value, context: MathContext): Expression {
@@ -211,15 +268,18 @@ class Power(
 
         if (!expIsComplex) {
             val n = integerValue(exp)
-            if (base === ImaginaryUnit && n != null) {
-                return when (n.mod(4L)) {
-                    0L -> Value.ONE
-                    1L -> ImaginaryUnit
-                    2L -> Value.MINUS_ONE
+            val parts = complexParts(base)
+            // iⁿ and (−i)ⁿ go round in 4 steps, for any whole n: i^(10²⁰) is 1 (by numbers it was −0.98 + 0.20i)
+            val whole = (exp as? Value)?.rational?.takeIf { !it.isFractional }?.numerator?.value
+            if (whole != null && parts != null && parts.first.isZero && (parts.second == Value.ONE || parts.second == Value.MINUS_ONE)) {
+                val step = whole.mod(java.math.BigInteger.valueOf(4L)).toInt()
+                return when (if (parts.second == Value.ONE) step else (4 - step) % 4) {
+                    0 -> Value.ONE
+                    1 -> ImaginaryUnit
+                    2 -> Value.MINUS_ONE
                     else -> Multiplications(listOf(Value.MINUS_ONE, ImaginaryUnit))
                 }
             }
-            val parts = complexParts(base)
             if (n != null && parts != null && abs(n) <= MAX_EXACT_COMPLEX_POWER) {
                 return exactComplexPower(parts, n, context)
             }

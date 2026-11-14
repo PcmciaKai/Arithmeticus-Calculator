@@ -11,6 +11,7 @@ import com.vortessence.arithmeticus.core.math.expressions.Variable
 import com.vortessence.arithmeticus.core.math.expressions.expandProducts
 import com.vortessence.arithmeticus.core.math.numbers.BigInt
 import com.vortessence.arithmeticus.core.math.numbers.Rational
+import com.vortessence.arithmeticus.core.math.numbers.floorSqrt
 import kotlin.math.abs
 import kotlin.math.max
 
@@ -111,7 +112,7 @@ internal object QuadraticSystems {
     fun exactRoot(r: Rational): Rational? {
         if (r.isNegative) return null
         fun root(n: BigInt): BigInt? {
-            val s = n.value.sqrt()
+            val s = n.value.floorSqrt()
             return if (s.multiply(s) == n.value) BigInt(s) else null
         }
         val top = root(r.numerator) ?: return null

@@ -24,6 +24,7 @@ import com.vortessence.arithmeticus.core.math.expressions.Power
 import com.vortessence.arithmeticus.core.math.expressions.UnitExpression
 import com.vortessence.arithmeticus.core.math.expressions.Value
 import com.vortessence.arithmeticus.core.math.expressions.Variable
+import com.vortessence.arithmeticus.core.math.expressions.substituteVariables
 import com.vortessence.arithmeticus.core.math.expressions.containsImaginaryUnit
 import com.vortessence.arithmeticus.core.math.expressions.expandProducts
 import com.vortessence.arithmeticus.core.math.numbers.Rational
@@ -58,6 +59,18 @@ internal object EquationSteps {
         ) return null
         val scratch = context.copy()
         val solutions = equation.solveForVariable(v, scratch).toList()
+        // ln(x) = 1000: beyond the numbers the search tries, solved exactly (as the calculator does, see Isolation)
+        if (scratch.issues == listOf(MathIssue.NO_REAL_SOLUTION)) {
+            Isolation.solve(equation, v, context)?.takeIf { it.solutions.isNotEmpty() }?.let { isolated ->
+                val k = isolated.period ?: return algebraic(equation, v, isolated.solutions, context)
+                // tan(x) = 10¹⁰: the steps end in the family, and are checked against some of its members, as against the solutions
+                // the search finds for tan(x) = 5
+                val members = (-1..1).flatMap { n ->
+                    isolated.solutions.map { Value(it.evaluateNumerically(mapOf(k to n.toDouble()))) }
+                }
+                return algebraic(equation, v, members, context)
+            }
+        }
         // x² = −4 and x + 1 = x: the steps show why there is no solution (the calculator stopped with that issue)
         val noSolution = when (scratch.issues.singleOrNull()) {
             MathIssue.NO_REAL_SOLUTION -> NO_REAL_SOLUTION
@@ -83,6 +96,332 @@ internal object EquationSteps {
         val last = result.equations.lastOrNull() as? TextExpression ?: return null
         return result.takeIf { last.text.endsWith("∈ ℤ") }
     }
+
+    /**
+     * The general solution of a product that is 0, where a factor repeats: x·sin(x) = 0 is x = πk, (x − 1)·sin(x) = 0 is x = 1,
+     * x = πk. Each factor is solved on its own, a trigonometric one as a family ([periodicSolutions]), the others for their few
+     * solutions; a solution that is one of a family (x = 0 of x = πk) is not written again, nor is a family where the product
+     * is not defined (cos(x) = 0 in tan(x)·cos(x) = 0). Null if the equation is no such product, a factor divides, or a
+     * trigonometric factor has no family.
+     */
+    /**
+     * The factors with x of a product that is 0 with a trigonometric factor among them, each once (x²·sin(x) = 0: x, sin(x)); null
+     * for other equations, or where a factor divides.
+     */
+    private fun zeroFactors(equation: Equals, v: Variable): Pair<Expression, List<Expression>>? {
+        if (equation.variables() != setOf(v)) return null
+        val product = when {
+            equation.right.isZero -> equation.left
+            equation.left.isZero -> equation.right
+            else -> return null
+        }
+        fun factorsOf(e: Expression): List<Expression> = if (e is Multiplications) e.operands.flatMap { factorsOf(it) } else listOf(e)
+        if (product !is Multiplications) return null
+        val parts = factorsOf(product).filter { it.containsVariable(v) }.map { factor ->
+            if (factor !is Power) return@map factor
+            // A factor that divides has no zeros of the product, but its zeros are none of it either: left to the search
+            val exponent = factor.exponent as? Value ?: return null
+            if (exponent.isNegative || exponent.isZero || factor.exponent.containsVariable(v)) return null
+            factor.base
+        }
+        if (parts.size < 2 || parts.none { p -> p.containsExpressionMatching { it is TrigonometricFunction && it.operand.containsVariable(v) } }) return null
+        return product to parts
+    }
+
+    /**
+     * The steps of [productPeriodicSolutions]: a product is 0 where a factor is (x·sin(x) = 0 ⇔ x = 0 or sin(x) = 0), then
+     * each factor solved, then the solutions together. Null where there is no such result, or a factor has no steps.
+     */
+    fun productSteps(equation: Equals, v: Variable, context: MathContext): ExpressionSolution? {
+        val result = productPeriodicSolutions(equation, v, context)?.let { withoutContainedFamilies(it, equation, v) } ?: return null
+        val (_, parts) = zeroFactors(equation, v) ?: return null
+        val factorEquations = parts.distinctBy { writtenForm(it) }.map { Equals(it, Value.ZERO) }
+        val steps = mutableListOf(ExpressionStep(equation, null), ExpressionStep(Alternatives(factorEquations), StepRule.ZERO_PRODUCT))
+        for (factorEquation in factorEquations) {
+            // x = 0 is solved as it stands
+            if (factorEquation.left == v) continue
+            val solved = steps(factorEquation, v, context.copy()) ?: return null
+            steps.addAll(solved.steps)
+        }
+        // (Not again where the last factor's steps end in it already: x·sin(x) = 0 is x = πk)
+        if (writtenForm(unmarked(steps.last().expression)) != writtenForm(result)) {
+            // Where the product is defined only from some k on (ln(x)·sin(x) = 0: x = πk, k ≥ 1), a note says so for each family
+            val text = ((result as? Alternatives)?.equations?.lastOrNull() as? TextExpression)?.text.orEmpty()
+            val bound = text.substringAfter(", ", "")
+            val k = text.substringBefore(" ∈").trim()
+            val notes = if (bound.isEmpty()) emptyList() else (result as Alternatives).equations.filterIsInstance<Equals>()
+                .filter { it.right.containsVariable(Variable(k)) }
+                .map { Note(TextExpression("${v.identifier} = ${writtenForm(it.right)}"), TextExpression(bound), relation = ":") }
+            // (Tried in the equation, which is what shows the bound: "Check the solutions in the original equation")
+            steps.add(ExpressionStep(result, if (notes.isEmpty()) StepRule.COLLECT_SOLUTION else StepRule.CHECK_SOLUTIONS, notes = notes))
+        }
+        return ExpressionSolution(steps, result)
+    }
+
+    /**
+     * The steps of [innerPowerPeriodicSolutions]: u for the inside (sin(u) = 0 with u = x²), its family (u = πk), x² put back, and
+     * the root taken where what is under it is not negative (k ≥ 0). Null where there is no such result, or no steps for u.
+     */
+    fun innerPowerSteps(equation: Equals, v: Variable, context: MathContext): ExpressionSolution? {
+        val result = innerPowerPeriodicSolutions(equation, v, context) as? Alternatives ?: return null
+        val insides = mutableSetOf<Expression>()
+        fun scan(e: Expression) {
+            if (e is TrigonometricFunction && e.operand.containsVariable(v)) insides.add(e.operand) else e.children.forEach { scan(it) }
+        }
+        scan(equation)
+        val u = insides.singleOrNull() ?: return null
+        val t = listOf("u", "t", "w").map { Variable(it) }.firstOrNull { it !in equation.variables() } ?: return null
+        val inT = equation.transform { if (it == u) t else it } as? Equals ?: return null
+        val solvedForT = steps(inT, t, context.copy()) ?: return null
+        val families = solvedForT.result as? Alternatives ?: return null
+        val text = families.equations.lastOrNull() as? TextExpression ?: return null
+        val backSubstituted = Alternatives(families.equations.dropLast(1).map { Equals(u, (it as? Equals)?.right ?: return null) } + text, inline = true)
+        val bound = (result.equations.last() as TextExpression).text.substringAfter(", ", "")
+        val boundNote = bound.split(' ').takeIf { it.size == 3 }?.let { (k, relation, edge) ->
+            Note(Variable(k), Value(edge.replace('−', '-').toLong()), relation = relation)
+        }
+        val degree = (com.vortessence.arithmeticus.core.math.expressions.PartialFractions.polynomial(u, v, context.copy())?.size ?: return null) - 1
+        val steps = mutableListOf(ExpressionStep(equation, null), ExpressionStep(inT, StepRule.SUBSTITUTE_POWER, notes = listOf(Note(t, u))))
+        steps.addAll(solvedForT.steps.drop(1))
+        steps.add(ExpressionStep(backSubstituted, StepRule.BACK_SUBSTITUTE_POWER, notes = listOf(Note(t, u))))
+        steps.add(ExpressionStep(result, if (degree == 2) StepRule.SQUARE_ROOT_BOTH_SIDES else StepRule.NTH_ROOT_BOTH_SIDES, notes = listOfNotNull(boundNote)))
+        return ExpressionSolution(steps, result)
+    }
+
+    fun productPeriodicSolutions(equation: Equals, v: Variable, context: MathContext): Expression? {
+        if (context.mode != com.vortessence.arithmeticus.core.math.context.CalculationMode.EXACT || context.complexNumbers) return null
+        val (product, parts) = zeroFactors(equation, v) ?: return null
+
+        /**
+         * Whether the whole product is 0 at [x]: a solution of one factor may be where another is not defined (tan(x) at π/2,
+         * which in numbers is no infinity but a very large number, so its product with cos(x) is no 0).
+         */
+        fun defined(x: Double) = x.isFinite() && abs(product.evaluateNumerically(mapOf(v to x))) <= 1e-9 * maxOf(1.0, abs(x))
+
+        val families = mutableListOf<Equals>()
+        var k: String? = null
+        val points = mutableListOf<Expression>()
+        // The same bound on k for every family, or none: one "k ≥ 1" is written for all
+        val reaches = mutableListOf<Reach>()
+        val difference = Additions(equation.left, Multiplications.of(Value.MINUS_ONE, equation.right))
+        for (part in parts) {
+            if (context.shouldStop) return null
+            val factorEquation = Equals(part, Value.ZERO)
+            if (part.containsExpressionMatching { it is TrigonometricFunction && it.operand.containsVariable(v) }) {
+                val periodic = periodicSolutions(factorEquation, v, context) as? Alternatives ?: return null
+                val text = (periodic.equations.last() as TextExpression).text
+                if ("," in text) return null
+                val letter = text.substringBefore(" ∈").trim()
+                if (k != null && k != letter) return null
+                k = letter
+                for (family in periodic.equations.dropLast(1)) {
+                    val equals = family as? Equals ?: return null
+                    // A family where the product is defined throughout or from some k on; one where it is nowhere is left out
+                    when (val reach = familyReach(equals.right, Variable(letter), v, difference) ?: return null) {
+                        Reach.None -> {}
+                        // A few members only: single solutions (x = 0 of sin(x)·√(1 − x²) = 0)
+                        is Reach.Finite -> reach.ks.forEach { i ->
+                            points.add(equals.right.substituteVariables(mapOf(Variable(letter) to Value(i))).canonicalize(context.copy()))
+                        }
+                        else -> {
+                            families.add(equals)
+                            reaches.add(reach)
+                        }
+                    }
+                }
+            } else {
+                val scratch = context.copy()
+                val found = factorEquation.solveForVariable(v, scratch)
+                if (scratch.issues.any { it != MathIssue.NO_REAL_SOLUTION && it != MathIssue.CONTRADICTION } || found.contains(v) || scratch.moreSolutions) return null
+                if (scratch.issues.isEmpty()) points.addAll(found)
+            }
+        }
+        val letter = k ?: return null
+        if (families.isEmpty()) {
+            // No family left, only single solutions: all of them
+            val all = points.filter { defined(it.evaluateNumerically()) }.distinctBy { it.evaluateNumerically() }.sortedBy { it.evaluateNumerically() }
+            return if (all.isEmpty()) null else Alternatives(all.map { Equals(v, it) }, inline = true)
+        }
+        val bounds = reaches.map { (it as? Reach.Bounded)?.text }.distinct()
+        if (bounds.size > 1) return null
+        val bound = reaches.first() as? Reach.Bounded
+        val affine = affineForms(families, Variable(letter)) ?: return null
+        val single = points.filter { point ->
+            val x = point.evaluateNumerically()
+            if (!defined(x)) return@filter false
+            affine.none { (a, b) -> isWhole((x - a) / b) && bound?.contains(Math.rint((x - a) / b).toLong()) != false }
+        }.distinctBy { it.evaluateNumerically() }.sortedBy { it.evaluateNumerically() }
+        // (With a bound, x = 2πk and x = π + 2πk are no longer x = πk: they start at different points)
+        val kept = if (bound == null) withoutContained(families, affine) else families
+        val text = "$letter ∈ ℤ" + (bound?.let { ", ${it.text}" } ?: "")
+        return Alternatives(single.map { Equals(v, it) } + kept + TextExpression(text), inline = true)
+    }
+
+    /**
+     * The general solution of a trigonometric equation in a power of x, sin(x²) = 0: solved for the inside u = p·xⁿ + q as a family
+     * (u = πk), then xⁿ = (u − q)/p. For an even n there is a root only where that is not negative, which keeps k on one side:
+     * x = √(πk), x = −√(πk), k ∈ ℤ, k ≥ 0. Null for other equations, or where the families would need different bounds on k.
+     */
+    fun innerPowerPeriodicSolutions(equation: Equals, v: Variable, context: MathContext): Expression? {
+        if (context.mode != com.vortessence.arithmeticus.core.math.context.CalculationMode.EXACT || context.complexNumbers) return null
+        val insides = mutableSetOf<Expression>()
+        fun scan(e: Expression) {
+            if (e is TrigonometricFunction && e.operand.containsVariable(v)) insides.add(e.operand) else e.children.forEach { scan(it) }
+        }
+        scan(equation)
+        val u = insides.singleOrNull() ?: return null
+        val coefficients = com.vortessence.arithmeticus.core.math.expressions.PartialFractions.polynomial(u, v, context.copy()) ?: return null
+        val n = coefficients.size - 1
+        if (n < 2 || (1 until n).any { !coefficients[it].isZero }) return null
+        val p = coefficients[n]
+        val q = coefficients[0]
+        // The equation in t = u: no x left outside the trigonometric functions
+        val t = listOf("t", "u", "w").map { Variable(it) }.firstOrNull { it !in equation.variables() } ?: return null
+        val inT = equation.transform { if (it == u) t else it } as? Equals ?: return null
+        if (inT.containsVariable(v)) return null
+        val families = periodicSolutions(inT, t, context) as? Alternatives ?: return null
+        val letter = (families.equations.last() as TextExpression).text.substringBefore(" ∈").trim()
+        val k = Variable(letter)
+        val scratch = context.copy()
+        var bound: String? = null
+        val solutions = mutableListOf<Expression>()
+        for (family in families.equations.dropLast(1)) {
+            val inside = (family as? Equals)?.right ?: return null
+            // xⁿ = (u − q)/p
+            val power = Multiplications.of(Additions(inside, Value(-q)), Value(Rational.ONE / p)).canonicalize(scratch)
+            if (scratch.shouldStop) return null
+            val root = Power(power, Value(Rational.of(1L, n.toLong())))
+            if (n % 2 == 1) {
+                solutions.add(root)
+                continue
+            }
+            // a + b·k ≥ 0
+            val a = power.evaluateNumerically(mapOf(k to 0.0))
+            val b = power.evaluateNumerically(mapOf(k to 1.0)) - a
+            if (!a.isFinite() || !b.isFinite() || abs(b) < 1e-12) return null
+            val limit = -a / b
+            val nearest = Math.rint(limit)
+            val edge = if (abs(limit - nearest) < 1e-9) nearest.toLong() else if (b > 0) kotlin.math.ceil(limit).toLong() else kotlin.math.floor(limit).toLong()
+            val written = if (edge < 0) "−${-edge}" else "$edge"
+            val condition = if (b > 0) "$letter ≥ $written" else "$letter ≤ $written"
+            if (bound != null && bound != condition) return null
+            bound = condition
+            solutions.add(root)
+            solutions.add(Multiplications.of(Value.MINUS_ONE, root))
+        }
+        // Each solution, for some k where it is defined, solves the equation
+        val firstK = bound?.substringAfterLast(' ')?.replace('−', '-')?.toLongOrNull() ?: 0L
+        val step = if (bound?.contains('≤') == true) -1L else 1L
+        val difference = Additions(equation.left, Multiplications.of(Value.MINUS_ONE, equation.right))
+        for (solution in solutions) for (i in 0L..3L) {
+            val x = solution.evaluateNumerically(mapOf(k to (firstK + step * i).toDouble()))
+            if (!x.isFinite() || abs(difference.evaluateNumerically(mapOf(v to x))) > 1e-8 * maxOf(1.0, abs(x))) return null
+        }
+        val text = "$letter ∈ ℤ" + (bound?.let { ", $it" } ?: "")
+        return Alternatives(solutions.map { Equals(v, it) } + TextExpression(text), inline = true)
+    }
+
+    /**
+     * [result], a general solution "x = 2πk, x = πk, …, k ∈ ℤ", without the families that are all in another: x = 2πk and
+     * x = π + 2πk are both in x = πk. [result] itself where none is.
+     */
+    fun withoutContainedFamilies(result: Expression, equation: Equals, v: Variable): Expression? {
+        val alternatives = result as? Alternatives ?: return result
+        val text = alternatives.equations.lastOrNull() as? TextExpression ?: return result
+        // Families with a bound on k (x = √(πk), k ≥ 0) are no a + b·k, and were checked where they were made
+        if ("," in text.text) return result
+        val all = alternatives.equations.dropLast(1).map { it as? Equals ?: return result }
+        val k = Variable(text.text.substringBefore(" ∈").trim())
+        // The single solutions (no k) stay as they are
+        val (families, single) = all.partition { it.right.containsVariable(k) }
+        // A family whose members do not solve the equation (cos(x) = 0 of tan(x)·cos(x) = 0, where tan(x) is not defined) is
+        // none; one that partly does is not understood, and the solutions found are shown instead
+        val diff = Additions(equation.left, Multiplications.of(Value.MINUS_ONE, equation.right))
+        val solving = families.filter { family ->
+            val hits = (0..3).count { i ->
+                val x = family.right.evaluateNumerically(mapOf(k to i.toDouble()))
+                x.isFinite() && abs(diff.evaluateNumerically(mapOf(v to x))) <= 1e-9 * maxOf(1.0, abs(x))
+            }
+            when (hits) {
+                4 -> true
+                0 -> false
+                else -> return null
+            }
+        }
+        if (solving.isEmpty()) return null
+        val affine = affineForms(solving, k) ?: return result
+        val kept = withoutContained(solving, affine)
+        if (kept.size == families.size) return result
+        return Alternatives(single + kept + text, inline = true)
+    }
+
+    /** Where a family x = … + …k solves an equation: for every whole k, for none, or from (up to) some k on, "k ≥ 1". */
+    internal sealed class Reach {
+        object All : Reach()
+        object None : Reach()
+        /** For these few k only: sin(x)·√(1 − x²) = 0 has x = πk for k = 0. */
+        class Finite(val ks: List<Long>) : Reach()
+        class Bounded(val k: Variable, val atLeast: Boolean, val edge: Long) : Reach() {
+            val text: String get() = "${k.identifier} ${if (atLeast) "≥" else "≤"} ${if (edge < 0) "−${-edge}" else "$edge"}"
+            fun contains(i: Long) = if (atLeast) i >= edge else i <= edge
+        }
+    }
+
+    /**
+     * Where x = [family] solves [difference] = 0 (the equation as left − right, angles in its unit), tried for k from −20 to 20:
+     * ln(x)·sin(x) = 0 has x = πk for k ≥ 1 (ln is not defined at 0 and below), tan(x)·cos(x) = 0 has x = π/2 + 2πk for no k.
+     * Null where it solves it for some k in between others (not understood).
+     */
+    internal fun familyReach(family: Expression, k: Variable, v: Variable, difference: Expression): Reach? {
+        val range = -FAMILY_CHECK..FAMILY_CHECK
+        fun d(x: Double) = difference.evaluateNumerically(mapOf(v to x))
+        fun solvesAt(i: Long): Boolean {
+            val x = family.evaluateNumerically(mapOf(k to i.toDouble()))
+            if (!x.isFinite() || !d(x).isFinite()) return false
+            // About 0, or changing sign right around x: tan(x) − 10¹⁰ near its pole is far from 0 in doubles, but changes sign
+            // (A few units in the last place: more would step past the pole the root sits next to)
+            val delta = 8 * Math.ulp(maxOf(1.0, abs(x)))
+            return abs(d(x)) <= 1e-9 * maxOf(1.0, abs(x)) || d(x - delta) * d(x + delta) < 0
+        }
+        val solves = range.filter { solvesAt(it) }
+        // Beyond the range too, where it goes on: √(10000 − x²) stops at x = 100
+        fun onAndOn(direction: Long) = FAR_K.all { solvesAt(direction * it) }
+        fun nowhereFar(direction: Long) = FAR_K.none { solvesAt(direction * it) }
+        return when {
+            solves.size == range.count() -> Reach.All.takeIf { onAndOn(1) && onAndOn(-1) }
+            solves.isEmpty() -> Reach.None.takeIf { nowhereFar(1) && nowhereFar(-1) }
+            solves.first() > range.first && solves.last() < range.last -> Reach.Finite(solves).takeIf { nowhereFar(1) && nowhereFar(-1) }
+            solves == (solves.first()..range.last).toList() -> Reach.Bounded(k, true, solves.first()).takeIf { onAndOn(1) && nowhereFar(-1) }
+            solves == (range.first..solves.last()).toList() -> Reach.Bounded(k, false, solves.last()).takeIf { onAndOn(-1) && nowhereFar(1) }
+            else -> null
+        }
+    }
+
+    private const val FAMILY_CHECK = 20L
+    private val FAR_K = listOf(100L, 1000L, 10000L)
+
+    /** x = a + b·k of each family, as the pair (a, b); null if one is not of that form. */
+    private fun affineForms(families: List<Equals>, k: Variable): List<Pair<Double, Double>>? = families.map { family ->
+        val at0 = family.right.evaluateNumerically(mapOf(k to 0.0))
+        val at1 = family.right.evaluateNumerically(mapOf(k to 1.0))
+        val at2 = family.right.evaluateNumerically(mapOf(k to 2.0))
+        if (!at0.isFinite() || !at1.isFinite() || abs(at1 - at0) < 1e-12 || abs(at2 - 2 * at1 + at0) > 1e-9 * maxOf(1.0, abs(at2))) return null
+        at0 to (at1 - at0)
+    }
+
+    private fun isWhole(r: Double) = abs(r - Math.rint(r)) < 1e-9
+
+    /** The [families] that are not all in another one (x = πk in x = πk/2); of two that are the same, the first. */
+    private fun withoutContained(families: List<Equals>, affine: List<Pair<Double, Double>>): List<Equals> = families.indices.filter { i ->
+        val (a, b) = affine[i]
+        families.indices.none { j ->
+            if (j == i) return@none false
+            val (c, d) = affine[j]
+            val inJ = isWhole(b / d) && isWhole((a - c) / d)
+            val jInI = isWhole(d / b) && isWhole((c - a) / b)
+            inJ && (!jInI || j < i)
+        }
+    }.map { families[it] }
 
     /**
      * The exact form of the decimal [solutions] the calculator found numerically, e.g. ln(5) for 1.609…, from the
@@ -159,7 +498,10 @@ internal object EquationSteps {
             return solution.finish(TextExpression(TRUE))
         }
 
-        period?.let { return periodicResult(solution, v, it, solutions, context.angleUnit) }
+        period?.let { k ->
+            val withUnits = withAngleUnits(equation, context.angleUnit) as? Equals ?: return null
+            return periodicResult(solution, withUnits, v, k, solutions, context.angleUnit)
+        }
 
         // Each branch x = value is one of the calculated solutions; it ends written as that one
         var branches = alternativesOf(unmarked(solution.current))
@@ -221,6 +563,8 @@ internal object EquationSteps {
         val hasLogarithm = equation.containsExpressionMatching { it is Logarithm && it.operand.containsVariable(v) }
         if (!hasRoot && !hasAbsolute && !hasDenominator && !hasLogarithm) return null
 
+        // A value too large to try (e^1000) cannot be checked by trying it: it would only look like one that is not defined
+        if (branches.any { !unmarked(it.right).evaluateNumerically().isFinite() }) return null
         class Candidate(val branch: Equals, val ok: Boolean, val note: Note)
         val candidates = branches.map { branch ->
             val value = unmarked(branch.right)
@@ -337,9 +681,35 @@ internal object EquationSteps {
         return families.sortedBy { it.first }.map { it.second }
     }
 
-    private fun periodicResult(solution: Solver, v: Variable, k: Variable, calculated: List<Expression>, unit: AngleUnit): ExpressionSolution? {
-        val branches = alternativesOf(unmarked(solution.current)).filter { it !is TextExpression }.map { it as? Equals ?: return null }
-        if (branches.isEmpty()) return null
+    private fun periodicResult(
+        solution: Solver, equation: Equals, v: Variable, k: Variable, calculated: List<Expression>, unit: AngleUnit
+    ): ExpressionSolution? {
+        val all = alternativesOf(unmarked(solution.current)).filter { it !is TextExpression }.map { it as? Equals ?: return null }
+        if (all.isEmpty()) return null
+        // A family where the equation is not defined (x = π/2 + 2πk of tan(x)·cos(x) = 0) is crossed out; one where it is from some
+        // k on (x = πk of ln(x)·sin(x) = 0) gets that bound
+        val difference = Additions(equation.left, Multiplications.of(Value.MINUS_ONE, equation.right))
+        val reaches = all.map { familyReach(unmarked(it.right), k, v, difference) ?: return null }
+        if (reaches.any { it is Reach.Finite }) return null
+        val bounds = all.indices.filter { all[it].right.containsVariable(k) && reaches[it] != Reach.None }.map { (reaches[it] as? Reach.Bounded)?.text }.distinct()
+        if (bounds.size != 1) return null
+        val bound = bounds.single()
+        val branches = all.filterIndexed { i, _ -> reaches[i] != Reach.None }
+        if (branches.size < all.size || bound != null) {
+            val paths = pathsOf(solution.current) { it is Equals }
+            if (paths.size != all.size) return null
+            val crossedOut = all.indices.filter { reaches[it] == Reach.None }.associate { i ->
+                paths[i] to TextExpression(Texts.format(Text.NOT_A_SOLUTION, "${v.identifier} = ${writtenForm(unmarked(all[i].right))}"))
+            }
+            val notes = all.indices.mapNotNull { i ->
+                when (val reach = reaches[i]) {
+                    Reach.None -> Note(TextExpression("${v.identifier} = ${writtenForm(unmarked(all[i].right))}"), TextExpression(Texts.get(Text.NOT_DEFINED)), relation = ":")
+                    is Reach.Bounded -> Note(TextExpression("${v.identifier} = ${writtenForm(unmarked(all[i].right))}"), TextExpression(reach.text), relation = ":")
+                    else -> null
+                }
+            }
+            solution.apply(Match(StepRule.CHECK_SOLUTIONS, crossedOut, solution.current, solution.current, notes = notes, showChange = false))
+        }
         val affine = branches.map { branch ->
             val at0 = branch.right.evaluateNumerically(mapOf(k to 0.0))
             val at1 = branch.right.evaluateNumerically(mapOf(k to 1.0))
@@ -354,10 +724,13 @@ internal object EquationSteps {
             }
             if (!found) return null
         }
-        val values = mergedFamilies(k, branches, affine, unit)
+        // (Families with a bound start at different points, so they are not merged into one)
+        val values = (if (bound == null) mergedFamilies(k, branches, affine, unit) else null)
             ?: branches.map { normalize(unmarked(it.right)) }.distinctBy { writtenForm(it) }
-        val equations = values.map { Equals(v, it) }
-        val result = Alternatives(equations + TextExpression("${k.identifier} ∈ ℤ"), inline = true)
+        // Without the families that are all in another (x = 2πk and x = π + 2πk in x = πk), as the calculator writes it
+        val written = values.map { Equals(v, it) }
+        val equations = if (bound == null) affineForms(written, k)?.let { withoutContained(written, it) } ?: written else written
+        val result = Alternatives(equations + TextExpression("${k.identifier} ∈ ℤ" + (bound?.let { ", $it" } ?: "")), inline = true)
         // The last line, which is framed as the result, says what k is
         solution.apply(Match(StepRule.COLLECT_SOLUTION, mapOf(emptyList<Int>() to result), solution.current, result, showChange = false, boxReplacements = false))
         return solution.finish(result)
@@ -409,6 +782,13 @@ internal object EquationSteps {
             return unmarked(a).canonicalize(scratch) == b.canonicalize(scratch)
         }
         val others = (a.variables() + b.variables() - v).toList()
+        // e¹⁰⁰⁰ is ∞ as a double: such numbers are compared with all their digits, also where only one of them is beyond
+        // (∛(10⁴⁰⁰) on the way, 10¹³³·∛10 as the solution)
+        if (others.isEmpty() && (!unmarked(a).evaluateNumerically().isFinite() || !b.evaluateNumerically().isFinite())) {
+            val x = com.vortessence.arithmeticus.core.math.expressions.HighPrecision.decimal(unmarked(a)) ?: return false
+            val y = com.vortessence.arithmeticus.core.math.expressions.HighPrecision.decimal(b) ?: return false
+            return x.subtract(y).abs() <= y.abs().movePointLeft(15)
+        }
         var compared = 0
         // Irregular values of both signs, so that a root of an expression with letters is real at some
         for (sample in 1..10) {

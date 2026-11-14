@@ -12,7 +12,17 @@ class Additions(val operands: List<Expression>) : Expression() {
 
     override fun canonicalize(context: MathContext): Expression {
         val flattened = mutableListOf<Expression>()
-        for (op in operands) {
+        // A sum in the sum is taken apart before its terms are worked out: they belong with the others (20 °C + 30 °C − 10 °C is one
+        // temperature, though 20 °C + 30 °C alone is none). With temperatures as points, so is a sum after a minus:
+        // 60 °C − (20 °C + 30 °C) + 40 °C is a difference.
+        fun terms(e: Expression): List<Expression> = when {
+            e is Additions -> e.operands.flatMap { terms(it) }
+            context.physicalTemperatures -> negatedTemperatureSum(e, context)?.let { sum ->
+                terms(sum).map { Multiplications.of(Value.MINUS_ONE, it) }
+            } ?: listOf(e)
+            else -> listOf(e)
+        }
+        for (op in operands.flatMap { terms(it) }) {
             val cOp = op.canonicalize(context)
             if (context.shouldStop) return this
             if (cOp is Additions) {

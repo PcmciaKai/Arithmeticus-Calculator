@@ -212,6 +212,20 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
         arithmetic(args, context)?.let { return it }
         if (args.any { it.variables().isNotEmpty() }) return NamedFunction(kind, args)
 
+        // The mean of temperatures as points on their scale is one as well (their weights add up to 1): worked out in kelvin,
+        // where adding them is allowed, and given on the scale of the first
+        if (context.physicalTemperatures && (kind == NamedFunctionKind.MEAN || kind == NamedFunctionKind.MEDIAN)) {
+            args.firstNotNullOfOrNull { it.shiftedTemperatureUnit() }?.let { scale ->
+                val kelvin = context.copy().also { it.physicalTemperatures = false }
+                val value = NamedFunction(kind, args).canonicalize(kelvin)
+                if (kelvin.shouldStop) {
+                    kelvin.issues.forEach { context.stopWithError(it) }
+                    return this
+                }
+                return value.convertToUnit(scale, includeUnitInResult = true, context = context) ?: this
+            }
+        }
+
         val n = args.size.toLong()
         return when (kind) {
             NamedFunctionKind.MEAN -> mean(args)
@@ -294,8 +308,10 @@ class NamedFunction(val kind: NamedFunctionKind, val arguments: List<Expression>
         if (args.any { it.containsUnit() }) return fail(context, MathIssue.INVALID_UNIT)
         val body = args[0]
         if (kind == NamedFunctionKind.EXPAND) {
-            val expanded = expandProducts(body).canonicalize(context)
-            return if (context.shouldStop) this else expanded
+            val expanded = expandExplicitly(body, context)
+            if (context.shouldStop) return this
+            // Too many terms to be of use: (x + y + z + w)⁶⁰
+            return expanded ?: fail(context, MathIssue.VALUES_TOO_LARGE)
         }
         if (body.variables().isEmpty()) return body
         if (partialFractions(body, context) == null) return fail(context, MathIssue.CANT_DECOMPOSE)

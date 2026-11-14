@@ -30,7 +30,7 @@ class MathClipboard(private val clipboard: ClipboardManager) {
     fun paste(): PasteContent? {
         val text = clipboard.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.text?.toString() ?: return null
         lastCopy?.let { (copiedText, math) -> if (copiedText == text) return PasteContent(text, math.copy()) }
-        return PasteContent(text, MathText.fromPlainText(text))
+        return PasteContent(text, MathText.fromPlainText(text, decimalComma = DecimalMark.comma))
     }
 
     /** Text from the clipboard and the math read from it ([math] is null if it could not be read). */

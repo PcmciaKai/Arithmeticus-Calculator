@@ -36,7 +36,8 @@ class MathParser {
 
     private fun parseInput(string: MathString): Expression {
         if (string.nodes.none { it is LineBreakNode }) return parseLine(string)
-        val parsed = string.lines().filter { it.isNotEmpty }.map { parseLine(it) }
+        // (A chain on a line, 2 < x < 5, is its conditions among the others)
+        val parsed = string.lines().filter { it.isNotEmpty }.flatMap { line -> parseLine(line).let { if (it is EquationSystem) it.lines else listOf(it) } }
         return when (parsed.size) {
             0 -> Value.ZERO
             1 -> parsed.single()
@@ -188,6 +189,16 @@ class MathParser {
                 is FunctionNode if NamedFunctionKind.byName(node.name) != null -> {
                     val arguments = splitArguments(node.argument).map { parseSlot(it) }
                     tokens.add(Token.ValueToken(NamedFunction(NamedFunctionKind.byName(node.name)!!, arguments)))
+                }
+                // log(8, 2) as typed on a keyboard (log( starts the function, the comma separates): log to the base 2, as pasted text reads it
+                is FunctionNode if node.name.lowercase() == "log" && node.argument.nodes.any { it is SeparatorNode } -> {
+                    val arguments = splitArguments(node.argument)
+                    if (arguments.size != 2) {
+                        syntaxError()
+                        tokens.add(Token.ValueToken(Value(0L)))
+                    } else {
+                        tokens.add(Token.ValueToken(Logarithm(parseSlot(arguments[1]), parseSlot(arguments[0]))))
+                    }
                 }
                 is FunctionNode -> {
                     val arg = parseSlot(node.argument)
@@ -440,13 +451,16 @@ class MathParser {
                     MathOp.MULTIPLY -> Multiplications.of(left, right)
                     MathOp.DIVIDE -> Multiplications.of(left, Power.of(right, Value.MINUS_ONE))
                     MathOp.EQUALS -> {
-                        if (left is Equals || right is Equals || left is Inequality || right is Inequality) syntaxError()
+                        if (left is Equals || right is Equals || left is Inequality || right is Inequality || left is EquationSystem || right is EquationSystem) syntaxError()
                         Equals(left, right)
                     }
                     MathOp.LESS, MathOp.GREATER, MathOp.LESS_EQUAL, MathOp.GREATER_EQUAL -> {
-                        // One relation per line: 1 < x < 3 is not an inequality of this kind
-                        if (left is Equals || right is Equals || left is Inequality || right is Inequality) syntaxError()
-                        Inequality(left, right, Relation.of(op)!!)
+                        // 2 < x < 5 is 2 < x and x < 5: two conditions, as if on two lines
+                        val chained = left as? EquationSystem ?: (left as? Inequality)?.let { EquationSystem(listOf(it)) }
+                        val middle = (chained?.lines?.lastOrNull() as? Inequality)?.right
+                        if (left is Equals || right is Equals || right is Inequality || right is EquationSystem || (chained != null && middle == null)) syntaxError()
+                        if (chained != null && middle != null) EquationSystem(chained.lines + Inequality(middle, right, Relation.of(op)!!))
+                        else Inequality(left, right, Relation.of(op)!!)
                     }
                     MathOp.FACTORIAL, MathOp.PERCENT -> left
                     MathOp.MODULO -> Modulo(left, right)
